@@ -35,6 +35,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     // avoid bug causing long build times of certain files.
     String buildType = 'Release' // debug ? 'Debug' : 'RelWithDebInfo'
     String parallelJobs = "export HIPCC_COMPILE_FLAGS_APPEND='-O3 -Wno-format-nonliteral -parallel-jobs=4'"
+    String buildThreads = '16' // if hipcc is used may be multiplied by parallel-jobs
 
     // comment
 
@@ -62,7 +63,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             pushd build
 
             export PATH=/opt/rocm/bin:\$PATH
-            cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
+            cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DTensile_CPU_THREADS=${buildThreads} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
             NPROC_BUILD=16
             if [ `nproc` -lt 16 ]
             then

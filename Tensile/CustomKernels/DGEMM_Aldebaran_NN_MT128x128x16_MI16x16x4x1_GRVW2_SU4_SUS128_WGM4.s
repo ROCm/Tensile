@@ -137,134 +137,114 @@ amdhsa.kernels:
         .value_kind:      global_buffer
         .value_type:      f64
         .address_space:   generic
-      - .name:            OffsetD
-        .size:            8
-        .offset:          56
-        .value_kind:      by_value
-        .value_type:      u64
-      - .name:            OffsetC
-        .size:            8
-        .offset:          64
-        .value_kind:      by_value
-        .value_type:      u64
-      - .name:            OffsetA
-        .size:            8
-        .offset:          72
-        .value_kind:      by_value
-        .value_type:      u64
-      - .name:            OffsetB
-        .size:            8
-        .offset:          80
-        .value_kind:      by_value
-        .value_type:      u64
       - .name:            alpha
         .size:            8
-        .offset:          88
+        .offset:          56
         .value_kind:      by_value
         .value_type:      f64
       - .name:            beta
         .size:            8
-        .offset:          96
+        .offset:          64
         .value_kind:      by_value
         .value_type:      f64
       - .name:            strideD0
         .size:            4
-        .offset:          104
+        .offset:          72
         .value_kind:      by_value
         .value_type:      u32
       - .name:            strideD1
         .size:            4
-        .offset:          108
+        .offset:          76
         .value_kind:      by_value
         .value_type:      u32
       - .name:            strideC0
         .size:            4
-        .offset:          112
+        .offset:          80
         .value_kind:      by_value
         .value_type:      u32
       - .name:            strideC1
         .size:            4
-        .offset:          116
+        .offset:          84
         .value_kind:      by_value
         .value_type:      u32
       - .name:            strideA0
         .size:            4
-        .offset:          120
+        .offset:          88
         .value_kind:      by_value
         .value_type:      u32
       - .name:            strideA1
         .size:            4
-        .offset:          124
+        .offset:          92
         .value_kind:      by_value
         .value_type:      u32
       - .name:            strideB0
         .size:            4
-        .offset:          128
+        .offset:          96
         .value_kind:      by_value
         .value_type:      u32
       - .name:            strideB1
         .size:            4
-        .offset:          132
+        .offset:          100
         .value_kind:      by_value
         .value_type:      u32
       - .name:            SizesFree0
         .size:            4
-        .offset:          136
+        .offset:          104
         .value_kind:      by_value
         .value_type:      u32
       - .name:            SizesFree1
         .size:            4
-        .offset:          140
+        .offset:          108
         .value_kind:      by_value
         .value_type:      u32
       - .name:            SizesFree2
         .size:            4
-        .offset:          144
+        .offset:          112
         .value_kind:      by_value
         .value_type:      u32
       - .name:            SizesSum0
         .size:            4
-        .offset:          148
+        .offset:          116
         .value_kind:      by_value
         .value_type:      u32
       - .name:            OrigStaggerUIter
         .size:            4
-        .offset:          152
+        .offset:          120
         .value_kind:      by_value
         .value_type:      i32
       - .name:            NumWorkGroups0
         .size:            4
-        .offset:          156
+        .offset:          124
         .value_kind:      by_value
         .value_type:      u32
       - .name:            NumWorkGroups1
         .size:            4
-        .offset:          160
+        .offset:          128
         .value_kind:      by_value
         .value_type:      u32
       - .name:            NumFullBlocks
         .size:            4
-        .offset:          164
+        .offset:          132
         .value_kind:      by_value
         .value_type:      u32
       - .name:            WgmRemainder1
         .size:            4
-        .offset:          168
+        .offset:          136
         .value_kind:      by_value
         .value_type:      u32
       - .name:            MagicNumberWgmRemainder1
         .size:            4
-        .offset:          172
+        .offset:          140
         .value_kind:      by_value
         .value_type:      u32
       - .name:            padding
         .size:            4
-        .offset:          176
+        .offset:          144
         .value_kind:      by_value
         .value_type:      u32
     .group_segment_fixed_size:   32768
     .kernarg_segment_align:      8
-    .kernarg_segment_size:       184
+    .kernarg_segment_size:       152
     .max_flat_workgroup_size:    256
     .private_segment_fixed_size: 0
     .sgpr_count:                 73
@@ -597,10 +577,7 @@ DGEMM_Aldebaran_NN_MT128x128x16_MI16x16x4x1_GRVW2_SU4_SUS128_WGM4:
 .set sgprAddressC, 30
 .set sgprAddressA, 32
 .set sgprAddressB, 34
-.set sgprOffsetD, 36
-.set sgprOffsetC, 38
-.set sgprOffsetA, 40
-.set sgprOffsetB, 42
+/* offsets pre-applied */
 .set sgprAlpha, 44
 .set sgprBeta, 46
 .set sgprStridesD, 48
@@ -740,27 +717,13 @@ v_mov_b32 v[vgprSerial], v0                        // thread serial id
 
 /* Load Kernel Args */
 s_load_dwordx16 s[24:39], s[sgprKernArgAddress:sgprKernArgAddress+1], 0x8 // 
-s_load_dwordx16 s[40:55], s[sgprKernArgAddress:sgprKernArgAddress+1], 0x48 // 
-s_load_dwordx8 s[56:63], s[sgprKernArgAddress:sgprKernArgAddress+1], 0x88 // 
-s_load_dwordx2 s[64:65], s[sgprKernArgAddress:sgprKernArgAddress+1], 0xA8 // 
+s_load_dwordx16 s[48:63], s[sgprKernArgAddress:sgprKernArgAddress+1], 0x48 // 
+s_load_dwordx2 s[64:65], s[sgprKernArgAddress:sgprKernArgAddress+1], 0x88 // 
 s_waitcnt lgkmcnt(0)                               // wait for 160 bytes of kern args
-s_lshl_b64 s[sgprOffsetD:sgprOffsetD+1], s[sgprOffsetD:sgprOffsetD+1], 0x3 // elements offset to bytes offset
-s_add_u32 s[sgprAddressD+0], s[sgprAddressD+0], s[sgprOffsetD] // add offset to buffer address
-s_addc_u32 s[sgprAddressD+1], s[sgprAddressD+1], s[sgprOffsetD+1] // add offset to buffer address
-s_lshl_b64 s[sgprOffsetC:sgprOffsetC+1], s[sgprOffsetC:sgprOffsetC+1], 0x3 // elements offset to bytes offset
-s_add_u32 s[sgprAddressC+0], s[sgprAddressC+0], s[sgprOffsetC] // add offset to buffer address
-s_addc_u32 s[sgprAddressC+1], s[sgprAddressC+1], s[sgprOffsetC+1] // add offset to buffer address
-s_lshl_b64 s[sgprOffsetA:sgprOffsetA+1], s[sgprOffsetA:sgprOffsetA+1], 0x3 // elements offset to bytes offset
-s_add_u32 s[sgprAddressA+0], s[sgprAddressA+0], s[sgprOffsetA] // add offset to buffer address
-s_addc_u32 s[sgprAddressA+1], s[sgprAddressA+1], s[sgprOffsetA+1] // add offset to buffer address
-s_lshl_b64 s[sgprOffsetB:sgprOffsetB+1], s[sgprOffsetB:sgprOffsetB+1], 0x3 // elements offset to bytes offset
-s_add_u32 s[sgprAddressB+0], s[sgprAddressB+0], s[sgprOffsetB] // add offset to buffer address
-s_addc_u32 s[sgprAddressB+1], s[sgprAddressB+1], s[sgprOffsetB+1] // add offset to buffer address
-
-.set OffsetD, UNDEF
-.set OffsetC, UNDEF
-.set OffsetA, UNDEF
-.set OffsetB, UNDEF
+s_mov_b32 s44, s36
+s_mov_b32 s45, s37
+s_mov_b32 s46, s38
+s_mov_b32 s47, s39
 
 /* Short circuit condition if Alpha == 0, then sumDims=0 */
 v_cmp_eq_f64 vcc, s[sgprAlpha:sgprAlpha+1], 0.0    // Alpha == 0.0 ?

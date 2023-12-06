@@ -77,8 +77,9 @@ class KernelWriterConversion(KernelWriterBase):
     kStr += "  " + ptrStr + " const * " + bStr + "C," + self.endLine
 
     # offset
-    kStr += "  uint64_t offsetD,%s" % self.endLine
-    kStr += "  uint64_t offsetC,%s" % self.endLine
+    if not self.state["ProblemType"]["StridedBatched"]:
+      kStr += "  uint64_t offsetD,%s" % self.endLine
+      kStr += "  uint64_t offsetC,%s" % self.endLine
     
     # alpha & beta
     kStr += "  %s const alpha,%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine)
@@ -231,11 +232,10 @@ class KernelWriterConversion(KernelWriterBase):
       zeroStr = self.state["ProblemType"]["ComputeDataType"].zeroString(self.language, 1)
       kStr += "  " + ptrStr + f" const* C = (beta == {zeroStr}) ? nullptr : BatchC[wg];" + self.endLine
 
-    ########################################
-    # apply offset
-    kStr += self.endLine
-    kStr += "  D = D + offsetD;" + self.endLine
-    kStr += "  C = C + offsetC;" + self.endLine
+      # apply offset only for general batch
+      kStr += self.endLine    
+      kStr += "  D = D + offsetD;" + self.endLine
+      kStr += "  C = C + offsetC;" + self.endLine
 
     ########################################
     # D index

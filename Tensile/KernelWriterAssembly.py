@@ -630,8 +630,10 @@ class KernelWriterAssembly(KernelWriter):
           self.defineSgpr("PerpOverhangVccB", 2, 2)
     if self.use64bShadowLimit:
       # If need more SGPR could overlap this with the Tensor2dSize regs
-      self.defineSgpr("ShadowLimitA", 2, 2)
-      self.defineSgpr("ShadowLimitB", 2, 2)
+      if self.noShadowLimitCodeInLoopA == False:
+        self.defineSgpr("ShadowLimitA", 2, 2)
+      if self.noShadowLimitCodeInLoopB == False:
+        self.defineSgpr("ShadowLimitB", 2, 2)
 
     if kernel["PackSummationDims"]:
       for tc in ('A','B'):
@@ -1750,10 +1752,10 @@ class KernelWriterAssembly(KernelWriter):
       self.numSgprStridesB -= 1
     self.numSgprSizesSum = kernel["ProblemType"]["NumIndicesSummation"]
     self.numSgprSizesFree = kernel["ProblemType"]["NumIndicesC"]
-    self.numSgprOffsetD = 2
-    self.numSgprOffsetC = 2
-    self.numSgprOffsetA = 2
-    self.numSgprOffsetB = 2
+    self.numSgprOffsetD = 0
+    self.numSgprOffsetC = 0
+    self.numSgprOffsetA = 0
+    self.numSgprOffsetB = 0
     self.numSgprAddressDbg = self.rpga if globalParameters["DebugKernel"] else 0
 
     ####################################
@@ -1771,12 +1773,14 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("KernArgAddress", self.rpga)
     assert(self.sgprs["KernArgAddress"] ==  0) # kernarg is passed to kernel as SGPR0
 
-    if kernel["WorkGroupMapping"]>=0 :
-      self.defineSgpr("WorkGroup0", 1)
-      self.defineSgpr("WorkGroup1", 1)
-    else:
-      self.defineSgpr("WorkGroup1", 1)
-      self.defineSgpr("WorkGroup0", 1)
+    #if kernel["WorkGroupMapping"]>=0 :
+    #  self.defineSgpr("WorkGroup0", 1)
+    #  self.defineSgpr("WorkGroup1", 1)
+    #else:
+    #  self.defineSgpr("WorkGroup1", 1)
+    #  self.defineSgpr("WorkGroup0", 1)
+    self.defineSgpr("WorkGroup0", 1)
+    self.defineSgpr("WorkGroup1", 1)
 
     wg=2
 
@@ -1881,10 +1885,15 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("AddressFlags", numSgprAddressFlags)
       self.argOffsetOffset += (numSgprAddressWS + numSgprAddressFlags) * 4
 
-    self.defineSgpr("OffsetD", self.numSgprOffsetD)
-    self.defineSgpr("OffsetC", self.numSgprOffsetC)
-    self.defineSgpr("OffsetA", self.numSgprOffsetA)
-    self.defineSgpr("OffsetB", self.numSgprOffsetB)
+    if not kernel["ProblemType"]["StridedBatched"]:
+      self.numSgprOffsetD = 2
+      self.numSgprOffsetC = 2
+      self.numSgprOffsetA = 2
+      self.numSgprOffsetB = 2
+      self.defineSgpr("OffsetD", self.numSgprOffsetD)
+      self.defineSgpr("OffsetC", self.numSgprOffsetC)
+      self.defineSgpr("OffsetA", self.numSgprOffsetA)
+      self.defineSgpr("OffsetB", self.numSgprOffsetB)
 
     self.defineSgpr("Alpha", numSgprAlpha, numSgprAlpha)
     if kernel["ProblemType"]["UseBeta"]:
@@ -3409,7 +3418,7 @@ class KernelWriterAssembly(KernelWriter):
         self.sgprAddressStrCD = "Srd"
 
     # add offset to buffer
-    if not kernel["_GlobalAccumulation"] or kernel["_GlobalAccumulation"] == 'PartialsBuffer':
+    if not kernel["ProblemType"]["StridedBatched"] and (not kernel["_GlobalAccumulation"] or kernel["_GlobalAccumulation"] == 'PartialsBuffer'):
       kStr += inst("s_lshl_b64", sgpr("OffsetD", 2), sgpr("OffsetD", 2), hex(log2(self.bpeCexternal)), "elements offset to bytes offset")
       kStr += inst("s_add_u32",  sgpr("%sD+0"%self.sgprAddressStrCD), sgpr("AddressD+0"), sgpr("OffsetD"), "add offset to buffer address")
       kStr += inst("s_addc_u32", sgpr("%sD+1"%self.sgprAddressStrCD), sgpr("AddressD+1"), sgpr("OffsetD+1"), "add offset to buffer address")
@@ -3428,13 +3437,20 @@ class KernelWriterAssembly(KernelWriter):
     dstAddressA1Str = sgpr("%sA+1"%self.sgprAddressStrAB)
     dstAddressB0Str = sgpr("%sB+0"%self.sgprAddressStrAB)
     dstAddressB1Str = sgpr("%sB+1"%self.sgprAddressStrAB)
-    kStr += inst("s_lshl_b64", sgpr("OffsetA", 2), sgpr("OffsetA", 2), hex(log2(self.bpeAB)), "elements offset to bytes offset")
-    kStr += inst("s_add_u32",  dstAddressA0Str, sgpr("AddressA+0"), sgpr("OffsetA"), "add offset to buffer address")
-    kStr += inst("s_addc_u32", dstAddressA1Str, sgpr("AddressA+1"), sgpr("OffsetA+1"), "add offset to buffer address")
+    if not kernel["ProblemType"]["StridedBatched"]:
+      kStr += inst("s_lshl_b64", sgpr("OffsetA", 2), sgpr("OffsetA", 2), hex(log2(self.bpeAB)), "elements offset to bytes offset")
+      kStr += inst("s_add_u32",  dstAddressA0Str, sgpr("AddressA+0"), sgpr("OffsetA"), "add offset to buffer address")
+      kStr += inst("s_addc_u32", dstAddressA1Str, sgpr("AddressA+1"), sgpr("OffsetA+1"), "add offset to buffer address")
 
-    kStr += inst("s_lshl_b64", sgpr("OffsetB", 2), sgpr("OffsetB", 2), hex(log2(self.bpeAB)), "elements offset to bytes offset")
-    kStr += inst("s_add_u32",  dstAddressB0Str, sgpr("AddressB+0"), sgpr("OffsetB"), "add offset to buffer address")
-    kStr += inst("s_addc_u32", dstAddressB1Str, sgpr("AddressB+1"), sgpr("OffsetB+1"), "add offset to buffer address")
+      kStr += inst("s_lshl_b64", sgpr("OffsetB", 2), sgpr("OffsetB", 2), hex(log2(self.bpeAB)), "elements offset to bytes offset")
+      kStr += inst("s_add_u32",  dstAddressB0Str, sgpr("AddressB+0"), sgpr("OffsetB"), "add offset to buffer address")
+      kStr += inst("s_addc_u32", dstAddressB1Str, sgpr("AddressB+1"), sgpr("OffsetB+1"), "add offset to buffer address")
+    elif self.releaseSgprAdressAB:
+      # copy AddressA,B to srdA,B to undefine AddressA,B
+      kStr += inst("s_mov_b32", sgpr("%sA+0"%self.sgprAddressStrAB), sgpr("AddressA+0"), "copy addressA")
+      kStr += inst("s_mov_b32", sgpr("%sA+1"%self.sgprAddressStrAB), sgpr("AddressA+1"), "copy addressA")
+      kStr += inst("s_mov_b32", sgpr("%sB+0"%self.sgprAddressStrAB), sgpr("AddressB+0"), "copy addressB")
+      kStr += inst("s_mov_b32", sgpr("%sB+1"%self.sgprAddressStrAB), sgpr("AddressB+1"), "copy addressB")
 
     # self.groOffsetInMacroTile == 1 case, subtract pre-pad here
     if self.groOffsetInMacroTile:
@@ -3447,12 +3463,13 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_sub_u32",  dstAddressB0Str, dstAddressB0Str, prePad, "pre-pad to make room for possible pointer shift")
       kStr += inst("s_subb_u32",  dstAddressB1Str, dstAddressB1Str, 0, "pre-pad to make room for possible pointer shift")
 
-    # undefine Offset sgpr
+    # undefine Offset sgpr (only for general batch)
     kStr += self.endLine
-    kStr += self.undefineSgpr("OffsetD")
-    kStr += self.undefineSgpr("OffsetC")
-    kStr += self.undefineSgpr("OffsetA")
-    kStr += self.undefineSgpr("OffsetB")
+    if not kernel["ProblemType"]["StridedBatched"]:
+      kStr += self.undefineSgpr("OffsetD")
+      kStr += self.undefineSgpr("OffsetC")
+      kStr += self.undefineSgpr("OffsetA")
+      kStr += self.undefineSgpr("OffsetB")
     # undefine Address sgpr
     if self.releaseSgprAdressCD:
       kStr += self.undefineSgpr("AddressD")
@@ -3952,7 +3969,7 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # Blocked rows or columns
     absWgm = abs(kernel["WorkGroupMapping"])
-    if kernel["WorkGroupMappingType"] == "B" and abs(kernel["WorkGroupMapping"]) > 1:
+    if kernel["WorkGroupMappingType"] == "B" and kernel["WorkGroupMapping"] > 1:
       smallNumMagicShift = 31
       magicNumberWgm = ((1<<smallNumMagicShift) // absWgm + 1)
 
@@ -3967,41 +3984,42 @@ class KernelWriterAssembly(KernelWriter):
           "magic number for WGM==%u"%absWgm)
       # blockId and serial within block
 
+      if kernel["WorkGroupMapping"]>=0 :
+        firstNum = "0"
+        secondNum = "1"
+      else:
+        firstNum = "1"
+        secondNum = "0"
+      firstWg = "WorkGroup%s"%firstNum
+      secondWg = "WorkGroup%s"%secondNum
+
       # note this overwrites blockId2+1
-      kStr += self.sMagicDiv(kernel, dest=blockId2, dividend=sgpr("WorkGroup1"), \
+      kStr += self.sMagicDiv(kernel, dest=blockId2, dividend=sgpr(secondWg), \
           magicNumber=sgpr(wgmDivisorMagicNumber), magicShift=smallNumMagicShift)
       kStr += inst("s_mul_i32", sgpr(wgSerial2), sgpr(blockId2), absWgm, "quotient * non-magic divisor")
-      kStr += inst("s_sub_u32", sgpr(wgSerial2), sgpr("WorkGroup1"), sgpr(wgSerial2), "WorkGroup1=remainder")
-      kStr += inst("s_mul_i32", sgpr(wgSerial2), sgpr(wgSerial2), sgpr("NumWorkGroups0"), "(wg1 % WGM)*nwg0")
-      kStr += inst("s_add_u32", sgpr(wgSerial2), sgpr(wgSerial2), sgpr("WorkGroup0"), "wgSerial = wg0 + (wg1 % WGM)*nwg0")
+      kStr += inst("s_sub_u32", sgpr(wgSerial2), sgpr(secondWg), sgpr(wgSerial2), "%s=remainder"%secondWg)
+      kStr += inst("s_mul_i32", sgpr(wgSerial2), sgpr(wgSerial2), sgpr("NumWorkGroups%s"%firstNum), "(wg%s %% WGM)*nwg%s"%(secondNum, firstNum))
+      kStr += inst("s_add_u32", sgpr(wgSerial2), sgpr(wgSerial2), sgpr(firstWg), "wgSerial = wg%s + (wg1 %% WGM)*nwg%s"%(firstNum, secondNum))
 
       kStr += inst("s_cmp_ge_u32", sgpr(blockId2), sgpr("NumFullBlocks"), "blockId >= numFullBlocks ?")
       # reuse wgmDivisorMagicNumber - may override with remainder here:
       kStr += inst("s_cmov_b32", sgpr(wgmDivisorMagicNumber), sgpr("MagicNumberWgmRemainder1"),  "")
       kStr += inst("s_cselect_b32", sgpr(wgmDivisor), sgpr("WgmRemainder1"), absWgm,  "")
 
-      if kernel["WorkGroupMapping"]>=0 :
-        firstWg = "WorkGroup0"
-        secondWg = "WorkGroup1"
-      else:
-        firstWg = "WorkGroup1"
-        secondWg = "WorkGroup0"
-
-      assert(self.sgprs[firstWg] & 0x1 == 0) # must be even and ...
-      assert(self.sgprs[firstWg]+1 == self.sgprs[secondWg] ) # must be consecutive (for magic div below)
-      kStr += self.sMagicDiv(kernel, dest=self.sgprs[firstWg], dividend=sgpr(wgSerial2), \
+      #assert(self.sgprs[firstWg] & 0x1 == 0) # must be even and ...
+      #assert(self.sgprs[firstWg]+1 == self.sgprs[secondWg] ) # must be consecutive (for magic div below)
+      kStr += self.sMagicDiv(kernel, dest=self.sgprs["WorkGroup0"], dividend=sgpr(wgSerial2), \
           magicNumber=sgpr(wgmDivisorMagicNumber), magicShift=smallNumMagicShift)
       if kernel["WorkGroupMapping"]<0 :
-        kStr += inst("s_mov_b32", sgpr("WorkGroup0"), sgpr(firstWg), "")
-      kStr += inst("s_mul_i32", sgpr("WorkGroup1"), sgpr("WorkGroup0"), sgpr(wgmDivisor), "quotient * non-magic divisor")
-      kStr += inst("s_sub_u32", sgpr("WorkGroup1"), sgpr(wgSerial2), sgpr("WorkGroup1"), "WorkGroup1=remainder")
+        kStr += inst("s_mov_b32", sgpr(firstWg), sgpr("WorkGroup0"), "mov for WGM<0")
+      kStr += inst("s_mul_i32", sgpr(secondWg), sgpr(firstWg), sgpr(wgmDivisor), "quotient * non-magic divisor")
+      kStr += inst("s_sub_u32", sgpr(secondWg), sgpr(wgSerial2), sgpr(secondWg), "%s=remainder"%secondWg)
 
-      kStr += inst("s_mul_i32", sgpr(blockId2), sgpr(blockId2), \
-          abs(kernel["WorkGroupMapping"]), "blockId * WGM")
+      kStr += inst("s_mul_i32", sgpr(blockId2), sgpr(blockId2), absWgm, "blockId * WGM")
 
       kStr += inst("s_add_u32", sgpr(secondWg), sgpr(secondWg), \
-          sgpr(blockId2), "wg1 += blockId * WGM")
-      
+          sgpr(blockId2), "wg%s += blockId * WGM"%secondNum)
+
       self.sgprPool.checkIn(tmpSgpr)
 
     return kStr
@@ -4951,38 +4969,44 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", sgpr(tileStart+0), 0, "set default tileStart")
       kStr += inst("s_mov_b32", sgpr(tileStart+1), 0, "set default tileStart")
 
-    if self.use64bShadowLimit:
-      limitTmp0 = "ShadowLimit%s+0"%tc
-      limitTmp1 = "ShadowLimit%s+1"%tc
+    noShadowLimitCodeInLoop = self.noShadowLimitCodeInLoopA if tc == "A" else self.noShadowLimitCodeInLoopB
+    if noShadowLimitCodeInLoop == False:
+      if self.use64bShadowLimit:
+        limitTmp0 = "ShadowLimit%s+0"%tc
+        limitTmp1 = "ShadowLimit%s+1"%tc
+      else:
+        limitTmp0 = stmp+0
+        limitTmp1 = stmp+1
+
+      kStr += inst("s_sub_u32",  sgpr(limitTmp0), sgpr("Tensor2dSize%s"%tc), sgpr(tileStart+0), "sub tileStart")
+      kStr += inst("s_subb_u32", sgpr(limitTmp1), sgpr("Tensor2dSize%s+1"%tc), sgpr(tileStart+1), "sub tileStart")
+
+      if self.use64bShadowLimit:
+        # Set initial buffer limit
+        # if the limit is >64bit, incrementSrd decrements the shadow as the SRD increments,
+        # and when we get within 32-bit we start to step down the SRD
+        # if the limit is <32bits, set it accurately here:
+        # Note lshl_b64 the higher-numbered SGPR has the upper 32-bits
+        kStr += inst("s_lshl_b64", sgpr("ShadowLimit%s"%tc,2),  sgpr("ShadowLimit%s"%tc,2), \
+            hex(log2(tP["bpe"])), "Set limit to use bytes")
+        if prePad:
+          kStr += inst("s_add_u32",  sgpr("ShadowLimit%s+0"%tc), sgpr("ShadowLimit%s+0"%tc), prePad, "extend limit for pre-pad")
+          kStr += inst("s_addc_u32", sgpr("ShadowLimit%s+1"%tc), sgpr("ShadowLimit%s+1"%tc), 0, "extend limit for pre-pad")
+
+        if kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]:
+          kStr += inst("s_add_u32",  sgpr("ShadowLimit%s+0"%tc), sgpr("ShadowLimit%s+0"%tc), self.buff_load_inst_offset_max, "extend limit for directToLDS instruction offset")
+          kStr += inst("s_addc_u32", sgpr("ShadowLimit%s+1"%tc), sgpr("ShadowLimit%s+1"%tc), 0, "extend limit for directToLDS instruction offset")
+
+        kStr += inst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
+        kStr += inst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "BufferLimit%s"%tc, "Move shadow to real if we are within 2^32")
+      else:
+        # put limit directly into SRD:
+        kStr += inst("s_lshl_b32", sgpr("Srd%s+2"%tc), sgpr(stmp+0), hex(log2(tP["bpe"])), "Set limit to use bytes")
+        kStr += inst("s_add_u32",  sgpr("Srd%s+2"%tc), sgpr("Srd%s+2"%tc), prePad, "extend limit for pre-pad")
     else:
-      limitTmp0 = stmp+0
-      limitTmp1 = stmp+1
-
-    kStr += inst("s_sub_u32",  sgpr(limitTmp0), sgpr("Tensor2dSize%s"%tc), sgpr(tileStart+0), "sub tileStart")
-    kStr += inst("s_subb_u32", sgpr(limitTmp1), sgpr("Tensor2dSize%s+1"%tc), sgpr(tileStart+1), "sub tileStart")
-
-    if self.use64bShadowLimit:
-      # Set initial buffer limit
-      # if the limit is >64bit, incrementSrd decrements the shadow as the SRD increments,
-      # and when we get within 32-bit we start to step down the SRD
-      # if the limit is <32bits, set it accurately here:
-      # Note lshl_b64 the higher-numbered SGPR has the upper 32-bits
-      kStr += inst("s_lshl_b64", sgpr("ShadowLimit%s"%tc,2),  sgpr("ShadowLimit%s"%tc,2), \
-          hex(log2(tP["bpe"])), "Set limit to use bytes")
-      if prePad:
-        kStr += inst("s_add_u32",  sgpr("ShadowLimit%s+0"%tc), sgpr("ShadowLimit%s+0"%tc), prePad, "extend limit for pre-pad")
-        kStr += inst("s_addc_u32", sgpr("ShadowLimit%s+1"%tc), sgpr("ShadowLimit%s+1"%tc), 0, "extend limit for pre-pad")
-
-      if kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]:
-        kStr += inst("s_add_u32",  sgpr("ShadowLimit%s+0"%tc), sgpr("ShadowLimit%s+0"%tc), self.buff_load_inst_offset_max, "extend limit for directToLDS instruction offset")
-        kStr += inst("s_addc_u32", sgpr("ShadowLimit%s+1"%tc), sgpr("ShadowLimit%s+1"%tc), 0, "extend limit for directToLDS instruction offset")
-
-      kStr += inst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
-      kStr += inst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "BufferLimit%s"%tc, "Move shadow to real if we are within 2^32")
-    else:
-      # put limit directly into SRD:
-      kStr += inst("s_lshl_b32", sgpr("Srd%s+2"%tc), sgpr(stmp+0), hex(log2(tP["bpe"])), "Set limit to use bytes")
-      kStr += inst("s_add_u32",  sgpr("Srd%s+2"%tc), sgpr("Srd%s+2"%tc), prePad, "extend limit for pre-pad")
+      # noShadowLimitCodeInLoop case
+      # no out of range check
+      kStr += inst("s_mov_b32", sgpr("Srd%s+2"%tc), "BufferLimit%s"%tc, "Set BufferLimit in no ShadowLimit code case")
 
     # Apply any high-order address components to the tileStart and eventually the SRD - batch idx for batched gemm
     if kernel["ProblemType"]["StridedBatched"]:
@@ -5073,7 +5097,8 @@ class KernelWriterAssembly(KernelWriter):
     # invalid global read for performance evaluation only
     if self.enable["InvalidGlobalRead%s"%tc]:
       kStr += inst("s_mov_b32", sgpr("Srd%s+2"%tc), hex(0), "set out-of-bound addr for performance evaluation only")
-      kStr += inst("s_mov_b32", sgpr("ShadowLimit%s+1"%tc), hex(0xffffffff), "set out-of-bound addr for performance evaluation only")
+      if noShadowLimitCodeInLoop == False and self.use64bShadowLimit:
+        kStr += inst("s_mov_b32", sgpr("ShadowLimit%s+1"%tc), hex(0xffffffff), "set out-of-bound addr for performance evaluation only")
 
     return kStr
 
@@ -7210,6 +7235,18 @@ class KernelWriterAssembly(KernelWriter):
     # release register
     if abReg is not None: self.vgprPool.checkIn(abReg)
 
+    # conditions to reverse idxInner if idxOuter is odd (for better HW efficiency)
+    # disable reverse idxInner if one of the following condition is true
+    # - PGR=2 and u == LoopIters - 1 and DTV
+    # - wmma
+    # - complex type
+    enableReverseInner = True
+    if (kernel["PrefetchGlobalRead"] == 2 and u == kernel["LoopIters"] - 1 and \
+        (kernel["DirectToVgprA"] or kernel["DirectToVgprB"])) or \
+       (not is_mfma) or \
+       (kernel["ProblemType"]["DataType"].isComplex()):
+      enableReverseInner = False
+
     prevAccIdx = -1
     for iui in range(0, innerUnroll):
       zgemmVaddSrcCheck = [[], [], []] # to avoid generating redundant v_add
@@ -7220,6 +7257,10 @@ class KernelWriterAssembly(KernelWriter):
       inner = 1 - outer # inner is the opposite of outer
       for idxOuter in range(0, kernel["MIWaveTile"][outer]):
         for idxInner in range(0, kernel["MIWaveTile"][inner]):
+          # reverse idxInner if idxOuter is odd (for better HW efficiency)
+          reverseInner = idxOuter & 1
+          if enableReverseInner and reverseInner:
+            idxInner = kernel["MIWaveTile"][inner] - 1 - idxInner
           idx0 = idxInner
           idx1 = idxOuter
           if self.swapMfmaInnerLoop:
@@ -7742,32 +7783,34 @@ class KernelWriterAssembly(KernelWriter):
          incUpper, \
          "gra SRD += inc(upper)" )
 
-    # also have to move the boundary since we change the base
-    # so less buffers to the edge:
-    if self.use64bShadowLimit:
-      imod.addInst("s_sub_u32", \
-          sgpr("ShadowLimit%s+0"%tc), \
-          sgpr("ShadowLimit%s+0"%tc), \
-          incLower, \
-            "limit -= inc)")
-      imod.addInst("s_subb_u32", \
-          sgpr("ShadowLimit%s+1"%tc), \
-          sgpr("ShadowLimit%s+1"%tc), \
-          incUpper, \
-            "limit -= inc)" )
-      if checkShadowLimitCopy:
-        imod.addInst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
-        if self.staggerU:
-          # staggerU case, need to restore BufferLimit when ShadowLimit goes to negative value
-          imod.addInst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "BufferLimit%s"%tc, "Move shadow to real if we are within 2^32")
-        else:
-          imod.addInst("s_cmov_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "Move shadow to real if we are within 2^32")
-    else:
-      imod.addInst("s_sub_u32", \
-           sgpr("Srd%s+2"%(tc)), \
-           sgpr("Srd%s+2"%(tc)), \
-           incLower, \
-            "limit -= inc)" )
+    noShadowLimitCodeInLoop = self.noShadowLimitCodeInLoopA if tc == "A" else self.noShadowLimitCodeInLoopB
+    if noShadowLimitCodeInLoop == False:
+      # also have to move the boundary since we change the base
+      # so less buffers to the edge:
+      if self.use64bShadowLimit:
+        imod.addInst("s_sub_u32", \
+            sgpr("ShadowLimit%s+0"%tc), \
+            sgpr("ShadowLimit%s+0"%tc), \
+            incLower, \
+              "limit -= inc)")
+        imod.addInst("s_subb_u32", \
+            sgpr("ShadowLimit%s+1"%tc), \
+            sgpr("ShadowLimit%s+1"%tc), \
+            incUpper, \
+              "limit -= inc)" )
+        if checkShadowLimitCopy:
+          imod.addInst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
+          if self.staggerU:
+            # staggerU case, need to restore BufferLimit when ShadowLimit goes to negative value
+            imod.addInst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "BufferLimit%s"%tc, "Move shadow to real if we are within 2^32")
+          else:
+            imod.addInst("s_cmov_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "Move shadow to real if we are within 2^32")
+      else:
+        imod.addInst("s_sub_u32", \
+             sgpr("Srd%s+2"%(tc)), \
+             sgpr("Srd%s+2"%(tc)), \
+             incLower, \
+              "limit -= inc)" )
     return imod
 
   ##############################################################################
@@ -8021,12 +8064,14 @@ class KernelWriterAssembly(KernelWriter):
       for tc in ('A','B'):
         incCodeA.addInst("s_mov_b32", sgpr("Srd%s+0"%tc), sgpr("InitialSrd%sBase+0"%tc), "restore base")
         incCodeA.addInst("s_mov_b32", sgpr("Srd%s+1"%tc), sgpr("InitialSrd%sBase+1"%tc), "restore base")
-        if self.use64bShadowLimit:
-          incCodeA.addInst("s_mov_b32", sgpr("ShadowLimit%s+0"%tc), sgpr("InitialSrd%sLimit+0"%tc), "restore shadow limit")
-          incCodeA.addInst("s_mov_b32", sgpr("ShadowLimit%s+1"%tc), sgpr("InitialSrd%sLimit+1"%tc), "restore shadow limit")
-          assert(0) # not tested, would maybe need to restore base too if limit 0
-        else:
-          incCodeA.addInst("s_mov_b32", sgpr("Srd%s+2"%tc), sgpr("InitialSrd%sLimit"%tc), "restore limit")
+        noShadowLimitCodeInLoop = self.noShadowLimitCodeInLoopA if tc == "A" else self.noShadowLimitCodeInLoopB
+        if noShadowLimitCodeInLoop == False:
+          if self.use64bShadowLimit:
+            incCodeA.addInst("s_mov_b32", sgpr("ShadowLimit%s+0"%tc), sgpr("InitialSrd%sLimit+0"%tc), "restore shadow limit")
+            incCodeA.addInst("s_mov_b32", sgpr("ShadowLimit%s+1"%tc), sgpr("InitialSrd%sLimit+1"%tc), "restore shadow limit")
+            assert(0) # not tested, would maybe need to restore base too if limit 0
+          else:
+            incCodeA.addInst("s_mov_b32", sgpr("Srd%s+2"%tc), sgpr("InitialSrd%sLimit"%tc), "restore limit")
 
 
       # TODO - this skips over the stagger-u wrap codes
@@ -15080,8 +15125,10 @@ class KernelWriterAssembly(KernelWriter):
       # reseting SrdA/B, ShadowLimitA/B, GlobalReadIncsA/B is more efficiently way than using BufferOOB
       imod.addInst("s_cmov_b32", sgpr("SrdA+2"), 0, "Set SrdA+2 to 0 for outside legal WG")
       imod.addInst("s_cmov_b32", sgpr("SrdB+2"), 0, "Set SrdB+2 to 0 for outside legal WG")
-      imod.addInst("s_cmov_b64", sgpr("ShadowLimitA", 2), 0, "Set ShadowLimitA to 0 for outside legal WG")
-      imod.addInst("s_cmov_b64", sgpr("ShadowLimitB", 2), 0, "Set ShadowLimitB to 0 for outside legal WG")
+      if self.noShadowLimitCodeInLoopA == False:
+        imod.addInst("s_cmov_b64", sgpr("ShadowLimitA", 2), 0, "Set ShadowLimitA to 0 for outside legal WG")
+      if self.noShadowLimitCodeInLoopB == False:
+        imod.addInst("s_cmov_b64", sgpr("ShadowLimitB", 2), 0, "Set ShadowLimitB to 0 for outside legal WG")
       imod.addInst("s_cmov_b32", sgpr("GlobalReadIncsA"), 0, "Stop decrementing ShadowLimitA and incrementing SrdA for outside legal WG")
       imod.addInst("s_cmov_b32", sgpr("GlobalReadIncsB"), 0, "Stop decrementing ShadowLimitB and incrementing SrdB for outside legal WG")
     else:
