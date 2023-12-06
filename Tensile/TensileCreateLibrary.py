@@ -1279,8 +1279,8 @@ def TensileCreateLibrary():
     theMasterLibrary = list(masterLibraries.values())[0]
 
   if args.EmbedLibrary is not None:
-      embedFileName = os.path.join(outputPath, "library/{}.cpp".format(args.EmbedLibrary))
-      with EmbeddedData.EmbeddedDataFile(embedFileName) as embedFile:
+      embedFileNameTemp = os.path.join(outputPath, "library/{}.temp".format(args.EmbedLibrary))
+      with EmbeddedData.EmbeddedDataFile(embedFileNameTemp) as embedFile:
 
           ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
           embedFile.embed_file(theMasterLibrary.cpp_base_class, masterFile + ext, nullTerminated=True,
@@ -1289,6 +1289,8 @@ def TensileCreateLibrary():
           for co in Utils.tqdm(codeObjectFiles):
               embedFile.embed_file("SolutionAdapter", co, nullTerminated=False,
                                    key=args.EmbedLibraryKey)
+      embedFileNameCpp = os.path.join(outputPath, "library/{}.cpp".format(args.EmbedLibrary))
+      os.rename(embedFileNameTemp, embedFileNameCpp)
 
   if args.BuildClient:
     print1("# Building Tensile Client")
