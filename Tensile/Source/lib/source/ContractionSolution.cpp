@@ -379,11 +379,11 @@ namespace Tensile
         {
             uint64_t tensor2dSizeC = c.totalAllocatedElements();
             uint64_t tensor2dSizeA = (sizeMapping.packBatchDims & 0x1)
-                                            ? a.totalAllocatedElements()
-                                            : problem.allocatedElementsNonBatchA();
+                                         ? a.totalAllocatedElements()
+                                         : problem.allocatedElementsNonBatchA();
             uint64_t tensor2dSizeB = (sizeMapping.packBatchDims & 0x2)
-                                            ? b.totalAllocatedElements()
-                                            : problem.allocatedElementsNonBatchB();
+                                         ? b.totalAllocatedElements()
+                                         : problem.allocatedElementsNonBatchB();
 
             if(sizeMapping.preloadKernargs)
             {
@@ -398,7 +398,6 @@ namespace Tensile
                 auto bptr = inputs.b + b.offset();
                 rv.args.append<typename TypedInputs::AType const*>("a", aptr);
                 rv.args.append<typename TypedInputs::BType const*>("b", bptr);
-
 
                 rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
                 if(std::is_same<typename TypedInputs::AlphaType, Half>::value && !isSourceKernel())
@@ -416,7 +415,7 @@ namespace Tensile
             }
 
             // rv.args.append<uint64_t>("tensor2dSizeC", tensor2dSizeC);
-            
+
             if(!sizeMapping.preloadKernargs)
             {
                 rv.args.append<uint64_t>("tensor2dSizeA", tensor2dSizeA);
