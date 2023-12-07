@@ -2964,12 +2964,12 @@ class Solution(collections.abc.Mapping):
         return False
 
       dt = state["ProblemType"]["DataType"]
-      if not dt.isSingle() or dt.isHalf() or dt.isBFloat16:
+      if not (dt.isSingle() or dt.isHalf() or dt.isBFloat16):
         printWarning(f"Preloading not supported for data type {dt}.")
         return False
 
       if not state["ProblemType"]["UseBeta"]:
-        printWarning("Preloading only supported in with UseBeta.")
+        printWarning("Preloading only supported with UseBeta.")
         return False
 
       if state["ProblemType"]["UseInitialStridesAB"]:

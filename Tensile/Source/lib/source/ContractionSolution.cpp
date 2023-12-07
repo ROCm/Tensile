@@ -375,6 +375,9 @@ namespace Tensile
         size_t startStrideCD = problemType.useInitialStridesCD ? 0 : 1;
         size_t startStrideAB = problemType.useInitialStridesAB ? 0 : 1;
 
+        auto problemSizes = problem.problemSizes();
+        TENSILE_ASSERT_EXC(problemSizes.size() > 0);
+
         if(!isSourceKernel())
         {
             uint64_t tensor2dSizeC = c.totalAllocatedElements();
@@ -403,15 +406,13 @@ namespace Tensile
                 if(std::is_same<typename TypedInputs::AlphaType, Half>::value && !isSourceKernel())
                     rv.args.append<typename TypedInputs::AlphaType>("alpha_2", inputs.alpha);
 
-                rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
-                if(std::is_same<typename TypedInputs::BetaType, Half>::value && !isSourceKernel())
-                    rv.args.append<typename TypedInputs::BetaType>("beta_2", inputs.beta);
-
                 for(size_t i = startStrideAB; i < a.dimensions(); i++)
                     rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideA", i), a.strides()[i]);
 
                 for(size_t i = startStrideAB; i < b.dimensions(); i++)
                     rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideB", i), b.strides()[i]);
+
+                rv.args.append<uint32_t>("sizeSum", problemSizes.back());
             }
 
             // rv.args.append<uint64_t>("tensor2dSizeC", tensor2dSizeC);
@@ -480,13 +481,13 @@ namespace Tensile
             rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
             if(std::is_same<typename TypedInputs::AlphaType, Half>::value && !isSourceKernel())
                 rv.args.append<typename TypedInputs::AlphaType>("alpha_2", inputs.alpha);
+        }
 
-            if(problemType.useBeta)
-            {
-                rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
-                if(std::is_same<typename TypedInputs::BetaType, Half>::value && !isSourceKernel())
-                    rv.args.append<typename TypedInputs::BetaType>("beta_2", inputs.beta);
-            }
+        if(problemType.useBeta)
+        {
+            rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
+            if(std::is_same<typename TypedInputs::BetaType, Half>::value && !isSourceKernel())
+                rv.args.append<typename TypedInputs::BetaType>("beta_2", inputs.beta);
         }
 
         if(sizeMapping.globalAccumulation && sizeMapping.streamK < 2)
@@ -524,11 +525,12 @@ namespace Tensile
         }
 
         {
-            int idx = 0;
-            for(auto size : problem.problemSizes())
+            int maxIdx = problemSizes.size();
+            if(sizeMapping.preloadKernargs)
+                maxIdx--;
+            for(int idx = 0; idx < maxIdx; idx++)
             {
-                rv.args.append<uint32_t>(concatenate_if<T_Debug>("size_", idx), size);
-                idx++;
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("size_", idx), problemSizes[idx]);
             }
         }
 

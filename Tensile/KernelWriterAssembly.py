@@ -1888,13 +1888,13 @@ class KernelWriterAssembly(KernelWriter):
 
     self.defineSgpr("Alpha", numSgprAlpha, numSgprAlpha, preload=True)
     if kernel["ProblemType"]["UseBeta"]:
-      self.defineSgpr("Beta", numSgprBeta, numSgprBeta, preload=True)
+      self.defineSgpr("Beta", numSgprBeta, numSgprBeta, kernarg=True)
     self.defineSgpr("StridesD", self.numSgprStridesD, kernarg=True)
     self.defineSgpr("StridesC", self.numSgprStridesC, kernarg=True)
     self.defineSgpr("StridesA", self.numSgprStridesA, preload=True)
     self.defineSgpr("StridesB", self.numSgprStridesB, preload=True)
     self.defineSgpr("SizesFree", self.numSgprSizesFree, kernarg=True)
-    self.defineSgpr("SizesSum", self.numSgprSizesSum, kernarg=True)
+    self.defineSgpr("SizesSum", self.numSgprSizesSum, preload=True)
 
     self.sumMagicParms = []
     if kernel["PackSummationDims"]:
@@ -2006,7 +2006,7 @@ class KernelWriterAssembly(KernelWriter):
     # while SgprSlot:
     #   tempSgpr = SgprSlot.pop(0)
     #   self.sgprPool.checkIn(tempSgpr)
-    if not self.staggerU:
+    if not self.staggerU and not kernel["PreloadKernelArguments"]:
       self.undefineSgpr("OrigStaggerUIter")  # Original stagger register.  Only needed for Persistent
 
     ########################################
@@ -3381,9 +3381,9 @@ class KernelWriterAssembly(KernelWriter):
       if lraCode != None :
         kStr += lraCode
 
-      # if not kernel["PreloadKernelArguments"]:
-      kernArgBytes = self.sgprPool.numKernargSGPRs * 4
-      kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for %u bytes of kern args" % kernArgBytes )
+      if not kernel["PreloadKernelArguments"]:
+        kernArgBytes = self.sgprPool.numKernargSGPRs * 4
+        kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for %u bytes of kern args" % kernArgBytes )
 
       if not kernel["ProblemType"]["StridedBatched"]:
         tmpSgpr = self.getTmpSgpr(self.laneSGPRCount).idx()
@@ -3412,7 +3412,7 @@ class KernelWriterAssembly(KernelWriter):
         self.releaseSgprAdressAB = True
         self.sgprAddressStrAB = "Srd"
       # C,D check
-      if kernel["BufferStore"] and kernel["PrefetchGlobalRead"]:
+      if kernel["BufferStore"] and kernel["PrefetchGlobalRead"] and not kernel["PreloadKernelArguments"]:
         self.releaseSgprAdressCD = True
         self.sgprAddressStrCD = "Srd"
 
@@ -5832,7 +5832,13 @@ class KernelWriterAssembly(KernelWriter):
   # used.
   ##############################################################################
   def openShadowInit(self, kernel):
-    return self.getNamedLabelDef("ShadowInitStart")
+    kStr = self.getNamedLabelDef("ShadowInitStart")
+    if self.kernel["PreloadKernelArguments"]:
+      kernArgBytes = self.sgprPool.numKernargSGPRs * 4
+      kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for %u bytes of kern args" % kernArgBytes )
+      if not self.staggerU:
+        self.undefineSgpr("OrigStaggerUIter")  # Original stagger register.  Only needed for Persistent
+    return kStr
 
   ##############################################################################
   # closeShadowInit
