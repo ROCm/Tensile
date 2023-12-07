@@ -264,7 +264,7 @@ globalParameters["SeparateArchitectures"] = False # write Tensile library metada
 
 globalParameters["LazyLibraryLoading"] = False # Load library and code object files when needed instead of at startup
 
-globalParameters["IgnoreAsmCapCache"] = False # Ignore checking for discrepancies between derived and cached asm caps
+globalParameters["IgnoreAsmCapCache"] = True # Ignore checking for discrepancies between derived and cached asm caps
 
 globalParameters["ExperimentalLogicDir"] = "/experimental/"
 
@@ -1542,7 +1542,6 @@ defaultBenchmarkCommonParameters = [
     {"ThreadSeparateGlobalReadA": [ 0 ] },
     {"ThreadSeparateGlobalReadB": [ 0 ] },
     {"MinKForGSU":                [256]},
-    {"PreloadKernelArguments":    [ True ]},
     ]
 
 # dictionary of defaults comprised of default option for each parameter

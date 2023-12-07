@@ -1912,12 +1912,6 @@ class Solution(collections.abc.Mapping):
     if "Valid" not in state:
       state["Valid"] = True
 
-    if state["PreloadKernelArguments"] and not globalParameters["AsmCaps"][tuple(state["ISA"])]["KernargPreloading"]:
-      reject(state, "Kernel argument preloading not supported for ISA {}".format(state["ISA"]))
-
-    if state["PreloadKernelArguments"] and not state["ProblemType"]["StridedBatched"]:
-      reject(state, "Kernel argument preloading only supported for strided batched.")
-
     if (not state["ProblemType"]["StridedBatched"]) and (not state["ProblemType"]['Batched']):
       reject(state, "General Batched GEMM only support Batched Problem")
 
@@ -2959,6 +2953,41 @@ class Solution(collections.abc.Mapping):
           reject(state, "Atomic Stream-K requires BufferStore")
         if state["LocalSplitU"] > 1:
           reject(state, "Atomic Stream-K not working with LocalSplitU")
+
+    def supportsPreloadKernelArguments():
+      if not globalParameters["AsmCaps"][isa]["KernargPreloading"]:
+        printWarning(f"{isa} doesn't support preloading.")
+        return False
+      
+      if not state["ProblemType"]["StridedBatched"]:
+        printWarning("Preloading only supported in StridedBatched mode.")
+        return False
+
+      dt = state["ProblemType"]["DataType"]
+      if not dt.isSingle() or dt.isHalf() or dt.isBFloat16:
+        printWarning(f"Preloading not supported for data type {dt}.")
+        return False
+
+      if not state["ProblemType"]["UseBeta"]:
+        printWarning("Preloading only supported in with UseBeta.")
+        return False
+
+      if state["ProblemType"]["UseInitialStridesAB"]:
+        printWarning("Preloading not supported with initial strides AB.")
+        return False
+
+      if state["WorkGroupMapping"] != 0:
+        printWarning("Preloading not supported with WorkGroupMapping.")
+        return False
+      
+      return True
+
+    if "PreloadKernelArguments" in state:
+      if not supportsPreloadKernelArguments():
+        reject(state, "Kernel argument preloading not supported")
+    else:
+      state["PreloadKernelArguments"] = supportsPreloadKernelArguments()
+
 
     if state["VectorStore"] == -1:
         state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel

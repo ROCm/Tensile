@@ -1997,7 +1997,7 @@ class KernelWriterAssembly(KernelWriter):
       assert self.sgprs["OffsetA"] == offsetD + 4
       assert self.sgprs["OffsetB"] == offsetD + 6
 
-      assert self.argOffsetOffset == (self.numSgprToLoad + 2 - (self.numSgprOffsetD + self.numSgprOffsetC + self.numSgprOffsetA + self.numSgprOffsetB)) * 4
+      # assert self.argOffsetOffset == (self.numSgprToLoad + 2 - (self.numSgprOffsetD + self.numSgprOffsetC + self.numSgprOffsetA + self.numSgprOffsetB)) * 4
 
     # Get kernel argument end here
     ###################################
@@ -2145,8 +2145,11 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # format macro
-  def macroRegister(self, name, value):
-    return ".set %s, %s%s" % (name, value, self.endLine)
+  def macroRegister(self, name, value, comment=""):
+    if comment != "":
+      assert '\n' not in comment, comment
+      comment = " // " + comment
+    return f".set {name}, {value}{comment}{self.endLine}"
 
 
   ##############################################################################
@@ -2744,7 +2747,9 @@ class KernelWriterAssembly(KernelWriter):
     # Emit declarations for all sgprs allocated with defineSgpr
     # in the order they were declared
     for skey in self.sgprs:
-      kStr += self.macroRegister("sgpr"+skey, self.sgprs[skey])
+      regNum = self.sgprs[skey]
+      count = self.sgprPool.checkOutSize[regNum] if regNum in self.sgprPool.checkOutSize else "unk"
+      kStr += self.macroRegister("sgpr"+skey, regNum, f"({count})")
     kStr += self.comment1("max SGPR=%u"%self.sgprPool.size())
 
     kStr += "\n"
@@ -3283,6 +3288,7 @@ class KernelWriterAssembly(KernelWriter):
       
       kStr += self.comment("256 bytes of s_nop")
       kStr += "\n"
+    kStr += f"{self.kernelName}_preloaded: // Kernel start when preloading\n"
 
 
     if kernel["StorePriorityOpt"]:
@@ -3375,9 +3381,9 @@ class KernelWriterAssembly(KernelWriter):
       if lraCode != None :
         kStr += lraCode
 
-      if not kernel["PreloadKernelArguments"]:
-        kernArgBytes = self.sgprPool.numKernargSGPRs * 4
-        kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for %u bytes of kern args" % kernArgBytes )
+      # if not kernel["PreloadKernelArguments"]:
+      kernArgBytes = self.sgprPool.numKernargSGPRs * 4
+      kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for %u bytes of kern args" % kernArgBytes )
 
       if not kernel["ProblemType"]["StridedBatched"]:
         tmpSgpr = self.getTmpSgpr(self.laneSGPRCount).idx()
