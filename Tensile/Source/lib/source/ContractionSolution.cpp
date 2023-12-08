@@ -260,7 +260,7 @@ namespace Tensile
                                                 TypedInputs const&                  inputs,
                                                 Hardware const&                     hardware) const
     {
-        TENSILE_ASSERT_EXC(sizeMapping.workGroupMapping >= 0);
+        //TENSILE_ASSERT_EXC(sizeMapping.workGroupMapping >= 0);
 
         TensorDescriptor const& a = problem.a();
         TensorDescriptor const& b = problem.b();
@@ -700,8 +700,16 @@ namespace Tensile
 
             if(sizeMapping.workGroupMapping != 0)
             {
-                numFullBlocks = problemNumGroupTiles1 / sizeMapping.workGroupMapping;
-                wgmRemainder1 = problemNumGroupTiles1 % sizeMapping.workGroupMapping;
+                if(sizeMapping.workGroupMapping >= 0)
+                {
+                    numFullBlocks = problemNumGroupTiles1 / sizeMapping.workGroupMapping;
+                    wgmRemainder1 = problemNumGroupTiles1 % sizeMapping.workGroupMapping;
+                }
+                else
+                {
+                    numFullBlocks = problemNumGroupTiles0 / (-sizeMapping.workGroupMapping);
+                    wgmRemainder1 = problemNumGroupTiles0 % (-sizeMapping.workGroupMapping);
+                }
                 if(wgmRemainder1 == 0)
                     wgmRemainder1 = sizeMapping.workGroupMapping;
                 magicNumberWgmRemainder1 = smallMagicNumber(wgmRemainder1);
