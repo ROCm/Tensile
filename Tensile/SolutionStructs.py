@@ -2988,6 +2988,12 @@ class Solution(collections.abc.Mapping):
     else:
       state["PreloadKernelArguments"] = supportsPreloadKernelArguments()
 
+    if "DelayRemainingArguments" in state:
+      if state["DelayRemainingArguments"] and not state["PreloadKernelArguments"]:
+          reject(state, "Delayed kernel arguments only supported when preloading.")
+    else:
+      state["DelayRemainingArguments"] = False
+
 
     if state["VectorStore"] == -1:
         state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel

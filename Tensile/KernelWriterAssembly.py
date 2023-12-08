@@ -3277,6 +3277,63 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
+    ########################################
+    # load kernel args
+  def loadKernelArguments(self):
+    kStr = ""
+
+    kStr += self.comment("Load Kernel Args")
+    self.kernArgOffset = 0
+    if self.kernel["PreloadKernelArguments"]:
+      self.kernArgOffset = self.sgprPool.numPreloadSGPRs * 4
+
+    if globalParameters["DebugKernel"]:
+      kStr += self.getKernArg("AddressDbg")
+      kStr += self.getKernArg("AddressDbg+1")
+
+    load = self.numSgprToLoad
+    sgprStart = self.sgprPool.kernargStart
+    while load > 0:
+      if load >= 16:
+        load -= 16
+        kStr += inst("_s_load_b512", sgpr(sgprStart,16), sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
+        sgprStart += 16
+        self.kernArgOffset += 16 * 4
+        continue
+      if load >= 8:
+        load -= 8
+        kStr += inst("_s_load_b256", sgpr(sgprStart,8), sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
+        sgprStart += 8
+        self.kernArgOffset += 8 * 4
+        continue
+      if load >= 4:
+        load -= 4
+        kStr += inst("_s_load_b128", sgpr(sgprStart,4), sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
+        sgprStart += 4
+        self.kernArgOffset += 4 * 4
+        continue
+      if load >= 2:
+        load -= 2
+        kStr += inst("_s_load_b64", sgpr(sgprStart,2), sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
+        sgprStart += 2
+        self.kernArgOffset += 2 * 4
+        continue
+      if load >= 1:
+        load -= 1
+        kStr += inst("_s_load_b32", sgpr(sgprStart), sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
+        sgprStart += 1
+        self.kernArgOffset += 1 * 4
+        continue
+    # currently align sgpr to kernel argument memory, and use s_load_bxxx to load argument as large as possible in one instruction
+    # however, in order to match sgpr to kernel argument memory, some unnecessarily sgpr will also be defined, and caused wasting of sgpr.
+    # TODO: more efficient way is to organize both sgpr and kernel argument memory in API
+
+    # KernArgAddress needed for general batch after loading arguments
+    if self.kernel["ProblemType"]["StridedBatched"] or not self.kernel["ProblemType"]["Batched"]:
+      self.undefineSgpr("KernArgAddress")
+
+    return kStr
+
   ##############################################################################
   def allocateResources(self, kernel, lraCode=None):
     kStr = ""
@@ -3321,57 +3378,8 @@ class KernelWriterAssembly(KernelWriter):
       if self.kernel["WavefrontSize"] == 32:
         kStr += inst("s_mov_b32", "vcc_hi", "0", "Ensure hi bits are zero")
 
-      ########################################
-      # load kernel args
-      kStr += self.comment("Load Kernel Args")
-      self.kernArgOffset = 0
-      if self.kernel["PreloadKernelArguments"]:
-        self.kernArgOffset = self.sgprPool.numPreloadSGPRs * 4
-
-      if globalParameters["DebugKernel"]:
-        kStr += self.getKernArg("AddressDbg")
-        kStr += self.getKernArg("AddressDbg+1")
-
-      load = self.numSgprToLoad
-      sgprStart = self.sgprPool.kernargStart
-      while load > 0:
-        if load >= 16:
-          load -= 16
-          kStr += inst("_s_load_b512", sgpr(sgprStart,16), sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
-          sgprStart += 16
-          self.kernArgOffset += 16 * 4
-          continue
-        if load >= 8:
-          load -= 8
-          kStr += inst("_s_load_b256", sgpr(sgprStart,8), sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
-          sgprStart += 8
-          self.kernArgOffset += 8 * 4
-          continue
-        if load >= 4:
-          load -= 4
-          kStr += inst("_s_load_b128", sgpr(sgprStart,4), sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
-          sgprStart += 4
-          self.kernArgOffset += 4 * 4
-          continue
-        if load >= 2:
-          load -= 2
-          kStr += inst("_s_load_b64", sgpr(sgprStart,2), sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
-          sgprStart += 2
-          self.kernArgOffset += 2 * 4
-          continue
-        if load >= 1:
-          load -= 1
-          kStr += inst("_s_load_b32", sgpr(sgprStart), sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
-          sgprStart += 1
-          self.kernArgOffset += 1 * 4
-          continue
-      # currently align sgpr to kernel argument memory, and use s_load_bxxx to load argument as large as possible in one instruction
-      # however, in order to match sgpr to kernel argument memory, some unnecessarily sgpr will also be defined, and caused wasting of sgpr.
-      # TODO: more efficient way is to organize both sgpr and kernel argument memory in API
-
-      # KernArgAddress needed for general batch after loading arguments
-      if kernel["ProblemType"]["StridedBatched"] or not kernel["ProblemType"]["Batched"]:
-        self.undefineSgpr("KernArgAddress")
+      if not self.kernel["DelayRemainingArguments"]:
+        kStr += self.loadKernelArguments()
 
       if kernel.enabledSetPrioSplitLDS:
         kStr += inst("s_setprio", "1", "prioritize init code so as to issue load sooner")
@@ -5834,6 +5842,8 @@ class KernelWriterAssembly(KernelWriter):
   def openShadowInit(self, kernel):
     kStr = self.getNamedLabelDef("ShadowInitStart")
     if self.kernel["PreloadKernelArguments"]:
+      if self.kernel["DelayRemainingArguments"]:
+        kStr += self.loadKernelArguments()
       kernArgBytes = self.sgprPool.numKernargSGPRs * 4
       kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for %u bytes of kern args" % kernArgBytes )
       if not self.staggerU:

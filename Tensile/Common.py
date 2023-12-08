@@ -1332,6 +1332,7 @@ validParameters = {
     "AggressivePerfMode":       [0,1,2],
 
     "PreloadKernelArguments": [False, True],
+    "DelayRemainingArguments": [False, True],
 
     # Kernels should be written in assembly or source
     # if assembly, ISA will determine architecture
