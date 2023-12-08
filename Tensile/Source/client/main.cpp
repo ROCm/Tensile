@@ -172,6 +172,7 @@ namespace Tensile
                                                                                     "Note that any padding from leading dimensions is not loaded to cache and not included in the problem_footprint."
                                                                                     "Then calculate:"
                                                                                     "flush_batch_count >= 1 + cache_size / problem_footprint")
+                ("flush-mem-size",           po::value<size_t>()->default_value(0), "Set to 2x cache size for cache flushing in timing code")
 
                 ("perf-l2-read-hits",        po::value<double>()->default_value(0.0), "L2 read hits")
                 ("perf-l2-write-hits",       po::value<double>()->default_value(0.5), "L2 write hits")
@@ -476,6 +477,38 @@ namespace Tensile
     } // namespace Client
 } // namespace Tensile
 
+size_t calculate_flush_batch_count(size_t arg_flush_batch_count,
+                                   size_t arg_flush_memory_size,
+                                   size_t cached_size)
+{
+    size_t default_arg_flush_batch_count = 1;
+    size_t default_arg_flush_memory_size = 0;
+    size_t flush_batch_count             = default_arg_flush_batch_count;
+
+    if(arg_flush_batch_count != default_arg_flush_batch_count
+       && arg_flush_memory_size != default_arg_flush_memory_size)
+    {
+        std::cout << "Tensile WARNING: cannot set both flush_batch_count and flush_memory_size"
+                     << std::endl;
+        std::cout << "Tensile WARNING: using flush_batch_count = " << arg_flush_batch_count
+                     << std::endl;
+        flush_batch_count = arg_flush_batch_count;
+    }
+    else if(arg_flush_batch_count != default_arg_flush_batch_count)
+    {
+        flush_batch_count = arg_flush_batch_count;
+        // rocblas_cout << "flush_malloc_size = ";
+        // print_memory_size(flush_batch_count * malloc_size);
+        // rocblas_cout << std::endl;
+    }
+    else if(arg_flush_memory_size != default_arg_flush_memory_size)
+    {
+        flush_batch_count = 1 + (arg_flush_memory_size - 1) / cached_size;
+        // rocblas_cout << "flush_batch_count = " << flush_batch_count << std::endl;
+    }
+    return flush_batch_count;
+}
+
 int main(int argc, const char* argv[])
 {
     using namespace Tensile;
@@ -530,22 +563,42 @@ int main(int argc, const char* argv[])
         = getMaxWorkspace(library, hardware, args, problems, firstProblemIdx, lastProblemIdx);
     maxWorkspaceSize = std::min(maxWorkspaceSize, maxWorkspaceSizeLimit);
     size_t flush_count = args["flush-count"].as<size_t>();
+    size_t flush_mem_size = args["flush-mem-size"].as<size_t>();
 
     std::vector<std::shared_ptr<DataInitialization>> dataInit;
     auto solutionIterator = SolutionIterator::Default(library, hardware, args);
 
     MetaRunListener listeners;
 
+    size_t cached_size = 0;
+    if(flush_count==1 && flush_mem_size!=0)
+    {
+        for(auto const& problem : problemFactory.problems())
+        {
+            cached_size = std::max(cached_size, problem.a().totalAllocatedElements()*DataTypeInfo::Get(args["a-type"].as<DataType>()).elementSize +
+                                                problem.b().totalAllocatedElements()*DataTypeInfo::Get(args["b-type"].as<DataType>()).elementSize +
+                                                problem.c().totalAllocatedElements()*DataTypeInfo::Get(args["c-type"].as<DataType>()).elementSize +
+                                                (problem.cEqualsD() ? 0 :
+                                                problem.d().totalAllocatedElements()*DataTypeInfo::Get(args["d-type"].as<DataType>()).elementSize) );
+                    // std::cout<<"problem.cEqualsD()"<<problem.cEqualsD()<<std::endl;
+        } 
+    }
+
+    flush_count = calculate_flush_batch_count(flush_count, 
+                                            flush_mem_size,
+                                            cached_size);
+
     for(size_t i = 0; i<flush_count; i++)
     {
         dataInit.push_back(DataInitialization::Get(args, problemFactory, maxWorkspaceSize));
         listeners.addListener(dataInit[i]);
-        // if(i==0)
-        // {
-        // if(runKernels)
-        //     listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit[i]));
-        // }
     }
+
+    // std::cout<<"cached_size "<<cached_size<<std::endl;
+    // std::cout<<"a elementSize "<<DataTypeInfo::Get(args["a-type"].as<DataType>()).elementSize<<std::endl;
+    // std::cout<<"b elementSize "<<DataTypeInfo::Get(args["b-type"].as<DataType>()).elementSize<<std::endl;
+    // std::cout<<"c elementSize "<<DataTypeInfo::Get(args["c-type"].as<DataType>()).elementSize<<std::endl;
+    // std::cout<<"d elementSize "<<DataTypeInfo::Get(args["d-type"].as<DataType>()).elementSize<<std::endl;
 
     listeners.addListener(solutionIterator);
     listeners.addListener(std::make_shared<ProgressListener>(args));
@@ -581,10 +634,10 @@ int main(int argc, const char* argv[])
 
     reporters->report(ResultKey::ProblemCount, problemFactory.problems().size());
 
-    std::cout<<"Before Loop:**********test*********"<<std::endl;
-    std::cout<<"Before Loop: flush-count size "<<flush_count<<std::endl;
-    std::cout<<"Before Loop: max-workspace-size size "<<maxWorkspaceSize<<std::endl;
-    std::cout<<"Before Loop: maxProblemSize size "<<maxWorkspaceSize<<std::endl;
+    // std::cout<<"Before Loop:**********test*********"<<std::endl;
+    // std::cout<<"Before Loop: flush-count size "<<flush_count<<std::endl;
+    // std::cout<<"Before Loop: max-workspace-size size "<<maxWorkspaceSize<<std::endl;
+    // std::cout<<"Before Loop: maxProblemSize size "<<maxWorkspaceSize<<std::endl;
 
     while(listeners.needMoreBenchmarkRuns())
     {
@@ -594,7 +647,27 @@ int main(int argc, const char* argv[])
         {
             auto& problem = problems[problemIdx];
             problem.setWorkspaceSize(dataInit[0]->workspaceSize());
-            std::cout<<"Before Loop: problem workspace size "<<dataInit[0]->workspaceSize()<<std::endl;
+            // std::cout<<"Before Loop: problem workspace size "<<dataInit[0]->workspaceSize()<<std::endl;
+            // std::cout<<"Test: problem  dim "<<problem.c().dimensions()<<std::endl;
+            // std::cout<<"Test: problem  size "<<problem.c().sizes().size()<<std::endl;
+            // for(int i = 0 ; i<2; i++)
+            //     std::cout<<"Before Loop a : problem  size "<<problem.a().sizes()[i]<<std::endl;
+
+            // for(int i = 0 ; i<problem.b().sizes().size(); i++)
+            //     std::cout<<"Before Loop b : problem  size "<<problem.b().sizes()[i]<<std::endl;
+
+            // for(int i = 0 ; i<problem.c().sizes().size(); i++)
+            //     std::cout<<"Before Loop c : problem  size "<<problem.c().sizes()[i]<<std::endl;
+                
+            // size_t cached_size = problem.totalSize();
+
+            // std::cout<<"Total  size "<<cached_size<<std::endl;
+
+            // size_t flush_count = calculate_flush_batch_count(args["flush-count"].as<size_t>(), 
+            //                                                  args["flush-mem-size"].as<size_t>(),
+            //                                                  cached_size);
+
+            // std::cout<<"flush_count "<<flush_count<<std::endl;
 
             reporters->report(ResultKey::ProblemIndex, problemIdx);
             reporters->report(ResultKey::ProblemProgress,

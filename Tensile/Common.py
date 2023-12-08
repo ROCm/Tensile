@@ -75,6 +75,8 @@ globalParameters["FlushCount"] = 1                # Number of copies of arrays t
                                                   # Note that any padding from leading dimensions is not loaded to cache and not included in the problem_footprint.
                                                   # Then calculate:
                                                   # flush_batch_count >= 1 + cache_size / problem_footprint)
+globalParameters["FlushMemSize"] = 0              # Set to 2x cache size for cache flushing in timing code.
+
 # validation
 globalParameters["NumElementsToValidate"] = 128   # number of elements to validate, 128 will be evenly spaced out (with prime number stride) across C tensor
 globalParameters["BoundsCheck"] = 0   # Bounds check
