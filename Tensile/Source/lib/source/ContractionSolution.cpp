@@ -675,9 +675,12 @@ namespace Tensile
                 magicNumberWgmRemainder1 = smallMagicNumber(wgmRemainder1);
             }
 
-            rv.args.append<uint32_t>("numFullBlocks", numFullBlocks);
-            rv.args.append<uint32_t>("wgmRemainder1", wgmRemainder1);
-            rv.args.append<uint32_t>("magicNumberWgmRemainder1", magicNumberWgmRemainder1);
+            if(std::abs(sizeMapping.workGroupMapping) > 1)
+            {
+                rv.args.append<uint32_t>("numFullBlocks", numFullBlocks);
+                rv.args.append<uint32_t>("wgmRemainder1", wgmRemainder1);
+                rv.args.append<uint32_t>("magicNumberWgmRemainder1", magicNumberWgmRemainder1);
+            }
         }
 
         if(problemType.stochasticRounding)
