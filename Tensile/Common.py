@@ -1391,6 +1391,8 @@ validParameters = {
     "MaxVgprNumber":                list(range(0,257)),
     # min K size to use GlobalSplitU algorithm 
     "MinKForGSU":                   [16,32,64,128,256]
+    "FlushCount":                   list(range(0, 1024)),
+    "FlushMemSize":                 list(range(0, 8*256*1024*1024))
     }
 
 
