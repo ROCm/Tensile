@@ -14,8 +14,6 @@ GlobalParameters:
   ShortNames: False
   MergeFiles: False
   Platform: 0
-  # FlushCount: 3
-  FlushMemSize: 1000000000
   Device: 0
   KernelTime: True
   SleepPercent: 0
@@ -57,7 +55,7 @@ BenchmarkProblems:
           - [8, 8, 4]
         - WorkGroupMapping: [1, 4]
         - TransposeLDS: [0, 1]
-        # - LdsBlockSizePerPad: [-1, 0, 64]
+        - LdsBlockSizePerPad: [-1, 0, 64]
         - DepthU: [4, 8]
         - StoreVectorWidth: [-1, 1, 2, 4]
       BenchmarkFinalParameters:
@@ -65,8 +63,7 @@ BenchmarkProblems:
           # Specify the dimensions of the problems that the solutions
           # should be evaluated on.
           - Exact: [2048, 2048, 1, 4096]
-          # - Exact: [2048, 2048, 1, 4096, 4096, 4096, 4096, 4096]
-          # - Range: [ [128, 128, 128, 1408], [128, 128, 128, 1408], [1], [256, 512, 512, 2048] ]
+          - Range: [ [128, 128, 128, 1408], [128, 128, 128, 1408], [1], [256, 512, 512, 2048] ]
 
 # Specify appropriate parameters for your target device.
 LibraryLogic:

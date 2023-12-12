@@ -479,7 +479,7 @@ namespace Tensile
 
 size_t calculate_flush_batch_count(size_t arg_flush_batch_count,
                                    size_t arg_flush_memory_size,
-                                   size_t cached_size)
+                                   Tensile::Client::ClientProblemFactory const& problemFactory)
 {
     size_t default_arg_flush_batch_count = 1;
     size_t default_arg_flush_memory_size = 0;
@@ -497,14 +497,17 @@ size_t calculate_flush_batch_count(size_t arg_flush_batch_count,
     else if(arg_flush_batch_count != default_arg_flush_batch_count)
     {
         flush_batch_count = arg_flush_batch_count;
-        // rocblas_cout << "flush_malloc_size = ";
-        // print_memory_size(flush_batch_count * malloc_size);
-        // rocblas_cout << std::endl;
     }
     else if(arg_flush_memory_size != default_arg_flush_memory_size)
     {
+        size_t cached_size = 0;
+
+        for(auto const& problem : problemFactory.problems())
+            cached_size = std::max(cached_size, problem.a().sizes()[0]*problem.a().sizes()[1]*problem.a().elementBytes() +
+                                                problem.b().sizes()[0]*problem.b().sizes()[1]*problem.b().elementBytes() +
+                                                problem.c().sizes()[0]*problem.c().sizes()[1]*problem.c().elementBytes());
+
         flush_batch_count = 1 + (arg_flush_memory_size - 1) / cached_size;
-        // rocblas_cout << "flush_batch_count = " << flush_batch_count << std::endl;
     }
     return flush_batch_count;
 }
@@ -570,23 +573,9 @@ int main(int argc, const char* argv[])
 
     MetaRunListener listeners;
 
-    size_t cached_size = 0;
-    if(flush_count==1 && flush_mem_size!=0)
-    {
-        for(auto const& problem : problemFactory.problems())
-        {
-            cached_size = std::max(cached_size, problem.a().totalAllocatedElements()*DataTypeInfo::Get(args["a-type"].as<DataType>()).elementSize +
-                                                problem.b().totalAllocatedElements()*DataTypeInfo::Get(args["b-type"].as<DataType>()).elementSize +
-                                                problem.c().totalAllocatedElements()*DataTypeInfo::Get(args["c-type"].as<DataType>()).elementSize +
-                                                (problem.cEqualsD() ? 0 :
-                                                problem.d().totalAllocatedElements()*DataTypeInfo::Get(args["d-type"].as<DataType>()).elementSize) );
-                    // std::cout<<"problem.cEqualsD()"<<problem.cEqualsD()<<std::endl;
-        } 
-    }
-
     flush_count = calculate_flush_batch_count(flush_count, 
                                             flush_mem_size,
-                                            cached_size);
+                                            problemFactory);
 
     for(size_t i = 0; i<flush_count; i++)
     {
@@ -594,17 +583,11 @@ int main(int argc, const char* argv[])
         listeners.addListener(dataInit[i]);
     }
 
-    // std::cout<<"cached_size "<<cached_size<<std::endl;
-    // std::cout<<"a elementSize "<<DataTypeInfo::Get(args["a-type"].as<DataType>()).elementSize<<std::endl;
-    // std::cout<<"b elementSize "<<DataTypeInfo::Get(args["b-type"].as<DataType>()).elementSize<<std::endl;
-    // std::cout<<"c elementSize "<<DataTypeInfo::Get(args["c-type"].as<DataType>()).elementSize<<std::endl;
-    // std::cout<<"d elementSize "<<DataTypeInfo::Get(args["d-type"].as<DataType>()).elementSize<<std::endl;
-
     listeners.addListener(solutionIterator);
     listeners.addListener(std::make_shared<ProgressListener>(args));
     if(runKernels)
     {
-        listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit[0])); //TODO check this
+        listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit[0]));
         listeners.addListener(std::make_shared<BenchmarkTimer>(args, *hardware));
         listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
     }
@@ -634,11 +617,6 @@ int main(int argc, const char* argv[])
 
     reporters->report(ResultKey::ProblemCount, problemFactory.problems().size());
 
-    // std::cout<<"Before Loop:**********test*********"<<std::endl;
-    // std::cout<<"Before Loop: flush-count size "<<flush_count<<std::endl;
-    // std::cout<<"Before Loop: max-workspace-size size "<<maxWorkspaceSize<<std::endl;
-    // std::cout<<"Before Loop: maxProblemSize size "<<maxWorkspaceSize<<std::endl;
-
     while(listeners.needMoreBenchmarkRuns())
     {
         listeners.preBenchmarkRun();
@@ -647,27 +625,6 @@ int main(int argc, const char* argv[])
         {
             auto& problem = problems[problemIdx];
             problem.setWorkspaceSize(dataInit[0]->workspaceSize());
-            // std::cout<<"Before Loop: problem workspace size "<<dataInit[0]->workspaceSize()<<std::endl;
-            // std::cout<<"Test: problem  dim "<<problem.c().dimensions()<<std::endl;
-            // std::cout<<"Test: problem  size "<<problem.c().sizes().size()<<std::endl;
-            // for(int i = 0 ; i<2; i++)
-            //     std::cout<<"Before Loop a : problem  size "<<problem.a().sizes()[i]<<std::endl;
-
-            // for(int i = 0 ; i<problem.b().sizes().size(); i++)
-            //     std::cout<<"Before Loop b : problem  size "<<problem.b().sizes()[i]<<std::endl;
-
-            // for(int i = 0 ; i<problem.c().sizes().size(); i++)
-            //     std::cout<<"Before Loop c : problem  size "<<problem.c().sizes()[i]<<std::endl;
-                
-            // size_t cached_size = problem.totalSize();
-
-            // std::cout<<"Total  size "<<cached_size<<std::endl;
-
-            // size_t flush_count = calculate_flush_batch_count(args["flush-count"].as<size_t>(), 
-            //                                                  args["flush-mem-size"].as<size_t>(),
-            //                                                  cached_size);
-
-            // std::cout<<"flush_count "<<flush_count<<std::endl;
 
             reporters->report(ResultKey::ProblemIndex, problemIdx);
             reporters->report(ResultKey::ProblemProgress,
@@ -722,7 +679,7 @@ int main(int argc, const char* argv[])
                                 // Do validation after first warmup
                                 if(i == 0)
                                     listeners.validateWarmups(
-                                        inputs[0], warmupStartEvents, warmupStopEvents); //TODO check this
+                                        inputs[0], warmupStartEvents, warmupStopEvents);
                             }
 
                             size_t syncs = listeners.numSyncs();
@@ -749,7 +706,7 @@ int main(int argc, const char* argv[])
                                 }
 
                                 listeners.postEnqueues(startEvents, stopEvents);
-                                listeners.validateEnqueues(inputs[0], startEvents, stopEvents); //TODO check this
+                                listeners.validateEnqueues(inputs[0], startEvents, stopEvents);
                             }
 
                             listeners.postSyncs();
