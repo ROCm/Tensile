@@ -39,6 +39,7 @@ def parseArgs():
          "per-cu"  : "If tuning was done per CU", \
          "name"    : "Name substring to filter which files are modified", \
          "mfma"    : "If MFMA instructions were used for tuning", \
+         "x"       : "to select A (default), or X node", \
          "mi50"    : "For vega20, if tuning was done on mi50"
     }
 
@@ -49,6 +50,7 @@ def parseArgs():
     argParser.add_argument("-p", "--per-cu", action="store_true", help=h["per-cu"])
     argParser.add_argument("-n", "--name", type=str, help=h["name"])
     argParser.add_argument("-m", "--mfma", action="store_true", help=h["mfma"])
+    argParser.add_argument("-x", action="store_true", help=h["x"])
     argParser.add_argument("--mi50", action="store_true", help=h["mi50"])
 
     return argParser.parse_args()
@@ -90,8 +92,12 @@ def main():
                 data = yaml.safe_load(y)
 
                 sched = data[1]
-                type = DataType(data[4]["DataType"]).toChar()
+                if args.x:
+                    sched+="X"
 
+                type = DataType(data[4]["DataType"]).toChar()
+                if type=="S" and data[4]["F32XdlMathOp"]==9:
+                    type="X"
                 if type in specs[sched][mfmaKey]:
                   alu = specs[sched][mfmaKey][type]
                 else:

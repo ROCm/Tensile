@@ -286,7 +286,7 @@ function(TensileCreateLibraryFiles
         COMMAND ${CommandLine}
       )
 
-      set("${Tensile_VAR_PREFIX}_ALL_FILES" ${Tensile_MANIFEST_CONTENTS} PARENT_SCOPE)
+      set("${Tensile_VAR_PREFIX}_ALL_FILES" ${Tensile_EMBED_LIBRARY_SOURCE};${Tensile_MANIFEST_CONTENTS} PARENT_SCOPE)
 
       # Create a chained library build target.
       # We've declared the manifest contents as output of the custom
@@ -295,7 +295,7 @@ function(TensileCreateLibraryFiles
       # command to be invoked at build time, not cmake time.
       TensileCreateCopyTarget(
       "${Tensile_VAR_PREFIX}_LIBRARY_TARGET"
-      "${Tensile_MANIFEST_CONTENTS}"
+      "${Tensile_EMBED_LIBRARY_SOURCE};${Tensile_MANIFEST_CONTENTS}"
       "${Tensile_OUTPUT_PATH}/library"
     )
 
