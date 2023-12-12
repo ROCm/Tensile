@@ -1023,7 +1023,7 @@ def WriteClientLibraryFromSolutions(solutionList, libraryWorkingPath, tensileSou
 ################################################################################
 # Tensile Create Library
 ################################################################################
-def TensileCreateLibrary():
+def main():
   print1("")
   print1(HR)
   print1("# Tensile Create Library")

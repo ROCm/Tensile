@@ -29,6 +29,7 @@ import numpy as np
 import yaml
 import subprocess
 import glob
+import sys
 
 from shutil import copyfile
 from copy import deepcopy
@@ -70,7 +71,7 @@ def createLibraryForBenchmark(logicPath, libraryPath, currentPath):
     except (subprocess.CalledProcessError, OSError) as e:
         printExit("ClientWriter Benchmark Process exited with error: {}".format(e))
 
-def GenerateSummations(userArgs):
+def main(userArgs = sys.argv[1:]):
 
     inputLogicPath = userArgs[0]
     outputPath = userArgs[1]
