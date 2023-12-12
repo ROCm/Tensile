@@ -3370,9 +3370,7 @@ class Solution(collections.abc.Mapping):
     # to eliminate identical/duplicate kernels when GSU=1
     if state["GlobalSplitU"] == 1:
       state["MinKForGSU"] = 256
-      # GlobalSplitUAlgorithm is MultipleBuffer
-      if state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':
-        reject(state, " GlobalSplitU=1 and GlobalSplitUAlgorithm='MultipleBuffer'. Rejecting GlobalSplitUAlgorithm='SingleBuffer' to avoid duplicate kernels.")
+      state["GlobalSplitUAlgorithm"] = 'SingleBuffer' # force to use SingleBuffer for GSU=1 (instead of rejecting it)
       # GlobalSplitUAtomicAdd is True
       if state["GlobalSplitUAtomicAdd"]:
         reject(state, " GlobalSplitU=1 and GlobalSplitUAtomicAdd=True. Rejecting to avoid duplicate kernels.")
