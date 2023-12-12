@@ -141,9 +141,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
                 kernelHelperOjbs.append(ko)
                 kernelHelperNames.add(kname)
 
-    solutionSerialNaming = Solution.getSerialNaming(solutions)
     kernelSerialNaming = Solution.getSerialNaming(kernels)
-    solutionMinNaming = Solution.getMinNaming(solutions)
     kernelMinNaming = Solution.getMinNaming(kernels)
     kernelWriterSource = KernelWriterSource(kernelMinNaming, kernelSerialNaming)
     kernelWriterAssembly = KernelWriterAssembly(kernelMinNaming, kernelSerialNaming)

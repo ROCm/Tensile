@@ -627,7 +627,6 @@ def writeKernels(outputPath, CxxCompiler, problemTypes, solutions, kernels, kern
 def getKernelWriters(solutions, kernels):
 
   # if any kernels are assembly, append every ISA supported
-  solutionSerialNaming = Solution.getSerialNaming(solutions)
   kernelSerialNaming   = Solution.getSerialNaming(kernels)
 
   solutionMinNaming    = Solution.getMinNaming(solutions)
