@@ -169,22 +169,25 @@ namespace Tensile
                 ("flush-count",              po::value<size_t>()->default_value(1), "Number of copies of arrays to allocate for cache flushing in timing code."
                                                                                     " Functions are called iters times in a timing loop." 
                                                                                     " If the problem memory footprint is small enough, then arrays will be cached."
-                                                                                    " flush_batch_count can be used to prevent caching."
+                                                                                    " flush_count can be used to prevent caching."
                                                                                     " For example, for sgemm with transA=transB=N:"
                                                                                     " problem_memory_footprint = (m*k + k*n + m*n) * sizeof(float)."
                                                                                     " To flush arrays before reuse set:"
-                                                                                    " flush_batch_count >= 1 + cache_size / problem_memory_footprint"
-                                                                                    " Note that in the calculation of flush_batch_count any padding from leading"
+                                                                                    " flush_count >= 1 + cache_size / problem_memory_footprint"
+                                                                                    " Note that in the calculation of flush_count any padding from leading"
                                                                                     " dimensions is not loaded to cache and not included in the problem_memory_footprint."
-                                                                                    " If you specify flush_batch_count you cannot also specify flush_memory_size")
-                ("flush-memory-size",           po::value<size_t>()->default_value(0), "Used only in timing code for cache flushing. Set to greater than"
+                                                                                    " If you specify flush_count you cannot also specify flush_memory_size")
+                ("flush-memory-size",      po::value<size_t>()->default_value(0),   "Used only in timing code for cache flushing. Set to greater than"
                                                                                     " cache size so arrays are flushed from cache before they are reused. When the size of arrays (the problem_memory_footprint)"
-                                                                                    " is smaller than flush_memory_size, then flush_batch_count copies of arrays are allocated where:"
-                                                                                    " flush_batch_count = flush_memory_size / problem_memory_footprint."
+                                                                                    " is smaller than flush_memory_size, then flush_count copies of arrays are allocated where:"
+                                                                                    " flush_count = flush_memory_size / problem_memory_footprint."
                                                                                     " For sgemm with transA=transB=N"
                                                                                     " problem_memory_footprint = (m*k + k*n + m*n) * sizeof(float). Note that any padding from leading"
                                                                                     " dimensions is not loaded to cache and not included in the problem_memory_footprint."
-                                                                                    " If you specify flush_memory_size you cannot also specify flush_batch_count")
+                                                                                    " If you specify flush_memory_size you cannot also specify flush_count."
+                                                                                    " Also note that Tensile allocates enough memory once at setup to accomodate"
+                                                                                    " the largest problem. Similarly, the largest problem will be used to calculate flush_count."
+                                                                                    " Configs with largely contrasting sizes may not guarantee cache eviction for the smaller problems")
 
                 ("perf-l2-read-hits",        po::value<double>()->default_value(0.0), "L2 read hits")
                 ("perf-l2-write-hits",       po::value<double>()->default_value(0.5), "L2 write hits")
@@ -489,26 +492,26 @@ namespace Tensile
     } // namespace Client
 } // namespace Tensile
 
-size_t calculate_flush_batch_count(size_t arg_flush_batch_count,
+size_t calculate_flush_count(size_t arg_flush_count,
                                    size_t arg_flush_memory_size,
                                    Tensile::Client::ClientProblemFactory const& problemFactory)
 {
-    size_t default_arg_flush_batch_count = 1;
+    size_t default_arg_flush_count = 1;
     size_t default_arg_flush_memory_size = 0;
-    size_t flush_batch_count             = default_arg_flush_batch_count;
+    size_t flush_count             = default_arg_flush_count;
 
-    if(arg_flush_batch_count != default_arg_flush_batch_count
+    if(arg_flush_count != default_arg_flush_count
        && arg_flush_memory_size != default_arg_flush_memory_size)
     {
-        std::cout << "Tensile WARNING: cannot set both flush_batch_count and flush_memory_size"
+        std::cout << "Tensile WARNING: cannot set both flush_count and flush_memory_size"
                      << std::endl;
-        std::cout << "Tensile WARNING: using flush_batch_count = " << arg_flush_batch_count
+        std::cout << "Tensile WARNING: using flush_count = " << arg_flush_count
                      << std::endl;
-        flush_batch_count = arg_flush_batch_count;
+        flush_count = arg_flush_count;
     }
-    else if(arg_flush_batch_count != default_arg_flush_batch_count)
+    else if(arg_flush_count != default_arg_flush_count)
     {
-        flush_batch_count = arg_flush_batch_count;
+        flush_count = arg_flush_count;
     }
     else if(arg_flush_memory_size != default_arg_flush_memory_size)
     {
@@ -519,9 +522,9 @@ size_t calculate_flush_batch_count(size_t arg_flush_batch_count,
                                                 problem.b().sizes()[0]*problem.b().sizes()[1]*problem.b().elementBytes() +
                                                 problem.c().sizes()[0]*problem.c().sizes()[1]*problem.c().elementBytes());
 
-        flush_batch_count = 1 + (arg_flush_memory_size - 1) / cached_size;
+        flush_count = 1 + (arg_flush_memory_size - 1) / cached_size;
     }
-    return flush_batch_count;
+    return flush_count;
 }
 
 int main(int argc, const char* argv[])
@@ -585,7 +588,7 @@ int main(int argc, const char* argv[])
 
     MetaRunListener listeners;
 
-    flush_count = calculate_flush_batch_count(flush_count, 
+    flush_count = calculate_flush_count(flush_count, 
                                             flush_memory_size,
                                             problemFactory);
 

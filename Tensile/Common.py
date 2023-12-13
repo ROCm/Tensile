@@ -69,25 +69,28 @@ globalParameters["NumWarmups"] = 0                # how many warmup runs to perf
 globalParameters["SyncsPerBenchmark"] = 1         # how iterations of the stream synchronization for-loop to do per benchmark data point
 globalParameters["EnqueuesPerSync"] = 1           # how many solution enqueues to perform per synchronization
 globalParameters["SleepPercent"] = 300            # how long to sleep after every data point: 25 means 25% of solution time. Sleeping lets gpu cool down more.
-globalParameters["FlushCount"] = 1                # "Number of copies of arrays to allocate for cache flushing in timing code.
+globalParameters["FlushCount"] = 1                # Number of copies of arrays to allocate for cache flushing in timing code.
                                                   # Functions are called iters times in a timing loop.
                                                   # If the problem memory footprint is small enough, then arrays will be cached.
-                                                  # flush_batch_count can be used to prevent caching.
+                                                  # flush_count can be used to prevent caching.
                                                   # For example, for sgemm with transA=transB=N:
                                                   # problem_memory_footprint = (m*k + k*n + m*n) * sizeof(float).
                                                   # To flush arrays before reuse set:
-                                                  # flush_batch_count >= 1 + cache_size / problem_memory_footprint
-                                                  # Note that in the calculation of flush_batch_count any padding from leading
+                                                  # flush_count >= 1 + cache_size / problem_memory_footprint
+                                                  # Note that in the calculation of flush_count any padding from leading
                                                   # dimensions is not loaded to cache and not included in the problem_memory_footprint.
-                                                  # If you specify flush_batch_count you cannot also specify flush_memory_size)
+                                                  # If you specify flush_count you cannot also specify flush_memory_size)
 globalParameters["FlushMemorySize"] = 0           # Bytes of memory that will be occupied by arrays. Used only in timing code for cache flushing. Set to greater than
                                                   # cache size so arrays are flushed from cache before they are reused. When the size of arrays (the problem_memory_footprint)
-                                                  # is smaller than flush_memory_size, then flush_batch_count copies of arrays are allocated where:
-                                                  # flush_batch_count = flush_memory_size / problem_memory_footprint.
+                                                  # is smaller than flush_memory_size, then flush_count copies of arrays are allocated where:
+                                                  # flush_count = flush_memory_size / problem_memory_footprint.
                                                   # For sgemm with transA=transB=N
                                                   # problem_memory_footprint = (m*k + k*n + m*n) * sizeof(float). Note that any padding from leading
                                                   # dimensions is not loaded to cache and not included in the problem_memory_footprint.
-                                                  # If you specify flush_memory_size you cannot also specify flush_batch_count)
+                                                  # If you specify flush_memory_size you cannot also specify flush_count)
+                                                  # Also note that Tensile allocates enough memory once at setup to accomodate
+                                                  # the largest problem. Similarly, the largest problem will be used to calculate flush_count.
+                                                  # Configs with largely contrasting sizes may not guarantee cache eviction for the smaller problems
 
 # validation
 globalParameters["NumElementsToValidate"] = 128   # number of elements to validate, 128 will be evenly spaced out (with prime number stride) across C tensor
