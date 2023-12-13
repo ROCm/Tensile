@@ -177,7 +177,7 @@ namespace Tensile
                                                                                     " Note that in the calculation of flush_batch_count any padding from leading"
                                                                                     " dimensions is not loaded to cache and not included in the problem_memory_footprint."
                                                                                     " If you specify flush_batch_count you cannot also specify flush_memory_size")
-                ("flush-mem-size",           po::value<size_t>()->default_value(0), "Bytes of memory that will be occupied by arrays. Used only in timing code for cache flushing. Set to greater than"
+                ("flush-memory-size",           po::value<size_t>()->default_value(0), "Used only in timing code for cache flushing. Set to greater than"
                                                                                     " cache size so arrays are flushed from cache before they are reused. When the size of arrays (the problem_memory_footprint)"
                                                                                     " is smaller than flush_memory_size, then flush_batch_count copies of arrays are allocated where:"
                                                                                     " flush_batch_count = flush_memory_size / problem_memory_footprint."
@@ -578,7 +578,7 @@ int main(int argc, const char* argv[])
         = getMaxWorkspace(library, hardware, args, problems, firstProblemIdx, lastProblemIdx);
     maxWorkspaceSize = std::min(maxWorkspaceSize, maxWorkspaceSizeLimit);
     size_t flush_count = args["flush-count"].as<size_t>();
-    size_t flush_mem_size = args["flush-mem-size"].as<size_t>();
+    size_t flush_memory_size = args["flush-memory-size"].as<size_t>();
 
     std::vector<std::shared_ptr<DataInitialization>> dataInit;
     auto solutionIterator = SolutionIterator::Default(library, hardware, args);
@@ -586,7 +586,7 @@ int main(int argc, const char* argv[])
     MetaRunListener listeners;
 
     flush_count = calculate_flush_batch_count(flush_count, 
-                                            flush_mem_size,
+                                            flush_memory_size,
                                             problemFactory);
 
     for(size_t i = 0; i<flush_count; i++)

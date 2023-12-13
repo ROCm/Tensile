@@ -80,7 +80,7 @@ globalParameters["FlushCount"] = 1                # "Number of copies of arrays 
                                                   # Note that in the calculation of flush_batch_count any padding from leading
                                                   # dimensions is not loaded to cache and not included in the problem_memory_footprint.
                                                   # If you specify flush_batch_count you cannot also specify flush_memory_size)
-globalParameters["FlushMemSize"] = 0              # Bytes of memory that will be occupied by arrays. Used only in timing code for cache flushing. Set to greater than
+globalParameters["FlushMemorySize"] = 0           # Bytes of memory that will be occupied by arrays. Used only in timing code for cache flushing. Set to greater than
                                                   # cache size so arrays are flushed from cache before they are reused. When the size of arrays (the problem_memory_footprint)
                                                   # is smaller than flush_memory_size, then flush_batch_count copies of arrays are allocated where:
                                                   # flush_batch_count = flush_memory_size / problem_memory_footprint.
@@ -1404,7 +1404,7 @@ validParameters = {
     # min K size to use GlobalSplitU algorithm 
     "MinKForGSU":                   [16,32,64,128,256],
     "FlushCount":                   list(range(0, 1024)),
-    "FlushMemSize":                 list(range(0, 8*256*1024*1024))
+    "FlushMemorySize":              list(range(0, 8*256*1024*1024))
     }
 
 
