@@ -284,11 +284,12 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
 
             maxPossibleSolutions += len(kcSolutions)
             solutions = regSolutions + kcSolutions
+            num_of_solutions = len(solutions)
 
-            print1(f"# Actual Solutions: {len(solutions)} / {maxPossibleSolutions} after SolutionStructs\n")
+            print1(f"# Actual Solutions: {num_of_solutions} / {maxPossibleSolutions} after SolutionStructs\n")
 
             # handle no valid solutions
-            if len(solutions) == 0:
+            if num_of_solutions == 0:
                 msg = "Your parameters resulted in 0 valid solutions."
                 if globalParameters["PrintSolutionRejectionReason"]:
                     msg += "\nExamine reject and backtrace messages above to see why" \
@@ -304,7 +305,7 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
                 print2(HR)
 
             # write benchmarkFiles
-            prevCount = len(solutions)
+            prevCount = num_of_solutions
             codeObjectFiles = writeBenchmarkFiles(stepBaseDir, solutions, \
                     benchmarkStep.problemSizes, shortName, [])
             # ^ this mutates solutions
@@ -320,7 +321,7 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
             }
             LibraryIO.writeYAML(cachePath, cacheData)
 
-            print1(f"# Actual Solutions: {len(solutions)} / {prevCount} after KernelWriter\n")
+            print1(f"# Actual Solutions: {num_of_solutions} / {prevCount} after KernelWriter\n")
         else:
             solutions = None
             print1("# Using cached solution data")
