@@ -43,7 +43,7 @@ class CMakeEnvironment:
 
         args = ['cmake']
         args += ['-G', 'Ninja'] if (os.name == 'nt') else []
-        args += itertools.chain.from_iterable([ ['-D{}={}'.format(key, value)] for key,value in self.options.items()])
+        args += itertools.chain.from_iterable([ [f'-D{key}={value}'] for key,value in self.options.items()])
         args += [self.sourceDir]
         args = [cmake_path(arg) for arg in args]
 
