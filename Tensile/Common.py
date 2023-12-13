@@ -75,20 +75,20 @@ globalParameters["FlushCount"] = 1                # Number of copies of arrays t
                                                   # flush_count can be used to prevent caching.
                                                   # For example, for sgemm with transA=transB=N:
                                                   # problem_memory_footprint = (m*k + k*n + m*n) * sizeof(float).
-                                                  # To flush arrays before reuse set:
+                                                  # To flush arrays before reusing set:
                                                   # flush_count >= 1 + cache_size / problem_memory_footprint
                                                   # Note that in the calculation of flush_count any padding from leading
-                                                  # dimensions is not loaded to cache and not included in the problem_memory_footprint.
+                                                  # dimensions are not loaded to cache and not included in the problem_memory_footprint.
                                                   # If you specify flush_count you cannot also specify flush_memory_size)
 globalParameters["FlushMemorySize"] = 0           # Bytes of memory that will be occupied by arrays. Used only in timing code for cache flushing. Set to greater than
-                                                  # cache size so arrays are flushed from cache before they are reused. When the size of arrays (the problem_memory_footprint)
+                                                  # cache size, so that arrays are flushed from cache before they are reused. When the size of arrays (the problem_memory_footprint)
                                                   # is smaller than flush_memory_size, then flush_count copies of arrays are allocated where:
                                                   # flush_count = flush_memory_size / problem_memory_footprint.
                                                   # For sgemm with transA=transB=N
                                                   # problem_memory_footprint = (m*k + k*n + m*n) * sizeof(float). Note that any padding from leading
-                                                  # dimensions is not loaded to cache and not included in the problem_memory_footprint.
+                                                  # dimensions are not loaded to cache and not included in the problem_memory_footprint.
                                                   # If you specify flush_memory_size you cannot also specify flush_count)
-                                                  # Also note that Tensile allocates enough memory once at setup to accomodate
+                                                  # Also note that Tensile allocates enough memory once at setup to accommodate
                                                   # the largest problem. Similarly, the largest problem will be used to calculate flush_count.
                                                   # Configs with largely contrasting sizes may not guarantee cache eviction for the smaller problems
 

@@ -172,20 +172,20 @@ namespace Tensile
                                                                                     " flush_count can be used to prevent caching."
                                                                                     " For example, for sgemm with transA=transB=N:"
                                                                                     " problem_memory_footprint = (m*k + k*n + m*n) * sizeof(float)."
-                                                                                    " To flush arrays before reuse set:"
+                                                                                    " To flush arrays before reusing set:"
                                                                                     " flush_count >= 1 + cache_size / problem_memory_footprint"
                                                                                     " Note that in the calculation of flush_count any padding from leading"
-                                                                                    " dimensions is not loaded to cache and not included in the problem_memory_footprint."
+                                                                                    " dimensions are not loaded to cache and not included in the problem_memory_footprint."
                                                                                     " If you specify flush_count you cannot also specify flush_memory_size")
                 ("flush-memory-size",      po::value<size_t>()->default_value(0),   "Used only in timing code for cache flushing. Set to greater than"
-                                                                                    " cache size so arrays are flushed from cache before they are reused. When the size of arrays (the problem_memory_footprint)"
+                                                                                    " cache size, so that arrays are flushed from cache before they are reused. When the size of arrays (the problem_memory_footprint)"
                                                                                     " is smaller than flush_memory_size, then flush_count copies of arrays are allocated where:"
                                                                                     " flush_count = flush_memory_size / problem_memory_footprint."
                                                                                     " For sgemm with transA=transB=N"
                                                                                     " problem_memory_footprint = (m*k + k*n + m*n) * sizeof(float). Note that any padding from leading"
-                                                                                    " dimensions is not loaded to cache and not included in the problem_memory_footprint."
+                                                                                    " dimensions are not loaded to cache and not included in the problem_memory_footprint."
                                                                                     " If you specify flush_memory_size you cannot also specify flush_count."
-                                                                                    " Also note that Tensile allocates enough memory once at setup to accomodate"
+                                                                                    " Also note that Tensile allocates enough memory once at setup to accommodate"
                                                                                     " the largest problem. Similarly, the largest problem will be used to calculate flush_count."
                                                                                     " Configs with largely contrasting sizes may not guarantee cache eviction for the smaller problems")
 
@@ -492,6 +492,26 @@ namespace Tensile
     } // namespace Client
 } // namespace Tensile
 
+inline void print_memory_size(size_t memory_size)
+{
+    if(memory_size < 1024)
+    {
+        std::cout << std::setprecision(0) << memory_size << " Bytes";
+    }
+    else if(memory_size < 1048576)
+    {
+        std::cout << std::setprecision(3) << float(memory_size) / 1024.0f << " KB";
+    }
+    else if(memory_size < 1073741824)
+    {
+        std::cout << std::setprecision(6) << float(memory_size) / 1048576.0f << " MB";
+    }
+    else
+    {
+        std::cout << std::setprecision(9) << float(memory_size) / 1073741824.0f << " GB";
+    }
+}
+
 size_t calculate_flush_count(size_t arg_flush_count,
                                    size_t arg_flush_memory_size,
                                    Tensile::Client::ClientProblemFactory const& problemFactory)
@@ -499,6 +519,13 @@ size_t calculate_flush_count(size_t arg_flush_count,
     size_t default_arg_flush_count = 1;
     size_t default_arg_flush_memory_size = 0;
     size_t flush_count             = default_arg_flush_count;
+
+    size_t cached_size = 0;
+
+    for(auto const& problem : problemFactory.problems())
+        cached_size = std::max(cached_size, problem.a().sizes()[0]*problem.a().sizes()[1]*problem.a().elementBytes() +
+                                            problem.b().sizes()[0]*problem.b().sizes()[1]*problem.b().elementBytes() +
+                                            problem.c().sizes()[0]*problem.c().sizes()[1]*problem.c().elementBytes());
 
     if(arg_flush_count != default_arg_flush_count
        && arg_flush_memory_size != default_arg_flush_memory_size)
@@ -512,17 +539,16 @@ size_t calculate_flush_count(size_t arg_flush_count,
     else if(arg_flush_count != default_arg_flush_count)
     {
         flush_count = arg_flush_count;
+
+        std::cout << "flush_memory_size = ";
+        print_memory_size(flush_count * cached_size);
+        std::cout << std::endl;
     }
     else if(arg_flush_memory_size != default_arg_flush_memory_size)
     {
-        size_t cached_size = 0;
-
-        for(auto const& problem : problemFactory.problems())
-            cached_size = std::max(cached_size, problem.a().sizes()[0]*problem.a().sizes()[1]*problem.a().elementBytes() +
-                                                problem.b().sizes()[0]*problem.b().sizes()[1]*problem.b().elementBytes() +
-                                                problem.c().sizes()[0]*problem.c().sizes()[1]*problem.c().elementBytes());
-
         flush_count = 1 + (arg_flush_memory_size - 1) / cached_size;
+        
+        std::cout << "flush_count = " << flush_count << std::endl;
     }
     return flush_count;
 }
@@ -711,7 +737,7 @@ int main(int argc, const char* argv[])
 
                                 for(int j = 0; j < enq; j++)
                                 {
-                                    int flush_index = (j + i + 1) % flush_count;
+                                    int flush_index = (j + i*enq + 1) % flush_count;
                                     if(gpuTimer)
                                         HIP_CHECK_EXC(adapter.launchKernels(
                                             kernels[flush_index], stream, startEvents[j], stopEvents[j]));
