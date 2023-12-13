@@ -83,7 +83,7 @@ def generateCustomKernelSolutions(problemType, customKernels, failOnMismatch):
     """Creates a list with a Solution object for each name in customKernel"""
     solutions = []
     for kernelName in customKernels:
-        print1("# Processing custom kernel {}".format(kernelName))
+        print1(f"# Processing custom kernel {kernelName}")
         solution = getCustomKernelSolutionObj(kernelName)
         if solution["ProblemType"] != problemType:
             # Raise error if this kernel was specifically requested and problem type doesn't match
@@ -93,8 +93,8 @@ def generateCustomKernelSolutions(problemType, customKernels, failOnMismatch):
                 customSet = set([(k,tuple(v)) if type(v) is list else (k,v) \
                         for k,v in solution["ProblemType"].items()])
 
-                msg = "The problem type in the config file does not match " \
-                        "that of the custom kernel, {}.".format(kernelName) \
+                msg = f"The problem type in the config file does not match " \
+                        "that of the custom kernel, {kernelName}." \
                         + "\nDiffering parameters:\n" \
                         + "\tConfig values:\n\t" \
                         + str(sorted(benchmarkSet - (customSet & benchmarkSet))) \
@@ -102,9 +102,9 @@ def generateCustomKernelSolutions(problemType, customKernels, failOnMismatch):
                         +  str(sorted(customSet - (customSet & benchmarkSet)))
                 printExit(msg)
             else:
-                print1("# Rejected {}: Problem Type doesn't match".format(kernelName))
+                print1(f"# Rejected {kernelName}: Problem Type doesn't match")
         else:
-            print1("# Added {} to solutions".format(kernelName))
+            print1(f"# Added {kernelName} to solutions")
             if solution["Valid"]:
                 solutions.append(solution)
             elif globalParameters["PrintSolutionRejectionReason"]:
@@ -214,14 +214,15 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
     benchmarkProcess = BenchmarkProcess(problemTypeConfig, problemSizeGroupConfig)
 
     enableTileSelection = benchmarkProcess.problemType["TileAwareSelection"]
-    groupName = "{}_{:02d}".format(str(benchmarkProcess.problemType), problemSizeGroupIdx)
+    problemType = str(benchmarkProcess.problemType)
+    groupName = f"{problemType}_{problemSizeGroupIdx:02d}"
     pushWorkingPath(groupName)
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Data"))
 
     totalBenchmarkSteps = len(benchmarkProcess)
     resultsFileBaseFinal = None
 
-    print1("# NumBenchmarkSteps: {}".format(totalBenchmarkSteps))
+    print1(f"# NumBenchmarkSteps: {totalBenchmarkSteps}")
     print1("")
     print1(HR)
     print1("# Done Creating BenchmarkProcess Object")
@@ -236,11 +237,11 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
         print1(HR)
         currentTime = time.time()
         elapsedTime = currentTime - startTime
-        print1("# Benchmark Step: {} - {} {:.3f}s".format(groupName, stepName, elapsedTime))
-        print1("# Num Sizes: {}".format(benchmarkStep.problemSizes.totalProblemSizes))
+        print1(f"# Benchmark Step: {groupName} - {stepName} {elapsedTime:.3f}s")
+        print1(f"# Num Sizes: {benchmarkStep.problemSizes.totalProblemSizes}")
         print1("# Fork Parameters:")
         for k, v in sorted(benchmarkStep.forkParams.items()):
-            print1("#     {}: {}".format(k, v))
+            print1(f"#     {k}: {v}")
 
         pushWorkingPath(shortName)
         stepBaseDir = globalParameters["WorkingPath"]
@@ -284,8 +285,7 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
             maxPossibleSolutions += len(kcSolutions)
             solutions = regSolutions + kcSolutions
 
-            print1("# Actual Solutions: {} / {} after SolutionStructs\n" \
-                .format(len(solutions), maxPossibleSolutions))
+            print1(f"# Actual Solutions: {len(solutions)} / {maxPossibleSolutions} after SolutionStructs\n")
 
             # handle no valid solutions
             if len(solutions) == 0:
@@ -300,7 +300,7 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
 
             if globalParameters["PrintLevel"] >= 1:
                 for solution in solutions:
-                    print2("#    ({}:{}) {}".format(0, 0, Solution.getNameFull(solution)))
+                    print2f("#    (0:0) {Solution.getNameFull(solution)}")
                 print2(HR)
 
             # write benchmarkFiles
@@ -320,8 +320,7 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
             }
             LibraryIO.writeYAML(cachePath, cacheData)
 
-            print1("# Actual Solutions: {} / {} after KernelWriter\n" \
-                    .format(len(solutions), prevCount ))
+            print1(f"# Actual Solutions: {len(solutions)} / {prevCount} after KernelWriter\n")
         else:
             solutions = None
             print1("# Using cached solution data")
@@ -348,8 +347,7 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
 
             if returncode:
                 benchmarkTestFails += 1
-                printWarning("BenchmarkProblems: Benchmark Process exited with code {}" \
-                        .format(returncode))
+                printWarning("BenchmarkProblems: Benchmark Process exited with code {returncode}")
         else:
             print1("# Already benchmarked; skipping.")
 
@@ -357,8 +355,7 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
         popWorkingPath()  # stepName
         currentTime = time.time()
         elapsedTime = currentTime - startTime
-        print1("{}\n# {}\n# {}: End - {:.3f}s\n{}\n" \
-                .format(HR, groupName, shortName, elapsedTime, HR))
+        print1(f"{HR}\n# {groupName}\n# {shortName}: End - {elapsedTime:.3f}s\n{HR}\n")
 
     popWorkingPath()  # ProblemType
     return (resultsFileBaseFinal, benchmarkTestFails)
