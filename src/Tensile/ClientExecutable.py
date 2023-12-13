@@ -25,6 +25,7 @@
 import itertools
 import os
 import subprocess
+from sys import stderr
 
 from . import Common
 from .Common import globalParameters, print2
@@ -54,7 +55,7 @@ class CMakeEnvironment:
                 out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=Common.ensurePath(self.buildDir))
                 print2(out)
             except subprocess.CalledProcessError as err:
-                print(err.output)
+                print(err.output, file=stderr)
                 raise
             
 
@@ -67,7 +68,7 @@ class CMakeEnvironment:
                 out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=self.buildDir)
                 print2(out)
             except subprocess.CalledProcessError as err:
-                print(err.output)
+                print(err.output, file=stderr)
                 raise
 
     def builtPath(self, path, *paths):
