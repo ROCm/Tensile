@@ -706,6 +706,7 @@ namespace Tensile
             m_beta); // Set enum using beta to potentially allow for faster solutions
         consistencyCheck();
         normalize();
+        calcArithmeticIntensity();
     }
 
     size_t ContractionProblem::toAPos(size_t idx) const
@@ -1047,6 +1048,39 @@ namespace Tensile
         for(auto const& op : m_dOps)
             if(op.type == TensorOp::Type::ComplexConjugate)
                 TENSILE_ASSERT_EXC(DataTypeInfo::Get(m_d.dataType()).isComplex);
+    }
+
+    void ContractionProblem::calcArithmeticIntensity()
+    {
+        size_t problemSize = 1;
+        for(size_t i = 0; i < m_problemSizes.size(); ++i)
+        {
+            problemSize *= m_problemSizes[i];
+        }
+        for(size_t i = 0; i < m_batchSizes.size(); ++i)
+        {
+            problemSize *= m_batchSizes[i];
+        }
+        double gflop = 2 * problemSize * 1e-9;
+
+        size_t aSize = 1;
+        for(size_t i = 0; i < m_a.dimensions(); ++i)
+        {
+            aSize *= m_a.sizes()[i];
+        }
+        size_t bSize = 1;
+        for(size_t i = 0; i < m_b.dimensions(); ++i)
+        {
+            bSize *= m_b.sizes()[i];
+        }
+        size_t cSize = 1;
+        for(size_t i = 0; i < m_c.dimensions(); ++i)
+        {
+            cSize *= m_c.sizes()[i];
+        }
+        double gbyte = (aSize * m_a.elementBytes() + bSize * m_b.elementBytes() + cSize * m_c.elementBytes()) * 1e-9;
+
+        m_arithmeticIntensity = gflop / gbyte;
     }
 
     size_t ContractionProblem::freeSizeA(size_t idx) const

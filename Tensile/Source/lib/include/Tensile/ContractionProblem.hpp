@@ -508,6 +508,11 @@ namespace Tensile
             return m_cEqualsD;
         }
 
+        double arithmeticIntensity() const
+        {
+            return m_arithmeticIntensity;
+        }
+
         void setAlphaType(DataType type)
         {
             m_alphaType = type;
@@ -861,6 +866,8 @@ namespace Tensile
         KernelLanguage    m_kernelLanguage          = KernelLanguage::Any;
         PerformanceMetric m_performanceMetric       = PerformanceMetric::DeviceEfficiency;
 
+        double m_arithmeticIntensity;
+
         DataType m_alphaType = DataType::None; // if not assigned, will follow d-type
         DataType m_betaType  = DataType::None; // for bwd-compatible
 
@@ -897,6 +904,7 @@ namespace Tensile
 
         void normalize();
         void consistencyCheck() const;
+        void calcArithmeticIntensity();
 
         void getIndexNames(std::string& aNames,
                            std::string& bNames,
