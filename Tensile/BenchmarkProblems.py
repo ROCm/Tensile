@@ -40,8 +40,7 @@ from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionStructs import Solution, ProblemType, ProblemSizes
-from .SolutionWriter import SolutionWriter
-from .TensileCreateLibrary import copyStaticFiles, writeSolutionsAndKernels
+from .TensileCreateLibrary import copyStaticFiles, writeKernels
 from .CustomKernels import getCustomKernelConfig
 
 def generateForkedSolutions(problemType, constantParams, forkPermutations):
@@ -142,20 +141,16 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
                 kernelHelperOjbs.append(ko)
                 kernelHelperNames.add(kname)
 
-    solutionSerialNaming = Solution.getSerialNaming(solutions)
     kernelSerialNaming = Solution.getSerialNaming(kernels)
-    solutionMinNaming = Solution.getMinNaming(solutions)
     kernelMinNaming = Solution.getMinNaming(kernels)
-    solutionWriter = SolutionWriter(solutionMinNaming, \
-            solutionSerialNaming, kernelMinNaming, kernelSerialNaming)
     kernelWriterSource = KernelWriterSource(kernelMinNaming, kernelSerialNaming)
     kernelWriterAssembly = KernelWriterAssembly(kernelMinNaming, kernelSerialNaming)
 
     # write solution, kernels and CMake
     problemType = solutions[0]["ProblemType"]
-    codeObjectFiles = writeSolutionsAndKernels( \
+    codeObjectFiles = writeKernels( \
             globalParameters["WorkingPath"], globalParameters["CxxCompiler"], \
-            [problemType], solutions, kernels, kernelHelperOjbs, solutionWriter, \
+            [problemType], solutions, kernels, kernelHelperOjbs, \
             kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
     # ^ this is where solutions is mutated
 
