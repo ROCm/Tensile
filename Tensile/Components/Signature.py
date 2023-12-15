@@ -293,9 +293,10 @@ class SignatureDefault(Signature):
                 kStr += self.addArgument("skExtraIters",        '4', offset,"by_value", "u32"); offset += 4
                 # kStr += self.addArgument("dpTilesPerWG",        '4', offset,"by_value", "u32"); offset += 4
 
-        kStr += self.addArgument(                   "NumFullBlocks",     '4', offset,      "by_value",        "u32"); offset += 4
-        kStr += self.addArgument(                   "WgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
-        kStr += self.addArgument(        "MagicNumberWgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
+        if abs(kernel["WorkGroupMapping"]) > 1:
+            kStr += self.addArgument(                   "NumFullBlocks",     '4', offset,      "by_value",        "u32"); offset += 4
+            kStr += self.addArgument(                   "WgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
+            kStr += self.addArgument(        "MagicNumberWgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
 
         # for in-device stochastic rounding, iwe need to pass Seed 
         # TODO: if kernel["ProblemType"]["StochasticRounding"] == 1:    # in-device 

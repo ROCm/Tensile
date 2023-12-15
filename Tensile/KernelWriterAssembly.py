@@ -1939,9 +1939,12 @@ class KernelWriterAssembly(KernelWriter):
     # Mostly impacts flat kernels and GSU edge since these need SGPR
     # for conditionals
     self.lastPostLoopSgpr = self.sgprPool.size()
-    self.defineSgpr("NumFullBlocks", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
-    self.defineSgpr("WgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
-    self.defineSgpr("MagicNumberWgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
+    self.numSgprWGM = 0
+    if abs(kernel["WorkGroupMapping"]) > 1:
+      self.numSgprWGM = 3
+      self.defineSgpr("NumFullBlocks", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
+      self.defineSgpr("WgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
+      self.defineSgpr("MagicNumberWgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
 
     # SR only for F8 type
     if kernel["ProblemType"]["DataType"].is8bitFloat():
@@ -1972,7 +1975,7 @@ class KernelWriterAssembly(KernelWriter):
       2 + \
       pkArgumentToLoad + \
       skArgumentToLoad + \
-      3 + \
+      self.numSgprWGM + \
       self.numSgprOffsetD + self.numSgprOffsetC + self.numSgprOffsetA + self.numSgprOffsetB
 
     # SR only for F8 type
