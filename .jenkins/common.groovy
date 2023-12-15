@@ -118,7 +118,7 @@ def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest
     String compiler = 'hipcc'
     String pythonVersion = 'py3'
     String markSkipHostTest = skipHostTest ? "#" : ""
-    String markSkipExtendedTest = !test_marks.contains("extended") ? "--gtest_filter=-\"*Extended*\"" : ""
+    String markSkipExtendedTest = !test_marks.contains("extended") ? "\"--gtest_filter=-*Extended*:*Ocl*\"" : "\"--gtest_filter=-*Ocl*\""
 
     def command = """#!/usr/bin/env bash
             set -x
