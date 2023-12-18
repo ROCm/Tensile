@@ -1080,10 +1080,12 @@ namespace Tensile
         }
         if(m_beta != 0) // If problem includes beta, update gflops and gbytes
         {
-            gflop += 2 * cSize * 1e-9;  // Include (+ beta * C) in gflops
-            cSize *= 2;                 // Include read C and write D in gbytes
+            gflop += 2 * cSize * 1e-9; // Include (+ beta * C) in gflops
+            cSize *= 2; // Include read C and write D in gbytes
         }
-        double gbyte = (aSize * m_a.elementBytes() + bSize * m_b.elementBytes() + cSize * m_c.elementBytes()) * 1e-9;
+        double gbyte
+            = (aSize * m_a.elementBytes() + bSize * m_b.elementBytes() + cSize * m_c.elementBytes())
+              * 1e-9;
 
         m_arithmeticIntensity = gflop / gbyte;
     }

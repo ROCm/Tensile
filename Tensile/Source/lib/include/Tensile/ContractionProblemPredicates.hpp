@@ -920,7 +920,8 @@ namespace Tensile
                 }
             };
 
-            struct AIGreaterThanEqual : public Predicate_CRTP<AIGreaterThanEqual, ContractionProblem>
+            struct AIGreaterThanEqual
+                : public Predicate_CRTP<AIGreaterThanEqual, ContractionProblem>
             {
                 enum
                 {
