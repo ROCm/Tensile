@@ -1057,10 +1057,6 @@ namespace Tensile
         {
             problemSize *= m_problemSizes[i];
         }
-        for(size_t i = 0; i < m_batchSizes.size(); ++i)
-        {
-            problemSize *= m_batchSizes[i];
-        }
         double gflop = 2 * problemSize * 1e-9;
 
         size_t aSize = 1;
