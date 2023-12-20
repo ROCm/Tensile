@@ -35,11 +35,11 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     // avoid bug causing long build times of certain files.
     String buildType = 'Release' // debug ? 'Debug' : 'RelWithDebInfo'
     String parallelJobs = "export HIPCC_COMPILE_FLAGS_APPEND='-O3 -Wno-format-nonliteral -parallel-jobs=4'"
-    String buildThreads = '-1' // if hipcc is used may be multiplied by parallel-jobs
-    if (platform.jenkinsLabel.contains('gfx11'))
-        buildThreads = '16'
-
-    // comment
+    
+    def systemCPUs = sh(script: 'nproc', returnStdout: true ).trim().toInteger()
+    def systemRAM = sh(script: 'free -g | grep -P '\d+' -m 1 -o | head -n 1'), returnStdout: true ).trim().toInteger()
+    def maxThreads = min(min(systemCPUs, systemRAM / 10), 64)
+    String buildThreads = maxThreads.toString() // if hipcc is used may be multiplied by parallel-jobs
 
     def test_dir =  "Tensile/Tests"
     def test_marks = "unit"
