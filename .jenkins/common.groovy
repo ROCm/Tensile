@@ -36,9 +36,9 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     String buildType = 'Release' // debug ? 'Debug' : 'RelWithDebInfo'
     String parallelJobs = "export HIPCC_COMPILE_FLAGS_APPEND='-O3 -Wno-format-nonliteral -parallel-jobs=4'"
     
-    def systemCPUs = sh(script: 'nproc', returnStdout: true ).trim().toInteger()
-    def systemRAM = sh(script: 'free -g | grep -P "[[:digit:]]+" -m 1 -o | head -n 1', returnStdout: true ).trim().toInteger()
-    def maxThreads = Math.min(Math.min(systemCPUs, systemRAM / 10), 64)
+    int systemCPUs = sh(script: 'nproc', returnStdout: true ).trim().toInteger()
+    int systemRAM = sh(script: 'free -g | grep -P "[[:digit:]]+" -m 1 -o | head -n 1', returnStdout: true ).trim().toInteger()
+    int maxThreads = Math.min(Math.min(systemCPUs, systemRAM / 10), 64)
     String buildThreads = maxThreads.toString() // if hipcc is used may be multiplied by parallel-jobs
 
     def test_dir =  "Tensile/Tests"
