@@ -32,115 +32,33 @@ import argparse
 
 def gemmfinder(config):
     output ="unrecognized"
-    # BBS
-    if   (config.f == "gemm_ex" and config.transposeA == "N" and config.transposeB == "N" and config.a_type == "bf16_r" and config.b_type == "bf16_r"  and config.c_type == "bf16_r"  and config.d_type == "bf16_r" and config.compute_type == "f32_r"): 
-        output = "BBS_NN"
-    elif (config.f == "gemm_ex" and config.transposeA == "N" and config.transposeB == "T" and config.a_type == "bf16_r" and config.b_type == "bf16_r"  and config.c_type == "bf16_r"  and config.d_type == "bf16_r" and config.compute_type == "f32_r"): 
-        output = "BBS_NT"
-    elif (config.f == "gemm_ex" and config.transposeA == "T" and config.transposeB == "N" and config.a_type == "bf16_r" and config.b_type == "bf16_r"  and config.c_type == "bf16_r"  and config.d_type == "bf16_r" and config.compute_type == "f32_r"): 
-        output = "BBS_TN"
-    elif (config.f == "gemm_ex" and config.transposeA == "T" and config.transposeB == "T" and config.a_type == "bf16_r" and config.b_type == "bf16_r"  and config.c_type == "bf16_r"  and config.d_type == "bf16_r" and config.compute_type == "f32_r"): 
-        output = "BBS_TT"
-    # HHS
-    elif (config.f == "gemm_ex" and config.transposeA == "N" and config.transposeB == "N" and config.a_type == "f16_r" and config.b_type == "f16_r"  and config.c_type == "f16_r"  and config.d_type == "f16_r" and config.compute_type == "f32_r"): 
-        output = "HHS_NN"
-    elif (config.f == "gemm_ex" and config.transposeA == "N" and config.transposeB == "T" and config.a_type == "f16_r" and config.b_type == "f16_r"  and config.c_type == "f16_r"  and config.d_type == "f16_r" and config.compute_type == "f32_r"): 
-        output = "HHS_NT"
-    elif (config.f == "gemm_ex" and config.transposeA == "T" and config.transposeB == "N" and config.a_type == "f16_r" and config.b_type == "f16_r"  and config.c_type == "f16_r"  and config.d_type == "f16_r" and config.compute_type == "f32_r"): 
-        output = "HHS_TN"
-    elif (config.f == "gemm_ex" and config.transposeA == "T" and config.transposeB == "T" and config.a_type == "f16_r" and config.b_type == "f16_r"  and config.c_type == "f16_r"  and config.d_type == "f16_r" and config.compute_type == "f32_r"): 
-        output = "HHS_TT"
-    # BSS
-    elif (config.f == "gemm_ex" and config.transposeA == "N" and config.transposeB == "N" and config.a_type == "bf16_r" and config.b_type == "bf16_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r"): 
-        output = "BSS_NN"
-    elif (config.f == "gemm_ex" and config.transposeA == "N" and config.transposeB == "T" and config.a_type == "bf16_r" and config.b_type == "bf16_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r"): 
-        output = "BSS_NT"
-    elif (config.f == "gemm_ex" and config.transposeA == "T" and config.transposeB == "N" and config.a_type == "bf16_r" and config.b_type == "bf16_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r"): 
-        output = "BSS_TN"
-    elif (config.f == "gemm_ex" and config.transposeA == "T" and config.transposeB == "T" and config.a_type == "bf16_r" and config.b_type == "bf16_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r"): 
-        output = "BSS_TT"
-    # HSS
-    elif (config.f == "gemm_ex" and config.transposeA == "N" and config.transposeB == "N" and config.a_type == "f16_r" and config.b_type == "f16_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r"): 
-        output = "HSS_NN"
-    elif (config.f == "gemm_ex" and config.transposeA == "N" and config.transposeB == "T" and config.a_type == "f16_r" and config.b_type == "f16_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r"): 
-        output = "HSS_NT"
-    elif (config.f == "gemm_ex" and config.transposeA == "T" and config.transposeB == "N" and config.a_type == "f16_r" and config.b_type == "f16_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r"): 
-        output = "HSS_TN"
-    elif (config.f == "gemm_ex" and config.transposeA == "T" and config.transposeB == "T" and config.a_type == "f16_r" and config.b_type == "f16_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r"): 
-        output = "HSS_TT"
-    # SGEMM
-    elif (config.f == "gemm_ex" and config.transposeA == "N" and config.transposeB == "N" and config.a_type == "f32_r" and config.b_type == "f32_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r") or (config.f == "gemm" and config.transposeA == "N" and config.transposeB == "N" and config.r == "f32_r"): 
-        output = "SGEMM_NN"
-    elif (config.f == "gemm_ex" and config.transposeA == "N" and config.transposeB == "T" and config.a_type == "f32_r" and config.b_type == "f32_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r") or (config.f == "gemm" and config.transposeA == "N" and config.transposeB == "T" and config.r == "f32_r"): 
-        output = "SGEMM_NT"
-    elif (config.f == "gemm_ex" and config.transposeA == "T" and config.transposeB == "N" and config.a_type == "f32_r" and config.b_type == "f32_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r") or (config.f == "gemm" and config.transposeA == "T" and config.transposeB == "N" and config.r == "f32_r"): 
-        output = "SGEMM_TN"
-    elif (config.f == "gemm_ex" and config.transposeA == "T" and config.transposeB == "T" and config.a_type == "f32_r" and config.b_type == "f32_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r") or (config.f == "gemm" and config.transposeA == "T" and config.transposeB == "T" and config.r == "f32_r"): 
-        output = "SGEMM_TT"
-    # DGEMM
-    elif (config.f == "gemm_ex" and config.transposeA == "N" and config.transposeB == "N" and config.a_type == "f64_r" and config.b_type == "f64_r"  and config.c_type == "f64_r"  and config.d_type == "f64_r" and config.compute_type == "f64_r") or (config.f == "gemm" and config.transposeA == "N" and config.transposeB == "N" and config.r == "f64_r"): 
-        output = "DGEMM_NN"
-    elif (config.f == "gemm_ex" and config.transposeA == "N" and config.transposeB == "T" and config.a_type == "f64_r" and config.b_type == "f64_r"  and config.c_type == "f64_r"  and config.d_type == "f64_r" and config.compute_type == "f64_r") or (config.f == "gemm" and config.transposeA == "N" and config.transposeB == "T" and config.r == "f64_r"): 
-        output = "DGEMM_NT"
-    elif (config.f == "gemm_ex" and config.transposeA == "T" and config.transposeB == "N" and config.a_type == "f64_r" and config.b_type == "f64_r"  and config.c_type == "f64_r"  and config.d_type == "f64_r" and config.compute_type == "f64_r") or (config.f == "gemm" and config.transposeA == "T" and config.transposeB == "N" and config.r == "f64_r"): 
-        output = "DGEMM_TN"
-    elif (config.f == "gemm_ex" and config.transposeA == "T" and config.transposeB == "T" and config.a_type == "f64_r" and config.b_type == "f64_r"  and config.c_type == "f64_r"  and config.d_type == "f64_r" and config.compute_type == "f64_r") or (config.f == "gemm" and config.transposeA == "T" and config.transposeB == "T" and config.r == "f64_r"): 
-        output = "DGEMM_TT"
-    # strided_batched
-    # BBS
-    elif   (config.f == "gemm_strided_batched_ex" and config.transposeA == "N" and config.transposeB == "N" and config.a_type == "bf16_r" and config.b_type == "bf16_r"  and config.c_type == "bf16_r"  and config.d_type == "bf16_r" and config.compute_type == "f32_r"): 
-        output = "BBS_NN_SB"
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "N" and config.transposeB == "T" and config.a_type == "bf16_r" and config.b_type == "bf16_r"  and config.c_type == "bf16_r"  and config.d_type == "bf16_r" and config.compute_type == "f32_r"): 
-        output = "BBS_NT_SB"
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "T" and config.transposeB == "N" and config.a_type == "bf16_r" and config.b_type == "bf16_r"  and config.c_type == "bf16_r"  and config.d_type == "bf16_r" and config.compute_type == "f32_r"): 
-        output = "BBS_TN_SB"
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "T" and config.transposeB == "T" and config.a_type == "bf16_r" and config.b_type == "bf16_r"  and config.c_type == "bf16_r"  and config.d_type == "bf16_r" and config.compute_type == "f32_r"): 
-        output = "BBS_TT_SB"
-    # HHS
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "N" and config.transposeB == "N" and config.a_type == "f16_r" and config.b_type == "f16_r"  and config.c_type == "f16_r"  and config.d_type == "f16_r" and config.compute_type == "f32_r"): 
-        output = "HHS_NN_SB"
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "N" and config.transposeB == "T" and config.a_type == "f16_r" and config.b_type == "f16_r"  and config.c_type == "f16_r"  and config.d_type == "f16_r" and config.compute_type == "f32_r"): 
-        output = "HHS_NT_SB"
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "T" and config.transposeB == "N" and config.a_type == "f16_r" and config.b_type == "f16_r"  and config.c_type == "f16_r"  and config.d_type == "f16_r" and config.compute_type == "f32_r"): 
-        output = "HHS_TN_SB"
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "T" and config.transposeB == "T" and config.a_type == "f16_r" and config.b_type == "f16_r"  and config.c_type == "f16_r"  and config.d_type == "f16_r" and config.compute_type == "f32_r"): 
-        output = "HHS_TT_SB"
-    # BSS
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "N" and config.transposeB == "N" and config.a_type == "bf16_r" and config.b_type == "bf16_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r"): 
-        output = "BSS_NN_SB"
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "N" and config.transposeB == "T" and config.a_type == "bf16_r" and config.b_type == "bf16_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r"): 
-        output = "BSS_NT_SB"
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "T" and config.transposeB == "N" and config.a_type == "bf16_r" and config.b_type == "bf16_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r"): 
-        output = "BSS_TN_SB"
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "T" and config.transposeB == "T" and config.a_type == "bf16_r" and config.b_type == "bf16_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r"): 
-        output = "BSS_TT_SB"
-    # HSS
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "N" and config.transposeB == "N" and config.a_type == "f16_r" and config.b_type == "f16_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r"): 
-        output = "HSS_NN_SB"
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "N" and config.transposeB == "T" and config.a_type == "f16_r" and config.b_type == "f16_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r"): 
-        output = "HSS_NT_SB"
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "T" and config.transposeB == "N" and config.a_type == "f16_r" and config.b_type == "f16_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r"): 
-        output = "HSS_TN_SB"
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "T" and config.transposeB == "T" and config.a_type == "f16_r" and config.b_type == "f16_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r"): 
-        output = "HSS_TT_SB"
-    # SGEMM
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "N" and config.transposeB == "N" and config.a_type == "f32_r" and config.b_type == "f32_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r") or (config.f == "gemm_strided_batched" and config.transposeA == "N" and config.transposeB == "N" and config.r == "f32_r"): 
-        output = "SGEMM_NN_SB"
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "N" and config.transposeB == "T" and config.a_type == "f32_r" and config.b_type == "f32_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r") or (config.f == "gemm_strided_batched" and config.transposeA == "N" and config.transposeB == "T" and config.r == "f32_r"): 
-        output = "SGEMM_NT_SB"
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "T" and config.transposeB == "N" and config.a_type == "f32_r" and config.b_type == "f32_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r") or (config.f == "gemm_strided_batched" and config.transposeA == "T" and config.transposeB == "N" and config.r == "f32_r"): 
-        output = "SGEMM_TN_SB"
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "T" and config.transposeB == "T" and config.a_type == "f32_r" and config.b_type == "f32_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r") or (config.f == "gemm_strided_batched" and config.transposeA == "T" and config.transposeB == "T" and config.r == "f32_r"): 
-        output = "SGEMM_TT_SB"
-    # DGEMM
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "N" and config.transposeB == "N" and config.a_type == "f64_r" and config.b_type == "f64_r"  and config.c_type == "f64_r"  and config.d_type == "f64_r" and config.compute_type == "f64_r") or (config.f == "gemm_strided_batched" and config.transposeA == "N" and config.transposeB == "N" and config.r == "f64_r"): 
-        output = "DGEMM_NN_SB"
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "N" and config.transposeB == "T" and config.a_type == "f64_r" and config.b_type == "f64_r"  and config.c_type == "f64_r"  and config.d_type == "f64_r" and config.compute_type == "f64_r") or (config.f == "gemm_strided_batched" and config.transposeA == "N" and config.transposeB == "T" and config.r == "f64_r"): 
-        output = "DGEMM_NT_SB"
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "T" and config.transposeB == "N" and config.a_type == "f64_r" and config.b_type == "f64_r"  and config.c_type == "f64_r"  and config.d_type == "f64_r" and config.compute_type == "f64_r") or (config.f == "gemm_strided_batched" and config.transposeA == "T" and config.transposeB == "N" and config.r == "f64_r"): 
-        output = "DGEMM_TN_SB"
-    elif (config.f == "gemm_strided_batched_ex" and config.transposeA == "T" and config.transposeB == "T" and config.a_type == "f64_r" and config.b_type == "f64_r"  and config.c_type == "f64_r"  and config.d_type == "f64_r" and config.compute_type == "f64_r") or (config.f == "gemm_strided_batched" and config.transposeA == "T" and config.transposeB == "T" and config.r == "f64_r"): 
-        output = "DGEMM_TT_SB"
+
+    if   (config.a_type == "bf16_r" and config.b_type == "bf16_r"): 
+        if (config.c_type == "bf16_r"  and config.d_type == "bf16_r" and config.compute_type == "f32_r"): 
+            output = "BBS"
+        elif (config.c_type == "bf32_r"  and config.d_type == "bf32_r" and config.compute_type == "f32_r"): 
+            output = "BSS"
+    elif (config.a_type == "f16_r" and config.b_type == "f16_r"): 
+        if (config.c_type == "f16_r"  and config.d_type == "f16_r" and config.compute_type == "f32_r"): 
+            output = "HHS"
+        elif (config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r"): 
+            output = "HSS"
+    elif ((config.f == "gemm_ex" or config.f == "gemm_strided_batched_ex") and config.a_type == "f32_r" and config.b_type == "f32_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r") or ((config.f == "gemm" or config.f == "gemm_strided_batched") and config.r == "f32_r"): 
+        output = "SGEMM"
+    elif ((config.f == "gemm_ex" or config.f == "gemm_strided_batched_ex") and config.a_type == "f64_r" and config.b_type == "f64_r"  and config.c_type == "f64_r"  and config.d_type == "f64_r" and config.compute_type == "f64_r") or ((config.f == "gemm" or config.f == "gemm_strided_batched") and config.r == "f64_r"): 
+        output = "DGEMM"
+
+    if   (config.transposeA == "N" and config.transposeB == "N"):
+        output += "_NN"
+    elif (config.transposeA == "N" and config.transposeB == "T"):
+        output += "_NT"    
+    elif (config.transposeA == "T" and config.transposeB == "N"):
+        output += "_TN"    
+    elif (config.transposeA == "T" and config.transposeB == "T"):
+        output += "_TT"    
+
+    if (config.f == "gemm_strided_batched_ex" or config.f == "gemm_strided_batched"): 
+        output +="_SB"
 
     return output
 
@@ -170,6 +88,11 @@ def readfile(filename):
     argParser.add_argument("-m", action="store", type=int, default = '')
     argParser.add_argument("-n", action="store", type=int, default = '')
     argParser.add_argument("-k", action="store", type=int, default = '')
+
+    argParser.add_argument("--lda", action="store", type=int, default = '')
+    argParser.add_argument("--ldb", action="store", type=int, default = '')
+    argParser.add_argument("--ldc", action="store", type=int, default = '')
+    #argParser.add_argument("--ldd", action="store", type=int, default = '')
     
     argParser.add_argument("--a_type", action="store", type=str, default = '')
     argParser.add_argument("--b_type", action="store", type=str, default = '')
@@ -193,9 +116,13 @@ def readfile(filename):
         if not (gemmtype in matrices):
             matrices[gemmtype] = []
         if ("_SB" in gemmtype): # for strided
-            matrices[gemmtype].append((config.m, config.n, config.batch_count, config.k)) ## batch
+            newSize = (config.m, config.n, config.batch_count, config.k, config.lda, config.ldb, config.ldc)
+            if not (newSize in matrices[gemmtype]): 
+                matrices[gemmtype].append(newSize) ## batch
         else: 
-          matrices[gemmtype].append((config.m, config.n, config.k)) ## batch
+            newSize = (config.m, config.n, config.k, config.lda, config.ldb, config.ldc)
+            if not (newSize in matrices[gemmtype]):
+                matrices[gemmtype].append(newSize) 
     return matrices
 
 def sortfuc(size):
@@ -218,9 +145,9 @@ def createOutput(filename, matrices):
         matrices[gemmtype].sort(key=sortfuc)
       for size in matrices[gemmtype]:
         if ("_SB" in gemmtype): # for strided
-            f.write(f" - [ {size[0]}, {size[1]}, {size[2]}, {size[3]} ]\n")
+            f.write(f" - [ {size[0]}, {size[1]}, {size[2]}, {size[3]} ] # lda: {size[4]} ldb: {size[5]} ldc: {size[6]}\n")
         else:
-            f.write(f" - [ {size[0]}, {size[1]}, 1, {size[2]} ]\n")
+            f.write(f" - [ {size[0]}, {size[1]}, 1, {size[2]} ] # lda: {size[3]} ldb: {size[4]} ldc: {size[5]}\n")
     (f" total is: {count}")
     f.write(f"\n -- total is: {count}")
 
