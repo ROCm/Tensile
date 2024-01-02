@@ -627,10 +627,8 @@ class KernelWriterAssembly(KernelWriter):
           self.defineSgpr("PerpOverhangVccB", 2, 2)
     if self.use64bShadowLimit:
       # If need more SGPR could overlap this with the Tensor2dSize regs
-      if self.noShadowLimitCodeInLoopA == False:
-        self.defineSgpr("ShadowLimitA", 2, 2)
-      if self.noShadowLimitCodeInLoopB == False:
-        self.defineSgpr("ShadowLimitB", 2, 2)
+      self.defineSgpr("ShadowLimitA", 2, 2)
+      self.defineSgpr("ShadowLimitB", 2, 2)
 
     if kernel["PackSummationDims"]:
       for tc in ('A','B'):
@@ -4981,44 +4979,38 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", sgpr(tileStart+0), 0, "set default tileStart")
       kStr += inst("s_mov_b32", sgpr(tileStart+1), 0, "set default tileStart")
 
-    noShadowLimitCodeInLoop = self.noShadowLimitCodeInLoopA if tc == "A" else self.noShadowLimitCodeInLoopB
-    if noShadowLimitCodeInLoop == False:
-      if self.use64bShadowLimit:
-        limitTmp0 = "ShadowLimit%s+0"%tc
-        limitTmp1 = "ShadowLimit%s+1"%tc
-      else:
-        limitTmp0 = stmp+0
-        limitTmp1 = stmp+1
-
-      kStr += inst("s_sub_u32",  sgpr(limitTmp0), sgpr("Tensor2dSize%s"%tc), sgpr(tileStart+0), "sub tileStart")
-      kStr += inst("s_subb_u32", sgpr(limitTmp1), sgpr("Tensor2dSize%s+1"%tc), sgpr(tileStart+1), "sub tileStart")
-
-      if self.use64bShadowLimit:
-        # Set initial buffer limit
-        # if the limit is >64bit, incrementSrd decrements the shadow as the SRD increments,
-        # and when we get within 32-bit we start to step down the SRD
-        # if the limit is <32bits, set it accurately here:
-        # Note lshl_b64 the higher-numbered SGPR has the upper 32-bits
-        kStr += inst("s_lshl_b64", sgpr("ShadowLimit%s"%tc,2),  sgpr("ShadowLimit%s"%tc,2), \
-            hex(log2(tP["bpe"])), "Set limit to use bytes")
-        if prePad:
-          kStr += inst("s_add_u32",  sgpr("ShadowLimit%s+0"%tc), sgpr("ShadowLimit%s+0"%tc), prePad, "extend limit for pre-pad")
-          kStr += inst("s_addc_u32", sgpr("ShadowLimit%s+1"%tc), sgpr("ShadowLimit%s+1"%tc), 0, "extend limit for pre-pad")
-
-        if kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]:
-          kStr += inst("s_add_u32",  sgpr("ShadowLimit%s+0"%tc), sgpr("ShadowLimit%s+0"%tc), self.buff_load_inst_offset_max, "extend limit for directToLDS instruction offset")
-          kStr += inst("s_addc_u32", sgpr("ShadowLimit%s+1"%tc), sgpr("ShadowLimit%s+1"%tc), 0, "extend limit for directToLDS instruction offset")
-
-        kStr += inst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
-        kStr += inst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "BufferLimit%s"%tc, "Move shadow to real if we are within 2^32")
-      else:
-        # put limit directly into SRD:
-        kStr += inst("s_lshl_b32", sgpr("Srd%s+2"%tc), sgpr(stmp+0), hex(log2(tP["bpe"])), "Set limit to use bytes")
-        kStr += inst("s_add_u32",  sgpr("Srd%s+2"%tc), sgpr("Srd%s+2"%tc), prePad, "extend limit for pre-pad")
+    if self.use64bShadowLimit:
+      limitTmp0 = "ShadowLimit%s+0"%tc
+      limitTmp1 = "ShadowLimit%s+1"%tc
     else:
-      # noShadowLimitCodeInLoop case
-      # no out of range check
-      kStr += inst("s_mov_b32", sgpr("Srd%s+2"%tc), "BufferLimit%s"%tc, "Set BufferLimit in no ShadowLimit code case")
+      limitTmp0 = stmp+0
+      limitTmp1 = stmp+1
+
+    kStr += inst("s_sub_u32",  sgpr(limitTmp0), sgpr("Tensor2dSize%s"%tc), sgpr(tileStart+0), "sub tileStart")
+    kStr += inst("s_subb_u32", sgpr(limitTmp1), sgpr("Tensor2dSize%s+1"%tc), sgpr(tileStart+1), "sub tileStart")
+
+    if self.use64bShadowLimit:
+      # Set initial buffer limit
+      # if the limit is >64bit, incrementSrd decrements the shadow as the SRD increments,
+      # and when we get within 32-bit we start to step down the SRD
+      # if the limit is <32bits, set it accurately here:
+      # Note lshl_b64 the higher-numbered SGPR has the upper 32-bits
+      kStr += inst("s_lshl_b64", sgpr("ShadowLimit%s"%tc,2),  sgpr("ShadowLimit%s"%tc,2), \
+          hex(log2(tP["bpe"])), "Set limit to use bytes")
+      if prePad:
+        kStr += inst("s_add_u32",  sgpr("ShadowLimit%s+0"%tc), sgpr("ShadowLimit%s+0"%tc), prePad, "extend limit for pre-pad")
+        kStr += inst("s_addc_u32", sgpr("ShadowLimit%s+1"%tc), sgpr("ShadowLimit%s+1"%tc), 0, "extend limit for pre-pad")
+
+      if kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]:
+        kStr += inst("s_add_u32",  sgpr("ShadowLimit%s+0"%tc), sgpr("ShadowLimit%s+0"%tc), self.buff_load_inst_offset_max, "extend limit for directToLDS instruction offset")
+        kStr += inst("s_addc_u32", sgpr("ShadowLimit%s+1"%tc), sgpr("ShadowLimit%s+1"%tc), 0, "extend limit for directToLDS instruction offset")
+
+      kStr += inst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
+      kStr += inst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "BufferLimit%s"%tc, "Move shadow to real if we are within 2^32")
+    else:
+      # put limit directly into SRD:
+      kStr += inst("s_lshl_b32", sgpr("Srd%s+2"%tc), sgpr(stmp+0), hex(log2(tP["bpe"])), "Set limit to use bytes")
+      kStr += inst("s_add_u32",  sgpr("Srd%s+2"%tc), sgpr("Srd%s+2"%tc), prePad, "extend limit for pre-pad")
 
     # Apply any high-order address components to the tileStart and eventually the SRD - batch idx for batched gemm
     if kernel["ProblemType"]["StridedBatched"]:
@@ -5109,7 +5101,7 @@ class KernelWriterAssembly(KernelWriter):
     # invalid global read for performance evaluation only
     if self.enable["InvalidGlobalRead%s"%tc]:
       kStr += inst("s_mov_b32", sgpr("Srd%s+2"%tc), hex(0), "set out-of-bound addr for performance evaluation only")
-      if noShadowLimitCodeInLoop == False and self.use64bShadowLimit:
+      if self.use64bShadowLimit:
         kStr += inst("s_mov_b32", sgpr("ShadowLimit%s+1"%tc), hex(0xffffffff), "set out-of-bound addr for performance evaluation only")
 
     return kStr
@@ -7803,34 +7795,32 @@ class KernelWriterAssembly(KernelWriter):
          incUpper, \
          "gra SRD += inc(upper)" )
 
-    noShadowLimitCodeInLoop = self.noShadowLimitCodeInLoopA if tc == "A" else self.noShadowLimitCodeInLoopB
-    if noShadowLimitCodeInLoop == False:
-      # also have to move the boundary since we change the base
-      # so less buffers to the edge:
-      if self.use64bShadowLimit:
-        imod.addInst("s_sub_u32", \
-            sgpr("ShadowLimit%s+0"%tc), \
-            sgpr("ShadowLimit%s+0"%tc), \
-            incLower, \
-              "limit -= inc)")
-        imod.addInst("s_subb_u32", \
-            sgpr("ShadowLimit%s+1"%tc), \
-            sgpr("ShadowLimit%s+1"%tc), \
-            incUpper, \
-              "limit -= inc)" )
-        if checkShadowLimitCopy:
-          imod.addInst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
-          if self.staggerU:
-            # staggerU case, need to restore BufferLimit when ShadowLimit goes to negative value
-            imod.addInst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "BufferLimit%s"%tc, "Move shadow to real if we are within 2^32")
-          else:
-            imod.addInst("s_cmov_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "Move shadow to real if we are within 2^32")
-      else:
-        imod.addInst("s_sub_u32", \
-             sgpr("Srd%s+2"%(tc)), \
-             sgpr("Srd%s+2"%(tc)), \
-             incLower, \
-              "limit -= inc)" )
+    # also have to move the boundary since we change the base
+    # so less buffers to the edge:
+    if self.use64bShadowLimit:
+      imod.addInst("s_sub_u32", \
+          sgpr("ShadowLimit%s+0"%tc), \
+          sgpr("ShadowLimit%s+0"%tc), \
+          incLower, \
+            "limit -= inc)")
+      imod.addInst("s_subb_u32", \
+          sgpr("ShadowLimit%s+1"%tc), \
+          sgpr("ShadowLimit%s+1"%tc), \
+          incUpper, \
+            "limit -= inc)" )
+      if checkShadowLimitCopy:
+        imod.addInst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
+        if self.staggerU:
+          # staggerU case, need to restore BufferLimit when ShadowLimit goes to negative value
+          imod.addInst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "BufferLimit%s"%tc, "Move shadow to real if we are within 2^32")
+        else:
+          imod.addInst("s_cmov_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "Move shadow to real if we are within 2^32")
+    else:
+      imod.addInst("s_sub_u32", \
+           sgpr("Srd%s+2"%(tc)), \
+           sgpr("Srd%s+2"%(tc)), \
+           incLower, \
+            "limit -= inc)" )
     return imod
 
   ##############################################################################
@@ -8084,14 +8074,12 @@ class KernelWriterAssembly(KernelWriter):
       for tc in ('A','B'):
         incCodeA.addInst("s_mov_b32", sgpr("Srd%s+0"%tc), sgpr("InitialSrd%sBase+0"%tc), "restore base")
         incCodeA.addInst("s_mov_b32", sgpr("Srd%s+1"%tc), sgpr("InitialSrd%sBase+1"%tc), "restore base")
-        noShadowLimitCodeInLoop = self.noShadowLimitCodeInLoopA if tc == "A" else self.noShadowLimitCodeInLoopB
-        if noShadowLimitCodeInLoop == False:
-          if self.use64bShadowLimit:
-            incCodeA.addInst("s_mov_b32", sgpr("ShadowLimit%s+0"%tc), sgpr("InitialSrd%sLimit+0"%tc), "restore shadow limit")
-            incCodeA.addInst("s_mov_b32", sgpr("ShadowLimit%s+1"%tc), sgpr("InitialSrd%sLimit+1"%tc), "restore shadow limit")
-            assert(0) # not tested, would maybe need to restore base too if limit 0
-          else:
-            incCodeA.addInst("s_mov_b32", sgpr("Srd%s+2"%tc), sgpr("InitialSrd%sLimit"%tc), "restore limit")
+        if self.use64bShadowLimit:
+          incCodeA.addInst("s_mov_b32", sgpr("ShadowLimit%s+0"%tc), sgpr("InitialSrd%sLimit+0"%tc), "restore shadow limit")
+          incCodeA.addInst("s_mov_b32", sgpr("ShadowLimit%s+1"%tc), sgpr("InitialSrd%sLimit+1"%tc), "restore shadow limit")
+          assert(0) # not tested, would maybe need to restore base too if limit 0
+        else:
+          incCodeA.addInst("s_mov_b32", sgpr("Srd%s+2"%tc), sgpr("InitialSrd%sLimit"%tc), "restore limit")
 
 
       # TODO - this skips over the stagger-u wrap codes
@@ -15145,10 +15133,8 @@ class KernelWriterAssembly(KernelWriter):
       # reseting SrdA/B, ShadowLimitA/B, GlobalReadIncsA/B is more efficiently way than using BufferOOB
       imod.addInst("s_cmov_b32", sgpr("SrdA+2"), 0, "Set SrdA+2 to 0 for outside legal WG")
       imod.addInst("s_cmov_b32", sgpr("SrdB+2"), 0, "Set SrdB+2 to 0 for outside legal WG")
-      if self.noShadowLimitCodeInLoopA == False:
-        imod.addInst("s_cmov_b64", sgpr("ShadowLimitA", 2), 0, "Set ShadowLimitA to 0 for outside legal WG")
-      if self.noShadowLimitCodeInLoopB == False:
-        imod.addInst("s_cmov_b64", sgpr("ShadowLimitB", 2), 0, "Set ShadowLimitB to 0 for outside legal WG")
+      imod.addInst("s_cmov_b64", sgpr("ShadowLimitA", 2), 0, "Set ShadowLimitA to 0 for outside legal WG")
+      imod.addInst("s_cmov_b64", sgpr("ShadowLimitB", 2), 0, "Set ShadowLimitB to 0 for outside legal WG")
       imod.addInst("s_cmov_b32", sgpr("GlobalReadIncsA"), 0, "Stop decrementing ShadowLimitA and incrementing SrdA for outside legal WG")
       imod.addInst("s_cmov_b32", sgpr("GlobalReadIncsB"), 0, "Stop decrementing ShadowLimitB and incrementing SrdB for outside legal WG")
     else:
