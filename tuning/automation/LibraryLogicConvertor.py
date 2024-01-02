@@ -29,36 +29,43 @@ import os
 import argparse
 import shutil
 
-# reference/mother lib logics
-validLogics={
-            'F8SS_NN':    'aquavanjaram_Cijk_Ailk_Bljk_F8SS_BH.yaml',
-            'F8F8S_NN':   'aquavanjaram_Cijk_Ailk_Bljk_F8F8S_BH.yaml',
-            'F8HS_NN':    'aquavanjaram_Cijk_Ailk_Bljk_F8HS_BH.yaml',
-            'F8F8S_SR_NN':'aquavanjaram_Cijk_Ailk_Bljk_F8F8S_SR_BH.yaml',
-            'BBS_NN':     'aquavanjaram_Cijk_Ailk_Bljk_BBS_BH.yaml',
-            'BSS_NN':     'aquavanjaram_Cijk_Ailk_Bljk_BSS_BH.yaml',            
+validLogics=[
+'aquavanjaram942_Cijk_Ailk_Bljk_F8SS_BH.yaml',      # 'F8SS_NN'
+'aquavanjaram942_Cijk_Ailk_Bljk_F8F8S_BH.yaml',     # 'F8F8S_NN'
+'aquavanjaram942_Cijk_Ailk_Bljk_F8HS_BH.yaml',      # 'F8HS_NN'
+'aquavanjaram942_Cijk_Ailk_Bljk_F8F8S_SR_BH.yaml',  # 'F8F8S_SR_NN'
+'aquavanjaram942_Cijk_Ailk_Bljk_BBS_BH.yaml',       # 'BBS_NN'
+'aquavanjaram942_Cijk_Ailk_Bljk_HHS_BH.yaml',       # 'HHS_NN'
+'aquavanjaram942_Cijk_Ailk_Bljk_BSS_BH.yaml',       # 'BSS_NN'
+'aquavanjaram942_Cijk_Ailk_Bljk_HSS_BH.yaml',       # 'HSS_NN'
 
-            'F8SS_NT':    'aquavanjaram_Cijk_Ailk_Bjlk_F8SS_BH.yaml',
-            'F8F8S_NT':   'aquavanjaram_Cijk_Ailk_Bjlk_F8F8S_BH.yaml',
-            'F8HS_NT':    'aquavanjaram_Cijk_Ailk_Bjlk_F8HS_BH.yaml',
-            'F8F8S_SR_NT':'aquavanjaram_Cijk_Ailk_Bjlk_F8F8S_SR_BH.yaml',
-            'BBS_NT':     'aquavanjaram_Cijk_Ailk_Bjlk_BBS_BH.yaml',
-            'BSS_NT':     'aquavanjaram_Cijk_Ailk_Bjlk_BSS_BH.yaml',
+'aquavanjaram942_Cijk_Ailk_Bjlk_F8SS_BH.yaml',      # 'F8SS_NT'
+'aquavanjaram942_Cijk_Ailk_Bjlk_F8F8S_BH.yaml',     # 'F8F8S_NT'
+'aquavanjaram942_Cijk_Ailk_Bjlk_F8HS_BH.yaml',      # 'F8HS_NT'
+'aquavanjaram942_Cijk_Ailk_Bjlk_F8F8S_SR_BH.yaml',  # 'F8F8S_SR_NT'
+'aquavanjaram942_Cijk_Ailk_Bjlk_BBS_BH.yaml',       # 'BBS_NT'
+'aquavanjaram942_Cijk_Ailk_Bjlk_HHS_BH.yaml',       # 'HHS_NT'
+'aquavanjaram942_Cijk_Ailk_Bjlk_BSS_BH.yaml',       # 'BSS_NT'
+'aquavanjaram942_Cijk_Ailk_Bjlk_HSS_BH.yaml',       # 'HSS_NT'
 
-            'F8SS_TN':    'aquavanjaram_Cijk_Alik_Bljk_F8SS_BH.yaml',
-            'F8F8S_TN':   'aquavanjaram_Cijk_Alik_Bljk_F8F8S_BH.yaml',
-            'F8HS_TN':    'aquavanjaram_Cijk_Alik_Bljk_F8HS_BH.yaml',
-            'F8F8S_SR_TN':'aquavanjaram_Cijk_Alik_Bljk_F8F8S_SR_BH.yaml',
-            'BBS_TN':     'aquavanjaram_Cijk_Alik_Bljk_BBS_BH.yaml',
-            'BSS_TN':     'aquavanjaram_Cijk_Alik_Bljk_BSS_BH.yaml',
+'aquavanjaram942_Cijk_Alik_Bljk_F8SS_BH.yaml',      # 'F8SS_TN'
+'aquavanjaram942_Cijk_Alik_Bljk_F8F8S_BH.yaml',     # 'F8F8S_TN'
+'aquavanjaram942_Cijk_Alik_Bljk_F8HS_BH.yaml',      # 'F8HS_TN'
+'aquavanjaram942_Cijk_Alik_Bljk_F8F8S_SR_BH.yaml',  # 'F8F8S_SR_TN'
+'aquavanjaram942_Cijk_Alik_Bljk_BBS_BH.yaml',       # 'BBS_TN'
+'aquavanjaram942_Cijk_Alik_Bljk_HHS_BH.yaml',       # 'HHS_TN'
+'aquavanjaram942_Cijk_Alik_Bljk_BSS_BH.yaml',       # 'BSS_TN'
+'aquavanjaram942_Cijk_Alik_Bljk_HSS_BH.yaml',       # 'HSS_TN'
 
-            'F8SS_TT':    'aquavanjaram_Cijk_Alik_Bjlk_F8SS_BH.yaml',
-            'F8F8S_TT':   'aquavanjaram_Cijk_Alik_Bjlk_F8F8S_BH.yaml',
-            'F8HS_TT':    'aquavanjaram_Cijk_Alik_Bjlk_F8HS_BH.yaml',
-            'F8F8S_SR_TT':'aquavanjaram_Cijk_Alik_Bjlk_F8F8S_SR_BH.yaml',
-            'BBS_TT':     'aquavanjaram_Cijk_Alik_Bjlk_BBS_BH.yaml',
-            'BSS_TT':     'aquavanjaram_Cijk_Alik_Bjlk_BSS_BH.yaml'
-            }
+'aquavanjaram942_Cijk_Alik_Bjlk_F8SS_BH.yaml',      # 'F8SS_TT'
+'aquavanjaram942_Cijk_Alik_Bjlk_F8F8S_BH.yaml',     # 'F8F8S_TT'
+'aquavanjaram942_Cijk_Alik_Bjlk_F8HS_BH.yaml',      # 'F8HS_TT'
+'aquavanjaram942_Cijk_Alik_Bjlk_F8F8S_SR_BH.yaml',  # 'F8F8S_SR_TT'
+'aquavanjaram942_Cijk_Alik_Bjlk_BBS_BH.yaml',       # 'BBS_TT'
+'aquavanjaram942_Cijk_Alik_Bjlk_HHS_BH.yaml',       # 'HHS_TT'
+'aquavanjaram942_Cijk_Alik_Bjlk_BSS_BH.yaml',       # 'BSS_TT'
+'aquavanjaram942_Cijk_Alik_Bjlk_HSS_BH.yaml'        # 'HSS_TT'
+]
 
 # family lib logics
 conversions={
@@ -66,6 +73,8 @@ conversions={
         'F8F8S'   : ['F8B8B8S', 'B8B8S', 'B8F8B8S'],
         'F8HS'    : ['B8HS', 'F8B8HS', 'B8F8HS'],
         'F8F8S_SR': ['F8B8B8S_SR', 'B8B8S_SR', 'B8F8B8S_SR'],
+        'HHS'     : ['BBS'],
+        'HSS'     : ['BSS'],
         'BBS'     : ['HHS'],
         'BSS'     : ['HSS']
         }
@@ -116,7 +125,6 @@ datatypes={
             'HSS':  ['  DataType: 4', '  DestDataType: 0', '  ComputeDataType: 0']            
           }
 
-
 def parseArgs():
     argParser = argparse.ArgumentParser()
 
@@ -129,14 +137,13 @@ def parseArgs():
 
     return argParser.parse_args()
 
-
 # This def reads all the files in the liblogic and only selects the reference yamls (see the table)
 def getLogics(liblogic):
     
     logics = []
     
     for yaml in os.listdir(liblogic):
-        for val in validLogics.values():
+        for val in validLogics:
             if (os.path.isfile(os.path.join(liblogic, yaml)) and yaml == val):
                 logics.append(yaml)
                 break
@@ -201,4 +208,3 @@ def main():
     
 if __name__ == "__main__":
     main()
-
