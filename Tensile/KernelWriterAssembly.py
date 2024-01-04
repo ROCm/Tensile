@@ -1924,7 +1924,8 @@ class KernelWriterAssembly(KernelWriter):
             # These will eventually be read as kernel args:
             self.defineSgpr("PadStart%s%s%s"%(tc, freeDimChar, sumDimChar),1, kernarg=True)
             self.defineSgpr("PadEnd%s%s%s"%(tc, freeDimChar, sumDimChar),1, kernarg=True)
-    self.defineSgpr("OrigStaggerUIter", 1, kernarg=True)  # Original stagger register.  Only needed for Persistent
+    if self.staggerU:
+      self.defineSgpr("OrigStaggerUIter", 1, kernarg=True)  # Original stagger register.  Only needed for Persistent
     self.defineSgpr("NumWorkGroups0", 1, kernarg=True)
     self.defineSgpr("NumWorkGroups1", 1, kernarg=True)
 
@@ -2000,17 +2001,8 @@ class KernelWriterAssembly(KernelWriter):
       assert self.sgprs["OffsetA"] == offsetD + 4
       assert self.sgprs["OffsetB"] == offsetD + 6
 
-      # assert self.argOffsetOffset == (self.numSgprToLoad + 2 - (self.numSgprOffsetD + self.numSgprOffsetC + self.numSgprOffsetA + self.numSgprOffsetB)) * 4
-
     # Get kernel argument end here
     ###################################
-
-    # put unused Sgpr back to SgprPool
-    # while SgprSlot:
-    #   tempSgpr = SgprSlot.pop(0)
-    #   self.sgprPool.checkIn(tempSgpr)
-    if not self.staggerU and not kernel["PreloadKernelArguments"]:
-      self.undefineSgpr("OrigStaggerUIter")  # Original stagger register.  Only needed for Persistent
 
     ########################################
     # Register Pools

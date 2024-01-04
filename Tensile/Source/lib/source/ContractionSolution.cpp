@@ -617,7 +617,8 @@ namespace Tensile
             }
         }
 
-        rv.args.append<int32_t>("staggerUIter", staggerUIter(problem, inputs, hardware));
+        if(sizeMapping.staggerU)
+            rv.args.append<int32_t>("staggerUIter", staggerUIter(problem, inputs, hardware));
 
         rv.args.append<uint32_t>("problemNumGroupTiles0", problemNumGroupTiles0);
         rv.args.append<uint32_t>("problemNumGroupTiles1", problemNumGroupTiles1);
