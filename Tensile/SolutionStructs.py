@@ -2964,7 +2964,7 @@ class Solution(collections.abc.Mapping):
         return False
 
       dt = state["ProblemType"]["DataType"]
-      if not (dt.isSingle() or dt.isHalf() or dt.isBFloat16):
+      if not (dt.isSingle() or dt.isHalf() or dt.isBFloat16()):
         printWarning(f"Preloading not supported for data type {dt}.")
         return False
 
@@ -2976,7 +2976,7 @@ class Solution(collections.abc.Mapping):
         printWarning("Preloading not supported with initial strides AB.")
         return False
 
-      if state["WorkGroupMapping"] != 0:
+      if abs(state["WorkGroupMapping"]) > 1:
         printWarning("Preloading not supported with WorkGroupMapping.")
         return False
       
