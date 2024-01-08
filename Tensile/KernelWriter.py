@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -3859,9 +3859,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
     vwa = kernel["GlobalLoadVectorWidthA"]
     vwb = kernel["GlobalLoadVectorWidthB"]
 
-    # allow LocalReadVectorWidthB for TLUB + MatrixInstruction
-    self.VectorWidthB = kernel["VectorWidthB"]
-
     # lrvwTileA,B
     # lrvwTileA,B > 1 is to use wider local read + v_perm
     # MIInputPerThread > 1 case, we need MIInputPerThread continuous K elements
@@ -3891,12 +3888,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
     #   VectorWidthA,B > 1
     self.lrvwTileA = 1
     self.lrvwTileB = 1
-    if kernel["EnableMatrixInstruction"] and kernel["MIInputPerThread"] > 1 and\
-       kernel["SourceSwap"] and kernel["VgprForLocalReadPacking"] and kernel["ClusterLocalRead"]:
+    self.useWiderLocalReadB = False
+    if kernel["EnableMatrixInstruction"] and kernel["MIInputPerThread"] > 1 and \
+       kernel["VgprForLocalReadPacking"] and kernel["ClusterLocalRead"]:
       if (not kernel["UnrollMajorLDSA"]):
-        self.lrvwTileA = min(kernel["MIInputPerThread"], kernel["VectorWidth"]) # should not exceed MIInputPerThread
+        self.lrvwTileA = min(kernel["MIInputPerThread"], kernel["VectorWidthA"]) # should not exceed MIInputPerThread
       if (not kernel["UnrollMajorLDSB"]):
-        self.lrvwTileB = min(kernel["MIInputPerThread"], self.VectorWidthB) # should not exceed MIInputPerThread
+        self.lrvwTileB = min(kernel["MIInputPerThread"], kernel["VectorWidthB"]) # should not exceed MIInputPerThread
 
     self.numItersPLR = kernel["PrefetchLocalRead"]%kernel["LoopIters"]
     self.numVgprBuffer = kernel["LoopIters"] if kernel["PrefetchLocalRead"] > kernel["LoopIters"] else kernel["PrefetchLocalRead"]
@@ -3908,20 +3906,23 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.lrvwA = kernel["MIInputPerThread"]
         if kernel["DirectToVgprA"]:
           # DirectToVgprA case, ignore LocalReadVectorWidth and use GlobalLoadVectorWidth instead.
-          self.lrvwA = max(kernel["MIInputPerThread"], vwa)
+          self.lrvwA = vwa
       else:
         self.lrvwA = 1
     if kernel["UnrollMajorLDSB"]:
       self.lrvwB = kernel["LocalReadVectorWidth"]
     else:
       if kernel["EnableMatrixInstruction"]:
+        # MI + UMLDS, we need minimum of MIInputPerThread for lrvw
+        self.lrvwB = kernel["MIInputPerThread"]
         if kernel["DirectToVgprB"]:
           # DirectToVgprB case, ignore LocalReadVectorWidth and use GlobalLoadVectorWidth instead.
-          self.lrvwB = max(kernel["MIInputPerThread"], vwb)
-        else:
+          self.lrvwB = vwb
+        elif kernel["DirectToVgprA"] and kernel["ProblemType"]["TLUA"]:
           # MI + UMLDS, we need minimum of MIInputPerThread for lrvw
-          # self.VectorWidthB > MIInputPerThread case, use self.VectorWidthB as lrvwB
-          self.lrvwB = max(kernel["MIInputPerThread"], self.VectorWidthB)
+          # DirectToVgprA + TLUA + UnrollMajorLDSB=False case, allow wider LocalReadVectorWidth
+          self.lrvwB = kernel["LocalReadVectorWidth"]
+          self.useWiderLocalReadB = self.lrvwB > kernel["MIInputPerThread"]
       else:
         self.lrvwB = 1
 
@@ -3955,7 +3956,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       else: # read components, write components
         self.readTileDimComponentsA = False # Scalar
         self.readTileDimVectorA = False # Scalar
-        self.readUnrollDimComponentsA = kernel["VectorWidth"] > 1 # Components
+        self.readUnrollDimComponentsA = kernel["VectorWidthA"] > 1 # Components
         self.readUnrollDimVectorA = False # Components
         self.numReadsTileVecCompA = 1
         self.numReadsUnrollVecCompA = vwa
@@ -3970,7 +3971,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.numReadsUnrollVecCompA = vwa
         self.numReadsTileVecCompA = 1
       else: # read components, write vectors
-        self.readTileDimComponentsA = kernel["VectorWidth"] > 1 # Components
+        self.readTileDimComponentsA = kernel["VectorWidthA"] > 1 # Components
         self.readTileDimVectorA = False # Components
         self.readUnrollDimComponentsA = False # Scalar
         self.readUnrollDimVectorA = False # Scalar
@@ -4063,7 +4064,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       else:
         self.readTileDimComponentsB = False # Scalar
         self.readTileDimVectorB = False # Scalar
-        self.readUnrollDimComponentsB = kernel["VectorWidth"] > 1 # Components
+        self.readUnrollDimComponentsB = kernel["VectorWidthB"] > 1 # Components
         self.readUnrollDimVectorB = False # Components
         # NEW
         self.numReadsTileVecCompB = 1
@@ -4079,7 +4080,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.numReadsUnrollVecCompB = vwb
         self.numReadsTileVecCompB = 1
       else:
-        self.readTileDimComponentsB = kernel["VectorWidth"] > 1 # Components
+        self.readTileDimComponentsB = kernel["VectorWidthB"] > 1 # Components
         self.readTileDimVectorB = False # Components
         self.readUnrollDimComponentsB = False # Scalar
         self.readUnrollDimVectorB = False # Scalar

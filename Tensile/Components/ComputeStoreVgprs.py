@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2021-2023 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2021-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -173,7 +173,7 @@ class ComputeStoreVgprsMFMA(ComputeStoreVgprs):
 
         # coord 1 : thread part
         kStr += vectorStaticRemainder(tmpVgpr0, "Serial", matrixInstN, tmpSgpr)
-        kStr += inst("_v_add_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), "coordination 1 = wave_id1 + tid1")
+        kStr += inst("_v_add_lshl_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), log2(kernel["VectorWidthB"]), "coordination 1 = vwb *(wave_id1 + tid1)")
 
         if kernel["BufferStore"]:
           # coord 1 : offset part
@@ -197,7 +197,7 @@ class ComputeStoreVgprsMFMA(ComputeStoreVgprs):
         kStr += vectorStaticRemainder(tmpVgpr0, wave_id, kernel["MIWaveGroup"][0], tmpSgpr)
         kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr0), hex(MIBShape0), vgpr(tmpVgpr0), "wave coordination offset 0")
 
-        kStr += inst("_v_add_u32", vgpr(tid0), vgpr(tmpVgpr0), vgpr(tid0), "coordination 0 = wave_id0 + tid0")
+        kStr += inst("_v_add_lshl_u32", vgpr(tid0), vgpr(tmpVgpr0), vgpr(tid0), log2(kernel["VectorWidthA"]), "coordination 0 = vwa *(wave_id0 + tid0)")
 
         if writer.prefetchAcrossPersistent:
             wg0="PrevWorkGroup0"
@@ -289,9 +289,7 @@ class ComputeStoreVgprsMFMASwap(ComputeStoreVgprs):
         # coord 1 : wave part
         kStr += vectorStaticDivide(tmpVgpr0, wave_id, kernel["MIWaveGroup"][0], tmpSgpr)
         kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr0), hex(MIBShape1), vgpr(tmpVgpr0), "wave coordination offset 1")
-        kStr += inst("_v_add_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), "coordination 1 = wave_id1 + tid1")
-        if writer.VectorWidthB > 1:
-          kStr += staticMultiply(vgpr(tid1), vgpr(tid1), writer.lrvwB, sgpr(tmpSgpr), "coordination 1 *= lrvwB")
+        kStr += inst("_v_add_lshl_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), log2(kernel["VectorWidthB"]), "coordination 1 = vwb *(wave_id1 + tid1)")
 
         if kernel["BufferStore"]:
           # coord 1 : offset part
@@ -308,7 +306,7 @@ class ComputeStoreVgprsMFMASwap(ComputeStoreVgprs):
 
         # coord 0 : thread part
         kStr += vectorStaticRemainder(tid0, "Serial", matrixInstM, tmpSgpr)
-        kStr += inst("_v_add_lshl_u32", vgpr(tid0), vgpr(tmpVgpr0), vgpr(tid0), log2(kernel["VectorWidth"]), "coordination 0 = wave_id0 + tid0")
+        kStr += inst("_v_add_lshl_u32", vgpr(tid0), vgpr(tmpVgpr0), vgpr(tid0), log2(kernel["VectorWidthA"]), "coordination 0 = vwa *(wave_id0 + tid0)")
 
         if writer.prefetchAcrossPersistent:
             wg0="PrevWorkGroup0"
