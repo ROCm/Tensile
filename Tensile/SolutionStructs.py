@@ -2956,44 +2956,47 @@ class Solution(collections.abc.Mapping):
 
     def supportsPreloadKernelArguments():
       if not globalParameters["AsmCaps"][isa]["KernargPreloading"]:
-        printWarning(f"{isa} doesn't support preloading.")
-        return False
+        return False, f"{isa} doesn't support preloading."
       
       if not state["ProblemType"]["StridedBatched"]:
-        printWarning("Preloading only supported in StridedBatched mode.")
-        return False
+        return False, "Preloading only supported in StridedBatched mode."
 
       dt = state["ProblemType"]["DataType"]
       if not (dt.isSingle() or dt.isHalf() or dt.isBFloat16()):
-        printWarning(f"Preloading not supported for data type {dt}.")
-        return False
+        return False, f"Preloading not supported for data type {dt}."
 
       if not state["ProblemType"]["UseBeta"]:
-        printWarning("Preloading only supported with UseBeta.")
-        return False
+        return False, "Preloading only supported with UseBeta."
 
       if state["ProblemType"]["UseInitialStridesAB"]:
-        printWarning("Preloading not supported with initial strides AB.")
-        return False
+        return False, "Preloading not supported with initial strides AB."
 
       if abs(state["WorkGroupMapping"]) > 1:
-        printWarning("Preloading not supported with WorkGroupMapping.")
-        return False
-      
-      return True
+        return False, "Preloading not supported with WorkGroupMapping."
 
+      if not state["PrefetchGlobalRead"]:
+        return False, "Preloading must use PrefetchGlobalRead."
+
+      if state["EdgeType"] == "ShiftPtr":
+        return False, "Preloading not compatible with ShiftPtr."
+
+      if state["StaggerU"] != 0:
+        return False, "Preloading not compatible with StaggerU."
+      
+      return True, ""
+
+    pkaSupported, pkaMsg = supportsPreloadKernelArguments()
     if "PreloadKernelArguments" in state:
-      if not supportsPreloadKernelArguments():
-        reject(state, "Kernel argument preloading not supported")
+      if state["PreloadKernelArguments"] and not pkaSupported:
+        reject(state, pkaMsg)
     else:
-      state["PreloadKernelArguments"] = supportsPreloadKernelArguments()
+      state["PreloadKernelArguments"] = pkaSupported 
 
     if "DelayRemainingArguments" in state:
       if state["DelayRemainingArguments"] and not state["PreloadKernelArguments"]:
           reject(state, "Delayed kernel arguments only supported when preloading.")
     else:
       state["DelayRemainingArguments"] = False
-
 
     if state["VectorStore"] == -1:
         state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel
