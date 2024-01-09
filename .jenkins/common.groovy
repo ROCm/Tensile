@@ -120,8 +120,7 @@ def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest
 
     String compiler = 'hipcc'
     String pythonVersion = 'py3'
-    // Skip host tests for now until compiler bug fix is available
-    String markSkipHostTest = "#" // skipHostTest ? "#" : ""
+    String markSkipHostTest = skipHostTest ? "#" : ""
     String markSkipExtendedTest = !test_marks.contains("extended") ? "--gtest_filter=-\"*Extended*\"" : ""
 
     def command = """#!/usr/bin/env bash
