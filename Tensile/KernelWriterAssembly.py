@@ -5836,8 +5836,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.loadKernelArguments()
       kernArgBytes = self.sgprPool.numKernargSGPRs * 4
       kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for %u bytes of kern args" % kernArgBytes )
-      if not self.staggerU:
-        self.undefineSgpr("OrigStaggerUIter")  # Original stagger register.  Only needed for Persistent
     return kStr
 
   ##############################################################################
