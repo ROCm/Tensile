@@ -862,9 +862,7 @@ def writeCMake(outputPath, solutionFiles, kernelFiles, libraryStaticFiles, maste
     buildObjectFilePaths(cmakeSrcDir, solutionFiles, kernelFiles, [], [], [], masterLibraries)
 
   # Build full paths the static library files
-  staticFilePaths = []
-  for staticFile in libraryStaticFiles:
-    staticFilePaths += [ os.path.join(cmakeSrcDir, staticFile) ]
+  staticFilePaths = (os.path.join(cmakeSrcDir, staticFile) for staticFile in libraryStaticFiles)
 
   # Proceed to generate cmake file
   generatedFile = open(os.path.join(os.path.normcase(outputPath), "Generated.cmake"), "w")
