@@ -60,7 +60,10 @@ def getDstValueType(kernel):
 class SignatureDefault(Signature):
 
     # Formats an argument to add to the header
-    def addArgument(self, name, size, offset, valueKind, valueType, AddrSpaceQual = None):
+    def addArgument(self, name, size, offset, valueKind, valueType = None, AddrSpaceQual = None):
+        self.offset += size
+        if valueType is None:
+            valueType = f"u{size*8}"
         kStr = ""
         kStr += "      - .name:            %s\n" % name
         kStr += "        .size:            %s\n" % size
@@ -209,120 +212,14 @@ class SignatureDefault(Signature):
         kStr += "      - 2%s" % writer.endLine
         kStr += "      - 0%s" % writer.endLine
         kStr += "    .args:%s" % writer.endLine
-        offset = 0
+        self.offset = 0
 
-        if globalParameters["DebugKernel"]:
-            kStr += self.addArgument(                    'AddressDbg',     '8', offset, "global_buffer","struct", "generic"); offset += 8
-
-        kStr += self.addArgument(                           'sizeC',     '8', offset,      "by_value",        "u64"); offset += 8
-        kStr += self.addArgument(                           'sizeA',     '8', offset,      "by_value",        "u64"); offset += 8
-        kStr += self.addArgument(                           'sizeB',     '8', offset,      "by_value",        "u64"); offset += 8
-
-        kStr += self.addArgument(                               'D',     '8', offset, "global_buffer", dstValueType, "generic"); offset += 8
-        kStr += self.addArgument(                               'C',     '8', offset, "global_buffer", dstValueType, "generic"); offset += 8
-        kStr += self.addArgument(                               'A',     '8', offset, "global_buffer", srcValueTypeA, "generic"); offset += 8
-        kStr += self.addArgument(                               'B',     '8', offset, "global_buffer", srcValueTypeB, "generic"); offset += 8
-        if kernel["StreamK"] == 2 or kernel["StreamK"] == 3:
-            kStr += self.addArgument(                          'WS',     '8', offset, "global_buffer", dstValueType, "generic"); offset += 8
-            kStr += self.addArgument(                       'Flags',     '8', offset, "global_buffer", dstValueType, "generic"); offset += 8
-
-        if not kernel["ProblemType"]["StridedBatched"]:
-            kStr += self.addArgument("OffsetD", '8', offset, "by_value", "u64"); offset += 8
-            kStr += self.addArgument("OffsetC", '8', offset, "by_value", "u64"); offset += 8
-            kStr += self.addArgument("OffsetA", '8', offset, "by_value", "u64"); offset += 8
-            kStr += self.addArgument("OffsetB", '8', offset, "by_value", "u64"); offset += 8
-
-        useSize = max(4, cptByte)
-        kStr += self.addArgument(                             "alpha", useSize, offset,      "by_value", cptValueType); offset += useSize
-        if kernel["ProblemType"]["UseBeta"]:
-            kStr += self.addArgument(                          "beta", useSize, offset,      "by_value", cptValueType); offset += useSize
-
-        for i in range(0, writer.numSgprStridesD):
-            kStr += self.addArgument(                   "strideD%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
-
-        for i in range(0, writer.numSgprStridesC):
-            kStr += self.addArgument(                   "strideC%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
-
-        for i in range(0, writer.numSgprStridesA):
-            kStr += self.addArgument(                   "strideA%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
-
-        for i in range(0, writer.numSgprStridesB):
-            kStr += self.addArgument(                   "strideB%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
-
-        for i in range(0, writer.numSgprSizesFree):
-            kStr += self.addArgument(                 "SizesFree%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
-
-        for i in range(0, writer.numSgprSizesSum):
-            kStr += self.addArgument(                  "SizesSum%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
-
-        for magicName in writer.sumMagicParms:
-            kStr += self.addArgument(   "MagicNumberSize%s"%magicName,     '4', offset,      "by_value",        "u32"); offset += 4
-            kStr += self.addArgument(    "MagicShiftSize%s"%magicName,     '4', offset,      "by_value",        "u32"); offset += 4
-
-        for idxChar in kernel["PackedC0IdxChars"][:-1]:
-            kStr += self.addArgument(     "MagicNumberSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
-            kStr += self.addArgument(      "MagicShiftSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
-
-        for idxChar in kernel["PackedC1IdxChars"][:-1]:
-            kStr += self.addArgument(     "MagicNumberSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
-            kStr += self.addArgument(      "MagicShiftSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
-
-        for idx in kernel["ProblemType"]["IndicesSummation"]:
-          for tc in ('A','B'):
-            for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
-              (freeDim, sumDim, padStart, padEnd) = zp
-              if sumDim == idx:
-                freeDimChar = globalParameters["IndexChars"][freeDim]
-                sumDimChar  = globalParameters["IndexChars"][sumDim]
-                # These will eventually be read as kernel args:
-                kStr += self.addArgument(   "PadStart%s%s%s"%(tc, freeDimChar, sumDimChar),     '4', offset,      "by_value",        "u32"); offset += 4
-                kStr += self.addArgument(     "PadEnd%s%s%s"%(tc, freeDimChar, sumDimChar),     '4', offset,      "by_value",        "u32"); offset += 4
-
-        kStr += self.addArgument(              "OrigStaggerUIter",       '4', offset,      "by_value",        "i32"); offset += 4
-
-        kStr += self.addArgument(                  "NumWorkGroups0",     '4', offset,      "by_value",        "u32"); offset += 4
-        kStr += self.addArgument(                  "NumWorkGroups1",     '4', offset,      "by_value",        "u32"); offset += 4
-
-        if kernel["StreamK"]:
-            kStr += self.addArgument("MagicNumberProblemNumGroupTiles0",   '4', offset,    "by_value",        "u32"); offset += 4
-            kStr += self.addArgument("MagicShiftProblemNumGroupTiles0",    '4', offset,    "by_value",        "u32"); offset += 4
-
-        if kernel["PersistentKernel"]:
-            kStr += self.addArgument("MagicNumberProblemNumGroupTiles0",   '4', offset,    "by_value",        "u32"); offset += 4
-            kStr += self.addArgument("MagicShiftProblemNumGroupTiles0",    '4', offset,    "by_value",        "u32"); offset += 4
-            kStr += self.addArgument(              "GridNumWorkGroups0",   '4', offset,    "by_value",        "u32"); offset += 4
-            if kernel["PersistentKernelAlongBatch"]:
-                kStr += self.addArgument(                "NumWorkGroups2",   '4', offset,  "by_value",        "u32"); offset += 4
-                kStr += self.addArgument("MagicNumProblemNumGroupTiles0By1", '4', offset,  "by_value",        "u32"); offset += 4
-                kStr += self.addArgument("MagicShiftProblemNumGroupTiles0By1", '4', offset,"by_value",        "u32"); offset += 4
-
-        if kernel["StreamK"]:
-            kStr += self.addArgument("ItersPerTile",            '4', offset,"by_value", "u32"); offset += 4
-            kStr += self.addArgument("MagicNumberItersPerTile", '4', offset,"by_value", "u32"); offset += 4
-            kStr += self.addArgument("MagicShiftItersPerTile",  '4', offset,"by_value", "u32"); offset += 4
-            kStr += self.addArgument("TotalIters",              '4', offset,"by_value", "u32"); offset += 4
-            kStr += self.addArgument("SKItersPerWG",              '4', offset,"by_value", "u32"); offset += 4
-            if kernel["StreamK"] == 3: # Two-tile SK
-                kStr += self.addArgument("skGrid",              '4', offset,"by_value", "u32"); offset += 4
-                kStr += self.addArgument("skTiles",             '4', offset,"by_value", "u32"); offset += 4
-                kStr += self.addArgument("skExtraIters",        '4', offset,"by_value", "u32"); offset += 4
-                # kStr += self.addArgument("dpTilesPerWG",        '4', offset,"by_value", "u32"); offset += 4
-
-        if abs(kernel["WorkGroupMapping"]) > 1:
-            kStr += self.addArgument(                   "NumFullBlocks",     '4', offset,      "by_value",        "u32"); offset += 4
-            kStr += self.addArgument(                   "WgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
-            kStr += self.addArgument(        "MagicNumberWgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
-
-        # for in-device stochastic rounding, iwe need to pass Seed 
-        # TODO: if kernel["ProblemType"]["StochasticRounding"] == 1:    # in-device 
-        if kernel["ProblemType"]["StochasticRounding"]:    # in-device 
-            kStr += self.addArgument("RNDSeed", '4', offset,    "by_value",        "u32"); offset += 4
-
-        kStr += self.addArgument(                         "padding",     '4', offset,      "by_value",        "u32"); offset += 4
+        for arg in writer.sgprPool.kernargs:
+            kStr += self.addArgument(name=arg['name'], size=arg['size']*4, offset=self.offset, valueKind="by_value")
 
         kStr += "    .group_segment_fixed_size:   %u%s" % ( group_segment_size, writer.endLine ) #XXXXXX
         kStr += "    .kernarg_segment_align:      %u%s" % ( 8, writer.endLine )
-        kStr += "    .kernarg_segment_size:       %u%s" % (((offset+7)//8)*8, writer.endLine) # round up to .kernarg_segment_align
+        kStr += "    .kernarg_segment_size:       %u%s" % (((self.offset+7)//8)*8, writer.endLine) # round up to .kernarg_segment_align
         kStr += "    .max_flat_workgroup_size:    %u%s" % ( kernel["SubGroup0"] * kernel["SubGroup1"] * kernel["LocalSplitU"], writer.endLine )
         kStr += "    .private_segment_fixed_size: %u%s" % ( 0, writer.endLine )
         kStr += "    .sgpr_count:                 %u%s" % ( totalSgprs, writer.endLine )

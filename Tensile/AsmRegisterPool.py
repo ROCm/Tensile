@@ -66,6 +66,8 @@ class RegisterPool:
     self.kernargEnd = None
     self.preloadStart = None
     self.preloadEnd = None
+    self.kernargs = []
+
 
   @property
   def numKernargSGPRs(self):
@@ -206,6 +208,10 @@ class RegisterPool:
     if preventOverflow == -1:
       preventOverflow = self.defaultPreventOverflow
     assert size > 0
+
+    if kernarg:
+      assert not preventOverflow
+      self.kernargs.append({"name": tag, "size": size})
 
     if preload:
       loc = self.findFreeRange(size, alignment, True, RegisterPool.Status.AvailableForPreload)
