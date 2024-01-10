@@ -3645,7 +3645,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def initKernel(self, kernel, tensorParametersA, tensorParametersB ):
 
-    self.staggerU = kernel["StaggerU"] and (kernel["KernelLanguage"]=="Source" or kernel["BufferLoad"])
+    self.staggerU = kernel["StaggerU"]
+    if self.staggerU:
+      assert (kernel["KernelLanguage"]=="Source" or kernel["BufferLoad"])
     self.tPA = tensorParametersA
     self.tPB = tensorParametersB
 

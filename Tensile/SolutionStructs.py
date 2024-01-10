@@ -2954,6 +2954,11 @@ class Solution(collections.abc.Mapping):
         if state["LocalSplitU"] > 1:
           reject(state, "Atomic Stream-K not working with LocalSplitU")
 
+    if state["KernelLanguage"] == "Assembly" and not state["BufferLoad"]:
+      # StaggerU only works with source kernels, or with BufferLoad.
+      # Since StaggerU defaults to 32, override it to 0 if not supported.
+      state["StaggerU"] = 0
+
     def supportsPreloadKernelArguments():
       if not globalParameters["AsmCaps"][isa]["KernargPreloading"]:
         return False, f"{isa} doesn't support preloading."
