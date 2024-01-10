@@ -24,9 +24,9 @@
 
 # Even though we don't support python 2, this is still packaged sometimes with python 2.
 from __future__ import print_function
+from importlib import metadata
 
-# hardcoded tensile version; also in Tensile/Source/TensileConfigVersion.cmake
-__version__ = "4.40.0"
+__version__ = metadata.version("Tensile")
 
 def PrintTensileRoot():
     import os.path
