@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -39,7 +39,6 @@ from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
 from .SolutionStructs import Solution
-from .SolutionWriter import SolutionWriter
 
 import argparse
 import collections
@@ -480,8 +479,8 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
-def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, kernels, kernelHelperObjs, \
-    solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=False):
+def writeKernels(outputPath, CxxCompiler, problemTypes, solutions, kernels, kernelHelperObjs, \
+    kernelWriterSource, kernelWriterAssembly, errorTolerant=False):
   start = time.time()
 
   codeObjectFiles = []
@@ -622,160 +621,20 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
   return codeObjectFiles
 
-def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problemType, \
-                               solutionsForSchedule, solutionNames, exactLogic):
-  s = ""
-  s += "namespace { // Start schedule '%s'\n" % scheduleName
-
-  s += "// solution table - function, name, assertion requirements\n"
-  s += "static const SolutionInfo solutionTable_%s[] = {\n" % (schedProbName)
-  for i in range(0, len(solutionsForSchedule)):
-    solution = solutionsForSchedule[i]
-    solutionName = solutionNames[i]
-    s += "  {(void*)%s, \"%s\", {%d, %d, %d, %d, %d, %d, %d} }%s // %d" % \
-      (solutionName, solutionName, \
-        solution["AssertSummationElementMultiple"], \
-        solution["AssertFree0ElementMultiple"], \
-        solution["AssertFree1ElementMultiple"], \
-        solution["AssertMinApproxSize"], \
-        False, \
-        solution["PackBatchDims"]==2, \
-        solution["PackBatchDims"]==1, \
-        "," if i < len(solutionsForSchedule)-1 else "", \
-        i)
-    s += "\n"
-
-  s += "};\n\n"
-
-  # Write the exact problems here
-  s += "// table of exact problem dims and selected solutionIdx\n"
-  s += "static const std::pair<const ProblemKey_%s, int> embeddedExactTable_%s[] = {\n" % (problemType,schedProbName)
-  numSizes = problemType["TotalIndices"]
-  for ruleIdx in range(0, len(exactLogic)):
-    rule = exactLogic[ruleIdx]
-    problemSize = rule[0][:numSizes]
-    solutionIdx = rule[1][0]
-    solutionGFlops = rule[1][1]
-    s += " { {"
-    for i in range(0, len(problemSize)):
-      if i == 0:
-        s += "%u" % problemSize[i]
-      else:
-        s += ", %u" % problemSize[i]
-    s += "}, %u}" % (solutionIdx)
-    s += "," if ruleIdx != len(exactLogic)-1 else " "
-    s += " // %.0f GFlop/s" % (solutionGFlops)
-    s += "\n"
-  s += "};\n\n"
-
-  # Create a solution mapper and init with the table above:
-  s += "// The solution master constructor here adds device to the master solution mapper\n"
-  s += "// The entrypoint to find a solution for this problem is through the master solution master\n"
-  s += "static SolutionMapper_%s solutionMapper_%s(\n" % (problemType, schedProbName)
-  s += "  \"%s\", // schedule+problem name\n" % (schedProbName)
-  s += "  solutionTable_%s, %u,\n" % (schedProbName, len(solutionsForSchedule))
-  s += "  embeddedExactTable_%s, %u,\n" % (schedProbName, len(exactLogic))
-  s += "  &problemType_%s);\n" % (problemType)
-
-  s += "} // end anonymous namespace\n"
-  return s
-
-
-################################################################################
-# Write Range Logic Recursive
-# ptr :
-#   True : write logic to return the function pointer
-#   False : write logic to return the function name
-################################################################################
-def writeExactLogic(problemType, indexOrder,
-                    solutionsForSchedule, exactLogic, \
-                    solutionNames, ptr):
-  s = ""
-  s += "  ProblemDims_%s pdims(" % problemType
-  indexChars = globalParameters["IndexChars"]
-  firstStrideAB = 0 if problemType["UseInitialStridesAB"] else 1
-  firstStrideCD = 0 if problemType["UseInitialStridesCD"] else 1
-  lastStrideD = problemType["NumIndicesC"]
-  lastStrideC = problemType["NumIndicesC"]
-  lastStrideA = len(problemType["IndexAssignmentsA"])
-  lastStrideB = len(problemType["IndexAssignmentsB"])
-  for i in range(firstStrideCD,lastStrideD):
-    if i != firstStrideCD: s += ", "
-    s += "strideD%u%s" % (i, indexChars[i])
-  for i in range(firstStrideCD,lastStrideC):
-    s += ", strideC%u%s" % (i, indexChars[i])
-  for i in range(firstStrideAB,lastStrideA):
-    s += ", strideA%u%s" % (i, \
-        indexChars[problemType["IndexAssignmentsA"][i]])
-  for i in range(firstStrideAB,lastStrideB):
-    s += ", strideB%u%s" % (i, \
-        indexChars[problemType["IndexAssignmentsB"][i]])
-  for i in range(0,len(indexOrder)):
-    s += ", size%s" % indexChars[i]
-  s += ");\n"
-
-  s += "  auto solutionMapper = reinterpret_cast<SolutionMapper_%s *> (masterSolutionMapper_%s.mapper());\n"  \
-      % (problemType, problemType)
-  if ptr:
-    s += "  return solutionMapper->getSolutionWithFallback(pdims,&masterSolutionMapper_%s);\n" % problemType
-  else:
-    s += "  return solutionMapper->getSolutionWithFallback(pdims,&masterSolutionMapper_%s)->_info->_name;\n" % problemType
-
-  return s
-
-
-################################################################################
-# Write Solution Call
-################################################################################
-def writeSolutionCall(solutionName, problemType):
-  indexChars = globalParameters["IndexChars"]
-  s = ""
-  s += "%s(" % solutionName
-  # solution parameters
-  s += " dataD, dataC, dataA, dataB, alpha"
-  if problemType["UseBeta"]:
-    s += ", beta"
-  s += ", offsetC, offsetA, offsetB"
-  firstStrideAB = firstStrideCD = 1
-  if problemType["UseInitialStridesAB"]:
-    firstStrideAB = 0
-  if problemType["UseInitialStridesCD"]:
-    firstStrideCD = 0
-  lastStrideD = problemType["NumIndicesC"]
-  lastStrideC = problemType["NumIndicesC"]
-  lastStrideA = len(problemType["IndexAssignmentsA"])
-  lastStrideB = len(problemType["IndexAssignmentsB"])
-  for i in range(firstStrideCD,lastStrideD):
-    s += ", strideD%u%s" % (i, indexChars[i])
-  for i in range(firstStrideCD,lastStrideC):
-    s += ", strideC%u%s" % (i, indexChars[i])
-  for i in range(firstStrideAB,lastStrideA):
-    s += ", strideA%u%s" % (i, \
-        indexChars[problemType["IndexAssignmentsA"][i]])
-  for i in range(firstStrideAB,lastStrideB):
-    s += ", strideB%u%s" % (i, \
-        indexChars[problemType["IndexAssignmentsB"][i]])
-  for i in range(0, problemType["TotalIndices"]):
-    s += ", size%s" % indexChars[i]
-  s += ", stream, numInputEvents, inputEvents, outputEvent )"
-  return s
-
 ##############################################################################
 # Min Naming / Solution and Kernel Writers
 ##############################################################################
-def getSolutionAndKernelWriters(solutions, kernels):
+def getKernelWriters(solutions, kernels):
 
   # if any kernels are assembly, append every ISA supported
-  solutionSerialNaming = Solution.getSerialNaming(solutions)
   kernelSerialNaming   = Solution.getSerialNaming(kernels)
 
   solutionMinNaming    = Solution.getMinNaming(solutions)
   kernelMinNaming      = Solution.getMinNaming(kernels)
-  solutionWriter       = SolutionWriter(solutionMinNaming, solutionSerialNaming, kernelMinNaming, kernelSerialNaming)
   kernelWriterSource   = KernelWriterSource(kernelMinNaming, kernelSerialNaming)
   kernelWriterAssembly = KernelWriterAssembly(kernelMinNaming, kernelSerialNaming)
 
-  return (solutionWriter, kernelWriterSource, kernelWriterAssembly, kernelMinNaming, solutionMinNaming)
+  return (kernelWriterSource, kernelWriterAssembly, kernelMinNaming, solutionMinNaming)
 
 ################################################################################
 # copy static cpp files and headers
@@ -797,7 +656,7 @@ def copyStaticFiles(outputPath=None):
 
   return libraryStaticFiles
 
-def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembly, solutions, kernels, kernelHelperObjs):
+def buildObjectFileNames(kernelWriterSource, kernelWriterAssembly, solutions, kernels, kernelHelperObjs):
 
   # Build lists of output object names
   sourceKernelNames = []
@@ -1113,14 +972,14 @@ def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, 
       copyStaticFiles(libraryWorkingPath)
 
   kernels, kernelsBetaOnly, _ = generateKernelObjectsFromSolutions(solutions)
-  solutionWriter, kernelWriterSource, kernelWriterAssembly, \
-    kernelMinNaming, _ = getSolutionAndKernelWriters(solutions, kernels)
+  kernelWriterSource, kernelWriterAssembly, \
+    kernelMinNaming, _ = getKernelWriters(solutions, kernels)
 
   # write solution, kernels and CMake
   problemType = solutions[0]["ProblemType"]
-  codeObjectFiles = writeSolutionsAndKernels( \
+  codeObjectFiles = writeKernels( \
     libraryWorkingPath, cxxCompiler, [problemType], solutions, kernels, kernelsBetaOnly, \
-    solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
+    kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
 
   newLibraryDir = ensurePath(os.path.join(libraryWorkingPath, 'library'))
   newLibraryFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")
@@ -1318,8 +1177,8 @@ def TensileCreateLibrary():
   kernels, kernelHelperObjs, _ = generateKernelObjectsFromSolutions(solutions)
 
   # if any kernels are assembly, append every ISA supported
-  solutionWriter, kernelWriterSource, kernelWriterAssembly, \
-    kernelMinNaming, _ = getSolutionAndKernelWriters(solutions, kernels)
+  kernelWriterSource, kernelWriterAssembly, \
+    kernelMinNaming, _ = getKernelWriters(solutions, kernels)
 
   staticFiles = copyStaticFiles(outputPath)
 
@@ -1328,7 +1187,7 @@ def TensileCreateLibrary():
    sourceKernelFiles,
    asmKernelFiles,
    sourceLibFiles,
-   asmLibFiles) = buildObjectFileNames(solutionWriter, kernelWriterSource, \
+   asmLibFiles) = buildObjectFileNames(kernelWriterSource, \
     kernelWriterAssembly, solutions, kernels, kernelHelperObjs)
 
   (_,
@@ -1362,8 +1221,8 @@ def TensileCreateLibrary():
       outputPath )
 
   # write solutions and kernels
-  codeObjectFiles = writeSolutionsAndKernels(outputPath, CxxCompiler, None, solutions,
-                                             kernels, kernelHelperObjs, solutionWriter, kernelWriterSource, kernelWriterAssembly)
+  codeObjectFiles = writeKernels(outputPath, CxxCompiler, None, solutions,
+                                             kernels, kernelHelperObjs, kernelWriterSource, kernelWriterAssembly)
 
   bothLibSet = set(sourceLibPaths + asmLibPaths)
   setA = set( map( os.path.normcase, set(codeObjectFiles) ) )
@@ -1417,8 +1276,8 @@ def TensileCreateLibrary():
     theMasterLibrary = list(masterLibraries.values())[0]
 
   if args.EmbedLibrary is not None:
-      embedFileName = os.path.join(outputPath, "library/{}.cpp".format(args.EmbedLibrary))
-      with EmbeddedData.EmbeddedDataFile(embedFileName) as embedFile:
+      embedFileNameTemp = os.path.join(outputPath, "library/{}.temp".format(args.EmbedLibrary))
+      with EmbeddedData.EmbeddedDataFile(embedFileNameTemp) as embedFile:
 
           ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
           embedFile.embed_file(theMasterLibrary.cpp_base_class, masterFile + ext, nullTerminated=True,
@@ -1427,6 +1286,8 @@ def TensileCreateLibrary():
           for co in Utils.tqdm(codeObjectFiles):
               embedFile.embed_file("SolutionAdapter", co, nullTerminated=False,
                                    key=args.EmbedLibraryKey)
+      embedFileNameCpp = os.path.join(outputPath, "library/{}.cpp".format(args.EmbedLibrary))
+      os.rename(embedFileNameTemp, embedFileNameCpp)
 
   if args.BuildClient:
     print1("# Building Tensile Client")

@@ -217,7 +217,7 @@ globalParameters["Device"] = 0                    # select hip device or opencl 
 # shouldn't need to change
 globalParameters["DeviceLDS"] = 65536             # LDS bytes per CU, for computing occupancy
 globalParameters["MaxLDS"] = 65536                # max LDS a kernel should attempt to use
-globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
+globalParameters["MaxDepthU"] = 1024              # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
 globalParameters["NumMergedFiles"] = 1            # The number of files that kernels should be split between when merging
@@ -362,7 +362,7 @@ validMacroTiles = []
 validISA = [(0,0,0)]
 validISA.extend(globalParameters["SupportedISA"])
 depthUs = list(range(-16, 0))
-depthUs.extend(list(range(2,512+1,1)))
+depthUs.extend(list(range(2,globalParameters["MaxDepthU"]+1,1)))
 for i in validMacroTileSides:
   for j in validMacroTileSides:
     validMacroTiles.append([i, j])
@@ -934,7 +934,9 @@ validParameters = {
     # For Block Mapping type:
     # 0   : Use hardware-assigned wg number with no remapping.
     # N   : WG block width.  "Wrap" to a new wg1 "row" assignment after N WGs assigned in that row.
-    # < 0 : Swaps the position of wg0 and wg1.  Does not change NumWorkGroups* or ProblemNumWorkGroups*. No longer supported.
+    # < 0 : Swaps the position of wg0 and wg1.  Does not change NumWorkGroups* or ProblemNumWorkGroups*.
+    #       Can be effective in M>N case.
+    #       -1 is same as 1
     # Tensor C always mapped with first free coord as fastest moving
     # (Elements in this dimension are sequential in memory.
     #
@@ -956,7 +958,7 @@ validParameters = {
     #
     # Formula for wgSerial:
     # wgSerial = wg0 + (wg1 % WorkGroupMapping) * nwg0
-    "WorkGroupMapping":           list(range(0,1024+1)),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
+    "WorkGroupMapping":           list(range(-1024,1024+1)),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
     "WorkGroupMappingType":       ["B", "Z"],           # Blocking, Z-order (not any faster than blocking, especially for the arithmetic it requires)
     "MaxOccupancy":               list(range(1, 40+1)),       # wg / CU; if cache thrashing is hurting performance, this allocates extra lds to artificially limit occupancy
     "WorkGroup":                  validWorkGroups,      # ( wg0 x wg1 x LocalSplitU ) dimensions of the workgroup which will operate on a tile and share lds
@@ -1133,7 +1135,20 @@ validParameters = {
     # 0: Standard data-parallel kernel
     # 1: Basic StreamK atomic (uses atomics to accumulate partial tiles)
     # 2: Basic StreamK non-atomic (uses workspace to store partial tiles, accumulate in deterministic fix-up step)
-    "StreamK": [0, 1, 2],
+    # 3: Two-Tile StreamK (non-atomic, each WG completes an even number of sk iterations, followed by an even number of dp tiles)
+    # StreamK kernels can adjust the number of CUs being used.
+    # Using fewer sometimes increases overall throughput by allowing other kernels to run in parallel.
+    # StreamK grid is controlled by setting these enviornment variables:
+    # TENSILE_STREAMK_DYNAMIC_GRID enables dynamic grid mode, which automatically limits the number of CUs used for small
+    #   problems to a subset based on the number of output tiles.
+    #   0 = off (default)
+    #   1 = on
+    # TENSILE_STREAMK_MAX_CUS allows the user to manually set maximum number of CUs used, which could free up some CUs for
+    #   other operations to run in parallel with gemm.
+    #   0 = use all CUs (default)
+    # TENSILE_STREAMK_GRID_MULTIPLIER lets you set how many workgroups are created per CU being used.
+    #   1 = 1 WG per CU (default)
+    "StreamK": [0, 1, 2, 3],
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
@@ -1160,9 +1175,9 @@ validParameters = {
     # The byte address of the last element in the packed array must fit in 2^32.
     # 0x0 = each workgroup works on a single batch dim.
     # 0x1 = pack Batch dimensions into wg0/A - works if all batch strides for B==0.
-    #       Also must set AssertFree0ElementMultiple to >= GlobalReadVectorWidth
+    #       Also must set AssertFree0ElementMultiple to >= GlobalLoadVectorWidthA
     # 0x2 = pack Batch dimensions into wg1/B - works if all batch strides for A==0
-    #       Also must set AssertFree1ElementMultiple to >= GlobalReadVectorWidth
+    #       Also must set AssertFree1ElementMultiple to >= GlobalLoadVectorWidthB
     # 0x3 = pack batch dims into both A and B. Could support any stride for A and B. (Not supported yet)
     "PackBatchDims":             [0,1,2],
 
@@ -1194,14 +1209,23 @@ validParameters = {
 
     # Controls desired width (#elements) for loads from global memory -> LDS.
     # and eliminates the pointer unshift logic
-    # -1 : Set GlobalReadVectorWidth =  VectorWidth
+    # Setting different GlobalLoadVectorWidth for A,B is now supported
+    # (GlobalReadVectorWidth is still valid to set the same value to both A and B)
+    # -1 : Set GlobalLoadVectorWidthA/B = VectorWidth
     # NOTE: for input bpe=32, max GRVW is 4  (to fit dwordX4) (FP32), min GRVW is 1 (dword)
     #                 bpe=16, max GRVW is 8  (to fit dwordX4) (FP16), min GRVW is 2 (dword)
     #                 bpe=8,  max GRVW is 16 (to fit dwordX4) (INT8), min GRVW is 4 (dword)
+    # NOTE: GlobalLoadVectorWidthA/B can be auto-adjusted in SolutionStruct.py
+    "GlobalLoadVectorWidthA":     [ -1, 1, 2, 3, 4, 6, 8, 16 ],
+    "GlobalLoadVectorWidthB":     [ -1, 1, 2, 3, 4, 6, 8, 16 ],
+
+    # legacy setting for global load width
+    #   -1 : use GlobalLoadVectorWidthA, GlobalLoadVectorWidthB
+    #  > 0 : GlobalLoadVectorWidthA=GlobalLoadVectorWidthB=GlobalReadVectorWidth
     "GlobalReadVectorWidth":      [ -1, 1, 2, 3, 4, 6, 8, 16 ],
 
     # Controls desired width (#elements) for loads from LDS -> VGPR.
-    # -1 : Set LocalReadVectorWidth =  VectorWidth
+    # -1 : Set LocalReadVectorWidth =  MIInputPerThread if MatrixInstruction else VectorWidth
     #  1 cannot be used for half type.
     # used in combination with TransposeLDS=True
     # in TransposeLDS=1 case, use wider load to fetch elements in summation dimension from LDS
@@ -1217,7 +1241,7 @@ validParameters = {
     # If the ThreadTile is > VectorWidth then thread0 will next operate on the 4 elements in C at (4*NumThreads)
     # Typically the load vector width and store vector width are directly related to the VW.
     # The global load width is closely related to the width of local stores so
-    # GlobalReadVectorWidth also controls local write width.
+    # GlobalLoadVectorWidthA/B also controls local write width.
     # Local read width also matches since VectorWidth consecutive elements must be read
     # Typically matching 16 bytes is good choice since the stores will be optimally coalesced with 16 bytes/WI.
     # -1 means use the largest vector width up to 128 bits.
@@ -1433,6 +1457,8 @@ defaultBenchmarkCommonParameters = [
     {"VectorWidth":               [ -1 ] },
     {"VectorStore":               [ -1 ] },
     {"StoreVectorWidth":          [ -1 ] },
+    {"GlobalLoadVectorWidthA":    [ -1 ] },
+    {"GlobalLoadVectorWidthB":    [ -1 ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"LocalReadVectorWidth":      [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
@@ -2244,9 +2270,9 @@ def assignGlobalParameters( config ):
     if os.name == "nt":
       globalParameters["CurrentISA"] = (9,0,6)
       printWarning("Failed to detect ISA so forcing (gfx906) on windows")
-  if globalParameters["CurrentISA"] == (9,4,2) or globalParameters["CurrentISA"] == (11,0,0) or \
+  if globalParameters["CurrentISA"] == (9,4,1) or globalParameters["CurrentISA"] == (9,4,2) or globalParameters["CurrentISA"] == (11,0,0) or \
      globalParameters["CurrentISA"] == (11,0,1) or globalParameters["CurrentISA"] == (11,0,2):
-    printWarning("HardwareMonitor currently disabled for gfx942 or gfx1100/gfx1101/gfx1102")
+    printWarning("HardwareMonitor currently disabled for gfx941/942 or gfx1100/gfx1101/gfx1102")
     globalParameters["HardwareMonitor"] = False
 
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future

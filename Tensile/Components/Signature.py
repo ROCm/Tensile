@@ -207,14 +207,15 @@ class SignatureDefault(Signature):
         kStr += self.addArgument(                               'C',     '8', offset, "global_buffer", dstValueType, "generic"); offset += 8
         kStr += self.addArgument(                               'A',     '8', offset, "global_buffer", srcValueTypeA, "generic"); offset += 8
         kStr += self.addArgument(                               'B',     '8', offset, "global_buffer", srcValueTypeB, "generic"); offset += 8
-        if kernel["StreamK"] == 2:
+        if kernel["StreamK"] == 2 or kernel["StreamK"] == 3:
             kStr += self.addArgument(                          'WS',     '8', offset, "global_buffer", dstValueType, "generic"); offset += 8
             kStr += self.addArgument(                       'Flags',     '8', offset, "global_buffer", dstValueType, "generic"); offset += 8
 
-        kStr += self.addArgument("OffsetD", '8', offset, "by_value", "u64"); offset += 8
-        kStr += self.addArgument("OffsetC", '8', offset, "by_value", "u64"); offset += 8
-        kStr += self.addArgument("OffsetA", '8', offset, "by_value", "u64"); offset += 8
-        kStr += self.addArgument("OffsetB", '8', offset, "by_value", "u64"); offset += 8
+        if not kernel["ProblemType"]["StridedBatched"]:
+            kStr += self.addArgument("OffsetD", '8', offset, "by_value", "u64"); offset += 8
+            kStr += self.addArgument("OffsetC", '8', offset, "by_value", "u64"); offset += 8
+            kStr += self.addArgument("OffsetA", '8', offset, "by_value", "u64"); offset += 8
+            kStr += self.addArgument("OffsetB", '8', offset, "by_value", "u64"); offset += 8
 
         useSize = max(4, cptByte)
         kStr += self.addArgument(                             "alpha", useSize, offset,      "by_value", cptValueType); offset += useSize
@@ -282,14 +283,20 @@ class SignatureDefault(Signature):
 
         if kernel["StreamK"]:
             kStr += self.addArgument("ItersPerTile",            '4', offset,"by_value", "u32"); offset += 4
-            kStr += self.addArgument("TotalIters",              '4', offset,"by_value", "u32"); offset += 4
-            kStr += self.addArgument("ItersPerWG",              '4', offset,"by_value", "u32"); offset += 4
             kStr += self.addArgument("MagicNumberItersPerTile", '4', offset,"by_value", "u32"); offset += 4
             kStr += self.addArgument("MagicShiftItersPerTile",  '4', offset,"by_value", "u32"); offset += 4
+            kStr += self.addArgument("TotalIters",              '4', offset,"by_value", "u32"); offset += 4
+            kStr += self.addArgument("SKItersPerWG",              '4', offset,"by_value", "u32"); offset += 4
+            if kernel["StreamK"] == 3: # Two-tile SK
+                kStr += self.addArgument("skGrid",              '4', offset,"by_value", "u32"); offset += 4
+                kStr += self.addArgument("skTiles",             '4', offset,"by_value", "u32"); offset += 4
+                kStr += self.addArgument("skExtraIters",        '4', offset,"by_value", "u32"); offset += 4
+                # kStr += self.addArgument("dpTilesPerWG",        '4', offset,"by_value", "u32"); offset += 4
 
-        kStr += self.addArgument(                   "NumFullBlocks",     '4', offset,      "by_value",        "u32"); offset += 4
-        kStr += self.addArgument(                   "WgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
-        kStr += self.addArgument(        "MagicNumberWgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
+        if abs(kernel["WorkGroupMapping"]) > 1:
+            kStr += self.addArgument(                   "NumFullBlocks",     '4', offset,      "by_value",        "u32"); offset += 4
+            kStr += self.addArgument(                   "WgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
+            kStr += self.addArgument(        "MagicNumberWgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
 
         # for in-device stochastic rounding, iwe need to pass Seed 
         # TODO: if kernel["ProblemType"]["StochasticRounding"] == 1:    # in-device 

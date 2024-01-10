@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -307,35 +307,8 @@ def TensileTestPath(*args):
 
 ################################################################################
 # Entry points
-# the first several of these can be deprecated, only main() is used
+# installed "tensile" command
 ################################################################################
 
-
-# installed "tensile_rocblas_sgemm" command
-def TensileROCBLASSGEMM():
-    Tensile([TensileConfigPath("rocblas_sgemm.yaml"), "."])
-
-
-# installed "tensile_rocblas_dgemm" command
-def TensileROCBLASDGEMM():
-    Tensile([TensileConfigPath("rocblas_dgemm.yaml"), "."])
-
-
-# installed "tensile_rocblas_cgemm" command
-def TensileROCBLASCGEMM():
-    Tensile([TensileConfigPath("rocblas_cgemm.yaml"), "."])
-
-
-# installed "tensile_rocblas_zgemm" command
-def TensileROCBLASZGEMM():
-    Tensile([TensileConfigPath("rocblas_zgemm.yaml"), "."])
-
-
-# installed "tensile_sgemm" command
-def TensileSGEMM5760():
-    Tensile([TensileConfigPath("sgemm_5760.yaml"), "."])
-
-
-# installed "tensile" command
 def main():
     Tensile(sys.argv[1:])
