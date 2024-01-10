@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -7224,6 +7224,7 @@ class KernelWriterAssembly(KernelWriter):
 
     prevAccIdx = -1
     for iui in range(0, innerUnroll):
+      firstIterIui0 = firstIter and iui == 0 # InnerUnroll case, use const 0 for src1 only if iui == 0
       zgemmVaddSrcCheck = [[], [], []] # to avoid generating redundant v_add
       outer = 1
       # swap inner loop and outer loop so that idxA comes outer
@@ -7308,9 +7309,9 @@ class KernelWriterAssembly(KernelWriter):
                 zgemmVaddSrcCheck[arrayIndex].append(ar)
             imod.addInst(shiftKStr + \
                          "".join([inst for inst in ccInsts if inst is not None]) + \
-                         mfmaComponent(self, accStart, accEnd, ar, br, accStart, accEnd, 0, firstIter), "Cr += Ar*Br")
+                         mfmaComponent(self, accStart, accEnd, ar, br, accStart, accEnd, 0, firstIterIui0), "Cr += Ar*Br")
             src0 = vgpr(ccVgprs[1], numRegistersOut) if ccVgprs[1] else ai
-            imod.addInst(mfmaComponent(self, accStart+accImOffset, accEnd+accImOffset, src0, br, accStartSrcImg, accEndSrcImg, 0, firstIter), "Ci += %sAi*Br"%("-" if ccVgprs[1] else ""))
+            imod.addInst(mfmaComponent(self, accStart+accImOffset, accEnd+accImOffset, src0, br, accStartSrcImg, accEndSrcImg, 0, firstIterIui0), "Ci += %sAi*Br"%("-" if ccVgprs[1] else ""))
             src0 = vgpr(ccVgprs[0], numRegistersOut) if ccVgprs[0] else ai
             imod.addInst(mfmaComponent(self, accStart, accEnd, src0, bi, accStart, accEnd, accStoreCIdx, False), "Cr += %sAi*Bi"%("-" if ccVgprs[0] else ""))
             src0 = vgpr(ccVgprs[2], numRegistersOut) if ccVgprs[2] else ar
@@ -7328,7 +7329,7 @@ class KernelWriterAssembly(KernelWriter):
             waitCode = ""
             if waits > 0 and (prevAccIdx == accIdx or numMfma == 1):
               waitCode += inst("s_nop %u"%(waits - 1), "Wait for C")
-            imod.addCode(shiftKStr + waitCode + mfmaComponent(self, accStart, accEnd, Str0, Str1, accStart, accEnd, accStoreCIdx, firstIter))
+            imod.addCode(shiftKStr + waitCode + mfmaComponent(self, accStart, accEnd, Str0, Str1, accStart, accEnd, accStoreCIdx, firstIterIui0))
             prevAccIdx = accIdx
 
           # clear shiftKStr
