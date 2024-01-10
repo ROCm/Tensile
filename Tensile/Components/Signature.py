@@ -187,12 +187,6 @@ class SignatureDefault(Signature):
         kStr += writer.comment1("DirectToLdsB=%s" % kernel["DirectToLdsB"])
         kStr += writer.comment1("UseSgprForGRO=%s" % kernel["_UseSgprForGRO"])
 
-        srcValueTypeA = getSrcValueType(kernel, True)
-        srcValueTypeB = getSrcValueType(kernel, False)
-        dstValueType  = getDstValueType(kernel)
-        cptValueType  = kernel["ProblemType"]["ComputeDataType"].toNameAbbrev()
-        cptByte       = kernel["ProblemType"]["ComputeDataType"].numBytes()
-
         kStr += ".amdgpu_metadata\n"
         kStr += "---\n"
         kStr += "amdhsa.version:\n"
