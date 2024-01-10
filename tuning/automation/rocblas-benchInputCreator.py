@@ -127,7 +127,7 @@ def getProblemType(problem):
         else:
             problemDict["compute_type"] = problemDict["a_type"]
 
-    if problem["F32XdlMathOp"]==9: # XF32
+    if "F32XdlMathOp" in problem and problem["F32XdlMathOp"]==9: # XF32
         problemDict["math_mode"] = 1
 
     return problemDict
