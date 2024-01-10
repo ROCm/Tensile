@@ -512,28 +512,29 @@ inline void print_memory_size(size_t memory_size)
     }
 }
 
-size_t calculate_flush_count(size_t arg_flush_count,
-                                   size_t arg_flush_memory_size,
-                                   Tensile::Client::ClientProblemFactory const& problemFactory)
+size_t calculate_flush_count(size_t                                       arg_flush_count,
+                             size_t                                       arg_flush_memory_size,
+                             Tensile::Client::ClientProblemFactory const& problemFactory)
 {
-    size_t default_arg_flush_count = 1;
+    size_t default_arg_flush_count       = 1;
     size_t default_arg_flush_memory_size = 0;
-    size_t flush_count             = default_arg_flush_count;
+    size_t flush_count                   = default_arg_flush_count;
 
     size_t cached_size = 0;
 
     for(auto const& problem : problemFactory.problems())
-        cached_size = std::max(cached_size, problem.a().sizes()[0]*problem.a().sizes()[1]*problem.a().elementBytes() +
-                                            problem.b().sizes()[0]*problem.b().sizes()[1]*problem.b().elementBytes() +
-                                            problem.c().sizes()[0]*problem.c().sizes()[1]*problem.c().elementBytes());
+        cached_size = std::max(
+            cached_size,
+            problem.a().sizes()[0] * problem.a().sizes()[1] * problem.a().elementBytes()
+                + problem.b().sizes()[0] * problem.b().sizes()[1] * problem.b().elementBytes()
+                + problem.c().sizes()[0] * problem.c().sizes()[1] * problem.c().elementBytes());
 
     if(arg_flush_count != default_arg_flush_count
        && arg_flush_memory_size != default_arg_flush_memory_size)
     {
         std::cout << "Tensile WARNING: cannot set both flush_count and flush_memory_size"
-                     << std::endl;
-        std::cout << "Tensile WARNING: using flush_count = " << arg_flush_count
-                     << std::endl;
+                  << std::endl;
+        std::cout << "Tensile WARNING: using flush_count = " << arg_flush_count << std::endl;
         flush_count = arg_flush_count;
     }
     else if(arg_flush_count != default_arg_flush_count)
@@ -547,7 +548,7 @@ size_t calculate_flush_count(size_t arg_flush_count,
     else if(arg_flush_memory_size != default_arg_flush_memory_size)
     {
         flush_count = 1 + (arg_flush_memory_size - 1) / cached_size;
-        
+
         std::cout << "flush_count = " << flush_count << std::endl;
     }
     return flush_count;
@@ -605,8 +606,8 @@ int main(int argc, const char* argv[])
     size_t maxWorkspaceSizeLimit = args["max-workspace-size"].as<size_t>();
     size_t maxWorkspaceSize
         = getMaxWorkspace(library, hardware, args, problems, firstProblemIdx, lastProblemIdx);
-    maxWorkspaceSize = std::min(maxWorkspaceSize, maxWorkspaceSizeLimit);
-    size_t flush_count = args["flush-count"].as<size_t>();
+    maxWorkspaceSize         = std::min(maxWorkspaceSize, maxWorkspaceSizeLimit);
+    size_t flush_count       = args["flush-count"].as<size_t>();
     size_t flush_memory_size = args["flush-memory-size"].as<size_t>();
 
     std::vector<std::shared_ptr<DataInitialization>> dataInit;
@@ -614,11 +615,9 @@ int main(int argc, const char* argv[])
 
     MetaRunListener listeners;
 
-    flush_count = calculate_flush_count(flush_count, 
-                                            flush_memory_size,
-                                            problemFactory);
+    flush_count = calculate_flush_count(flush_count, flush_memory_size, problemFactory);
 
-    for(size_t i = 0; i<flush_count; i++)
+    for(size_t i = 0; i < flush_count; i++)
     {
         dataInit.push_back(DataInitialization::Get(args, problemFactory, maxWorkspaceSize));
         listeners.addListener(dataInit[i]);
@@ -693,11 +692,12 @@ int main(int argc, const char* argv[])
                         while(listeners.needMoreRunsInSolution())
                         {
                             std::vector<std::shared_ptr<ContractionInputs>> inputs;
-                            std::vector<std::vector<KernelInvocation>> kernels;
-                            for(size_t i = 0; i<flush_count; i++)
+                            std::vector<std::vector<KernelInvocation>>      kernels;
+                            for(size_t i = 0; i < flush_count; i++)
                             {
                                 inputs.push_back(dataInit[i]->prepareGPUInputs(problem));
-                                kernels.push_back(solution->solve(problem, *(inputs[i]), *hardware));
+                                kernels.push_back(
+                                    solution->solve(problem, *(inputs[i]), *hardware));
                             }
 
                             size_t       warmupInvocations = listeners.numWarmupRuns();
@@ -714,8 +714,8 @@ int main(int argc, const char* argv[])
                                                                         warmupStartEvents[i],
                                                                         warmupStopEvents[i]));
                                 else
-                                    HIP_CHECK_EXC(
-                                        adapter.launchKernels(kernels[0], stream, nullptr, nullptr));
+                                    HIP_CHECK_EXC(adapter.launchKernels(
+                                        kernels[0], stream, nullptr, nullptr));
                                 listeners.postWarmup();
                                 // Do validation after first warmup
                                 if(i == 0)
@@ -737,10 +737,12 @@ int main(int argc, const char* argv[])
 
                                 for(int j = 0; j < enq; j++)
                                 {
-                                    int flush_index = (j + i*enq + 1) % flush_count;
+                                    int flush_index = (j + i * enq + 1) % flush_count;
                                     if(gpuTimer)
-                                        HIP_CHECK_EXC(adapter.launchKernels(
-                                            kernels[flush_index], stream, startEvents[j], stopEvents[j]));
+                                        HIP_CHECK_EXC(adapter.launchKernels(kernels[flush_index],
+                                                                            stream,
+                                                                            startEvents[j],
+                                                                            stopEvents[j]));
                                     else
                                         HIP_CHECK_EXC(adapter.launchKernels(
                                             kernels[flush_index], stream, nullptr, nullptr));
