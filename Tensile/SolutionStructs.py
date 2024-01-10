@@ -2786,20 +2786,19 @@ class Solution(collections.abc.Mapping):
         LRstride = 0
         comment = ""
         depthU = state["_DepthULds"]
-        if not state["SourceSwap"]:
-          vw = 1  # TODO: support non-SourceSwap + vw
         if state["UnrollMajorLDS%s"%tc]:
-          LRstrideLine = state["_DepthULds"]
+          LRstrideLine = depthU
           comment = "DepthULds"
-          # if depthU is not power of 2, adjust ldsPad at each line (keep LRstride = 0)
-          if not (depthU > 0 and (depthU & (depthU - 1)) != 0):
-            LRstride = LRstrideLine * vw
+          LRstride = LRstrideLine * vw
         else:
           LRstrideLine = state["MacroTile%d"%idx01]
           comment = "MT0"
           if state["MIInputPerThread"] > 1:
             # MIInputPerThread > 1 case, we still need padding to mitigate bank conflict even for non-UnrollMajorLDS case
             LRstride = LRstrideLine * state["LocalReadVectorWidth"]
+        # if LRstrideLine is not power of 2, adjust ldsPad at each line (keep LRstride = 0)
+        if LRstrideLine <= 0 or (LRstrideLine & (LRstrideLine - 1)) != 0:
+          LRstride = 0
         # auto calc for LBSPP
         if autoCalcLBSPP and LRstride > 0:
           state["LdsBlockSizePerPad%s"%tc] = max(int(2**(math.ceil(math.log(LRstride * numBytes, 2)))), 128)
@@ -4612,7 +4611,7 @@ class Solution(collections.abc.Mapping):
           return
         if (state["UnrollMajorLDSA"] == False and state["VectorWidthA"] > state["MIInputPerThread"]) or\
            (state["UnrollMajorLDSB"] == False and state["VectorWidthB"] > state["MIInputPerThread"]):
-          reject(state, "ClusterLocalRead does not support VectorWidthA > MIInputPerThread")
+          reject(state, "ClusterLocalRead does not support VectorWidth or VectorWidthB > MIInputPerThread")
           return
 
   ########################################
