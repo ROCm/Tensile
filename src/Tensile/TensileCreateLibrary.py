@@ -1216,10 +1216,7 @@ def main():
   if not arguments["GenerateSourcesAndExit"]:
     writeCMake(outputPath, solutionFiles, sourceKernelFiles, staticFiles, masterLibraries)
 
-  # Make sure to copy the library static files.
-  for fileName in staticFiles:
-    shutil.copy( os.path.join(globalParameters["SourcePath"], fileName), \
-      outputPath )
+
 
   # write solutions and kernels
   codeObjectFiles = writeSolutionsAndKernels(outputPath, CxxCompiler, None, solutions,
