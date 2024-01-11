@@ -844,6 +844,8 @@ validParameters = {
     "AssertSizeMultiple":    -1,
 
     # Assertions that require arithmetic intensity to be specified value.
+    # Arithmetic intensity measures the ratio of computation to memory bandwidth required for a problem.
+    # These predicates can be used to adjust solution selection compute-bound or memory-bound problems.
     "AssertAIGreaterThanEqual": -1,
     "AssertAILessThanEqual":    -1,
 
