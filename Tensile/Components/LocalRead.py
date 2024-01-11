@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2021-2023 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2021-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -144,8 +144,9 @@ class LocalReadMFMA(LocalRead):
         numOffsets       = instruction.numOffsets
         blockWidth       = instruction.blockWidth
         bpr              = writer.bpr
-        vectorWidthA     = kernel["VectorWidth"] if kernel["SourceSwap"] else 1 # TODO: nonSwap VectorWidth
-        vectorWidthB     = writer.VectorWidthB
+        vectorWidth      = kernel["VectorWidth%s"%tc]
+        vectorWidthA     = kernel["VectorWidthA"]
+        vectorWidthB     = kernel["VectorWidthB"]
         MIWaveGroupShape = [ kernel["MatrixInstM"] * kernel["MatrixInstBM"] * kernel["MIWaveGroup"][0] * vectorWidthA, \
                              kernel["MatrixInstN"] * kernel["MatrixInstBN"] * kernel["MIWaveGroup"][1] * vectorWidthB]
 
@@ -156,7 +157,6 @@ class LocalReadMFMA(LocalRead):
             tileStride   = kernel["_DepthULds"] + LdsPad
             UnrollStride = 1
 
-        vectorWidth       = vectorWidthA if (tile01 == 0) else vectorWidthB
         numVectorsPerTile = kernel["MIWaveTile"][tile01] // vectorWidth
         numReadsPerVector = vectorWidth if kernel["UnrollMajorLDS%s"%tc] else (vectorWidth * tP["bpe"]) // int(blockWidth * 4)
         numReadsPerUnroll = ceil(tP["bpe"] * lrvw / int(blockWidth * 4)) if kernel["UnrollMajorLDS%s"%tc] else kernel["MIInputPerThread"] # bytes/register
