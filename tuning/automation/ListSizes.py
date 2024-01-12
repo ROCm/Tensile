@@ -70,6 +70,7 @@ def main():
                 gflopsIdx = labels.index("rocblas-Gflops")
                 dataLine = next(baseFile)
                 data = dataLine.split(",")
+                data = [d.strip() for d in data]
                 baseData.append([int(data[mIdx]), int(data[nIdx]), int(data[bIdx]), int(data[kIdx]), Decimal(data[gflopsIdx])])
                 
     newData = []
@@ -84,6 +85,7 @@ def main():
                 gflopsIdx = labels.index("rocblas-Gflops")
                 dataLine = next(newFile)
                 data = dataLine.split(",")
+                data = [d.strip() for d in data]
                 newData.append([int(data[mIdx]), int(data[nIdx]), int(data[bIdx]), int(data[kIdx]), Decimal(data[gflopsIdx])])
 
     sizeData = []
