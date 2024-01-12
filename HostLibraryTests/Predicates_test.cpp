@@ -31,11 +31,15 @@
 TEST(Predicates, ArithmeticIntensity)
 {
     using namespace Tensile;
-    
-    ContractionProblem a = ContractionProblem::GEMM(false, true, 1000, 1500, 500, 2000, 2000, 2000, 3.0, false, 1);     // 88.4
-    ContractionProblem b = ContractionProblem::GEMM(false, true, 500, 1000, 1000, 2000, 2000, 2000, 0.0, false, 5);     // 125
-    ContractionProblem c = ContractionProblem::GEMM(false, true, 2000, 100, 2000, 2000, 2000, 2000, 1.0, false, 10);    // 43.5
-    ContractionProblem d = ContractionProblem::GEMM(false, true, 2000, 2000, 450, 2000, 2000, 2000, 2.0, false, 1);     // 92.04
+
+    ContractionProblem a = ContractionProblem::GEMM(
+        false, true, 1000, 1500, 500, 2000, 2000, 2000, 3.0, false, 1); // 88.4
+    ContractionProblem b = ContractionProblem::GEMM(
+        false, true, 500, 1000, 1000, 2000, 2000, 2000, 0.0, false, 5); // 125
+    ContractionProblem c = ContractionProblem::GEMM(
+        false, true, 2000, 100, 2000, 2000, 2000, 2000, 1.0, false, 10); // 43.5
+    ContractionProblem d = ContractionProblem::GEMM(
+        false, true, 2000, 2000, 450, 2000, 2000, 2000, 2.0, false, 1); // 92.04
 
     auto pg1 = std::make_shared<Predicates::Contraction::AIGreaterThanEqual>(100);
     auto pg2 = std::make_shared<Predicates::Contraction::AIGreaterThanEqual>(75);
