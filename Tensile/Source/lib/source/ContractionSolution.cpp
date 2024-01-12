@@ -628,9 +628,12 @@ namespace Tensile
                 uint32_t numGroupTiles0x1 = problemNumGroupTiles0 * problemNumGroupTiles1;
                 uint32_t magicNumProblemNumGroupTiles0By1;
                 uint32_t magicShiftProblemNumGroupTiles0By1;
-                magicNumProblemNumGroupTiles0By1 = magicNumber(2, numGroupTiles0x1, &magicShiftProblemNumGroupTiles0By1);
-                rv.args.append<uint32_t>("magicNumProblemNumGroupTiles0By1", magicNumProblemNumGroupTiles0By1);
-                rv.args.append<uint32_t>("magicShiftProblemNumGroupTiles0By1", magicShiftProblemNumGroupTiles0By1);
+                magicNumProblemNumGroupTiles0By1
+                    = magicNumber(2, numGroupTiles0x1, &magicShiftProblemNumGroupTiles0By1);
+                rv.args.append<uint32_t>("magicNumProblemNumGroupTiles0By1",
+                                         magicNumProblemNumGroupTiles0By1);
+                rv.args.append<uint32_t>("magicShiftProblemNumGroupTiles0By1",
+                                         magicShiftProblemNumGroupTiles0By1);
 
                 rv.args.append<uint32_t>("totalIters", totalIters);
                 if(sizeMapping.streamK < 3) // Basic SK
