@@ -2944,6 +2944,8 @@ class Solution(collections.abc.Mapping):
         reject(state, "Cannot enable both Stream-K and GSU")
       if state["PersistentKernel"]:
         reject(state, "Cannot enable both Stream-K and PersistentKernel")
+      if not state["ProblemType"]["StridedBatched"]:
+        reject(state, "General batch not supported with Stream-K")
       if state["StreamK"] == 1:
         if not state["ProblemType"]["DataType"].isSingle():
           reject(state, "Atomic Stream-K currently only tested for SGEMM")
