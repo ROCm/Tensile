@@ -4594,9 +4594,9 @@ class Solution(collections.abc.Mapping):
         if not globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
           reject(state, "VgprForLocalReadPacking is for EccHalf only")
           return
-        # only for SIA=3 + PLR>1
-        if not (state["ScheduleIterAlg"] == 3 and state["PrefetchLocalRead"] > 1):
-          reject(state, "VgprForLocalReadPacking is effective only fof SIA=3 and PLR>1")
+        # only for SIA=3 + PLR>=1
+        if not (state["ScheduleIterAlg"] == 3 and state["PrefetchLocalRead"] >= 1):
+          reject(state, "VgprForLocalReadPacking is effective only fof SIA=3 and PLR>=1")
           return
         # only for 1 or 2 byte input (numRegister < 1) + UnrollMajorLDSA or B is False
         if not (state["ProblemType"]["DataType"].numRegisters() < 1 and (state["UnrollMajorLDSA"] == False or state["UnrollMajorLDSB"] == False)):
