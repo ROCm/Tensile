@@ -1930,9 +1930,11 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("ItersPerTile", 1)
       self.defineSgpr("MagicNumberItersPerTile", 1)
       self.defineSgpr("MagicShiftItersPerTile", 1)
+      self.defineSgpr("MagicNumProblemNumGroupTiles0By1", 1)  # for PKAB, use for Magic Div Alg 2 by (nwg0*nwg1)
+      self.defineSgpr("MagicShiftProblemNumGroupTiles0By1", 1)  # for PKAB, use for Magic Div Alg 2 by (nwg0*nwg1)
       self.defineSgpr("TotalIters", 1)
       self.defineSgpr("SKItersPerWG", 1)
-      skArgumentToLoad += 7
+      skArgumentToLoad += 9
       if kernel["StreamK"] == 3: # Two-tile SK
         self.defineSgpr("skGrid", 1)
         self.defineSgpr("skTiles", 1)
@@ -3789,7 +3791,12 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mov_b32", sgpr("StreamKIter"), sgpr(stmp+2), "Increment StreamK Iteration")
 
       # Map StreamK tile index to wg0/1
-      kStr += self.comment1("Map StreamK tile index to wg0/1")
+      kStr += self.comment1("Map StreamK tile index to wg0/1/2")
+      kStr += self.sMagicDivAlg2(kernel, stmp+1, sgpr(stmp), sgpr("MagicNumProblemNumGroupTiles0By1"), sgpr("MagicShiftProblemNumGroupTiles0By1"))
+      kStr += inst("s_mov_b32", sgpr("WorkGroup2"), sgpr(stmp+1), "wg2 = Tile Idx / problemNumGroupTiles0By1")
+      kStr += inst("s_mul_i32", sgpr(stmp+1), sgpr(stmp+1), sgpr("NumWorkGroups0"), "remainder part 1 : quotient * divisor")
+      kStr += inst("s_mul_i32", sgpr(stmp+1), sgpr(stmp+1), sgpr("NumWorkGroups1"), "remainder part 1 : quotient * divisor")
+      kStr += inst("s_sub_u32", sgpr(stmp), sgpr(stmp), sgpr(stmp+1), "remainder")
       kStr += self.sMagicDivAlg2(kernel, stmp+1, sgpr(stmp), sgpr("MagicNumberProblemNumGroupTiles0"), sgpr("MagicShiftProblemNumGroupTiles0"))
       kStr += inst("s_mov_b32", sgpr("WorkGroup1"), sgpr(stmp+1), "wg1 = Tile Idx / problemNumGroupTiles0")
       kStr += inst("s_mul_i32", sgpr("WorkGroup0"), sgpr(stmp+1), sgpr("NumWorkGroups0"), "remainder part 1 : quotient * divisor")

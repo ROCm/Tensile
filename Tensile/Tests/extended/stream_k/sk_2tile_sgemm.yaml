@@ -6,7 +6,7 @@ GlobalParameters:
   BoundsCheck: True
   KernelTime: True
   DataInitTypeAlpha: 1
-  DataInitTypeBeta: 0
+  DataInitTypeBeta: 1
   # DataInitTypeA: 1
   # DataInitTypeB: 1
   # DataInitTypeC: 1
@@ -30,7 +30,7 @@ BenchmarkProblems:
       DataType: s
       TransposeA: False
       TransposeB: True
-      UseBeta: False
+      UseBeta: True
       Batched: True
 
     - # BenchmarkProblemSizeGroup - Standard
@@ -91,29 +91,23 @@ BenchmarkProblems:
         # - NumElementsPerBatchStore: [0, 2, 4, 8]
         # - NumElementsPerBatchStore: [8]
         # - AssertAlphaValue: [1]
-        - AssertSizeEqual: [{2: 1}]
 
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          # - Exact: [10912, 10976, 1, 13856]
-          # - Exact: [16000, 13632, 1, 9040]
-          # - Range: [ [4096, 7, 6144], [4096, 7, 6144], [1], [1024] ]
-          # - Range: [ [4096, 31, 5120], [4096, 31, 5120], [1], [1024] ]
-          # - Range: [ [512], [512], [1], [512] ]
-          - Range: [ [4096], [4096], [1], [1024] ]
-          - Range: [ [4103], [4096], [1], [1024] ]
-          - Range: [ [4096], [4103], [1], [1024] ]
-          - Range: [ [4103], [4103], [1], [1024] ]
-          - Range: [ [4096], [4096], [1], [1031] ]
-          - Range: [ [4103], [4103], [1], [1031] ]
-          # - Range: [ [4096], [4096], [1], [1024, 1, 1088] ]
-          # - Range: [ [4096, 31, 5120], [4096, 31, 5120], [1], [1024, 7, 1280] ]
-          # - Range: [ [4096, 31, 5120], [4096], [1], [1024] ]
-          # - Range: [ [4096], [4096, 31, 5120], [1], [1024] ]
-          # - Range: [ [4096], [4096], [1], [1024, 7, 1280] ]
-          # - Range: [ [1031], [1031], [1], [1031] ]
-          # - Range: [ [1031], [1031], [8], [1031] ]
-          # - Range: [ [4096], [4096], [2], [1024] ]
+          - Exact: [ 512, 512, 1, 512 ]
+          - Exact: [ 4096, 4096, 1, 1024 ]
+          - Exact: [ 4103, 4096, 1, 1024 ]
+          - Exact: [ 4096, 4103, 1, 1024 ]
+          - Exact: [ 4103, 4103, 1, 1024 ]
+          - Exact: [ 4096, 4096, 1, 1031 ]
+          - Exact: [ 4103, 4103, 1, 1031 ]
+          - Exact: [ 512, 512, 3, 512 ]
+          - Exact: [ 4096, 4096, 3, 1024 ]
+          - Exact: [ 4103, 4096, 3, 1024 ]
+          - Exact: [ 4096, 4103, 3, 1024 ]
+          - Exact: [ 4103, 4103, 3, 1024 ]
+          - Exact: [ 4096, 4096, 3, 1031 ]
+          - Exact: [ 4103, 4103, 3, 1031 ]
