@@ -1633,9 +1633,9 @@ class KernelWriterAssembly(KernelWriter):
         self.Fp16AltTmp = self.G2Lpipe1 + 1
         vgprIdx += 1
 
-    # packTmp vgpr for wider local read + v_perm
+    # packTmp vgpr for wider local read + v_perm + 8bit
     lrvwTileMax = max(self.lrvwTileA, self.lrvwTileB)
-    if lrvwTileMax > 1:
+    if lrvwTileMax > 1 and (kernel["ProblemType"]["DataType"].isInt8() or kernel["ProblemType"]["DataType"].is8bitFloat()):
       self.vgprPackTemp = vgprIdx
       vgprIdx += 1
 
@@ -2716,7 +2716,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.macroRegister("vgprFp16AltTmp", self.Fp16AltTmp)
 
     lrvwTileMax = max(self.lrvwTileA, self.lrvwTileB)
-    if lrvwTileMax > 1:
+    if lrvwTileMax > 1 and (kernel["ProblemType"]["DataType"].isInt8() or kernel["ProblemType"]["DataType"].is8bitFloat()):
       kStr += self.macroRegister("vgprPackTemp", self.vgprPackTemp)
 
     # Serial is always the last register in the pool so the store
