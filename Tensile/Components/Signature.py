@@ -275,6 +275,8 @@ class SignatureDefault(Signature):
         if kernel["StreamK"]:
             kStr += self.addArgument("MagicNumberProblemNumGroupTiles0",   '4', offset,    "by_value",        "u32"); offset += 4
             kStr += self.addArgument("MagicShiftProblemNumGroupTiles0",    '4', offset,    "by_value",        "u32"); offset += 4
+            kStr += self.addArgument("MagicNumProblemNumGroupTiles0By1",   '4', offset,    "by_value",        "u32"); offset += 4
+            kStr += self.addArgument("MagicShiftProblemNumGroupTiles0By1", '4', offset,    "by_value",        "u32"); offset += 4
 
         if kernel["PersistentKernel"]:
             kStr += self.addArgument("MagicNumberProblemNumGroupTiles0",   '4', offset,    "by_value",        "u32"); offset += 4
@@ -290,7 +292,7 @@ class SignatureDefault(Signature):
             kStr += self.addArgument("MagicNumberItersPerTile", '4', offset,"by_value", "u32"); offset += 4
             kStr += self.addArgument("MagicShiftItersPerTile",  '4', offset,"by_value", "u32"); offset += 4
             kStr += self.addArgument("TotalIters",              '4', offset,"by_value", "u32"); offset += 4
-            kStr += self.addArgument("SKItersPerWG",              '4', offset,"by_value", "u32"); offset += 4
+            kStr += self.addArgument("SKItersPerWG",            '4', offset,"by_value", "u32"); offset += 4
             if kernel["StreamK"] == 3: # Two-tile SK
                 kStr += self.addArgument("skGrid",              '4', offset,"by_value", "u32"); offset += 4
                 kStr += self.addArgument("skTiles",             '4', offset,"by_value", "u32"); offset += 4

@@ -327,8 +327,7 @@ namespace Tensile
                 skGrid             = getSKGrid(hardware, tiles);
                 rv.numWorkGroups.x = skGrid;
                 rv.numWorkGroups.y = 1;
-                if(sizeMapping.persistentKernelAlongBatch)
-                    rv.numWorkGroups.z = 1;
+                rv.numWorkGroups.z = 1;
             }
         }
 
@@ -625,6 +624,17 @@ namespace Tensile
                 rv.args.append<uint32_t>("itersPerTile", itersPerTile);
                 rv.args.append<uint32_t>("magicNumberItersPerTile", magicNumberItersPerTile);
                 rv.args.append<uint32_t>("magicShiftItersPerTile", magicShiftItersPerTile);
+
+                uint32_t numGroupTiles0x1 = problemNumGroupTiles0 * problemNumGroupTiles1;
+                uint32_t magicNumProblemNumGroupTiles0By1;
+                uint32_t magicShiftProblemNumGroupTiles0By1;
+                magicNumProblemNumGroupTiles0By1
+                    = magicNumber(2, numGroupTiles0x1, &magicShiftProblemNumGroupTiles0By1);
+                rv.args.append<uint32_t>("magicNumProblemNumGroupTiles0By1",
+                                         magicNumProblemNumGroupTiles0By1);
+                rv.args.append<uint32_t>("magicShiftProblemNumGroupTiles0By1",
+                                         magicShiftProblemNumGroupTiles0By1);
+
                 rv.args.append<uint32_t>("totalIters", totalIters);
                 if(sizeMapping.streamK < 3) // Basic SK
                 {

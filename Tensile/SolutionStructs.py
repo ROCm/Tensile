@@ -2938,8 +2938,8 @@ class Solution(collections.abc.Mapping):
         reject(state, "Cannot enable both Stream-K and GSU")
       if state["PersistentKernel"]:
         reject(state, "Cannot enable both Stream-K and PersistentKernel")
-      if not (2 in state["AssertSizeEqual"].keys() and state["AssertSizeEqual"][2] == 1):
-        reject(state, "Stream-K with batch requires further testing")
+      if not state["ProblemType"]["StridedBatched"]:
+        reject(state, "General batch not supported with Stream-K")
       if state["StreamK"] == 1:
         if not state["ProblemType"]["DataType"].isSingle():
           reject(state, "Atomic Stream-K currently only tested for SGEMM")
@@ -3233,6 +3233,14 @@ class Solution(collections.abc.Mapping):
       return
     #print "staggerStrideShift=", staggerStrideShift, "depthu=", state["DepthU"]
     state["_staggerStrideShift"] = staggerStrideShift
+
+    # force GlobalReadCoalesceGroupA, B = True until we fix fail with trsm (TODO: re-enable)
+    if not state["GlobalReadCoalesceGroupA"]:
+      print2("GlobalReadCoalesceGroupA=False not supported for now. Force to True")
+      state["GlobalReadCoalesceGroupA"] = True
+    if not state["GlobalReadCoalesceGroupB"]:
+      print2("GlobalReadCoalesceGroupB=False not supported for now. Force to True")
+      state["GlobalReadCoalesceGroupB"] = True
 
     # Use GlobalReadVectorWidth if it is not -1
     if state["GlobalReadVectorWidth"] != -1:
