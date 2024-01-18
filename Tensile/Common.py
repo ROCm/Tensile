@@ -1318,7 +1318,8 @@ validParameters = {
     "ExtraMiLatencyLeft":         list(range(0,9,2)),
 
     # Add extra latency to calculate number of MFMA to insert between local read and wait
-    "ExtraLatencyForLR":          list(range(0,17,2)),
+    # Negative value means reduce interval between local read and wait (for DirectToVgpr only)
+    "ExtraLatencyForLR":          list(range(0,17,2)) + list(range(-80,0,10)),
 
     # Allocate dedicated vgpr for local read with packing
     #   False: use tmp vgpr. Less vgpr usage, but not best for local read scheduling
