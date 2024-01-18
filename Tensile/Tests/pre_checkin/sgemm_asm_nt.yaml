@@ -20,6 +20,7 @@ GlobalParameters:
   DataInitTypeAB: 3
   DataInitTypeC: 3
   KernelTime: True
+  FlushMemorySize: 1000000
 
 BenchmarkProblems:
 
