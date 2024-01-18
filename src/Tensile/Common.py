@@ -34,6 +34,9 @@ import subprocess
 import sys
 import time
 
+import shutil
+from importlib.resources import path, contents, files
+
 startTime = time.time()
 
 ParallelMap = Parallel.ParallelMap
@@ -225,7 +228,7 @@ globalParameters["ROCmSMIPath"] = None                  # /opt/rocm/bin/rocm-smi
 globalParameters["AssemblerPath"] = None                # /opt/rocm/hip/bin/hipcc
 globalParameters["WorkingPath"] = os.getcwd()           # path where tensile called from
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
-globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
+# FIXME source is now package with importlib
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source") # path to Tensile/Source/
 globalParameters["HipClangVersion"] = "0.0.0"
 
@@ -256,7 +259,7 @@ globalParameters["MaxWorkspaceSize"] = 32 * 1024 * 1024 # max workspace for trai
 globalParameters["GranularityThreshold"] = 0.0
 
 # directory where custom kernels are located
-globalParameters["CustomKernelDirectory"] = os.path.join(os.path.dirname(os.path.realpath(__file__)), "CustomKernels")
+globalParameters["CustomKernelDirectory"] = files('Tensile.data').joinpath("CustomKernels")
 
 globalParameters["PristineOnGPU"] = True # use Pristine memory on Tensile training verification or not
 
@@ -2517,3 +2520,16 @@ CHeader = """/******************************************************************
 """
 
 HR = "################################################################################"
+
+def copy_data_files(data_to_copy: List[str], destination_path: str) -> None:
+    if not os.path.exists(destination_path):
+        os.makedirs(destination_path)
+
+    for resource in contents('Tensile.data'):
+      for data in data_to_copy:
+        if resource.startswith(data):
+            with path(Tensile.data, resource) as resource_path:
+                if os.path.isfile(resource_path):
+                    shutil.copy(resource_path, destination_path)
+                elif os.path.isdir(resource_path):
+                    shutil.copytree(resource_path, os.path.join(destination_path, resource))

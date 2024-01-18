@@ -5291,7 +5291,7 @@ for codeObjectFileName in codeObjectFileNames:
     kernelName = self.getKernelName(kernel)
 
     if isCustomKernelConfig(kernel):
-      return os.path.join(globalParameters["CustomKernelDirectory"], (kernelName + ".s"))
+      return globalParameters["CustomKernelDirectory"].joinpath(kernelName + ".s")
     else: # Replacement kernel
       return ReplacementKernels.Get(kernelName)
 

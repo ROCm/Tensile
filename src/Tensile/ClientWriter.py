@@ -176,7 +176,7 @@ def runClient(libraryLogicPath, forBenchmark, enableTileSelection, configPaths=N
 def getBuildClientLibraryScript(buildPath, libraryLogicPath):
   callCreateLibraryCmd = ["python"] if os.name == "nt" else []
 
-  callCreateLibraryCmd += [os.path.join(globalParameters["ScriptPath"] , "bin", "TensileCreateLibrary")]
+  callCreateLibraryCmd += ['tensile_create_library']
 
   if globalParameters["MergeFiles"]:
     callCreateLibraryCmd += ["--merge-files"]

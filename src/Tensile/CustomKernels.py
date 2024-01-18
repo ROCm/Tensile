@@ -27,24 +27,34 @@ from .Common import globalParameters
 import yaml
 
 import os
+from pathlib import Path
+from typing import Union, List
 
 def isCustomKernelConfig(config):
     return "CustomKernelName" in config and config["CustomKernelName"]
 
-def getCustomKernelFilepath(name, directory=globalParameters["CustomKernelDirectory"]):
-    return os.path.join(directory, (name + ".s"))
+def getCustomKernelFilepath(name, directory: Union[str, Path]=globalParameters["CustomKernelDirectory"]):
+    if not isinstance(directory, Path):
+        directory = Path(directory)
+    return directory.join(name + ".s")
 
-def getAllCustomKernelNames(directory=globalParameters["CustomKernelDirectory"]):
-    return [fname[:-2] for fname in os.listdir(directory) if fname.endswith(".s")]
+def getAllCustomKernelNames(directory: Union[str, Path]=globalParameters["CustomKernelDirectory"]):
+    if not isinstance(directory, Path):
+        directory = Path(directory)
+    return [fname[:-2] for fname in directory.iterdir() if fname.endswith(".s")]
 
-def getCustomKernelContents(name, directory=globalParameters["CustomKernelDirectory"]):
+def getCustomKernelContents(name, directory: Union[str, Path]=globalParameters["CustomKernelDirectory"]):
+    if not isinstance(directory, Path):
+        directory = Path(directory)
     try:
         with open(getCustomKernelFilepath(name, directory)) as f:
             return f.read()
     except:
         raise RuntimeError("Failed to find custom kernel: {}".format(os.path.join(directory, name)))
 
-def getCustomKernelConfigAndAssembly(name, directory=globalParameters["CustomKernelDirectory"]):
+def getCustomKernelConfigAndAssembly(name, directory: Union[str, Path]=globalParameters["CustomKernelDirectory"]):
+    if not isinstance(directory, Path):
+        directory = Path(directory)
     contents  = getCustomKernelContents(name, directory)
     config = "\n"    #Yaml configuration properties
     assembly = ""
@@ -57,7 +67,9 @@ def getCustomKernelConfigAndAssembly(name, directory=globalParameters["CustomKer
 
     return (config, assembly)
 
-def getCustomKernelConfig(name, directory=globalParameters["CustomKernelDirectory"]):
+def getCustomKernelConfig(name,directory: Union[str, Path]=globalParameters["CustomKernelDirectory"]):
+    if not isinstance(directory, Path):
+        directory = Path(directory)
     rawConfig, _ = getCustomKernelConfigAndAssembly(name, directory)
     try:
         return yaml.safe_load(rawConfig)["custom.config"]

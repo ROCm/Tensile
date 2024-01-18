@@ -34,7 +34,8 @@ from . import EmbeddedData
 from . import LibraryIO
 from . import Utils
 from .Common import globalParameters, HR, print1, print2, printExit, ensurePath, \
-                    CHeader, CMakeHeader, assignGlobalParameters, gfxName, architectureMap
+                    CHeader, CMakeHeader, assignGlobalParameters, gfxName, architectureMap, \
+                    copy_data_files  
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
@@ -651,11 +652,7 @@ def copyStaticFiles(outputPath=None):
     "tensile_float8_bfloat8.h",
     "hip_f8_impl.h",
     "KernelHeader.h" ]
-
-  for fileName in libraryStaticFiles:
-    # copy file
-    shutil.copy( os.path.join(globalParameters["SourcePath"], fileName), \
-        outputPath )
+  copy_data_files(libraryStaticFiles, outputPath)
 
   return libraryStaticFiles
 

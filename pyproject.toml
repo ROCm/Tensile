@@ -6,6 +6,7 @@ build-backend = "poetry.core.masonry.api"
 name = "Tensile"
 version = "4.40.0"
 description = "Tensile is a tool for creating benchmark-driven backend libraries for GEMMs"
+authors = ["Rocm team"]
 license = "MIT"
 classifiers = [
     "Intended Audience :: Science/Research",
@@ -13,6 +14,10 @@ classifiers = [
 ]
 packages = [
     { include = "Tensile", from = "src" },
+]
+
+include = [
+    "src/Tensile/data/**/*",
 ]
 
 [tool.poetry.dependencies]
