@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -127,7 +127,7 @@ def getProblemType(problem):
         else:
             problemDict["compute_type"] = problemDict["a_type"]
 
-    if problem["F32XdlMathOp"]==9: # XF32
+    if "F32XdlMathOp" in problem and problem["F32XdlMathOp"]==9: # XF32
         problemDict["math_mode"] = 1
 
     return problemDict

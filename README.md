@@ -2,4 +2,4 @@ Tensile is a tool for creating benchmark-driven backend libraries for GEMMs, GEM
 The Tensile library is mainly used as backend library to rocBLAS.
 Tensile acts as the performance backbone for a wide variety of 'compute' applications running on AMD GPUs.
 
-See [Tensile Wiki](https://github.com/ROCmSoftwarePlatform/Tensile/wiki) for documentation.
+See [Tensile Wiki](https://github.com/ROCm/Tensile/wiki) for documentation.

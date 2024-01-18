@@ -1,5 +1,5 @@
 TestParameters:
-  marks: [xfail]
+  marks: [xfail-gfx90a]
 
 GlobalParameters:
   EnqueuesPerSync: 1
