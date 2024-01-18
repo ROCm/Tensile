@@ -2778,7 +2778,7 @@ class Solution(collections.abc.Mapping):
           state["LdsPad%s"%tc] = 0
         else:
           state["LdsPad%s"%tc] = vw
-      autoAdjusted["LdsPad%s"%tc] = autoCalcLBSPP
+      autoAdjusted["LdsPad%s"%tc] = autoCalcLP
 
       if state["EnableMatrixInstruction"]:
         # MI case
@@ -2799,6 +2799,7 @@ class Solution(collections.abc.Mapping):
         # if LRstrideLine is not power of 2, adjust ldsPad at each line (keep LRstride = 0)
         if LRstrideLine <= 0 or (LRstrideLine & (LRstrideLine - 1)) != 0:
           LRstride = 0
+          state["LdsBlockSizePerPad%s"%tc] = 0 # force LdsBlockSizePerPad to 0
         # auto calc for LBSPP
         if autoCalcLBSPP and LRstride > 0:
           state["LdsBlockSizePerPad%s"%tc] = max(int(2**(math.ceil(math.log(LRstride * numBytes, 2)))), 128)
