@@ -1496,7 +1496,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
           if count:
             # insert 1 nop instruction
             iterCode.addInst("s_nop ",str(count - 1),"VALU packing writes to be consumed by matrix instruction")
-        if i == numMfmaPerIter - 1:
+        # the final mfma or DirectToVgpr + PGR2 case, we need to generate all remaining pack instructions
+        # otherwise, DTV global load can overwrite pack register values
+        if i == numMfmaPerIter - 1 or len(list(globalReadCodeDTV.items())) > 0:
           while packItems:
             iterCode.addCode(packItems.pop(0))
 
