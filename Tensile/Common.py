@@ -64,7 +64,7 @@ globalParameters["PreciseKernelTime"] = True      # T=On hip, use the timestamps
 globalParameters["CodeFromFiles"] = True          # if False byte arrays will be generated during Benchmarking phase as before
 globalParameters["SortProblems"] = False          # sort problems by size; else use order in YAML file
 globalParameters["PinClocks"] = False             # T=pin gpu clocks and fan, F=don't
-globalParameters["HardwareMonitor"] = True        # False: disable benchmarking client monitoring clocks using rocm-smi.
+globalParameters["HardwareMonitor"] = False        # False: disable benchmarking client monitoring clocks using rocm-smi.
 globalParameters["NumBenchmarks"] = 1             # how many benchmark data points to collect per problem/solution
 globalParameters["NumWarmups"] = 0                # how many warmup runs to perform before benchmark
 globalParameters["SyncsPerBenchmark"] = 1         # how iterations of the stream synchronization for-loop to do per benchmark data point
@@ -1354,7 +1354,14 @@ validParameters = {
     # 0=none, 1=add setprio, 2=add setprio and modify LDS to allow only 2 waves/simd
     "AggressivePerfMode":       [0,1,2],
 
+    # Use the feature whereby 56 bytes of kernel arguments can be preloaded in SGPRs
+    # before the kernel begins executing.  This is currently only supported in cases
+    # where that is enough to initiate the first load of the A and B tensors before
+    # the remaining arguments have been loaded.
     "PreloadKernelArguments": [False, True],
+
+    # If PreloadKernelArguments is True, specifies whether we delay initiating the load
+    # of the remaining arguments until after the load of A and B has been initiated.
     "DelayRemainingArguments": [False, True],
 
     # Kernels should be written in assembly or source
