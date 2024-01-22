@@ -1,9 +1,9 @@
 TestParameters:
-  marks: [xfail-gfx900, xfail-gfx906, xfail-gfx908,
-          xfail-gfx1010, xfail-gfx1011, xfail-gfx1012,
-          xfail-gfx1030, xfail-gfx1031, xfail-gfx1032,
-          xfail-gfx1034, xfail-gfx1035, xfail-gfx1100,
-          xfail-gfx1101, xfail-gfx1102]
+  marks: [skip-gfx900, skip-gfx906, skip-gfx908,
+          skip-gfx1010, skip-gfx1011, skip-gfx1012,
+          skip-gfx1030, skip-gfx1031, skip-gfx1032,
+          skip-gfx1034, skip-gfx1035, skip-gfx1100,
+          skip-gfx1101, skip-gfx1102]
 
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
