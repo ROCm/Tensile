@@ -1,0 +1,56 @@
+TestParameters:
+  marks: [xfail-gfx900, xfail-gfx906, xfail-gfx908,
+          xfail-gfx1010, xfail-gfx1011, xfail-gfx1012,
+          xfail-gfx1030, xfail-gfx1031, xfail-gfx1032,
+          xfail-gfx1034, xfail-gfx1035, xfail-gfx1100,
+          xfail-gfx1101, xfail-gfx1102]
+
+GlobalParameters:
+  MinimumRequiredVersion: 4.2.0
+  NumElementsToValidate: -1
+  BoundsCheck: False
+  KernelTime: True
+  HardwareMonitor: False
+
+BenchmarkProblems:
+  - # hgemm TT
+    - # ProblemType
+      OperationType: GEMM
+      DataType: h
+      DestDataType: h
+      ComputeDataType: s
+      HighPrecisionAccumulate: True
+      TransposeA: True
+      TransposeB: True
+      UseBeta: True
+      Batched: True
+
+    - # BenchmarkProblemSizeGroup - Assembly
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - LoopTail: [True]
+        - KernelLanguage: ["Assembly"]
+      ForkParameters:
+        - PreloadKernelArguments:  [True]
+        - DelayRemainingArguments: [True]
+
+        - PrefetchLocalRead: [False]
+        - PrefetchGlobalRead: [True]
+
+        - EdgeType: ["Branch"]
+        - ThreadTile:
+          - [ 16, 8 ]
+        - WorkGroup:
+          - [ 16, 16,  1 ]
+        - DepthU: [32]
+        - VectorWidth: [-1]
+        - AssertSummationElementMultiple: [1]
+        - AssertFree0ElementMultiple: [1]
+        - StaggerU: [0]
+        - WorkGroupMapping: [ 1 ]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [129,1,129], 0, [2], [62,1,62] ]
