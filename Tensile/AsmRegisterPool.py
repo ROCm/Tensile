@@ -66,7 +66,8 @@ class RegisterPool:
     self.kernargEnd = None
     self.preloadStart = None
     self.preloadEnd = None
-    self.kernargs = []
+    self.preloadedKernargs = []
+    self.selfLoadedKernargs = []
 
 
   @property
@@ -82,6 +83,11 @@ class RegisterPool:
       assert self.preloadEnd is None
       return 0
     return self.preloadEnd - self.preloadStart
+
+  @property
+  def kernargs(self):
+    from itertools import chain
+    return chain(self.preloadedKernargs, self.selfLoadedKernargs)
 
   ########################################
   # Adds registers to the pool so they can be used as temps
@@ -211,7 +217,11 @@ class RegisterPool:
 
     if kernarg:
       assert not preventOverflow
-      self.kernargs.append({"name": tag, "size": size})
+      entry = {"name": tag, "size": size}
+      if preload:
+        self.preloadedKernargs.append(entry)
+      else:
+        self.selfLoadedKernargs.append(entry)
 
     if preload:
       loc = self.findFreeRange(size, alignment, True, RegisterPool.Status.AvailableForPreload)

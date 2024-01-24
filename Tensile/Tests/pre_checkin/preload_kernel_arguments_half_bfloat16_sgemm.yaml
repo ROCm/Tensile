@@ -116,7 +116,7 @@ BenchmarkProblems:
 
         - EdgeType: ["Branch", "ShiftPtr"]
         - ThreadTile:
-          - [ 16, 8 ]
+          - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
         - DepthU: [32]
