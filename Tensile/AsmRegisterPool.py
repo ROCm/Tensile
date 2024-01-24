@@ -61,13 +61,26 @@ class RegisterPool:
     self.type = type
     self.defaultPreventOverflow = defaultPreventOverflow
     self.pool = [self.Register(RegisterPool.Status.Unavailable, "init") for i in range(0,size)]
+
+    # Map from register number -> size, deleted/overwritten when deallocated
     self.checkOutSize = {}
+
+    # Map from tag -> size, not deleted.
     self.checkOutSizeCache = {}
+
+    # First register that's part of the manually loaded kernargs
     self.kernargStart = None
+    # Last+1 register that's part of the manually loaded kernargs
     self.kernargEnd = None
+
+    # First register that's part of the preloaded kernargs
     self.preloadStart = None
+    # Last+1 register that's part of the preloaded kernargs
     self.preloadEnd = None
+
+    # Each of the preloaded kernargs' name and size
     self.preloadedKernargs = []
+    # Each of the manually loaded kernargs' name and size
     self.selfLoadedKernargs = []
 
 
