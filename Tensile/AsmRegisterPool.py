@@ -62,6 +62,7 @@ class RegisterPool:
     self.defaultPreventOverflow = defaultPreventOverflow
     self.pool = [self.Register(RegisterPool.Status.Unavailable, "init") for i in range(0,size)]
     self.checkOutSize = {}
+    self.checkOutSizeCache = {}
     self.kernargStart = None
     self.kernargEnd = None
     self.preloadStart = None
@@ -202,6 +203,7 @@ class RegisterPool:
       self.pool[i].status = RegisterPool.Status.InUse
       self.pool[i].tag = tag
     self.checkOutSize[start] = size
+    self.checkOutSizeCache[tag] = size
 
   def startOfLastAvailableBlock(self) -> int:
     """ Returns the index of the first available register in the highest-numbered free block of registers. """

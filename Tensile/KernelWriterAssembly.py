@@ -2750,7 +2750,7 @@ class KernelWriterAssembly(KernelWriter):
     # in the order they were declared
     for skey in self.sgprs:
       regNum = self.sgprs[skey]
-      count = self.sgprPool.checkOutSize[regNum] if regNum in self.sgprPool.checkOutSize else "unk"
+      count = self.sgprPool.checkOutSizeCache[skey] if skey in self.sgprPool.checkOutSizeCache else "unk"
       kStr += self.macroRegister("sgpr"+skey, regNum, f"({count})")
     kStr += self.comment1("max SGPR=%u"%self.sgprPool.size())
 
