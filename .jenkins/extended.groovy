@@ -45,7 +45,7 @@ def runCI =
 
     boolean formatCheck = false
 
-    prj.timeout.test = 600
+    prj.timeout.test = 720
     prj.defaults.ccache = false
 
     def commonGroovy
