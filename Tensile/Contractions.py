@@ -317,7 +317,13 @@ class ProblemPredicate(Properties.Predicate):
         if key == "AssertSizeMultiple":
             return extractDimPredicate(cls, key, value, "SizeMultiple")
 
-        #Alpha and beta value assertions
+        # Arithmetic intensity assertions
+        if key == "AssertAIGreaterThanEqual":
+            return cls("AIGreaterThanEqual", value=value) if value > 0 else None
+        if key == "AssertAILessThanEqual":
+            return cls("AILessThanEqual", value=value) if value > 0 else None
+
+        # Alpha and beta value assertions
         if key == "AssertAlphaValue":
             return cls("AlphaValue", value=str(value)) if value != False else None
         if key == "AssertBetaValue":

@@ -843,6 +843,12 @@ validParameters = {
     "AssertSizeLessThan":    -1,
     "AssertSizeMultiple":    -1,
 
+    # Assertions that require arithmetic intensity to be specified value.
+    # Arithmetic intensity measures the ratio of computation to memory bandwidth required for a problem.
+    # These predicates can be used to adjust solution selection compute-bound or memory-bound problems.
+    "AssertAIGreaterThanEqual": -1,
+    "AssertAILessThanEqual":    -1,
+
     #Assert values for alpha and beta
     "AssertBetaValue":       [False, 1, -1],
     "AssertAlphaValue":      [False, 1, -1],
@@ -1493,6 +1499,8 @@ defaultBenchmarkCommonParameters = [
     {"AssertSizeGreaterThan":     [ {} ] },
     {"AssertSizeMultiple":        [ {} ] },
     {"AssertSizeLessThan":        [ {} ] },
+    {"AssertAIGreaterThanEqual":  [ -1 ] },
+    {"AssertAILessThanEqual":     [ -1 ] },
     {"AssertAlphaValue":          [ False ]},
     {"AssertBetaValue":           [ False ]},
     {"AssertCEqualsD":            [ False ]},
