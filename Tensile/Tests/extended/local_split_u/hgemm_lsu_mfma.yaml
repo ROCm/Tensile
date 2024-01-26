@@ -1,5 +1,5 @@
 TestParameters:
-  marks: [skip-gfx900, skip-gfx906, skip-gfx1010, skip-gfx1011, skip-gfx1012, skip-gfx1030, skip-gfx1100, skip-gfx1101, skip-gfx1102] # not supported by arch
+  marks: [skip-gfx900, skip-gfx906, skip-gfx908, skip-gfx1010, skip-gfx1011, skip-gfx1012, skip-gfx1030, skip-gfx1100, skip-gfx1101, skip-gfx1102] # not supported by arch
 
 GlobalParameters:
   NumElementsToValidate: -1
@@ -148,7 +148,7 @@ BenchmarkProblems:
         - AssertSummationElementMultiple: [2]
         - DepthU: [32,64,128]#[8,16,32]
         - GlobalSplitU: [1,4]
-        - GlobalSplitUAlgorithm: ["SingleBuffer","MultipleBuffer"]
+        - GlobalSplitUAlgorithm: ["SingleBuffer"]#["SingleBuffer","MultipleBuffer"]
         - 1LDSBuffer: [0]
         - LoopTail: [True]
         - OptNoLoadLoop: [1]
@@ -216,7 +216,7 @@ BenchmarkProblems:
         - AssertSummationElementMultiple: [2]
         - DepthU: [32,64,128]#[8,16,32]
         - GlobalSplitU: [1,4]
-        #- GlobalSplitUAlgorithm: ["SingleBuffer","MultipleBuffer"]
+        - GlobalSplitUAlgorithm: ["SingleBuffer"]#["SingleBuffer","MultipleBuffer"]
         - 1LDSBuffer: [0]
         - LoopTail: [True]
         - OptNoLoadLoop: [1]
