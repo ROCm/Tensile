@@ -29,11 +29,11 @@
 #include <array>
 #include <cmath>
 #include <cstdlib>
+#include <iomanip>
 #include <iostream>
 #include <mutex>
 #include <sstream>
 #include <type_traits>
-#include <iomanip>
 
 namespace Tensile
 {
