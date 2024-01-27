@@ -824,6 +824,12 @@ validParameters = {
     "AssertSizeLessThan":    -1,
     "AssertSizeMultiple":    -1,
 
+    # Assertions that require arithmetic intensity to be specified value.
+    # Arithmetic intensity measures the ratio of computation to memory bandwidth required for a problem.
+    # These predicates can be used to adjust solution selection compute-bound or memory-bound problems.
+    "AssertAIGreaterThanEqual": -1,
+    "AssertAILessThanEqual":    -1,
+
     #Assert values for alpha and beta
     "AssertBetaValue":       [False, 1, -1],
     "AssertAlphaValue":      [False, 1, -1],
@@ -1299,7 +1305,8 @@ validParameters = {
     "ExtraMiLatencyLeft":         list(range(0,9,2)),
 
     # Add extra latency to calculate number of MFMA to insert between local read and wait
-    "ExtraLatencyForLR":          list(range(0,17,2)),
+    # Negative value means reduce interval between local read and wait (for DirectToVgpr only)
+    "ExtraLatencyForLR":          list(range(0,17,2)) + list(range(-80,0,10)),
 
     # Allocate dedicated vgpr for local read with packing
     #   False: use tmp vgpr. Less vgpr usage, but not best for local read scheduling
@@ -1483,6 +1490,8 @@ defaultBenchmarkCommonParameters = [
     {"AssertSizeGreaterThan":     [ {} ] },
     {"AssertSizeMultiple":        [ {} ] },
     {"AssertSizeLessThan":        [ {} ] },
+    {"AssertAIGreaterThanEqual":  [ -1 ] },
+    {"AssertAILessThanEqual":     [ -1 ] },
     {"AssertAlphaValue":          [ False ]},
     {"AssertBetaValue":           [ False ]},
     {"AssertCEqualsD":            [ False ]},

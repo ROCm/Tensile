@@ -2221,14 +2221,16 @@ class Solution(collections.abc.Mapping):
     while grvw >= minGrvw:
       # Per instruction across the entire group:
       elementsLoadedPerInst = state["NumThreads"]*grvw
+      mik = 1
       if (state["DirectToVgpr%s"%tc] and state["ProblemType"]["TLU%s"%tc]):
-        elementsLoadedPerInst //= state["MatrixInstK"] * state["LocalSplitU"]
+        mik = state["MatrixInstK"] * state["LocalSplitU"] // state["MIInputPerThread"]
+        elementsLoadedPerInst //= mik
       # LSC, LSP - #elements loaded along specified dim with each load
       if parDim >= elementsLoadedPerInst:
         # entire work-group can work on (part) of the same row
         # DirectToVgpr case, LSC is limited to elementsLoadedPerInst // (state["MatrixInstK"] * state["LocalSplitU"])
         state["LSC%s"%tc] = elementsLoadedPerInst
-        state["LSP%s"%tc] = 1 if not (state["DirectToVgpr%s"%tc] and state["ProblemType"]["TLU%s"%tc]) else state["MatrixInstK"] * state["LocalSplitU"]
+        state["LSP%s"%tc] = mik
         state["NumLoadsCoalesced%s"%tc] = roundupRatio(parDim , state["LSC%s"%tc])
         state["NumLoadsPerpendicular%s"%tc] = 1
       else:
@@ -2249,9 +2251,7 @@ class Solution(collections.abc.Mapping):
         validElementsLoadedPerInst = state["LSC%s"%tc] * state["LSP%s"%tc]
         grvw //= 2
         while grvw >= minGrvw:
-          elementsLoadedPerInst = state["NumThreads"]*grvw
-          if state["DirectToVgpr%s"%tc] and state["ProblemType"]["TLU%s"%tc]:
-            elementsLoadedPerInst //= state["MatrixInstK"] * state["LocalSplitU"]
+          elementsLoadedPerInst = state["NumThreads"]*grvw//mik
           if elementsLoadedPerInst < validElementsLoadedPerInst:
             break # Went too far, not enough load elements at this VW
           if state["LSC%s"%tc] % grvw == 0:
@@ -2427,6 +2427,30 @@ class Solution(collections.abc.Mapping):
 
 
   ########################################
+  # determine can we use VgprForLocalReadPacking
+  @staticmethod
+  def isVgprForLocalReadPackingDoable(state):
+    rejectComment = ""
+    doable = True
+    # MatrixInstruction only
+    if not state["EnableMatrixInstruction"]:
+      rejectComment = "VgprForLocalReadPacking is for MatrixInstruction only"
+      doable = False
+    # only for HasEccHalf
+    if not globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
+      rejectComment = "VgprForLocalReadPacking is for EccHalf only"
+      doable = False
+    # only for SIA=3 + PLR>=1
+    if not (state["ScheduleIterAlg"] == 3 and state["PrefetchLocalRead"] >= 1):
+      rejectComment = "VgprForLocalReadPacking is effective only fof SIA=3 and PLR>=1"
+      doable = False
+    # only for 1 or 2 byte input (numRegister < 1) + UnrollMajorLDSA or B is False
+    if not (state["ProblemType"]["DataType"].numRegisters() < 1 and (state["UnrollMajorLDSA"] == False or state["UnrollMajorLDSB"] == False)):
+      rejectComment = "VgprForLocalReadPacking is effective only fof 1 or 2 byte input + UnrollMajorLDSA or B =false"
+      doable = False
+    return doable, rejectComment
+
+  ########################################
   # determine if current datatype can support DirectToVgpr
   @staticmethod
   def isDirectToVgprSupportDataType(state):
@@ -2470,8 +2494,16 @@ class Solution(collections.abc.Mapping):
     if numBytes < 4:
       # Does not work with TLU = True and numBytes < 4 (not supported)
       if state["ProblemType"]["TLU%c"%tc]:
-        reject(state, "DirectToVgpr%c does not supports TLU%c = True + numByte < 4"%(tc, tc))
-        return False
+        doable, _ = Solution.isVgprForLocalReadPackingDoable(state)
+        if numBytes * state["VectorWidth%s"%tc] >= 4 and doable:
+          # use pack logic (with v_perm) same as local read (only if VgprForLocalReadPacking is doable)
+          # numBytes * VW should be 4 or larger
+          # force VgprForLocalReadPacking + ClusterLocalRead
+          state["VgprForLocalReadPacking"] = True
+          state["ClusterLocalRead"] = True
+        else:
+          reject(state, "DirectToVgpr%c does not supports TLU%c = True + numByte < 4"%(tc, tc))
+          return False
 
     # MIWaveGroup, MatrixInstBM,BN check
     #  for A, MIWaveGroup[1] and MatrixInstBN should be 1
@@ -2778,7 +2810,7 @@ class Solution(collections.abc.Mapping):
           state["LdsPad%s"%tc] = 0
         else:
           state["LdsPad%s"%tc] = vw
-      autoAdjusted["LdsPad%s"%tc] = autoCalcLBSPP
+      autoAdjusted["LdsPad%s"%tc] = autoCalcLP
 
       if state["EnableMatrixInstruction"]:
         # MI case
@@ -2799,6 +2831,7 @@ class Solution(collections.abc.Mapping):
         # if LRstrideLine is not power of 2, adjust ldsPad at each line (keep LRstride = 0)
         if LRstrideLine <= 0 or (LRstrideLine & (LRstrideLine - 1)) != 0:
           LRstride = 0
+          state["LdsBlockSizePerPad%s"%tc] = 0 # force LdsBlockSizePerPad to 0
         # auto calc for LBSPP
         if autoCalcLBSPP and LRstride > 0:
           state["LdsBlockSizePerPad%s"%tc] = max(int(2**(math.ceil(math.log(LRstride * numBytes, 2)))), 128)
@@ -2854,6 +2887,10 @@ class Solution(collections.abc.Mapping):
           reject(state, "didn't support LdsBlockSizePerPad in VALU mode yet")
 
       assert(state["LdsPad%s"%tc] >= 0)
+
+      # DirectToVgpr case, set LdsPad to 0
+      if state["DirectToVgpr%s"%tc]:
+        state["LdsPad%s"%tc] = 0
 
       # set LdsBlockSizePerPad = 0 if LdsPad is 0
       if state["LdsPad%s"%tc] == 0:
@@ -4643,22 +4680,10 @@ class Solution(collections.abc.Mapping):
 
     # reject check for VgprForLocalReadPacking
     if state["VgprForLocalReadPacking"]:
-        # MatrixInstruction only
-        if not state["EnableMatrixInstruction"]:
-          reject(state, "VgprForLocalReadPacking is for MatrixInstruction only")
-          return
-        # only for HasEccHalf
-        if not globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
-          reject(state, "VgprForLocalReadPacking is for EccHalf only")
-          return
-        # only for SIA=3 + PLR>=1
-        if not (state["ScheduleIterAlg"] == 3 and state["PrefetchLocalRead"] >= 1):
-          reject(state, "VgprForLocalReadPacking is effective only fof SIA=3 and PLR>=1")
-          return
-        # only for 1 or 2 byte input (numRegister < 1) + UnrollMajorLDSA or B is False
-        if not (state["ProblemType"]["DataType"].numRegisters() < 1 and (state["UnrollMajorLDSA"] == False or state["UnrollMajorLDSB"] == False)):
-          reject(state, "VgprForLocalReadPacking is effective only fof 1 or 2 byte input + UnrollMajorLDSA or B =false")
-          return
+      doable, rejectComment = Solution.isVgprForLocalReadPackingDoable(state)
+      if not doable:
+        reject(state, rejectComment)
+        return
 
     # reject check for ClusterLocalRead
     if state["ClusterLocalRead"]:
@@ -4670,6 +4695,10 @@ class Solution(collections.abc.Mapping):
            (state["UnrollMajorLDSB"] == False and state["VectorWidthB"] > state["MIInputPerThread"]):
           reject(state, "ClusterLocalRead does not support VectorWidth or VectorWidthB > MIInputPerThread")
           return
+
+    # change negative ExtraLatencyForLR to 0 for non DirectToVgpr
+    if state["ExtraLatencyForLR"] < 0 and not (state["DirectToVgprA"] or state["DirectToVgprB"]):
+      state["ExtraLatencyForLR"] = 0
 
   ########################################
   # create a dictionary with booleans on whether to include parameter in name

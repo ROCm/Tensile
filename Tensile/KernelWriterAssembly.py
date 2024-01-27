@@ -1306,7 +1306,11 @@ class KernelWriterAssembly(KernelWriter):
     self.numVgprValuC = (kernel["ThreadTile0"]*kernel["ThreadTile1"]*self.bpeCinternal)//self.bpr
 
     PLR = kernel["PrefetchLocalRead"] if kernel["PrefetchLocalRead"] < kernel["LoopIters"] else kernel["LoopIters"] - 1
-    valuBlocks = (1+PLR) * kernel["InnerUnroll"]
+
+    PLRplus1A = (1+PLR) if not self.packDTVA else kernel["LoopIters"]
+    PLRplus1B = (1+PLR) if not self.packDTVB else kernel["LoopIters"]
+    valuBlocksA = PLRplus1A * kernel["InnerUnroll"]
+    valuBlocksB = PLRplus1B * kernel["InnerUnroll"]
     if kernel["EnableMatrixInstruction"]:
       self.numVgprValuAPerBlock = kernel["MIWaveTileA"] * kernel["MIInputPerThread"] * tPA["bpe"] // self.bpr
       self.numVgprValuBPerBlock = kernel["MIWaveTileB"] * kernel["MIInputPerThread"] * tPB["bpe"] // self.bpr
@@ -1328,13 +1332,13 @@ class KernelWriterAssembly(KernelWriter):
           self.numVgprValuBPerBlock = kernel["ThreadTileB"]
 
     # change numVgprValuAPerBlock to 0 for A if DirectToVgpr is enabled
-    if kernel["DirectToVgprA"]:
+    if kernel["DirectToVgprA"] and not self.packDTVA:
       self.numVgprValuAPerBlock = 0
-    self.numVgprValuA = self.numVgprValuAPerBlock * valuBlocks
+    self.numVgprValuA = self.numVgprValuAPerBlock * valuBlocksA
     # change numVgprValuBPerBlock to 0 for B if DirectToVgpr is enabled
-    if kernel["DirectToVgprB"]:
+    if kernel["DirectToVgprB"] and not self.packDTVB:
       self.numVgprValuBPerBlock = 0
-    self.numVgprValuB = self.numVgprValuBPerBlock * valuBlocks
+    self.numVgprValuB = self.numVgprValuBPerBlock * valuBlocksB
 
     if self.archCaps["HasEccHalf"]:
         self.needPackA = tPA["bpe"] < self.bpr and (not kernel["UnrollMajorLDSA"]) and kernel["EnableMatrixInstruction"]
@@ -1350,11 +1354,14 @@ class KernelWriterAssembly(KernelWriter):
     needVgprForPack = self.needPackA and kernel["VgprForLocalReadPacking"]
     if needVgprForPack:
       if self.lrvwTileA > 1:
-        self.numVgprValuA //= (1+PLR)
+        self.numVgprValuA //= PLRplus1A
         numLoadPerReg = max(1, int(self.numElemPerBprA)//self.lrvwTileA)
-        valuBlocksPack = (1+PLR) * numLoadPerReg
+        valuBlocksPack = PLRplus1A * numLoadPerReg
       else:
-        valuBlocksPack = (int(self.numElemPerBprA) - 1)
+         valuBlocksPack = (int(self.numElemPerBprA) - 1)
+      if self.packDTVA:
+        # pack DTV case, double the number of blocks
+        valuBlocksPack *= 2
       self.numVgprValuPackA = self.numVgprValuA * valuBlocksPack
 
     self.numVgprValuPackB =0
@@ -1362,11 +1369,14 @@ class KernelWriterAssembly(KernelWriter):
     needVgprForPack = self.needPackB and kernel["VgprForLocalReadPacking"]
     if needVgprForPack:
       if self.lrvwTileB > 1:
-        self.numVgprValuB //= (1+PLR)
+        self.numVgprValuB //= PLRplus1B
         numLoadPerReg = max(1, int(self.numElemPerBprB)//self.lrvwTileB)
-        valuBlocksPack = (1+PLR) * numLoadPerReg
+        valuBlocksPack = PLRplus1B * numLoadPerReg
       else:
         valuBlocksPack = (int(self.numElemPerBprB) - 1)
+      if self.packDTVB:
+        # pack DTV case, double the number of blocks
+        valuBlocksPack *= 2
       self.numVgprValuPackB = self.numVgprValuB * valuBlocksPack
 
     ####################################
@@ -1520,9 +1530,13 @@ class KernelWriterAssembly(KernelWriter):
     vgprIdx += self.numVgprValuPackA
     self.startVgprG2LA = None
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
+      if self.packDTVA:
+        # DirectToVgpr + packing
+        # overlap G2LA and ValuPackA
+        self.startVgprG2LA = self.startVgprValuPackA
       # if PGR = True, PAP could be possibly enabled, we move G2LA later to prevent it from being reclaimed
       # otherwise, put G2L here since it can overlap valu
-      if not kernel["PrefetchGlobalRead"] and not kernel.enabledSplitLDS: # g2l can overlap valu
+      elif not kernel["PrefetchGlobalRead"] and not kernel.enabledSplitLDS: # g2l can overlap valu
         self.startVgprG2LA = self.startVgprValuA
         vgprIdx = self.startVgprValuA \
             + max(self.numVgprValuA + self.numVgprValuPackA, self.numVgprG2LA)
@@ -1536,9 +1550,13 @@ class KernelWriterAssembly(KernelWriter):
     vgprIdx += self.numVgprValuPackB
     self.startVgprG2LB = None
     if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
+      if self.packDTVB:
+        # DirectToVgpr + packing
+        # overlap G2LB and ValuPackB
+        self.startVgprG2LB = self.startVgprValuPackB
       # if PGR = True, PAP could be possibly enabled, we move G2LB later to prevent it from being reclaimed
       # otherwise, put G2L here since it can overlap valu
-      if not kernel["PrefetchGlobalRead"] and not kernel.enabledSplitLDS: # g2l can overlap valu
+      elif not kernel["PrefetchGlobalRead"] and not kernel.enabledSplitLDS: # g2l can overlap valu
         self.startVgprG2LB = self.startVgprValuB
         vgprIdx = self.startVgprValuB \
             + max(self.numVgprValuB + self.numVgprValuPackB, self.numVgprG2LB)
@@ -2589,7 +2607,11 @@ class KernelWriterAssembly(KernelWriter):
     numBi = PLR+1
     ri = 0
     if self.numVgprValuA > 0: # Do not generate vgprValuA if numVgprValuA is 0
-      for bi in range(0,numBi): # buffer indices
+      numBiFactor = numBi
+      if kernel["DirectToVgprA"] and self.lrvwTileA > 1:
+        # DirectToVgpr case, we need LoopIters * 2 buffers
+        numBiFactor = kernel["LoopIters"] * 2
+      for bi in range(0,numBiFactor): # buffer indices
         for iui in range(0, kernel["InnerUnroll"]):
           kStr += self.macroRegister("vgprValuA_X%u_I%u"%(bi,iui), self.startVgprValuA+ri)
           ri += self.numVgprValuAPerBlock
@@ -2598,9 +2620,9 @@ class KernelWriterAssembly(KernelWriter):
       if self.numVgprValuPackA > 0:
         ri = 0
         if self.lrvwTileA > 1:
-          for data in range(0,kernel["MIInputPerThread"]):
-            for bi in range(0,numBi): # buffer indices
-              for iui in range(0, kernel["InnerUnroll"]):
+          for bi in range(0,numBiFactor): # buffer indices
+            for iui in range(0, kernel["InnerUnroll"]):
+              for data in range(0,kernel["MIInputPerThread"]):
                 kStr += self.macroRegister("vgprValuA_X%u_I%u_D%u"%(bi,iui,data), self.startVgprValuPackA+ri)
                 ri += ceil(self.lrvwTileA * self.tPA["bpe"] / self.bpr) * kernel["MIWaveTileA"] // self.lrvwTileA
         else:
@@ -2618,7 +2640,11 @@ class KernelWriterAssembly(KernelWriter):
 
     ri = 0
     if self.numVgprValuB > 0: # Do not generate vgprValuB if numVgprValuB is 0
-      for bi in range(0,numBi): # buffer indices
+      numBiFactor = numBi
+      if kernel["DirectToVgprB"] and self.lrvwTileB > 1:
+        # DirectToVgpr case, we need LoopIters * 2 buffers
+        numBiFactor = kernel["LoopIters"] * 2
+      for bi in range(0,numBiFactor): # buffer indices
         for iui in range(0, kernel["InnerUnroll"]):
           kStr += self.macroRegister("vgprValuB_X%u_I%u"%(bi,iui), self.startVgprValuB+ri)
           ri += self.numVgprValuBPerBlock
@@ -2627,14 +2653,14 @@ class KernelWriterAssembly(KernelWriter):
       if self.numVgprValuPackB > 0:
         ri = 0
         if self.lrvwTileB > 1:
-          for data in range(0,kernel["MIInputPerThread"]):
-            for bi in range(0,numBi): # buffer indices
-              for iui in range(0, kernel["InnerUnroll"]):
+          for bi in range(0,numBiFactor): # buffer indices
+            for iui in range(0, kernel["InnerUnroll"]):
+              for data in range(0,kernel["MIInputPerThread"]):
                 kStr += self.macroRegister("vgprValuB_X%u_I%u_D%u"%(bi,iui,data), self.startVgprValuPackB+ri)
                 ri += ceil(self.lrvwTileB * self.tPB["bpe"] / self.bpr) * kernel["MIWaveTileB"] // self.lrvwTileB
         else:
           for data in range(1,int(self.numElemPerBprB)):
-            for bi in range(0,numBi): # buffer indices
+            for bi in range(0,numBiFactor): # buffer indices
               for iui in range(0, kernel["InnerUnroll"]):
                 kStr += self.macroRegister("vgprValuB_X%u_I%u_D%u"%(bi,iui,data), self.startVgprValuPackB+ri)
                 ri += self.numVgprValuBPerBlock
@@ -4103,6 +4129,9 @@ class KernelWriterAssembly(KernelWriter):
       dividendReg = self.vgprPool.checkOut(1, "idInWave", self.preventVgprOverflowDuringNewTile)
       kStr += vectorStaticRemainder(dividendReg, "Serial", divisorVal, tmpSgpr)
 
+    # store DirectToVgpr K interval for later use
+    dtvKInterval = 1
+
     if kernel["DirectToVgpr%s"%tc]:
       # offset calculation for DirectToVgpr
       # ported code from local read for DirectToVgpr
@@ -4187,7 +4216,11 @@ class KernelWriterAssembly(KernelWriter):
       tluOther = kernel["ProblemType"]["TLUB"] if tP["isA"] else kernel["ProblemType"]["TLUA"] # The other side of tlu
       if lrvwOther >= 2 and (not tluOther) and tP["tlu"]:
         # DirectToVgpr + LocalReadVectorWidth>=2 case, multiply qReg by lrvwOther
-        kStr += staticMultiply(vgpr(qReg), vgpr(qReg), lrvwOther, sgpr(tmpSgpr))
+        dtvKInterval = lrvwOther
+      if  tluOther and tP["tlu"]:
+        # DirectToVgpr + both TLU case, multiply qReg by kernel["MIInputPerThread"]
+        dtvKInterval = kernel["MIInputPerThread"]
+      kStr += staticMultiply(vgpr(qReg), vgpr(qReg), dtvKInterval, sgpr(tmpSgpr))
 
     else:
       divisor2 = divisor
@@ -4256,6 +4289,12 @@ class KernelWriterAssembly(KernelWriter):
     tP["gpr"]["lwoT"] = tReg
     tP["gpr"]["tReg"] = tReg2
     tP["gpr"]["uReg"] = uReg
+
+    # store DirectToVgpr K interval for later use
+    if tP["isA"]:
+      self.dtvKIntervalA = dtvKInterval
+    else:
+      self.dtvKIntervalB = dtvKInterval
 
     return "" if self.dontAppendCode else kStr
 
@@ -4446,47 +4485,47 @@ class KernelWriterAssembly(KernelWriter):
       stride = kernel[strideIdx]
       prevStride = 0
       totalStride = 0
-      lrvwOther = self.lrvwB if tP["isA"] else self.lrvwA # The other side of lrvw
-      tluOther = kernel["ProblemType"]["TLUB"] if tP["isA"] else kernel["ProblemType"]["TLUA"] # The other side of tlu
       bpeOffset = 1 if tP["glvw"] >= 1 else tP["bpe"] # glvw<1 case, need to multiply strideValue by bpe
+      dtvKInterval = self.dtvKIntervalA if tP["isA"] else self.dtvKIntervalB
+
       if tP["ruc"]:
         # l=0, s=0
         kStr += inst("v_mov_b32", vgpr(v), \
-            vgpr(tP["gpr"]["uReg"]), "gro%s%s_%u_s%u"%(tP["tensorChar"], self.unrollChar, 0, 0) )
+            vgpr(tP["gpr"]["uReg"]), "gro%s%s_%u_s%u"%(tc, self.unrollChar, 0, 0) )
         # l=0, s>0
         for s in range(1, tP["glvw"]):
           kStr += inst("_v_add_co_u32", vgpr(v+s), self.vcc, 1, \
-              vgpr(v+s-1), "gro%s%s_%u_s%u"%(tP["tensorChar"], self.unrollChar, 0, s) )
+              vgpr(v+s-1), "gro%s%s_%u_s%u"%(tc, self.unrollChar, 0, s) )
         for l in range(1, tP["nru"]):
           # l>0, s=0
           totalStride += stride
-          if  tP["tlu"] and kernel["DirectToVgpr%s"%tc] and lrvwOther >= 2 and not tluOther:
-            # DirectToVgpr + LocalReadVectorWidth>=2 + other side of TLU is false case, stride * lrvwOther is added every lrvwOther. 
+          if dtvKInterval > 1:
+            # DirectToVgpr + k interval > 1 case, stride * dtvKInterval is added every dtvKInterval. 
             # Add mod in mod != 0 case
-            totalStride = stride * (l - (l % lrvwOther)) + (l % lrvwOther)
+            totalStride = stride * (l - (l % dtvKInterval)) + (l % dtvKInterval)
           currStride = totalStride - prevStride
           prevStride = totalStride
           kStr += inst("_v_add_co_u32", vgpr(v+l*tP["glvw"]), self.vcc, currStride * bpeOffset, \
               vgpr(v+(l-1)*tP["glvw"]), \
-              "gro%s%s_%u_s%u + %s"%(tP["tensorChar"], self.unrollChar, l, 0, strideIdx) )
+              "gro%s%s_%u_s%u + %s"%(tc, self.unrollChar, l, 0, strideIdx) )
           # l>0, s>0
           for s in range(1, tP["glvw"]):
             kStr += inst("_v_add_co_u32", vgpr(v+l*tP["glvw"]+s), self.vcc, \
                 1, vgpr(v+l*tP["glvw"]+(s-1)), \
-                "gro%s%s_%u_s%u"%(tP["tensorChar"], self.unrollChar, 0, s) )
+                "gro%s%s_%u_s%u"%(tc, self.unrollChar, 0, s) )
       else:
         kStr += inst("v_mov_b32", vgpr(v), \
-            vgpr(tP["gpr"]["uReg"]), "gro%s%s_%u"%(tP["tensorChar"], self.unrollChar, 0) )
+            vgpr(tP["gpr"]["uReg"]), "gro%s%s_%u"%(tc, self.unrollChar, 0) )
         for l in range(1, tP["nru"]):
           totalStride += stride
-          if tP["tlu"] and kernel["DirectToVgpr%s"%tc] and lrvwOther >= 2 and not tluOther:
-            # DirectToVgpr + LocalReadVectorWidth>=2 case, stride * lrvwOther is added every lrvwOther.
+          if dtvKInterval > 1:
+            # DirectToVgpr + k interval > 1 case, stride * dtvKInterval is added every dtvKInterval. 
             # Add mod in mod != 0 case
-            totalStride = stride * (l - (l % lrvwOther)) + (l % lrvwOther)
+            totalStride = stride * (l - (l % dtvKInterval)) + (l % dtvKInterval)
           currStride = totalStride - prevStride
           prevStride = totalStride
           kStr += inst("_v_add_co_u32", vgpr(v+l), self.vcc, currStride * bpeOffset, \
-              vgpr(v+l-1), "gro%s%s_%u + %s"%(tP["tensorChar"], self.unrollChar, l, strideIdx) )
+              vgpr(v+l-1), "gro%s%s_%u + %s"%(tc, self.unrollChar, l, strideIdx) )
       #self.vgprPool.checkIn(tP["gpr"]["uReg"])
     return "" if self.dontAppendCode else kStr
 
@@ -7026,13 +7065,21 @@ class KernelWriterAssembly(KernelWriter):
     m_or_u = u if kernel["DirectToVgpr%c"%tc] else m
     vgprBuffer_new = (m_or_u//numIterPerCoalescedRead)*numIterPerCoalescedRead
     vgprBuffer_new_offset = m_or_u%numIterPerCoalescedRead*innerUnroll*vgprPerInput
+    # DirectToVgpr + pack special case
+    # offset vgprBuffer_new
+    packDTV = self.packDTVA if tc == "A" else self.packDTVB
+    if packDTV:
+      # DTV + pack case, offset bufferIdx for local read packing instructions
+      numBi = kernel["LoopIters"]
+      vgprBuffer_new += vregSetIdx * numBi
 
     iui_new = (iui//numReadsIterCoalesced)*numReadsIterCoalesced
     iui_new_offset = iui%numReadsIterCoalesced*vgprPerInput
     ab_new = idxAB*vgprPerInput*numReadsIterCoalesced
     abStr = "Valu%c_X%u_I%u+%u+%u+%u" % (tc, vgprBuffer_new, iui_new, ab_new, vgprBuffer_new_offset, iui_new_offset)
-    if kernel["DirectToVgpr%c"%tc]:
-      # overwrite aStr/bStr for DirectToVgpr
+    packDTV = self.packDTVA if tP["isA"] else self.packDTVB
+    if kernel["DirectToVgpr%c"%tc] and not packDTV:
+      # overwrite aStr/bStr for DirectToVgpr (except for pack DTV case)
       ab_new += vregSetIdx * numVgprPerBlock + ( vgprBuffer_new * innerUnroll) * numVgprValuPerBlock
       abStr  = "G2L%c+%u+%u" % (tc, ab_new, vgprBuffer_new_offset)
 
