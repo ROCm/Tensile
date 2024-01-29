@@ -166,6 +166,28 @@ namespace Tensile
                 ("use-gpu-timer",            po::value<bool>()->default_value(true), "Use GPU timer")
                 ("sleep-percent",            po::value<int>()->default_value(0), "Sleep percentage")
                 ("hardware-monitor",         po::value<bool>()->default_value(true), "Use hardware monitor.")
+                ("flush-count",              po::value<size_t>()->default_value(1), "Number of copies of arrays to allocate for cache flushing in timing code."
+                                                                                    " Functions are called iters times in a timing loop." 
+                                                                                    " If the problem memory footprint is small enough, then arrays will be cached."
+                                                                                    " flush_count can be used to prevent caching."
+                                                                                    " For example, for sgemm with transA=transB=N:"
+                                                                                    " problem_memory_footprint = (m*k + k*n + m*n) * sizeof(float)."
+                                                                                    " To flush arrays before reusing set:"
+                                                                                    " flush_count >= 1 + cache_size / problem_memory_footprint"
+                                                                                    " Note that in the calculation of flush_count any padding from leading"
+                                                                                    " dimensions are not loaded to cache and not included in the problem_memory_footprint."
+                                                                                    " If you specify flush_count you cannot also specify flush_memory_size")
+                ("flush-memory-size",      po::value<size_t>()->default_value(0),   "Used only in timing code for cache flushing. Set to greater than"
+                                                                                    " cache size, so that arrays are flushed from cache before they are reused. When the size of arrays (the problem_memory_footprint)"
+                                                                                    " is smaller than flush_memory_size, then flush_count copies of arrays are allocated where:"
+                                                                                    " flush_count = flush_memory_size / problem_memory_footprint."
+                                                                                    " For sgemm with transA=transB=N"
+                                                                                    " problem_memory_footprint = (m*k + k*n + m*n) * sizeof(float). Note that any padding from leading"
+                                                                                    " dimensions are not loaded to cache and not included in the problem_memory_footprint."
+                                                                                    " If you specify flush_memory_size you cannot also specify flush_count."
+                                                                                    " Also note that Tensile allocates enough memory once at setup to accommodate"
+                                                                                    " the largest problem. Similarly, the largest problem will be used to calculate flush_count."
+                                                                                    " Configs with largely contrasting sizes may not guarantee cache eviction for the smaller problems")
 
                 ("perf-l2-read-hits",        po::value<double>()->default_value(0.0), "L2 read hits")
                 ("perf-l2-write-hits",       po::value<double>()->default_value(0.5), "L2 write hits")
@@ -470,6 +492,48 @@ namespace Tensile
     } // namespace Client
 } // namespace Tensile
 
+size_t calculate_flush_count(size_t                                       arg_flush_count,
+                             size_t                                       arg_flush_memory_size,
+                             Tensile::Client::ClientProblemFactory const& problemFactory)
+{
+    size_t default_arg_flush_count       = 1;
+    size_t default_arg_flush_memory_size = 0;
+    size_t flush_count                   = default_arg_flush_count;
+
+    size_t cached_size = 0;
+
+    for(auto const& problem : problemFactory.problems())
+        cached_size = std::max(
+            cached_size,
+            problem.a().sizes()[0] * problem.a().sizes()[1] * problem.a().elementBytes()
+                + problem.b().sizes()[0] * problem.b().sizes()[1] * problem.b().elementBytes()
+                + problem.c().sizes()[0] * problem.c().sizes()[1] * problem.c().elementBytes());
+
+    if(arg_flush_count != default_arg_flush_count
+       && arg_flush_memory_size != default_arg_flush_memory_size)
+    {
+        std::cout << "Tensile WARNING: cannot set both flush_count and flush_memory_size"
+                  << std::endl;
+        std::cout << "Tensile WARNING: using flush_count = " << arg_flush_count << std::endl;
+        flush_count = arg_flush_count;
+    }
+    else if(arg_flush_count != default_arg_flush_count)
+    {
+        flush_count = arg_flush_count;
+
+        std::cout << "flush_memory_size = ";
+        Tensile::print_memory_size(flush_count * cached_size);
+        std::cout << std::endl;
+    }
+    else if(arg_flush_memory_size != default_arg_flush_memory_size)
+    {
+        flush_count = 1 + (arg_flush_memory_size - 1) / cached_size;
+
+        std::cout << "flush_count = " << flush_count << std::endl;
+    }
+    return flush_count;
+}
+
 int main(int argc, const char* argv[])
 {
     using namespace Tensile;
@@ -522,20 +586,28 @@ int main(int argc, const char* argv[])
     size_t maxWorkspaceSizeLimit = args["max-workspace-size"].as<size_t>();
     size_t maxWorkspaceSize
         = getMaxWorkspace(library, hardware, args, problems, firstProblemIdx, lastProblemIdx);
-    maxWorkspaceSize = std::min(maxWorkspaceSize, maxWorkspaceSizeLimit);
+    maxWorkspaceSize         = std::min(maxWorkspaceSize, maxWorkspaceSizeLimit);
+    size_t flush_count       = args["flush-count"].as<size_t>();
+    size_t flush_memory_size = args["flush-memory-size"].as<size_t>();
 
-    auto dataInit = DataInitialization::Get(args, problemFactory, maxWorkspaceSize);
-
+    std::vector<std::shared_ptr<DataInitialization>> dataInit;
     auto solutionIterator = SolutionIterator::Default(library, hardware, args);
 
     MetaRunListener listeners;
 
-    listeners.addListener(dataInit);
+    flush_count = calculate_flush_count(flush_count, flush_memory_size, problemFactory);
+
+    for(size_t i = 0; i < flush_count; i++)
+    {
+        dataInit.push_back(DataInitialization::Get(args, problemFactory, maxWorkspaceSize));
+        listeners.addListener(dataInit[i]);
+    }
+
     listeners.addListener(solutionIterator);
     listeners.addListener(std::make_shared<ProgressListener>(args));
     if(runKernels)
     {
-        listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit));
+        listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit[0]));
         listeners.addListener(std::make_shared<BenchmarkTimer>(args, *hardware));
         listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
     }
@@ -572,7 +644,7 @@ int main(int argc, const char* argv[])
         for(int problemIdx = firstProblemIdx; problemIdx <= lastProblemIdx; problemIdx++)
         {
             auto& problem = problems[problemIdx];
-            problem.setWorkspaceSize(dataInit->workspaceSize());
+            problem.setWorkspaceSize(dataInit[0]->workspaceSize());
 
             reporters->report(ResultKey::ProblemIndex, problemIdx);
             reporters->report(ResultKey::ProblemProgress,
@@ -599,12 +671,17 @@ int main(int argc, const char* argv[])
                     {
                         while(listeners.needMoreRunsInSolution())
                         {
-                            auto inputs = dataInit->prepareGPUInputs(problem);
-
-                            auto kernels = solution->solve(problem, *inputs, *hardware);
+                            std::vector<std::shared_ptr<ContractionInputs>> inputs;
+                            std::vector<std::vector<KernelInvocation>>      kernels;
+                            for(size_t i = 0; i < flush_count; i++)
+                            {
+                                inputs.push_back(dataInit[i]->prepareGPUInputs(problem));
+                                kernels.push_back(
+                                    solution->solve(problem, *(inputs[i]), *hardware));
+                            }
 
                             size_t       warmupInvocations = listeners.numWarmupRuns();
-                            size_t       eventCount        = gpuTimer ? kernels.size() : 0;
+                            size_t       eventCount        = gpuTimer ? kernels[0].size() : 0;
                             TimingEvents warmupStartEvents(warmupInvocations, eventCount);
                             TimingEvents warmupStopEvents(warmupInvocations, eventCount);
 
@@ -612,18 +689,18 @@ int main(int argc, const char* argv[])
                             {
                                 listeners.preWarmup();
                                 if(gpuTimer)
-                                    HIP_CHECK_EXC(adapter.launchKernels(kernels,
+                                    HIP_CHECK_EXC(adapter.launchKernels(kernels[0],
                                                                         stream,
                                                                         warmupStartEvents[i],
                                                                         warmupStopEvents[i]));
                                 else
-                                    HIP_CHECK_EXC(
-                                        adapter.launchKernels(kernels, stream, nullptr, nullptr));
+                                    HIP_CHECK_EXC(adapter.launchKernels(
+                                        kernels[0], stream, nullptr, nullptr));
                                 listeners.postWarmup();
                                 // Do validation after first warmup
                                 if(i == 0)
                                     listeners.validateWarmups(
-                                        inputs, warmupStartEvents, warmupStopEvents);
+                                        inputs[0], warmupStartEvents, warmupStopEvents);
                             }
 
                             size_t syncs = listeners.numSyncs();
@@ -640,16 +717,19 @@ int main(int argc, const char* argv[])
 
                                 for(int j = 0; j < enq; j++)
                                 {
+                                    int flush_index = (j + i * enq + 1) % flush_count;
                                     if(gpuTimer)
-                                        HIP_CHECK_EXC(adapter.launchKernels(
-                                            kernels, stream, startEvents[j], stopEvents[j]));
+                                        HIP_CHECK_EXC(adapter.launchKernels(kernels[flush_index],
+                                                                            stream,
+                                                                            startEvents[j],
+                                                                            stopEvents[j]));
                                     else
                                         HIP_CHECK_EXC(adapter.launchKernels(
-                                            kernels, stream, nullptr, nullptr));
+                                            kernels[flush_index], stream, nullptr, nullptr));
                                 }
 
                                 listeners.postEnqueues(startEvents, stopEvents);
-                                listeners.validateEnqueues(inputs, startEvents, stopEvents);
+                                listeners.validateEnqueues(inputs[0], startEvents, stopEvents);
                             }
 
                             listeners.postSyncs();
