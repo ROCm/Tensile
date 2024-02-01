@@ -5140,8 +5140,24 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += self.bomb(0x13) # after addresses and SRD set
     else:
       tmp = self.vgprPool.checkOut(2, "tmp", self.preventVgprOverflowDuringNewTile)
-      kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("Address%s+0"%tP["tensorChar"]), "" )
-      kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("Address%s+1"%tP["tensorChar"]), "" )
+            
+      if kernel["StreamK"]:
+        # StreamK partial tile - offset to tile start index
+        tmpOffset = self.sgprPool.checkOut(2, "skStartOffset", preventOverflow=0)
+        kStr += inst("s_mul_i32", sgpr(tmpOffset), sgpr("StreamKLocalStart"), "DepthU*%d"%(tP["bpe"]), "StreamK tile start offset")
+        strideL = self.strideRef(tc, kernel["ProblemType"]["IndicesSummation"][0])
+        kStr += self.s_mul_u64_u32(sgpr(tmpOffset), sgpr(tmpOffset+1), sgpr(tmpOffset), strideL, "StreamK tile start offset")
+        if kernel["CheckDimOverflow"] >=2:
+          kStr += self.assert_eq(sgpr(tmpOffset+1),0)
+        kStr += inst("s_add_u32",  sgpr(tmpOffset+0), sgpr(tmpOffset+0), sgpr("Address%s+0"%tP["tensorChar"]), "accum skOffset term to tilestart")
+        kStr += inst("s_addc_u32", sgpr(tmpOffset+1), sgpr(tmpOffset+1), sgpr("Address%s+1"%tP["tensorChar"]), "accum skOffset term to tilestart")
+        kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr(tmpOffset+0), "" )
+        kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr(tmpOffset+1), "" )
+        self.sgprPool.checkIn(tmpOffset)
+      else:
+        kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("Address%s+0"%tP["tensorChar"]), "" )
+        kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("Address%s+1"%tP["tensorChar"]), "" )
+
       for perp in range(0, tP["nrp"]):
         for sPerp in range(0, tP["nrpv"]):
           for para in range(0, tP["nrc"]):
