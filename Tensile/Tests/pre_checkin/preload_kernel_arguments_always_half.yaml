@@ -31,7 +31,7 @@ BenchmarkProblems:
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
       ForkParameters:
-        - PreloadKernelArguments:  [True]
+        - PreloadKernelArguments:  [1]
         - DelayRemainingArguments: [True]
 
         - PrefetchLocalRead: [False]
