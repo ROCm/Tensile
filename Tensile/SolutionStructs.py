@@ -2586,6 +2586,9 @@ class Solution(collections.abc.Mapping):
       reject(state, "DirectToVgpr%c does not supports TLU = UnrollMajorLDS"%(tc))
       return False
 
+    # force GlobalReadCoalesceGroup == TLU in DTV case
+    state["GlobalReadCoalesceGroup%s"%tc] = state["ProblemType"]["TLU%c"%tc]
+
     # Does not work with DirectToLDS
     # -> this will be checked after DirectToLDS doable check is done
 
@@ -3270,14 +3273,6 @@ class Solution(collections.abc.Mapping):
       return
     #print "staggerStrideShift=", staggerStrideShift, "depthu=", state["DepthU"]
     state["_staggerStrideShift"] = staggerStrideShift
-
-    # force GlobalReadCoalesceGroupA, B = True until we fix fail with trsm (TODO: re-enable)
-    if not state["GlobalReadCoalesceGroupA"]:
-      print2("GlobalReadCoalesceGroupA=False not supported for now. Force to True")
-      state["GlobalReadCoalesceGroupA"] = True
-    if not state["GlobalReadCoalesceGroupB"]:
-      print2("GlobalReadCoalesceGroupB=False not supported for now. Force to True")
-      state["GlobalReadCoalesceGroupB"] = True
 
     # Use GlobalReadVectorWidth if it is not -1
     if state["GlobalReadVectorWidth"] != -1:
