@@ -557,7 +557,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernarg is None:
       kernarg = preload
 
-    if not self.kernel["PreloadKernelArguments"]:
+    if self.kernel["PreloadKernelArguments"] != 1:
       preload = False
 
     sgprIdx = self.sgprPool.checkOutAligned(numSgprs, align, tag=name, preventOverflow=False, kernarg=kernarg, preload=preload)
@@ -1792,7 +1792,7 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     self.defineSgpr("KernArgAddress", self.rpga)
     assert(self.sgprs["KernArgAddress"] ==  0) # kernarg is passed to kernel as SGPR0
-    if self.kernel["PreloadKernelArguments"]:
+    if self.kernel["PreloadKernelArguments"] == 1:
       self.definePreloadedSgprPool(14)
 
     #if kernel["WorkGroupMapping"]>=0 :
@@ -1883,7 +1883,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ###################################
     # Get kernel argument start here
-    self.defineSgpr("Tensor2dSizeA", 2, (2 if kernel["PreloadKernelArguments"] else 4), preload=True)
+    self.defineSgpr("Tensor2dSizeA", 2, (2 if kernel["PreloadKernelArguments"] == 1 else 4), preload=True)
     self.defineSgpr("Tensor2dSizeB", 2, 2, preload=True)
     self.argAddressOffset = 6 * 4 # 8 bytes C, A, B
 
@@ -3312,7 +3312,7 @@ class KernelWriterAssembly(KernelWriter):
 
     kStr += self.comment("Load Kernel Args")
     self.kernArgOffset = 0
-    if self.kernel["PreloadKernelArguments"]:
+    if self.kernel["PreloadKernelArguments"] == 1:
       self.kernArgOffset = self.sgprPool.numPreloadSGPRs * 4
 
     if globalParameters["DebugKernel"]:
@@ -3366,7 +3366,7 @@ class KernelWriterAssembly(KernelWriter):
   def allocateResources(self, kernel, lraCode=None):
     kStr = ""
 
-    if kernel["PreloadKernelArguments"]:
+    if kernel["PreloadKernelArguments"] == 1:
       kStr += self.comment("256 bytes of s_nop")
       for i in range(64):
         kStr += inst("s_nop 0", "preload")
@@ -3417,7 +3417,7 @@ class KernelWriterAssembly(KernelWriter):
       if lraCode != None :
         kStr += lraCode
 
-      if not kernel["PreloadKernelArguments"]:
+      if kernel["PreloadKernelArguments"] != 1:
         kernArgBytes = self.sgprPool.numKernargSGPRs * 4
         kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for %u bytes of kern args" % kernArgBytes )
 
@@ -3448,7 +3448,7 @@ class KernelWriterAssembly(KernelWriter):
         self.releaseSgprAdressAB = True
         self.sgprAddressStrAB = "Srd"
       # C,D check
-      if kernel["BufferStore"] and kernel["PrefetchGlobalRead"] and not kernel["PreloadKernelArguments"]:
+      if kernel["BufferStore"] and kernel["PrefetchGlobalRead"] and kernel["PreloadKernelArguments"] != 1:
         self.releaseSgprAdressCD = True
         self.sgprAddressStrCD = "Srd"
 
@@ -5882,7 +5882,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def openShadowInit(self, kernel):
     kStr = self.getNamedLabelDef("ShadowInitStart")
-    if self.kernel["PreloadKernelArguments"]:
+    if self.kernel["PreloadKernelArguments"] == 1:
       if self.kernel["DelayRemainingArguments"]:
         kStr += self.loadKernelArguments()
       kernArgBytes = self.sgprPool.numKernargSGPRs * 4

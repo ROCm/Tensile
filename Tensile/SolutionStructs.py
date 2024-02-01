@@ -3022,14 +3022,17 @@ class Solution(collections.abc.Mapping):
       return True, ""
 
     pkaSupported, pkaMsg = supportsPreloadKernelArguments()
-    if "PreloadKernelArguments" in state:
-      if state["PreloadKernelArguments"] and not pkaSupported:
+    if state["PreloadKernelArguments"] == -1:
+      if pkaSupported:
+        state["PreloadKernelArguments"] = 1
+      else:
+        state["PreloadKernelArguments"] = 0
+    elif state["PreloadKernelArguments"] == 1:
+      if not pkaSupported:
         reject(state, pkaMsg)
-    else:
-      state["PreloadKernelArguments"] = pkaSupported 
 
     if "DelayRemainingArguments" in state:
-      if state["DelayRemainingArguments"] and not state["PreloadKernelArguments"]:
+      if state["DelayRemainingArguments"] and state["PreloadKernelArguments"] != 1:
           reject(state, "Delayed kernel arguments only supported when preloading.")
     else:
       state["DelayRemainingArguments"] = False

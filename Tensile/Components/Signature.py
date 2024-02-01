@@ -101,7 +101,7 @@ class SignatureDefault(Signature):
         numPreloaded = 0
         numUserSgprs = 2
 
-        if kernel["PreloadKernelArguments"]:
+        if kernel["PreloadKernelArguments"] == 1:
             numPreloaded = writer.sgprPool.numPreloadSGPRs
             numUserSgprs += numPreloaded
 

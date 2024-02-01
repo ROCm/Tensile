@@ -85,7 +85,7 @@ namespace Tensile
         bool   persistentKernelAlongBatch = false;
 
         bool   sourceKernel          = false;
-        bool   preloadKernargs       = false;
+        int    preloadKernargs       = 0;
         int    globalAccumulation    = 0;
         size_t workspaceSizePerElemC = 0;
     };

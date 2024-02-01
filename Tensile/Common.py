@@ -1365,9 +1365,12 @@ validParameters = {
     # before the kernel begins executing.  This is currently only supported in cases
     # where that is enough to initiate the first load of the A and B tensors before
     # the remaining arguments have been loaded.
-    "PreloadKernelArguments": [False, True],
+    # -1: Use if it's supported (by the GPU and in combination with other features)
+    #  0: Don't use
+    #  1: Use, reject solution if not supported.
+    "PreloadKernelArguments": [-1, 0, 1],
 
-    # If PreloadKernelArguments is True, specifies whether we delay initiating the load
+    # If PreloadKernelArguments is 1, specifies whether we delay initiating the load
     # of the remaining arguments until after the load of A and B has been initiated.
     "DelayRemainingArguments": [False, True],
 
@@ -1416,6 +1419,7 @@ defaultBenchmarkCommonParameters = [
     {"InnerUnroll":               [ 1 ] },
     {"LocalDotLayout":            [ 1 ] },
     {"AggressivePerfMode":        [ 1 ] },
+    {"PreloadKernelArguments":    [ 0 ] },
     {"KernelLanguage":            [ "Source" ] },
     {"LdsPadA":                   [ -1 ] },
     {"LdsPadB":                   [ -1 ] },

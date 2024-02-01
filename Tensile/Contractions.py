@@ -476,6 +476,8 @@ class SizeMapping:
             globalAccum = 2
         if d['_GlobalAccumulation'] == 'PartialsBuffer':
             globalAccum = 3
+
+        assert d["PreloadKernelArguments"] in (0, 1), d["PreloadKernelArguments"]
         return cls(workGroup             = d['WorkGroup'],
                    macroTile             = cls.ReadOriginalMacroTile(d),
                    threadTile            = d['ThreadTile'],
