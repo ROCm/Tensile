@@ -2188,6 +2188,7 @@ class Solution(collections.abc.Mapping):
   #       flexibility in the unroll factors for example.
   @staticmethod
   def setGlobalLoadTileDimFractional(state, tc, depthU, glvwOrig):
+    isa = tuple(state["ISA"])
 
     assert(depthU > 0)
     dbFract = 0
@@ -2213,10 +2214,10 @@ class Solution(collections.abc.Mapping):
     # and a possible opportunity to handle the lsc
     grvw = glvwOrig
     minGrvw = 2 if state["ProblemType"]["DataType"].isHalf() and \
-                globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"] else 1
+                globalParameters["ArchCaps"][isa]["HasEccHalf"] else 1
     # TODO- check this for int8 and fractional load
     # minGrvw = 4 if state["ProblemType"]["DataType"].isInt8() and \
-    #             globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"] else 1
+    #             globalParameters["ArchCaps"][isa]["HasEccHalf"] else 1
     bestVw = -1
     while grvw >= minGrvw:
       # Per instruction across the entire group:
@@ -2430,6 +2431,7 @@ class Solution(collections.abc.Mapping):
   # determine can we use VgprForLocalReadPacking
   @staticmethod
   def isVgprForLocalReadPackingDoable(state):
+    isa = tuple(state["ISA"])
     rejectComment = ""
     doable = True
     # MatrixInstruction only
@@ -2437,7 +2439,7 @@ class Solution(collections.abc.Mapping):
       rejectComment = "VgprForLocalReadPacking is for MatrixInstruction only"
       doable = False
     # only for HasEccHalf
-    if not globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
+    if not globalParameters["ArchCaps"][isa]["HasEccHalf"]:
       rejectComment = "VgprForLocalReadPacking is for EccHalf only"
       doable = False
     # only for SIA=3 + PLR>=1
@@ -3368,7 +3370,7 @@ class Solution(collections.abc.Mapping):
       # Vector-width must be at least 2 for Half (since unroll loop uses packed operations?)
       if (not state["EnableMatrixInstruction"]) and state["VectorWidth"] < 2:
         reject(state, "VectorWidth must be >= 2 for half")
-      if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
+      if globalParameters["ArchCaps"][isa]["HasEccHalf"]:
         if not state["ProblemType"]["HighPrecisionAccumulate"] and state["AssertFree0ElementMultiple"] % 2 != 0:
           # beta-on-edge has AF0EM requirement except for HPA kernels
           reject(state, "Archs with HasEccHalf require AF0EM%2==0 except for HPA kernels")
@@ -3667,7 +3669,7 @@ class Solution(collections.abc.Mapping):
       if validDepthU and state["KernelLanguage"] == "Assembly" \
         and (state["ProblemType"]["DataType"].isHalf() \
               or state["ProblemType"]["DataType"].isBFloat16()):
-        if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
+        if globalParameters["ArchCaps"][isa]["HasEccHalf"]:
           if state["GlobalLoadVectorWidthA"] <= 1 or state["GlobalLoadVectorWidthB"] <= 1:
             reject(state, "HalfEcc requires GLVWA > 1")
 
