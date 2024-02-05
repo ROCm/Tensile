@@ -4059,9 +4059,7 @@ class KernelWriterAssembly(KernelWriter):
         divisorName = tP["lvp"]
     divisor = kernel[divisorName]
 
-    # force to swap gro-tile and gro-unroll for DirectToVgpr + TLU=False
-    forceSwap = (kernel["DirectToVgpr%s"%tc] and not tP["tlu"])
-    if tP["grcg"] == tP["tlu"] or forceSwap:
+    if tP["grcg"] == tP["tlu"]:
       rReg = self.vgprPool.checkOut(1, "graTA rReg0", self.preventVgprOverflowDuringNewTile) # gro-tile = serial%divisor
       qReg = self.vgprPool.checkOut(1, "graTA qReg0", self.preventVgprOverflowDuringNewTile) # gro-unroll = serial/divisor
       tReg = rReg
@@ -4102,6 +4100,13 @@ class KernelWriterAssembly(KernelWriter):
         divisorVal //= kernel["ThreadSeparateGlobalRead%s"%tc] * 2
       dividendReg = self.vgprPool.checkOut(1, "idInWave", self.preventVgprOverflowDuringNewTile)
       kStr += vectorStaticRemainder(dividendReg, "Serial", divisorVal, tmpSgpr)
+      # vgpr for WaveSeparateGlobalRead + add back to column index
+      if tP["tlu"]:
+        # tlu case, add wave offset to uReg
+        wqreg = uReg
+      else:
+        # no tlu case, add wave offset to tReg
+        wqreg = tReg
 
     # store DirectToVgpr K interval for later use
     dtvKInterval = 1
@@ -4217,7 +4222,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_lshr_b32", sgpr(tmpSgpr), sgpr(tmpSgpr), hex(log2(self.kernel["WavefrontSize"])), "WaveId")
       kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr), (kernel["WavefrontSize"] // divisor), \
           "Global Read Wave: each wave loads continuous WavefrontSize(%u)/divisor(%u) columns" % (kernel["WavefrontSize"], divisor))
-      kStr += inst("_v_add_u32", vgpr(qReg), sgpr(tmpSgpr), vgpr(qReg), \
+      kStr += inst("_v_add_u32", vgpr(wqreg), sgpr(tmpSgpr), vgpr(wqreg), \
           "Global Read Wave: add back to column index")
       self.vgprPool.checkIn(dividendReg)
 
@@ -4226,7 +4231,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_lshr_b32", sgpr(tmpSgpr), sgpr(tmpSgpr), hex(log2(kernel["WavefrontSize"])), "WaveId")
       kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr), kernel[tP["lsp"]] * tP["nrp"], \
           "Global Read Wave: each wave loads continuous lsp(%u)*nrp(%u) columns" % (kernel[tP["lsp"]], tP["nrp"]))
-      kStr += inst("_v_add_u32", vgpr(qReg), sgpr(tmpSgpr), vgpr(qReg), \
+      kStr += inst("_v_add_u32", vgpr(wqreg), sgpr(tmpSgpr), vgpr(wqreg), \
           "Global Read Wave: add back to column index")
       self.vgprPool.checkIn(dividendReg)
 
