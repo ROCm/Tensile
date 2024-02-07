@@ -4257,7 +4257,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.useInitAccVgprOpt = False
     # enable for the following conditions
     if kernel["EnableMatrixInstruction"] and (kernel["PrefetchGlobalRead"] == 1 or kernel["PrefetchGlobalRead"] == 2) \
-       and globalParameters["AsmCaps"][globalParameters["CurrentISA"]]["HasMFMA_constSrc"]:
+       and globalParameters["AsmCaps"][globalParameters["CurrentISA"]]["HasMFMA_constSrc"] \
+       and kernel["StreamK"] == 0:
       self.useInitAccVgprOpt = True
     # force to disable for the following conditions
     if self.useInitAccVgprOpt:
