@@ -367,6 +367,12 @@ namespace Tensile
 
         rv.sharedMemBytes = 0;
 
+        size_t startStrideCD = problemType.useInitialStridesCD ? 0 : 1;
+        size_t startStrideAB = problemType.useInitialStridesAB ? 0 : 1;
+
+        auto problemSizes = problem.problemSizes();
+        TENSILE_ASSERT_EXC(problemSizes.size() > 0);
+
         if(!isSourceKernel())
         {
             uint64_t tensor2dSizeC = c.totalAllocatedElements();
@@ -377,9 +383,40 @@ namespace Tensile
                                          ? b.totalAllocatedElements()
                                          : problem.allocatedElementsNonBatchB();
 
-            rv.args.append<uint64_t>("tensor2dSizeC", tensor2dSizeC);
-            rv.args.append<uint64_t>("tensor2dSizeA", tensor2dSizeA);
-            rv.args.append<uint64_t>("tensor2dSizeB", tensor2dSizeB);
+            if(sizeMapping.preloadKernargs)
+            {
+                TENSILE_ASSERT_EXC(problemType.stridedBatched);
+                TENSILE_ASSERT_EXC(problemType.useBeta);
+                TENSILE_ASSERT_EXC(startStrideAB == 1);
+
+                rv.args.append<uint64_t>("tensor2dSizeA", tensor2dSizeA);
+                rv.args.append<uint64_t>("tensor2dSizeB", tensor2dSizeB);
+
+                auto aptr = inputs.a + a.offset();
+                auto bptr = inputs.b + b.offset();
+                rv.args.append<typename TypedInputs::AType const*>("a", aptr);
+                rv.args.append<typename TypedInputs::BType const*>("b", bptr);
+
+                rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
+                if(std::is_same<typename TypedInputs::AlphaType, Half>::value && !isSourceKernel())
+                    rv.args.append<typename TypedInputs::AlphaType>("alpha_2", inputs.alpha);
+
+                for(size_t i = startStrideAB; i < a.dimensions(); i++)
+                    rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideA", i), a.strides()[i]);
+
+                for(size_t i = startStrideAB; i < b.dimensions(); i++)
+                    rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideB", i), b.strides()[i]);
+
+                rv.args.append<uint32_t>("sizeSum", problemSizes.back());
+            }
+
+            // rv.args.append<uint64_t>("tensor2dSizeC", tensor2dSizeC);
+
+            if(!sizeMapping.preloadKernargs)
+            {
+                rv.args.append<uint64_t>("tensor2dSizeA", tensor2dSizeA);
+                rv.args.append<uint64_t>("tensor2dSizeB", tensor2dSizeB);
+            }
         }
 
         if(sizeMapping.globalAccumulation && sizeMapping.streamK < 2)
@@ -389,10 +426,8 @@ namespace Tensile
         }
         else if(problemType.stridedBatched)
         {
-            auto dptr = inputs.d;
-            dptr += d.offset();
-            auto cptr = inputs.c;
-            cptr += c.offset();
+            auto dptr = inputs.d + d.offset();
+            auto cptr = inputs.c + c.offset();
             rv.args.append<typename TypedInputs::DType const*>("d", dptr);
             rv.args.append<typename TypedInputs::CType const*>("c", cptr);
         }
@@ -404,12 +439,13 @@ namespace Tensile
 
         if(problemType.stridedBatched)
         {
-            auto aptr = inputs.a;
-            aptr += a.offset();
-            auto bptr = inputs.b;
-            bptr += b.offset();
-            rv.args.append<typename TypedInputs::AType const*>("a", aptr);
-            rv.args.append<typename TypedInputs::BType const*>("b", bptr);
+            if(!sizeMapping.preloadKernargs)
+            {
+                auto aptr = inputs.a + a.offset();
+                auto bptr = inputs.b + b.offset();
+                rv.args.append<typename TypedInputs::AType const*>("a", aptr);
+                rv.args.append<typename TypedInputs::BType const*>("b", bptr);
+            }
         }
         else
         {
@@ -435,9 +471,12 @@ namespace Tensile
             rv.args.append<uint64_t>("offsetB", b.offset());
         }
 
-        rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
-        if(std::is_same<typename TypedInputs::AlphaType, Half>::value && !isSourceKernel())
-            rv.args.append<typename TypedInputs::AlphaType>("alpha_2", inputs.alpha);
+        if(!sizeMapping.preloadKernargs)
+        {
+            rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
+            if(std::is_same<typename TypedInputs::AlphaType, Half>::value && !isSourceKernel())
+                rv.args.append<typename TypedInputs::AlphaType>("alpha_2", inputs.alpha);
+        }
 
         if(problemType.useBeta)
         {
@@ -445,9 +484,6 @@ namespace Tensile
             if(std::is_same<typename TypedInputs::BetaType, Half>::value && !isSourceKernel())
                 rv.args.append<typename TypedInputs::BetaType>("beta_2", inputs.beta);
         }
-
-        size_t startStrideCD = problemType.useInitialStridesCD ? 0 : 1;
-        size_t startStrideAB = problemType.useInitialStridesAB ? 0 : 1;
 
         if(sizeMapping.globalAccumulation && sizeMapping.streamK < 2)
         {
@@ -474,18 +510,22 @@ namespace Tensile
                 rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideC", i), c.strides()[i]);
         }
 
-        for(size_t i = startStrideAB; i < a.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideA", i), a.strides()[i]);
+        if(!sizeMapping.preloadKernargs)
+        {
+            for(size_t i = startStrideAB; i < a.dimensions(); i++)
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideA", i), a.strides()[i]);
 
-        for(size_t i = startStrideAB; i < b.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideB", i), b.strides()[i]);
+            for(size_t i = startStrideAB; i < b.dimensions(); i++)
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideB", i), b.strides()[i]);
+        }
 
         {
-            int idx = 0;
-            for(auto size : problem.problemSizes())
+            int maxIdx = problemSizes.size();
+            if(sizeMapping.preloadKernargs)
+                maxIdx--;
+            for(int idx = 0; idx < maxIdx; idx++)
             {
-                rv.args.append<uint32_t>(concatenate_if<T_Debug>("size_", idx), size);
-                idx++;
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("size_", idx), problemSizes[idx]);
             }
         }
 
@@ -576,7 +616,8 @@ namespace Tensile
             }
         }
 
-        rv.args.append<int32_t>("staggerUIter", staggerUIter(problem, inputs, hardware));
+        if(sizeMapping.staggerU)
+            rv.args.append<int32_t>("staggerUIter", staggerUIter(problem, inputs, hardware));
 
         rv.args.append<uint32_t>("problemNumGroupTiles0", problemNumGroupTiles0);
         rv.args.append<uint32_t>("problemNumGroupTiles1", problemNumGroupTiles1);

@@ -716,9 +716,9 @@ s_mov_b32 m0, 0x9000                               // LDS clamp at 36864 bytes
 v_mov_b32 v[vgprSerial], v0                        // thread serial id
 
 /* Load Kernel Args */
-s_load_dwordx16 s[24:39], s[sgprKernArgAddress:sgprKernArgAddress+1], 0x8 // 
-s_load_dwordx16 s[48:63], s[sgprKernArgAddress:sgprKernArgAddress+1], 0x48 // 
-s_load_dwordx2 s[64:65], s[sgprKernArgAddress:sgprKernArgAddress+1], 0x88 // 
+s_load_dwordx16 s[24:39], s[sgprKernArgAddress:sgprKernArgAddress+1], 0x0 // 
+s_load_dwordx16 s[48:63], s[sgprKernArgAddress:sgprKernArgAddress+1], 0x40 // 
+s_load_dwordx2 s[64:65], s[sgprKernArgAddress:sgprKernArgAddress+1], 0x80 // 
 s_waitcnt lgkmcnt(0)                               // wait for 160 bytes of kern args
 s_mov_b32 s44, s36
 s_mov_b32 s45, s37

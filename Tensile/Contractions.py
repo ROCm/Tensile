@@ -464,6 +464,7 @@ class SizeMapping:
                  'sourceKernel',
                  'globalAccumulation',
                  'workspaceSizePerElemC',
+                 'preloadKernargs'
                  ]
 
     @classmethod
@@ -475,6 +476,8 @@ class SizeMapping:
             globalAccum = 2
         if d['_GlobalAccumulation'] == 'PartialsBuffer':
             globalAccum = 3
+
+        assert d["PreloadKernelArguments"] in (0, 1), d["PreloadKernelArguments"]
         return cls(workGroup             = d['WorkGroup'],
                    macroTile             = cls.ReadOriginalMacroTile(d),
                    threadTile            = d['ThreadTile'],
@@ -492,6 +495,7 @@ class SizeMapping:
                    sourceKernel          = d['KernelLanguage'] == 'Source',
                    globalAccumulation    = globalAccum,
                    workspaceSizePerElemC = d['_WorkspaceSizePerElemC'],
+                   preloadKernargs       = d["PreloadKernelArguments"]
                    )
 
     @classmethod

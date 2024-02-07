@@ -26,6 +26,7 @@ from . import __version__
 from . import Parallel
 from collections import OrderedDict
 from copy import deepcopy
+from .AsmCaps import CACHED_ASM_CAPS
 
 
 import math
@@ -306,26 +307,6 @@ architectureMap = {
   'gfx1010':'navi10', 'gfx1011':'navi12', 'gfx1012':'navi14',
   'gfx1030':'navi21', 'gfx1031':'navi22', 'gfx1032':'navi23', 'gfx1034':'navi24', 'gfx1035':'rembrandt',
   'gfx1100':'navi31', 'gfx1101':'navi32', 'gfx1102':'navi33'
-}
-
-CACHED_ASM_CAPS = {
-  (8, 0, 3): {'SupportedISA': True, 'HasExplicitCO': False, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': False, 'HasLshlOr': False, 'HasSMulHi': False, 'HasWMMA': False, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': True, 'v_fma_f16': False, 'v_fmac_f16': False, 'v_pk_fma_f16': False, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': False, 'v_dot2_f32_f16': False, 'v_dot2c_f32_f16': False, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': False, 'v_fma_f64': True, 'HasAtomicAdd': False, 'HasGLCModifier': True, 'MaxVmcnt': 15, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (9, 0, 0): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': True, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': True, 'v_fma_mix_f32': False, 'v_dot2_f32_f16': False, 'v_dot2c_f32_f16': False, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': False, 'v_fma_f64': True, 'HasAtomicAdd': False, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (9, 0, 6): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': True, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': False, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': False, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (9, 0, 8): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': True, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': True, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': True, 'HasMFMA_i8_940': False, 'v_mac_f16': True, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (9, 0, 10): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': True, 'HasMFMA_constSrc': True, 'HasMFMA_vgpr': True, 'HasMFMA_f64': True, 'HasMFMA_bf16_original': True, 'HasMFMA_bf16_1k': True, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': True, 'HasMFMA_i8_940': False, 'v_mac_f16': True, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (9, 4, 0): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': True, 'HasMFMA_constSrc': True, 'HasMFMA_vgpr': True, 'HasMFMA_f64': True, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': True, 'HasMFMA_xf32': True, 'HasMFMA_f8': True, 'HasMFMA_b8': True, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': True, 'v_mac_f16': True, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'HasGLCModifier': False, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (9, 4, 1): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': True, 'HasMFMA_constSrc': True, 'HasMFMA_vgpr': True, 'HasMFMA_f64': True, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': True, 'HasMFMA_xf32': True, 'HasMFMA_f8': True, 'HasMFMA_b8': True, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': True, 'v_mac_f16': True, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'HasGLCModifier': False, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (9, 4, 2): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': True, 'HasMFMA_constSrc': True, 'HasMFMA_vgpr': True, 'HasMFMA_f64': True, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': True, 'HasMFMA_xf32': True, 'HasMFMA_f8': True, 'HasMFMA_b8': True, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': True, 'v_mac_f16': True, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'HasGLCModifier': False, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (10, 1, 0): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': False, 'v_dot2c_f32_f16': False, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': False, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (10, 1, 1): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': False, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (10, 1, 2): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': False, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (10, 3, 0): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': False, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (10, 3, 1): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': False, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (11, 0, 0): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': False, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': True, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (11, 0, 1): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': False, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': True, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (11, 0, 2): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': False, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': True, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (0, 0, 0): {'SupportedISA': False, 'HasExplicitCO': False, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': False, 'HasAddLshl': False, 'HasLshlOr': False, 'HasSMulHi': False, 'HasWMMA': False, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': False, 'v_fma_f16': False, 'v_fmac_f16': False, 'v_pk_fma_f16': False, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': False, 'v_dot2_f32_f16': False, 'v_dot2c_f32_f16': False, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': False, 'v_fma_f32': False, 'v_fmac_f32': False, 'v_fma_f64': False, 'HasAtomicAdd': False, 'HasGLCModifier': False, 'MaxVmcnt': 0, 'MaxLgkmcnt': 15, 'SupportedSource': True},
 }
 
 def getArchitectureName(gfxName):
@@ -1403,6 +1384,19 @@ validParameters = {
     # 0=none, 1=add setprio, 2=add setprio and modify LDS to allow only 2 waves/simd
     "AggressivePerfMode":       [0,1,2],
 
+    # Use the feature whereby 56 bytes of kernel arguments can be preloaded in SGPRs
+    # before the kernel begins executing.  This is currently only supported in cases
+    # where that is enough to initiate the first load of the A and B tensors before
+    # the remaining arguments have been loaded.
+    # -1: Use if it's supported (by the GPU and in combination with other features)
+    #  0: Don't use
+    #  1: Use, reject solution if not supported.
+    "PreloadKernelArguments": [-1, 0, 1],
+
+    # If PreloadKernelArguments is 1, specifies whether we delay initiating the load
+    # of the remaining arguments until after the load of A and B has been initiated.
+    "DelayRemainingArguments": [False, True],
+
     # Kernels should be written in assembly or source
     # if assembly, ISA will determine architecture
     # if source, Runtime will determine language
@@ -1448,6 +1442,7 @@ defaultBenchmarkCommonParameters = [
     {"InnerUnroll":               [ 1 ] },
     {"LocalDotLayout":            [ 1 ] },
     {"AggressivePerfMode":        [ 1 ] },
+    {"PreloadKernelArguments":    [ 0 ] },
     {"KernelLanguage":            [ "Source" ] },
     {"LdsPadA":                   [ -1 ] },
     {"LdsPadB":                   [ -1 ] },
@@ -1597,7 +1592,7 @@ defaultBenchmarkCommonParameters = [
     {"Fp16AltImplRound":          [ False ] },
     {"ThreadSeparateGlobalReadA": [ 0 ] },
     {"ThreadSeparateGlobalReadB": [ 0 ] },
-    {"MinKForGSU":                [256]}
+    {"MinKForGSU":                [256]},
     ]
 
 # dictionary of defaults comprised of default option for each parameter
@@ -2011,6 +2006,20 @@ def GetAsmCaps(isaVersion):
     # TODO- Need to query the max cap, just like vmcnt as well?
     derivedAsmCaps["MaxLgkmcnt"] = 15
 
+    derivedAsmCaps["KernargPreloading"] = tryAssembler(isaVersion, """
+      TestKernel:
+      s_endpgm
+      .amdhsa_kernel TestKernel
+      .amdhsa_next_free_vgpr 8
+      .amdhsa_next_free_sgpr 4
+      .amdhsa_group_segment_fixed_size 0 // lds bytes
+      .amdhsa_user_sgpr_kernarg_segment_ptr 1
+      .amdhsa_user_sgpr_kernarg_preload_length 3
+      .amdhsa_user_sgpr_kernarg_preload_offset 0
+      .amdhsa_accum_offset 4
+      .end_amdhsa_kernel
+      """)
+
     derivedAsmCaps["SupportedSource"] = True
 
     ignoreCacheCheck = globalParameters["IgnoreAsmCapCache"]
@@ -2320,6 +2329,14 @@ def assignGlobalParameters( config ):
 
   if globalParameters["PrintLevel"] >= 1:
     printCapTable(globalParameters)
+
+    if globalParameters["AsmCaps"] != CACHED_ASM_CAPS:
+      import pprint
+      print("ASM Caps differ from cache. New caps:")
+      print("####################")
+      print("CACHED_ASM_CAPS = \\\n")
+      pprint.pprint(globalParameters["AsmCaps"])
+      print("####################")
 
   globalParameters["SupportedISA"] = list([i for i in globalParameters["SupportedISA"] if globalParameters["AsmCaps"][i]["SupportedISA"]])
 
