@@ -504,21 +504,9 @@ size_t calculate_flush_count(size_t                                       arg_fl
 
     for(auto const& problem : problemFactory.problems())
     {
-        size_t aSize = problem.a().elementBytes();
-        for(size_t i = 0; i < problem.a().dimensions(); ++i)
-        {
-            aSize *= problem.a().sizes()[i];
-        }
-        size_t bSize = problem.b().elementBytes();
-        for(size_t i = 0; i < problem.b().dimensions(); ++i)
-        {
-            bSize *= problem.b().sizes()[i];
-        }
-        size_t cSize = problem.c().elementBytes();
-        for(size_t i = 0; i < problem.c().dimensions(); ++i)
-        {
-            cSize *= problem.c().sizes()[i];
-        }
+        size_t aSize = problem.a().elementBytes() * problem.a().totalLogicalElements();
+        size_t bSize = problem.b().elementBytes() * problem.b().totalLogicalElements();
+        size_t cSize = problem.c().elementBytes() * problem.c().totalLogicalElements();
 
         cached_size = std::max(cached_size, aSize + bSize + cSize);
     }
