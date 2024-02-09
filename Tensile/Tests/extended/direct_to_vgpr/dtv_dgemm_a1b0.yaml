@@ -33,9 +33,9 @@ BenchmarkProblems:
         - MatrixInstruction:
           # - [16, 16, 4, 1]
           - [16, 16, 4, 1, 1, 1,4, 4,1]  # 64x64
-          - [16, 16, 4, 1, 1, 2,4, 4,1]  # 128x64
+          # - [16, 16, 4, 1, 1, 2,4, 4,1]  # 128x64
           - [16, 16, 4, 1, 1, 1,8, 4,1]  # 64x128
-          - [16, 16, 4, 1, 1, 2,8, 4,1]  # 128x128
+          # - [16, 16, 4, 1, 1, 2,8, 4,1]  # 128x128
           - [16, 16, 4, 1, 1, 4,4, 4,1]  # 256x64
         - ThreadTile:
           - [  8, 32 ]
@@ -56,7 +56,7 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - FractionalLoad: [0,2]
         - BufferLoad: [True, False]
-        - StaggerU: [0,32]
+        # - StaggerU: [0,32]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -110,7 +110,7 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         #- FractionalLoad: [0,2]
         #- BufferLoad: [True, False]
-        - StaggerU: [0,32]
+        # - StaggerU: [0,32]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -118,7 +118,7 @@ BenchmarkProblems:
         - ProblemSizes:
           #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
           - Range: [ [511], [511], [1], [2039, 8, 2047] ]
-          - Range: [ [511], [511], [1], [1, 2, 33] ]
+          - Range: [ [511], [511], [1], [1, 8, 33] ]
 
   ########################################
   # NT - DTVB + max load width for TailLoop
@@ -141,8 +141,8 @@ BenchmarkProblems:
         - MatrixInstruction:
           # - [16, 16, 4, 1]
           - [16, 16, 4, 1, 1, 4,1, 1,4]  # 64x64
-          - [16, 16, 4, 1, 1, 4,2, 1,4]  # 64x128
-          - [16, 16, 4, 1, 1, 8,1, 1,4]  # 128x64
+          # - [16, 16, 4, 1, 1, 4,2, 1,4]  # 64x128
+          # - [16, 16, 4, 1, 1, 8,1, 1,4]  # 128x64
           - [16, 16, 4, 1, 1, 8,2, 1,4]  # 128x128
           - [16, 16, 4, 1, 1, 4,4, 1,4]  # 64x256
         - ThreadTile:
@@ -158,7 +158,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [3,5]
         - GlobalSplitU: [1]
         - VectorWidth: [1,2]
-        - GlobalReadVectorWidth: [1,2]
+        - GlobalReadVectorWidth: [2] # 1
         - LocalReadVectorWidth: [1,2]
         - DirectToVgprB: [True]
         - ScheduleIterAlg: [3]
@@ -247,11 +247,11 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           # - [16, 16, 4, 1]
-          - [16, 16, 4, 1, 1, 1,4, 4,1]  # 64x64
+          # - [16, 16, 4, 1, 1, 1,4, 4,1]  # 64x64
           - [16, 16, 4, 1, 1, 2,4, 4,1]  # 128x64
           - [16, 16, 4, 1, 1, 1,8, 4,1]  # 64x128
           - [16, 16, 4, 1, 1, 2,8, 4,1]  # 128x128
-          - [16, 16, 4, 1, 1, 4,4, 4,1]  # 256x64
+          # - [16, 16, 4, 1, 1, 4,4, 4,1]  # 256x64
         - ThreadTile:
           - [  8, 32 ]
         - WorkGroup:
@@ -264,7 +264,7 @@ BenchmarkProblems:
         - DepthU:  [8,16]
         - PrefetchLocalRead: [3,5]
         - GlobalSplitU: [1]
-        - VectorWidth: [1,2]
+        - VectorWidth: [2] # 1
         - GlobalReadVectorWidth: [1,2]
         - LocalReadVectorWidth: [1,2]
         - DirectToVgprA: [True]
@@ -273,7 +273,7 @@ BenchmarkProblems:
         - BufferLoad: [True, False]
         - TransposeLDS: [1]
         - WaveSeparateGlobalReadB: [0,1]
-        - StaggerU: [0,32]
+        # - StaggerU: [0,32]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -357,9 +357,9 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           # - [16, 16, 4, 1]
-          - [16, 16, 4, 1, 1, 4,1, 1,4]  # 64x64
-          - [16, 16, 4, 1, 1, 4,2, 1,4]  # 64x128
-          - [16, 16, 4, 1, 1, 8,1, 1,4]  # 128x64
+          # - [16, 16, 4, 1, 1, 4,1, 1,4]  # 64x64
+          # - [16, 16, 4, 1, 1, 4,2, 1,4]  # 64x128
+          # - [16, 16, 4, 1, 1, 8,1, 1,4]  # 128x64
           - [16, 16, 4, 1, 1, 8,2, 1,4]  # 128x128
           - [16, 16, 4, 1, 1, 4,4, 1,4]  # 64x256
         - ThreadTile:
@@ -367,7 +367,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
-        - PrefetchGlobalRead: [1,2]
+        - PrefetchGlobalRead: [2] # 1
         - AssertFree0ElementMultiple: [2]
         - AssertFree1ElementMultiple: [2]
         - AssertSummationElementMultiple: [2]
@@ -437,7 +437,7 @@ BenchmarkProblems:
         #- BufferLoad: [True, False]
         - TransposeLDS: [1]
         - WaveSeparateGlobalReadA: [0,1]
-        - StaggerU: [0,32]
+        # - StaggerU: [0,32]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -467,16 +467,16 @@ BenchmarkProblems:
         - MatrixInstruction:
           # - [16, 16, 4, 1]
           - [16, 16, 4, 1, 1, 1,4, 4,1]  # 64x64
-          - [16, 16, 4, 1, 1, 2,4, 4,1]  # 128x64
+          # - [16, 16, 4, 1, 1, 2,4, 4,1]  # 128x64
           - [16, 16, 4, 1, 1, 1,8, 4,1]  # 64x128
-          - [16, 16, 4, 1, 1, 2,8, 4,1]  # 128x128
+          # - [16, 16, 4, 1, 1, 2,8, 4,1]  # 128x128
           - [16, 16, 4, 1, 1, 4,4, 4,1]  # 256x64
         - ThreadTile:
           - [  8, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
-        - PrefetchGlobalRead: [1,2]
+        - PrefetchGlobalRead: [2] # 2
         - AssertFree0ElementMultiple: [2]
         - AssertFree1ElementMultiple: [2]
         - AssertSummationElementMultiple: [2]
@@ -490,7 +490,7 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - FractionalLoad: [0,2]
         - BufferLoad: [True, False]
-        - StaggerU: [0,32]
+        # - StaggerU: [0,32]
         - UnrollMajorLDSA: [1]
         - UnrollMajorLDSB: [0,1]
       BenchmarkForkParameters:
@@ -504,58 +504,58 @@ BenchmarkProblems:
   ########################################
   # TT - DTVA + min load width for TailLoop
   ########################################
-  - # dgemm TT
-    - # ProblemType
-      OperationType: GEMM
-      DataType: D
-      TransposeA: True
-      TransposeB: True
-      UseBeta: True
-      Batched: True
+  # - # dgemm TT
+  #   - # ProblemType
+  #     OperationType: GEMM
+  #     DataType: D
+  #     TransposeA: True
+  #     TransposeB: True
+  #     UseBeta: True
+  #     Batched: True
 
-    - # BenchmarkProblemSizeGroup - Standard
-      InitialSolutionParameters:
-      BenchmarkCommonParameters:
-        - KernelLanguage: ["Assembly"]
-        - EdgeType: ["ShiftPtr"]
-      ForkParameters:
-        - MatrixInstruction:
-          # - [16, 16, 4, 1]
-          - [16, 16, 4, 1, 1, 1,4, 4,1]  # 64x64
-          - [16, 16, 4, 1, 1, 2,4, 4,1]  # 128x64
-          - [16, 16, 4, 1, 1, 1,8, 4,1]  # 64x128
-          #- [16, 16, 4, 1, 1, 2,8, 4,1]  # 128x128
-          #- [16, 16, 4, 1, 1, 4,4, 4,1]  # 256x64
-        - ThreadTile:
-          - [  8, 32 ]
-        - WorkGroup:
-          - [ 16, 16, 1 ]
-        - SourceSwap: [0,1]
-        - PrefetchGlobalRead: [1]#[1,2]
-        - AssertFree0ElementMultiple: [1]
-        - AssertFree1ElementMultiple: [1]
-        - AssertSummationElementMultiple: [1]
-        - DepthU:  [8,16]
-        - PrefetchLocalRead: [3,5]
-        - GlobalSplitU: [1,3]
-        - GlobalSplitUAlgorithm: ["SingleBuffer"]
-        - VectorWidth: [1,2]
-        - GlobalReadVectorWidth: [1,2]
-        - LocalReadVectorWidth: [1,2]
-        - DirectToVgprA: [True]
-        - ScheduleIterAlg: [3]
-        #- FractionalLoad: [0,2]
-        #- BufferLoad: [True, False]
-        - TransposeLDS: [1]
-        - WaveSeparateGlobalReadB: [0,1]
-        - StaggerU: [0,32]
-      BenchmarkForkParameters:
-      JoinParameters:
-      BenchmarkJoinParameters:
-      BenchmarkFinalParameters:
-        - ProblemSizes:
-          #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
-          - Range: [ [511], [511], [1], [2039, 8, 2047] ]
+  #   - # BenchmarkProblemSizeGroup - Standard
+  #     InitialSolutionParameters:
+  #     BenchmarkCommonParameters:
+  #       - KernelLanguage: ["Assembly"]
+  #       - EdgeType: ["ShiftPtr"]
+  #     ForkParameters:
+  #       - MatrixInstruction:
+  #         # - [16, 16, 4, 1]
+  #         - [16, 16, 4, 1, 1, 1,4, 4,1]  # 64x64
+  #         - [16, 16, 4, 1, 1, 2,4, 4,1]  # 128x64
+  #         - [16, 16, 4, 1, 1, 1,8, 4,1]  # 64x128
+  #         #- [16, 16, 4, 1, 1, 2,8, 4,1]  # 128x128
+  #         #- [16, 16, 4, 1, 1, 4,4, 4,1]  # 256x64
+  #       - ThreadTile:
+  #         - [  8, 32 ]
+  #       - WorkGroup:
+  #         - [ 16, 16, 1 ]
+  #       - SourceSwap: [0,1]
+  #       - PrefetchGlobalRead: [1]#[1,2]
+  #       - AssertFree0ElementMultiple: [1]
+  #       - AssertFree1ElementMultiple: [1]
+  #       - AssertSummationElementMultiple: [1]
+  #       - DepthU:  [8,16]
+  #       - PrefetchLocalRead: [3,5]
+  #       - GlobalSplitU: [1,3]
+  #       - GlobalSplitUAlgorithm: ["SingleBuffer"]
+  #       - VectorWidth: [1,2]
+  #       - GlobalReadVectorWidth: [1,2]
+  #       - LocalReadVectorWidth: [1,2]
+  #       - DirectToVgprA: [True]
+  #       - ScheduleIterAlg: [3]
+  #       #- FractionalLoad: [0,2]
+  #       #- BufferLoad: [True, False]
+  #       - TransposeLDS: [1]
+  #       - WaveSeparateGlobalReadB: [0,1]
+  #       - StaggerU: [0,32]
+  #     BenchmarkForkParameters:
+  #     JoinParameters:
+  #     BenchmarkJoinParameters:
+  #     BenchmarkFinalParameters:
+  #       - ProblemSizes:
+  #         #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
+  #         - Range: [ [511], [511], [1], [2039, 8, 2047] ]
 
   ########################################
   # TT - DTVB + max load width for TailLoop
@@ -577,8 +577,8 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           # - [16, 16, 4, 1]
-          - [16, 16, 4, 1, 1, 4,1, 1,4]  # 64x64
-          - [16, 16, 4, 1, 1, 4,2, 1,4]  # 64x128
+          # - [16, 16, 4, 1, 1, 4,1, 1,4]  # 64x64
+          # - [16, 16, 4, 1, 1, 4,2, 1,4]  # 64x128
           - [16, 16, 4, 1, 1, 8,1, 1,4]  # 128x64
           - [16, 16, 4, 1, 1, 8,2, 1,4]  # 128x128
           - [16, 16, 4, 1, 1, 4,4, 1,4]  # 64x256
@@ -599,10 +599,10 @@ BenchmarkProblems:
         - LocalReadVectorWidth: [1,2]
         - DirectToVgprB: [True]
         - ScheduleIterAlg: [3]
-        - FractionalLoad: [0,2]
-        - BufferLoad: [True, False]
+        # - FractionalLoad: [0,2]
+        # - BufferLoad: [True, False]
         - TransposeLDS: [1]
-        - StaggerU: [0,32]
+        # - StaggerU: [0,32]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -614,57 +614,57 @@ BenchmarkProblems:
   ########################################
   # TT - DTVB + min load width for TailLoop
   ########################################
-  - # dgemm TT
-    - # ProblemType
-      OperationType: GEMM
-      DataType: D
-      TransposeA: True
-      TransposeB: True
-      UseBeta: True
-      Batched: True
+  # - # dgemm TT
+  #   - # ProblemType
+  #     OperationType: GEMM
+  #     DataType: D
+  #     TransposeA: True
+  #     TransposeB: True
+  #     UseBeta: True
+  #     Batched: True
 
-    - # BenchmarkProblemSizeGroup - Standard
-      InitialSolutionParameters:
-      BenchmarkCommonParameters:
-        - KernelLanguage: ["Assembly"]
-        - EdgeType: ["ShiftPtr"]
-      ForkParameters:
-        - MatrixInstruction:
-          # - [16, 16, 4, 1]
-          - [16, 16, 4, 1, 1, 4,1, 1,4]  # 64x64
-          - [16, 16, 4, 1, 1, 4,2, 1,4]  # 64x128
-          - [16, 16, 4, 1, 1, 8,1, 1,4]  # 128x64
-          #- [16, 16, 4, 1, 1, 8,2, 1,4]  # 128x128
-          #- [16, 16, 4, 1, 1, 4,4, 1,4]  # 64x256
-        - ThreadTile:
-          - [  8, 32 ]
-        - WorkGroup:
-          - [ 16, 16, 1 ]
-        - SourceSwap: [0,1]
-        - PrefetchGlobalRead: [1]#[1,2]
-        - AssertFree0ElementMultiple: [1]
-        - AssertFree1ElementMultiple: [1]
-        - AssertSummationElementMultiple: [1]
-        - DepthU:  [8,16]
-        - PrefetchLocalRead: [3,5]
-        - GlobalSplitU: [1]
-        - VectorWidth: [1,2]
-        - GlobalReadVectorWidth: [1,2]
-        - LocalReadVectorWidth: [1,2]
-        - DirectToVgprB: [True]
-        - ScheduleIterAlg: [3]
-        #- FractionalLoad: [0,2]
-        #- BufferLoad: [True, False]
-        - TransposeLDS: [1]
-        - WaveSeparateGlobalReadA: [0,1]
-        - StaggerU: [0,32]
-      BenchmarkForkParameters:
-      JoinParameters:
-      BenchmarkJoinParameters:
-      BenchmarkFinalParameters:
-        - ProblemSizes:
-          #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
-          - Range: [ [511], [511], [1], [2039, 8, 2047] ]
+  #   - # BenchmarkProblemSizeGroup - Standard
+  #     InitialSolutionParameters:
+  #     BenchmarkCommonParameters:
+  #       - KernelLanguage: ["Assembly"]
+  #       - EdgeType: ["ShiftPtr"]
+  #     ForkParameters:
+  #       - MatrixInstruction:
+  #         # - [16, 16, 4, 1]
+  #         - [16, 16, 4, 1, 1, 4,1, 1,4]  # 64x64
+  #         - [16, 16, 4, 1, 1, 4,2, 1,4]  # 64x128
+  #         - [16, 16, 4, 1, 1, 8,1, 1,4]  # 128x64
+  #         #- [16, 16, 4, 1, 1, 8,2, 1,4]  # 128x128
+  #         #- [16, 16, 4, 1, 1, 4,4, 1,4]  # 64x256
+  #       - ThreadTile:
+  #         - [  8, 32 ]
+  #       - WorkGroup:
+  #         - [ 16, 16, 1 ]
+  #       - SourceSwap: [0,1]
+  #       - PrefetchGlobalRead: [1]#[1,2]
+  #       - AssertFree0ElementMultiple: [1]
+  #       - AssertFree1ElementMultiple: [1]
+  #       - AssertSummationElementMultiple: [1]
+  #       - DepthU:  [8,16]
+  #       - PrefetchLocalRead: [3,5]
+  #       - GlobalSplitU: [1]
+  #       - VectorWidth: [1,2]
+  #       - GlobalReadVectorWidth: [1,2]
+  #       - LocalReadVectorWidth: [1,2]
+  #       - DirectToVgprB: [True]
+  #       - ScheduleIterAlg: [3]
+  #       #- FractionalLoad: [0,2]
+  #       #- BufferLoad: [True, False]
+  #       - TransposeLDS: [1]
+  #       - WaveSeparateGlobalReadA: [0,1]
+  #       - StaggerU: [0,32]
+  #     BenchmarkForkParameters:
+  #     JoinParameters:
+  #     BenchmarkJoinParameters:
+  #     BenchmarkFinalParameters:
+  #       - ProblemSizes:
+  #         #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
+  #         - Range: [ [511], [511], [1], [2039, 8, 2047] ]
 
   ########################################
   # TN - DTVA + max load width for TailLoop
@@ -687,8 +687,8 @@ BenchmarkProblems:
         - MatrixInstruction:
           # - [16, 16, 4, 1]
           - [16, 16, 4, 1, 1, 1,4, 4,1]  # 64x64
-          - [16, 16, 4, 1, 1, 2,4, 4,1]  # 128x64
-          - [16, 16, 4, 1, 1, 1,8, 4,1]  # 64x128
+          # - [16, 16, 4, 1, 1, 2,4, 4,1]  # 128x64
+          # - [16, 16, 4, 1, 1, 1,8, 4,1]  # 64x128
           - [16, 16, 4, 1, 1, 2,8, 4,1]  # 128x128
           - [16, 16, 4, 1, 1, 4,4, 4,1]  # 256x64
         - ThreadTile:
@@ -696,11 +696,11 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
-        - PrefetchGlobalRead: [1,2]
+        - PrefetchGlobalRead: [2] # 1
         - AssertFree0ElementMultiple: [2]
         - AssertFree1ElementMultiple: [2]
         - AssertSummationElementMultiple: [2]
-        - DepthU:  [8,16]
+        - DepthU:  [16] # 8
         - PrefetchLocalRead: [3,5]
         - GlobalSplitU: [1]
         - VectorWidth: [1,2]
@@ -711,7 +711,7 @@ BenchmarkProblems:
         - FractionalLoad: [0,2]
         - BufferLoad: [True, False]
         - WaveSeparateGlobalReadB: [0,1]
-        - StaggerU: [0,32]
+        # - StaggerU: [0,32]
         - UnrollMajorLDSA: [1]
         - UnrollMajorLDSB: [0,1]
       BenchmarkForkParameters:
@@ -725,57 +725,57 @@ BenchmarkProblems:
   ########################################
   # TN - DTVA + min load width for TailLoop
   ########################################
-  - # dgemm TN
-    - # ProblemType
-      OperationType: GEMM
-      DataType: D
-      TransposeA: True
-      TransposeB: False
-      UseBeta: True
-      Batched: True
+  # - # dgemm TN
+  #   - # ProblemType
+  #     OperationType: GEMM
+  #     DataType: D
+  #     TransposeA: True
+  #     TransposeB: False
+  #     UseBeta: True
+  #     Batched: True
 
-    - # BenchmarkProblemSizeGroup - Standard
-      InitialSolutionParameters:
-      BenchmarkCommonParameters:
-        - KernelLanguage: ["Assembly"]
-        - EdgeType: ["ShiftPtr"]
-      ForkParameters:
-        - MatrixInstruction:
-          # - [16, 16, 4, 1]
-          - [16, 16, 4, 1, 1, 1,4, 4,1]  # 64x64
-          - [16, 16, 4, 1, 1, 2,4, 4,1]  # 128x64
-          - [16, 16, 4, 1, 1, 1,8, 4,1]  # 64x128
-          #- [16, 16, 4, 1, 1, 2,8, 4,1]  # 128x128
-          #- [16, 16, 4, 1, 1, 4,4, 4,1]  # 256x64
-        - ThreadTile:
-          - [  8, 32 ]
-        - WorkGroup:
-          - [ 16, 16, 1 ]
-        - SourceSwap: [0,1]
-        - PrefetchGlobalRead: [1]#[1,2]
-        - AssertFree0ElementMultiple: [1]
-        - AssertFree1ElementMultiple: [1]
-        - AssertSummationElementMultiple: [1]
-        - DepthU:  [8,16]
-        - PrefetchLocalRead: [3,5]
-        - GlobalSplitU: [1,3]
-        - GlobalSplitUAlgorithm: ["SingleBuffer"]
-        - VectorWidth: [1,2]
-        - GlobalReadVectorWidth: [1,2]
-        - LocalReadVectorWidth: [1,2]
-        - DirectToVgprA: [True]
-        - ScheduleIterAlg: [3]
-        #- FractionalLoad: [0,2]
-        #- BufferLoad: [True, False]
-        - TransposeLDS: [1]
-        - StaggerU: [0,32]
-      BenchmarkForkParameters:
-      JoinParameters:
-      BenchmarkJoinParameters:
-      BenchmarkFinalParameters:
-        - ProblemSizes:
-          #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
-          - Range: [ [511], [511], [1], [2039, 8, 2047] ]
+  #   - # BenchmarkProblemSizeGroup - Standard
+  #     InitialSolutionParameters:
+  #     BenchmarkCommonParameters:
+  #       - KernelLanguage: ["Assembly"]
+  #       - EdgeType: ["ShiftPtr"]
+  #     ForkParameters:
+  #       - MatrixInstruction:
+  #         # - [16, 16, 4, 1]
+  #         - [16, 16, 4, 1, 1, 1,4, 4,1]  # 64x64
+  #         - [16, 16, 4, 1, 1, 2,4, 4,1]  # 128x64
+  #         - [16, 16, 4, 1, 1, 1,8, 4,1]  # 64x128
+  #         #- [16, 16, 4, 1, 1, 2,8, 4,1]  # 128x128
+  #         #- [16, 16, 4, 1, 1, 4,4, 4,1]  # 256x64
+  #       - ThreadTile:
+  #         - [  8, 32 ]
+  #       - WorkGroup:
+  #         - [ 16, 16, 1 ]
+  #       - SourceSwap: [0,1]
+  #       - PrefetchGlobalRead: [1]#[1,2]
+  #       - AssertFree0ElementMultiple: [1]
+  #       - AssertFree1ElementMultiple: [1]
+  #       - AssertSummationElementMultiple: [1]
+  #       - DepthU:  [8,16]
+  #       - PrefetchLocalRead: [3,5]
+  #       - GlobalSplitU: [1,3]
+  #       - GlobalSplitUAlgorithm: ["SingleBuffer"]
+  #       - VectorWidth: [1,2]
+  #       - GlobalReadVectorWidth: [1,2]
+  #       - LocalReadVectorWidth: [1,2]
+  #       - DirectToVgprA: [True]
+  #       - ScheduleIterAlg: [3]
+  #       #- FractionalLoad: [0,2]
+  #       #- BufferLoad: [True, False]
+  #       - TransposeLDS: [1]
+  #       - StaggerU: [0,32]
+  #     BenchmarkForkParameters:
+  #     JoinParameters:
+  #     BenchmarkJoinParameters:
+  #     BenchmarkFinalParameters:
+  #       - ProblemSizes:
+  #         #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
+  #         - Range: [ [511], [511], [1], [2039, 8, 2047] ]
 
   ########################################
   # TN - DTVB + max load width for TailLoop
@@ -797,9 +797,9 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           # - [16, 16, 4, 1]
-          - [16, 16, 4, 1, 1, 4,1, 1,4]  # 64x64
+          # - [16, 16, 4, 1, 1, 4,1, 1,4]  # 64x64
           - [16, 16, 4, 1, 1, 4,2, 1,4]  # 64x128
-          - [16, 16, 4, 1, 1, 8,1, 1,4]  # 128x64
+          # - [16, 16, 4, 1, 1, 8,1, 1,4]  # 128x64
           - [16, 16, 4, 1, 1, 8,2, 1,4]  # 128x128
           - [16, 16, 4, 1, 1, 4,4, 1,4]  # 64x256
         - ThreadTile:
@@ -811,7 +811,7 @@ BenchmarkProblems:
         - AssertFree0ElementMultiple: [2]
         - AssertFree1ElementMultiple: [2]
         - AssertSummationElementMultiple: [2]
-        - DepthU:  [8,16]
+        - DepthU:  [16] # 8
         - PrefetchLocalRead: [3,5]
         - GlobalSplitU: [1]
         - VectorWidth: [1,2]
@@ -820,7 +820,7 @@ BenchmarkProblems:
         - DirectToVgprB: [True]
         - ScheduleIterAlg: [3]
         - FractionalLoad: [0,2]
-        - BufferLoad: [True, False]
+        # - BufferLoad: [True, False]
         - TransposeLDS: [1]
         - WaveSeparateGlobalReadA: [0,1]
         - StaggerU: [0,32]
@@ -835,57 +835,57 @@ BenchmarkProblems:
   ########################################
   # TN - DTVB + min load width for TailLoop
   ########################################
-  - # dgemm TN
-    - # ProblemType
-      OperationType: GEMM
-      DataType: D
-      TransposeA: True
-      TransposeB: False
-      UseBeta: True
-      Batched: True
+  # - # dgemm TN
+  #   - # ProblemType
+  #     OperationType: GEMM
+  #     DataType: D
+  #     TransposeA: True
+  #     TransposeB: False
+  #     UseBeta: True
+  #     Batched: True
 
-    - # BenchmarkProblemSizeGroup - Standard
-      InitialSolutionParameters:
-      BenchmarkCommonParameters:
-        - KernelLanguage: ["Assembly"]
-        - EdgeType: ["ShiftPtr"]
-      ForkParameters:
-        - MatrixInstruction:
-          # - [16, 16, 4, 1]
-          - [16, 16, 4, 1, 1, 4,1, 1,4]  # 64x64
-          - [16, 16, 4, 1, 1, 4,2, 1,4]  # 64x128
-          - [16, 16, 4, 1, 1, 8,1, 1,4]  # 128x64
-          #- [16, 16, 4, 1, 1, 8,2, 1,4]  # 128x128
-          #- [16, 16, 4, 1, 1, 4,4, 1,4]  # 64x256
-        - ThreadTile:
-          - [  8, 32 ]
-        - WorkGroup:
-          - [ 16, 16, 1 ]
-        - SourceSwap: [0,1]
-        - PrefetchGlobalRead: [1]#[1,2]
-        - AssertFree0ElementMultiple: [1]
-        - AssertFree1ElementMultiple: [1]
-        - AssertSummationElementMultiple: [1]
-        - DepthU:  [4,8,16]
-        - PrefetchLocalRead: [2,3,5]
-        - GlobalSplitU: [1]
-        - VectorWidth: [1,2]
-        - GlobalReadVectorWidth: [1,2]
-        - LocalReadVectorWidth: [1,2]
-        - DirectToVgprB: [False, True]
-        - ScheduleIterAlg: [0,2,3]
-        #- FractionalLoad: [0,2]
-        #- BufferLoad: [True, False]
-        - TransposeLDS: [1]
-        - StaggerU: [0,32]
-        - InnerUnroll: [1,2]
-      BenchmarkForkParameters:
-      JoinParameters:
-      BenchmarkJoinParameters:
-      BenchmarkFinalParameters:
-        - ProblemSizes:
-          #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
-          - Range: [ [511], [511], [1], [2033, 1, 2047] ]
+  #   - # BenchmarkProblemSizeGroup - Standard
+  #     InitialSolutionParameters:
+  #     BenchmarkCommonParameters:
+  #       - KernelLanguage: ["Assembly"]
+  #       - EdgeType: ["ShiftPtr"]
+  #     ForkParameters:
+  #       - MatrixInstruction:
+  #         # - [16, 16, 4, 1]
+  #         - [16, 16, 4, 1, 1, 4,1, 1,4]  # 64x64
+  #         - [16, 16, 4, 1, 1, 4,2, 1,4]  # 64x128
+  #         - [16, 16, 4, 1, 1, 8,1, 1,4]  # 128x64
+  #         #- [16, 16, 4, 1, 1, 8,2, 1,4]  # 128x128
+  #         #- [16, 16, 4, 1, 1, 4,4, 1,4]  # 64x256
+  #       - ThreadTile:
+  #         - [  8, 32 ]
+  #       - WorkGroup:
+  #         - [ 16, 16, 1 ]
+  #       - SourceSwap: [0,1]
+  #       - PrefetchGlobalRead: [1]#[1,2]
+  #       - AssertFree0ElementMultiple: [1]
+  #       - AssertFree1ElementMultiple: [1]
+  #       - AssertSummationElementMultiple: [1]
+  #       - DepthU:  [4,8,16]
+  #       - PrefetchLocalRead: [2,3,5]
+  #       - GlobalSplitU: [1]
+  #       - VectorWidth: [1,2]
+  #       - GlobalReadVectorWidth: [1,2]
+  #       - LocalReadVectorWidth: [1,2]
+  #       - DirectToVgprB: [False, True]
+  #       - ScheduleIterAlg: [0,2,3]
+  #       #- FractionalLoad: [0,2]
+  #       #- BufferLoad: [True, False]
+  #       - TransposeLDS: [1]
+  #       - StaggerU: [0,32]
+  #       - InnerUnroll: [1,2]
+  #     BenchmarkForkParameters:
+  #     JoinParameters:
+  #     BenchmarkJoinParameters:
+  #     BenchmarkFinalParameters:
+  #       - ProblemSizes:
+  #         #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
+  #         - Range: [ [511], [511], [1], [2033, 1, 2047] ]
 
   ########################################
   # NT - MI4x4
@@ -932,7 +932,7 @@ BenchmarkProblems:
         - GlobalSplitU: [1]
         - DepthU:  [16]
         - GlobalReadVectorWidth: [1,2]
-        - VectorWidth: [1,2]
+        - VectorWidth: [2] # 1
         - StoreVectorWidth: [1,2]
         #- LocalReadVectorWidth: [1,2]
         #- DirectToLdsA: [False, True]
@@ -946,7 +946,7 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]#[0,2,3]
         #- FractionalLoad: [0,1,2]
         #- BufferLoad: [True, False]
-        - StaggerU: [0,32]
+        # - StaggerU: [0,32]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -955,4 +955,3 @@ BenchmarkProblems:
           #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
           #- Exact: [1024, 1024, 1, 512]
           - Exact: [1022, 1022, 1, 511]
-
