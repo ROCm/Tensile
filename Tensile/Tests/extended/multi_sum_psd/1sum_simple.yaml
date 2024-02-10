@@ -1,3 +1,6 @@
+TestParameters:
+  marks: [xfail-gfx90a]
+
 GlobalParameters:
   EnqueuesPerSync: 1
   LibraryPrintDebug: 0

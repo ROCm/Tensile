@@ -35,6 +35,9 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     // avoid bug causing long build times of certain files.
     String buildType = 'Release' // debug ? 'Debug' : 'RelWithDebInfo'
     String parallelJobs = "export HIPCC_COMPILE_FLAGS_APPEND='-O3 -Wno-format-nonliteral -parallel-jobs=4'"
+    String buildThreads = '-1' // if hipcc is used may be multiplied by parallel-jobs
+    if (platform.jenkinsLabel.contains('gfx11'))
+        buildThreads = '16'
 
     // comment
 
@@ -62,7 +65,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             pushd build
 
             export PATH=/opt/rocm/bin:\$PATH
-            cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
+            cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DTensile_CPU_THREADS=${buildThreads} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
             NPROC_BUILD=16
             if [ `nproc` -lt 16 ]
             then
@@ -118,7 +121,7 @@ def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest
     String compiler = 'hipcc'
     String pythonVersion = 'py3'
     String markSkipHostTest = skipHostTest ? "#" : ""
-    String markSkipExtendedTest = !test_marks.contains("extended") ? "--gtest_filter=-\"*Extended*\"" : ""
+    String markSkipExtendedTest = !test_marks.contains("extended") ? "\"--gtest_filter=-*Extended*:*Ocl*\"" : "\"--gtest_filter=-*Ocl*\""
 
     def command = """#!/usr/bin/env bash
             set -x

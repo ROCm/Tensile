@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -23,12 +23,15 @@
 ################################################################################
 
 # Generates rocblas-bench input files from the library logic files.
+# Usage:
+# $ python3 rocblas-benchInputCreator.py [-v] [-i <init>] <lib logic dir> <output dir>
+
 # creates the benchmark and verification files:
-# $ python3 rocblas-benchInputCreator.py -v ../libLogics/aldebaran_Cijk_Ailk_Bjlk_BBS_BH.yaml ./ BSS_NT
+# $ python3 rocblas-benchInputCreator.py -v ../libLogics ./
 # creates the benchmark and verification files with hpl initialization:
-# $ python3 rocblas-benchInputCreator.py -v -i hpl ../libLogics/aldebaran_Cijk_Ailk_Bjlk_BBS_BH.yaml ./ BSS_NT
+# $ python3 rocblas-benchInputCreator.py -v -i hpl ../libLogics ./
 # creates the benchmark file:
-# $ python3 rocblas-benchInputCreator.py ../libLogics/aldebaran_Cijk_Ailk_Bjlk_BBS_BH.yaml ./ BSS_NT
+# $ python3 rocblas-benchInputCreator.py ../libLogics ./
 
 import argparse
 import os
@@ -42,13 +45,11 @@ def parseArgs():
     h = {"libLogic" : "Input library logic file",
          "outDir"   : "Output directory for rocBLAS-bench yaml files",
          "verify"   : "Also output verify version of yaml files",
-         "outfile"  : "the name of output file",
          "initial"  : "Matrix initialization: hpl, trig, int. The default is trig for non Int8 datatype, and int for Int8."
     }
 
     argParser.add_argument("libLogic", metavar="logic-file", type=str, help=h["libLogic"])
     argParser.add_argument("outDir", metavar="output-dir", type=str, help=h["outDir"])
-    argParser.add_argument("outfile", metavar="output-file", type=str, help=h["outfile"])
     argParser.add_argument("--verify", "-v", action="store_true", help=h["verify"])
     argParser.add_argument("--initialization", "-i", action="store", type=str, default = 'trig',  help=h["initial"])
 
@@ -126,6 +127,9 @@ def getProblemType(problem):
         else:
             problemDict["compute_type"] = problemDict["a_type"]
 
+    if "F32XdlMathOp" in problem and problem["F32XdlMathOp"]==9: # XF32
+        problemDict["math_mode"] = 1
+
     return problemDict
 
 def getSizeParams(size, transA, transB):
@@ -162,7 +166,7 @@ def getSizeParams(size, transA, transB):
 
     return sizeDict
 
-def createYaml(args, problem, sizeMappings, verify):
+def createYaml(args, outputfile, problem, sizeMappings, verify):
     bench = []
     benchStrided = []
     benchGeneralBatched = []
@@ -192,9 +196,7 @@ def createYaml(args, problem, sizeMappings, verify):
       init = {"initialization": "rand_int"}
 
     # check if the library is General Batched based on the library name
-    generalBatched = False
-    if "_GB.yaml" in os.path.split(args.libLogic)[-1]:
-        generalBatched = True
+    generalBatched = True if "_GB.yaml" in os.path.split(args.libLogic)[-1] else False
 
     # create rocBLAS-bench call for each size in logic file
     for (size, _) in sizeMappings: # size[0] = M, size[1] = N, size[2] = batch_count, size[3] = K, size[4] = ldc, size[5] = ldd, size[6] = lda, size[7] = ldb
@@ -226,23 +228,25 @@ def createYaml(args, problem, sizeMappings, verify):
             benchStrided.append(params)
 
     # output file names
-    prefix = args.outfile
-    prefix += "_verify" if verify else ""
+    postfix = "_verify" if verify else "_bench"
 
-    benchPath = os.path.join(args.outDir, prefix + "_bench.yaml") 
-    benchStridedPath = os.path.join(args.outDir, prefix +"_bench-strided.yaml") 
-    benchGeneralBatchedPath = os.path.join(args.outDir, prefix +"_bench-general-batched.yaml")
+    benchPath = os.path.join(args.outDir, outputfile + postfix + ".yaml")
+    benchStridedPath = os.path.join(args.outDir, outputfile + postfix +"-strided.yaml")
+    benchGeneralBatchedPath = os.path.join(args.outDir, outputfile + postfix+ "-general-batched.yaml")
 
     # write output
     if len(bench) > 0:
         with open(benchPath, "w") as f:
             yaml.safe_dump(bench, f, default_flow_style=None, sort_keys=False, width=5000)
+            f.write(f"# End of {benchPath} \n")
     if len(benchStrided) > 0:
         with open(benchStridedPath, "w") as f:
             yaml.safe_dump(benchStrided, f, default_flow_style=None, sort_keys=False, width=5000)
+            f.write(f"# End of {benchStrided} \n")
     if len(benchGeneralBatched) > 0:
         with open(benchGeneralBatchedPath, "w") as f:
             yaml.safe_dump(benchGeneralBatched, f, default_flow_style=None, sort_keys=False, width=5000)
+            f.write(f"# End of {benchGeneralBatched} \n")
 
 def main():
     args = parseArgs()
@@ -250,20 +254,24 @@ def main():
     if not (args.initialization in ['hpl', 'trig', 'int']):
         raise RuntimeError(f"Initialization {args.initialization} is not allowed. Choose from hpl, trig, or int.")
 
-    with open(args.libLogic) as f:
-        logicData = yaml.safe_load(f)
+    for libname in os.listdir(args.libLogic):
+        output = os.path.splitext(libname)[0]
+        print(f" working on {output}")
+        yamlName = os.path.join(args.libLogic,libname)
+        with open(yamlName) as f:
+            logicData = yaml.safe_load(f)
 
-    try:
-        os.makedirs(args.outDir)
-    except OSError:
-        pass 
+        try:
+            os.makedirs(args.outDir)
+        except OSError:
+            pass
 
-    problem = logicData[4]
-    sizeMappings = logicData[7]
+        problem = logicData[4]
+        sizeMappings = logicData[7]
 
-    createYaml(args, problem, sizeMappings, False)
-    if args.verify:
-        createYaml(args, problem, sizeMappings, True)
+        createYaml(args, output, problem, sizeMappings, False)
+        if args.verify:
+            createYaml(args, output, problem, sizeMappings, True)
 
 if __name__ == "__main__":
     main()

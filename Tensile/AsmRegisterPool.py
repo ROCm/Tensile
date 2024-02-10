@@ -43,11 +43,15 @@ class RegisterPool:
     Unavailable = 0
     Available = 1
     InUse = 2
+    AvailableForPreload = 3
 
   class Register:
     def __init__(self, status, tag):
       self.status = status
       self.tag = tag
+
+    def __repr__(self) -> str:
+      return f"({self.status}, {self.tag})"
 
   ########################################
   # Init
@@ -57,7 +61,47 @@ class RegisterPool:
     self.type = type
     self.defaultPreventOverflow = defaultPreventOverflow
     self.pool = [self.Register(RegisterPool.Status.Unavailable, "init") for i in range(0,size)]
+
+    # Map from register number -> size, deleted/overwritten when deallocated
     self.checkOutSize = {}
+
+    # Map from tag -> size, not deleted.
+    self.checkOutSizeCache = {}
+
+    # First register that's part of the manually loaded kernargs
+    self.kernargStart = None
+    # Last+1 register that's part of the manually loaded kernargs
+    self.kernargEnd = None
+
+    # First register that's part of the preloaded kernargs
+    self.preloadStart = None
+    # Last+1 register that's part of the preloaded kernargs
+    self.preloadEnd = None
+
+    # Each of the preloaded kernargs' name and size
+    self.preloadedKernargs = []
+    # Each of the manually loaded kernargs' name and size
+    self.selfLoadedKernargs = []
+
+
+  @property
+  def numKernargSGPRs(self):
+    if self.kernargStart is None:
+      assert self.kernargEnd is None
+      return 0
+    return self.kernargEnd - self.kernargStart
+
+  @property
+  def numPreloadSGPRs(self):
+    if self.preloadStart is None:
+      assert self.preloadEnd is None
+      return 0
+    return self.preloadEnd - self.preloadStart
+
+  @property
+  def kernargs(self):
+    from itertools import chain
+    return chain(self.preloadedKernargs, self.selfLoadedKernargs)
 
   ########################################
   # Adds registers to the pool so they can be used as temps
@@ -72,7 +116,7 @@ class RegisterPool:
   ########################################
   # Adds registers to the pool so they can be used as temps
   # Add
-  def add(self, start, size, tag=""):
+  def add(self, start, size, tag="", newStatus=Status.Available):
     # reserve space
     if self.printRP:
       print("RP::add(%u..%u for '%s')"%(start,start+size-1,tag))
@@ -84,7 +128,7 @@ class RegisterPool:
     # mark as available
     for i in range(start, start+size):
       if self.pool[i].status == RegisterPool.Status.Unavailable:
-        self.pool[i].status = RegisterPool.Status.Available
+        self.pool[i].status = newStatus
         self.pool[i].tag = tag
       elif self.pool[i].status == RegisterPool.Status.Available:
         printWarning("RegisterPool::add(%u,%u) pool[%u](%s) already available" % (start, size, i, self.pool[i].tag))
@@ -121,79 +165,109 @@ class RegisterPool:
   def checkOut(self, size, tag="_untagged_", preventOverflow=-1):
     return self.checkOutAligned(size, 1, tag, preventOverflow)
 
-  def checkOutAligned(self, size, alignment, tag="_untagged_aligned_", preventOverflow=-1):
+  def isRangeAvailable(self, start, size, preventOverflow=-1, wantedStatus=Status.Available) -> bool:
+    end = start + size
     if preventOverflow == -1:
       preventOverflow = self.defaultPreventOverflow
-    assert(size > 0)
-    found = -1
-    for i in range(0, len(self.pool)):
-      # alignment
+
+    if preventOverflow and end > len(self.pool):
+      return False
+
+    end = min(end, len(self.pool))
+
+    for i in range(start, end):
+      if self.pool[i].status != wantedStatus:
+        return False
+
+    return True
+
+  def findFreeRange(self, size, alignment, preventOverflow=-1, wantedStatus=Status.Available):
+    if preventOverflow == -1:
+      preventOverflow = self.defaultPreventOverflow
+
+    for i in range(len(self.pool)+1):
       if i % alignment != 0:
         continue
-      # enough space
-      if i + size > len(self.pool):
-        continue
-      # all available
-      allAvailable = True
-      for j in range(0, size):
-        if self.pool[i+j].status != RegisterPool.Status.Available:
-          allAvailable = False
-          i = j+1
-          break
-      if allAvailable:
-        found = i
-        break
-      else:
-        continue
+      if self.isRangeAvailable(i, size, preventOverflow, wantedStatus):
+        return i
 
-    # success without overflowing
-    if found > -1:
-      #print "Found: %u" % found
-      for i in range(found, found+size):
-        self.pool[i].status = RegisterPool.Status.InUse
-        self.pool[i].tag = tag
-      self.checkOutSize[found] = size
-      if self.printRP:
-        print("RP::checkOut '%s' (%u,%u) @ %u avail=%u"%(tag, size,alignment, found, self.available()))
-        #print self.state()
-      return found
-    # need overflow
+    if preventOverflow:
+      return None
     else:
-      #print "RegisterPool::checkOutAligned(%u,%u) overflowing past %u" % (size, alignment, len(self.pool))
-      # where does tail sequence of available registers begin
-      assert (not preventOverflow)
-      start = len(self.pool)
-      for i in range(len(self.pool)-1, 0, -1):
-        if self.pool[i].status == RegisterPool.Status.Available:
-          self.pool[i].tag = tag
-          start = i
-          continue
-        else:
-          break
-      #print "Start: ", start
-      # move forward for alignment
+      loc = self.startOfLastAvailableBlock()
+      return roundUpToNearestMultiple(loc, alignment)
 
-      start = roundUpToNearestMultiple(start,alignment)
-      #print "Aligned Start: ", start
-      # new checkout can begin at start
-      newSize = start + size
-      oldSize = len(self.pool)
-      overflow = newSize - oldSize
-      #print "Overflow: ", overflow
-      for i in range(start, len(self.pool)):
-        self.pool[i].status = RegisterPool.Status.InUse
-        self.pool[i].tag = tag
-      for i in range(0, overflow):
-        if len(self.pool) < start:
-          # this is padding to meet alignment requirements
-          self.pool.append(self.Register(RegisterPool.Status.Available,tag))
-        else:
-          self.pool.append(self.Register(RegisterPool.Status.InUse,tag))
-      self.checkOutSize[start] = size
-      if self.printRP:
-        print(self.state())
-        print("RP::checkOut' %s' (%u,%u) @ %u (overflow)"%(tag, size, alignment, start))
-      return start
+  def checkOutAt(self, start, size, tag, preventOverflow, wantedStatus = Status.Available):
+    if preventOverflow:
+      assert start + size <= len(self.pool)
+
+    assert self.isRangeAvailable(start, size, preventOverflow, wantedStatus=wantedStatus)
+
+    end = start + size
+
+    numToAdd = max(0, end - len(self.pool))
+    if numToAdd > 0:
+      self.add(len(self.pool), numToAdd)
+
+    for i in range(start, end):
+      assert self.pool[i].status == wantedStatus
+
+    for i in range(start, end):
+      self.pool[i].status = RegisterPool.Status.InUse
+      self.pool[i].tag = tag
+    self.checkOutSize[start] = size
+    self.checkOutSizeCache[tag] = size
+
+  def startOfLastAvailableBlock(self) -> int:
+    """ Returns the index of the first available register in the highest-numbered free block of registers. """
+    for i in range(len(self.pool)-1, 0, -1):
+      if self.pool[i].status != RegisterPool.Status.Available:
+        return i+1
+    return len(self.pool)
+
+  def checkOutAligned(self, size, alignment, tag="_untagged_aligned_", preventOverflow=-1, kernarg=False, preload=False):
+    if preventOverflow == -1:
+      preventOverflow = self.defaultPreventOverflow
+    assert size > 0
+
+    if kernarg:
+      assert not preventOverflow
+      entry = {"name": tag, "size": size}
+      if preload:
+        self.preloadedKernargs.append(entry)
+      else:
+        self.selfLoadedKernargs.append(entry)
+
+    if preload:
+      loc = self.findFreeRange(size, alignment, True, RegisterPool.Status.AvailableForPreload)
+      if self.preloadStart is None:
+        assert loc == 2, "Assume that preloaded kernargs start at s2"
+        self.preloadStart = loc
+      else:
+        assert loc == self.preloadEnd
+
+      self.preloadEnd = loc + size
+      assert loc is not None
+      self.checkOutAt(loc, size, tag, True, wantedStatus=RegisterPool.Status.AvailableForPreload)
+      return loc
+
+    if kernarg:
+      assert not preventOverflow
+      if self.kernargStart is None:
+        loc = self.startOfLastAvailableBlock()
+        loc = roundUpToNearestMultiple(loc, alignment)
+        self.kernargStart = loc
+      else:
+        loc = roundUpToNearestMultiple(self.kernargEnd, alignment)
+
+      self.kernargEnd = loc + size
+      self.checkOutAt(loc, size, tag, preventOverflow)
+      return loc
+
+    loc = self.findFreeRange(size, alignment, preventOverflow)
+    assert loc is not None
+    self.checkOutAt(loc, size, tag, preventOverflow)
+    return loc
 
   def initTmps(self, initValue, start=0, stop=-1):
     kStr = ""

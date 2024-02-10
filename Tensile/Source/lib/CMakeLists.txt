@@ -98,13 +98,15 @@ if(TENSILE_USE_LLVM OR TENSILE_USE_MSGPACK)
 endif()
 
 if(TENSILE_USE_MSGPACK)
-    find_package(msgpack REQUIRED)
+    find_package(msgpack REQUIRED NAMES msgpack msgpack-cxx msgpack-c)
     target_compile_definitions(TensileHost PUBLIC -DTENSILE_MSGPACK=1)
 
     if(TARGET msgpackc-cxx)
         get_target_property(msgpack_inc msgpackc-cxx INTERFACE_INCLUDE_DIRECTORIES)
     elseif(TARGET msgpackc)
         get_target_property(msgpack_inc msgpackc INTERFACE_INCLUDE_DIRECTORIES)
+    elseif(TARGET msgpack-cxx)
+        get_target_property(msgpack_inc msgpack-cxx INTERFACE_INCLUDE_DIRECTORIES)
     endif()
 
     if(DEFINED msgpack_inc)

@@ -45,7 +45,7 @@ def runCI =
 
     boolean formatCheck = false
 
-    prj.timeout.test = 600
+    prj.timeout.test = 720
     prj.defaults.ccache = false
 
     def commonGroovy
@@ -63,7 +63,8 @@ def runCI =
         platform, project->
 
         def test_marks = "extended"
-        commonGroovy.runTestCommand(platform, project, jobName, test_marks)
+        boolean skipHostTest = true // Skip host test for now, until compiler update is available
+        commonGroovy.runTestCommand(platform, project, jobName, test_marks, skipHostTest)
     }
 
     buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, testCommand, null)

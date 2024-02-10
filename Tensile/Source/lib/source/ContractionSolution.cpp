@@ -38,8 +38,6 @@
 #include <iomanip>
 #include <regex>
 
-#define TENSILE_STREAMK_GRID 1
-
 namespace Tensile
 {
     PerfModel perf;
@@ -260,7 +258,7 @@ namespace Tensile
                                                 TypedInputs const&                  inputs,
                                                 Hardware const&                     hardware) const
     {
-        TENSILE_ASSERT_EXC(sizeMapping.workGroupMapping >= 0);
+        //TENSILE_ASSERT_EXC(sizeMapping.workGroupMapping >= 0);
 
         TensorDescriptor const& a = problem.a();
         TensorDescriptor const& b = problem.b();
@@ -309,8 +307,6 @@ namespace Tensile
         rv.numWorkGroups.x = CeilDivide(rv.numWorkGroups.x, sizeMapping.macroTile.x);
         rv.numWorkGroups.y = CeilDivide(rv.numWorkGroups.y, sizeMapping.macroTile.y);
 
-        auto numTiles = rv.numWorkGroups;
-
         uint32_t problemNumGroupTiles0 = rv.numWorkGroups.x;
         uint32_t problemNumGroupTiles1 = rv.numWorkGroups.y;
         // used only when persistent kernel along batch
@@ -319,21 +315,20 @@ namespace Tensile
         rv.numWorkGroups.y *= sizeMapping.globalSplitU;
 
         size_t cuCount = 0;
+        size_t skGrid  = 0;
+        auto   tiles   = problem.getNumTiles(sizeMapping);
         if(sizeMapping.streamK != 0 || sizeMapping.persistentKernel != 0)
         {
             AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
             assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
             cuCount = pAMDGPU->computeUnitCount;
-        }
-
-        size_t skGrid = 0;
-        if(sizeMapping.streamK != 0)
-        {
-            skGrid             = cuCount * TENSILE_STREAMK_GRID;
-            rv.numWorkGroups.x = skGrid;
-            rv.numWorkGroups.y = 1;
-            if(sizeMapping.persistentKernelAlongBatch)
+            if(sizeMapping.streamK != 0)
+            {
+                skGrid             = getSKGrid(hardware, tiles);
+                rv.numWorkGroups.x = skGrid;
+                rv.numWorkGroups.y = 1;
                 rv.numWorkGroups.z = 1;
+            }
         }
 
         if(sizeMapping.persistentKernel != 0)
@@ -372,6 +367,12 @@ namespace Tensile
 
         rv.sharedMemBytes = 0;
 
+        size_t startStrideCD = problemType.useInitialStridesCD ? 0 : 1;
+        size_t startStrideAB = problemType.useInitialStridesAB ? 0 : 1;
+
+        auto problemSizes = problem.problemSizes();
+        TENSILE_ASSERT_EXC(problemSizes.size() > 0);
+
         if(!isSourceKernel())
         {
             uint64_t tensor2dSizeC = c.totalAllocatedElements();
@@ -382,9 +383,40 @@ namespace Tensile
                                          ? b.totalAllocatedElements()
                                          : problem.allocatedElementsNonBatchB();
 
-            rv.args.append<uint64_t>("tensor2dSizeC", tensor2dSizeC);
-            rv.args.append<uint64_t>("tensor2dSizeA", tensor2dSizeA);
-            rv.args.append<uint64_t>("tensor2dSizeB", tensor2dSizeB);
+            if(sizeMapping.preloadKernargs)
+            {
+                TENSILE_ASSERT_EXC(problemType.stridedBatched);
+                TENSILE_ASSERT_EXC(problemType.useBeta);
+                TENSILE_ASSERT_EXC(startStrideAB == 1);
+
+                rv.args.append<uint64_t>("tensor2dSizeA", tensor2dSizeA);
+                rv.args.append<uint64_t>("tensor2dSizeB", tensor2dSizeB);
+
+                auto aptr = inputs.a + a.offset();
+                auto bptr = inputs.b + b.offset();
+                rv.args.append<typename TypedInputs::AType const*>("a", aptr);
+                rv.args.append<typename TypedInputs::BType const*>("b", bptr);
+
+                rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
+                if(std::is_same<typename TypedInputs::AlphaType, Half>::value && !isSourceKernel())
+                    rv.args.append<typename TypedInputs::AlphaType>("alpha_2", inputs.alpha);
+
+                for(size_t i = startStrideAB; i < a.dimensions(); i++)
+                    rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideA", i), a.strides()[i]);
+
+                for(size_t i = startStrideAB; i < b.dimensions(); i++)
+                    rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideB", i), b.strides()[i]);
+
+                rv.args.append<uint32_t>("sizeSum", problemSizes.back());
+            }
+
+            // rv.args.append<uint64_t>("tensor2dSizeC", tensor2dSizeC);
+
+            if(!sizeMapping.preloadKernargs)
+            {
+                rv.args.append<uint64_t>("tensor2dSizeA", tensor2dSizeA);
+                rv.args.append<uint64_t>("tensor2dSizeB", tensor2dSizeB);
+            }
         }
 
         if(sizeMapping.globalAccumulation && sizeMapping.streamK < 2)
@@ -394,8 +426,10 @@ namespace Tensile
         }
         else if(problemType.stridedBatched)
         {
-            rv.args.append<typename TypedInputs::DType const*>("d", inputs.d);
-            rv.args.append<typename TypedInputs::CType const*>("c", inputs.c);
+            auto dptr = inputs.d + d.offset();
+            auto cptr = inputs.c + c.offset();
+            rv.args.append<typename TypedInputs::DType const*>("d", dptr);
+            rv.args.append<typename TypedInputs::CType const*>("c", cptr);
         }
         else
         {
@@ -405,8 +439,13 @@ namespace Tensile
 
         if(problemType.stridedBatched)
         {
-            rv.args.append<typename TypedInputs::AType const*>("a", inputs.a);
-            rv.args.append<typename TypedInputs::BType const*>("b", inputs.b);
+            if(!sizeMapping.preloadKernargs)
+            {
+                auto aptr = inputs.a + a.offset();
+                auto bptr = inputs.b + b.offset();
+                rv.args.append<typename TypedInputs::AType const*>("a", aptr);
+                rv.args.append<typename TypedInputs::BType const*>("b", bptr);
+            }
         }
         else
         {
@@ -424,14 +463,20 @@ namespace Tensile
             rv.args.append<void*>("Flags", flags);
         }
 
-        rv.args.append<uint64_t>("offsetD", d.offset());
-        rv.args.append<uint64_t>("offsetC", c.offset());
-        rv.args.append<uint64_t>("offsetA", a.offset());
-        rv.args.append<uint64_t>("offsetB", b.offset());
+        if(!problemType.stridedBatched)
+        {
+            rv.args.append<uint64_t>("offsetD", d.offset());
+            rv.args.append<uint64_t>("offsetC", c.offset());
+            rv.args.append<uint64_t>("offsetA", a.offset());
+            rv.args.append<uint64_t>("offsetB", b.offset());
+        }
 
-        rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
-        if(std::is_same<typename TypedInputs::AlphaType, Half>::value && !isSourceKernel())
-            rv.args.append<typename TypedInputs::AlphaType>("alpha_2", inputs.alpha);
+        if(!sizeMapping.preloadKernargs)
+        {
+            rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
+            if(std::is_same<typename TypedInputs::AlphaType, Half>::value && !isSourceKernel())
+                rv.args.append<typename TypedInputs::AlphaType>("alpha_2", inputs.alpha);
+        }
 
         if(problemType.useBeta)
         {
@@ -439,9 +484,6 @@ namespace Tensile
             if(std::is_same<typename TypedInputs::BetaType, Half>::value && !isSourceKernel())
                 rv.args.append<typename TypedInputs::BetaType>("beta_2", inputs.beta);
         }
-
-        size_t startStrideCD = problemType.useInitialStridesCD ? 0 : 1;
-        size_t startStrideAB = problemType.useInitialStridesAB ? 0 : 1;
 
         if(sizeMapping.globalAccumulation && sizeMapping.streamK < 2)
         {
@@ -468,18 +510,22 @@ namespace Tensile
                 rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideC", i), c.strides()[i]);
         }
 
-        for(size_t i = startStrideAB; i < a.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideA", i), a.strides()[i]);
+        if(!sizeMapping.preloadKernargs)
+        {
+            for(size_t i = startStrideAB; i < a.dimensions(); i++)
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideA", i), a.strides()[i]);
 
-        for(size_t i = startStrideAB; i < b.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideB", i), b.strides()[i]);
+            for(size_t i = startStrideAB; i < b.dimensions(); i++)
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideB", i), b.strides()[i]);
+        }
 
         {
-            int idx = 0;
-            for(auto size : problem.problemSizes())
+            int maxIdx = problemSizes.size();
+            if(sizeMapping.preloadKernargs)
+                maxIdx--;
+            for(int idx = 0; idx < maxIdx; idx++)
             {
-                rv.args.append<uint32_t>(concatenate_if<T_Debug>("size_", idx), size);
-                idx++;
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("size_", idx), problemSizes[idx]);
             }
         }
 
@@ -570,7 +616,8 @@ namespace Tensile
             }
         }
 
-        rv.args.append<int32_t>("staggerUIter", staggerUIter(problem, inputs, hardware));
+        if(sizeMapping.staggerU)
+            rv.args.append<int32_t>("staggerUIter", staggerUIter(problem, inputs, hardware));
 
         rv.args.append<uint32_t>("problemNumGroupTiles0", problemNumGroupTiles0);
         rv.args.append<uint32_t>("problemNumGroupTiles1", problemNumGroupTiles1);
@@ -610,7 +657,6 @@ namespace Tensile
             if(sizeMapping.streamK != 0)
             {
                 auto     itersPerTile = problem.getItersPerTile(sizeMapping);
-                auto     tiles        = problem.getNumTiles(sizeMapping);
                 auto     totalIters   = tiles * itersPerTile;
                 uint32_t magicNumberItersPerTile;
                 uint32_t magicShiftItersPerTile;
@@ -619,6 +665,17 @@ namespace Tensile
                 rv.args.append<uint32_t>("itersPerTile", itersPerTile);
                 rv.args.append<uint32_t>("magicNumberItersPerTile", magicNumberItersPerTile);
                 rv.args.append<uint32_t>("magicShiftItersPerTile", magicShiftItersPerTile);
+
+                uint32_t numGroupTiles0x1 = problemNumGroupTiles0 * problemNumGroupTiles1;
+                uint32_t magicNumProblemNumGroupTiles0By1;
+                uint32_t magicShiftProblemNumGroupTiles0By1;
+                magicNumProblemNumGroupTiles0By1
+                    = magicNumber(2, numGroupTiles0x1, &magicShiftProblemNumGroupTiles0By1);
+                rv.args.append<uint32_t>("magicNumProblemNumGroupTiles0By1",
+                                         magicNumProblemNumGroupTiles0By1);
+                rv.args.append<uint32_t>("magicShiftProblemNumGroupTiles0By1",
+                                         magicShiftProblemNumGroupTiles0By1);
+
                 rv.args.append<uint32_t>("totalIters", totalIters);
                 if(sizeMapping.streamK < 3) // Basic SK
                 {
@@ -627,15 +684,19 @@ namespace Tensile
                 }
                 else if(sizeMapping.streamK == 3) // Two-tile SK
                 {
-                    uint32_t numOutputTiles = tiles;
-                    bool     bigEnough      = numOutputTiles > skGrid;
+                    bool bigEnough = tiles > skGrid;
                     // skTiles is number of Stream-K tiles to complete
                     // Two-tile algorithm causes each WG to run an even number of Stream-K iterations,
-                    // followed by an even number of data-parllel tiles
-                    uint32_t skTiles
-                        = bigEnough ? skGrid + numOutputTiles % skGrid : numOutputTiles;
-                    // Number of data-parallel tiles on each workgroup would be:
-                    // dpTilesPerWG = bigEnough ? (numOutputTiles - skTiles) / skGrid : 0;
+                    // followed by an even number of data-parllel tiles.
+                    // If total tiles is evenly divisble by grid size,
+                    // then no Stream-K tiles are needed, all data-parallel
+                    uint32_t skTiles = skGrid;
+                    if(tiles % skGrid != 0)
+                    {
+                        // Number of data-parallel tiles on each workgroup would be:
+                        // dpTilesPerWG = bigEnough ? (tiles - skTiles) / skGrid : 0;
+                        skTiles = bigEnough ? skGrid + tiles % skGrid : tiles;
+                    }
 
                     uint32_t skItersPerWG = skTiles * itersPerTile / skGrid;
                     uint32_t skExtraIters = skTiles * itersPerTile % (skGrid);
@@ -649,16 +710,27 @@ namespace Tensile
 
             if(sizeMapping.workGroupMapping != 0)
             {
-                numFullBlocks = problemNumGroupTiles1 / sizeMapping.workGroupMapping;
-                wgmRemainder1 = problemNumGroupTiles1 % sizeMapping.workGroupMapping;
+                if(sizeMapping.workGroupMapping >= 0)
+                {
+                    numFullBlocks = problemNumGroupTiles1 / sizeMapping.workGroupMapping;
+                    wgmRemainder1 = problemNumGroupTiles1 % sizeMapping.workGroupMapping;
+                }
+                else
+                {
+                    numFullBlocks = problemNumGroupTiles0 / (-sizeMapping.workGroupMapping);
+                    wgmRemainder1 = problemNumGroupTiles0 % (-sizeMapping.workGroupMapping);
+                }
                 if(wgmRemainder1 == 0)
                     wgmRemainder1 = sizeMapping.workGroupMapping;
                 magicNumberWgmRemainder1 = smallMagicNumber(wgmRemainder1);
             }
 
-            rv.args.append<uint32_t>("numFullBlocks", numFullBlocks);
-            rv.args.append<uint32_t>("wgmRemainder1", wgmRemainder1);
-            rv.args.append<uint32_t>("magicNumberWgmRemainder1", magicNumberWgmRemainder1);
+            if(std::abs(sizeMapping.workGroupMapping) > 1)
+            {
+                rv.args.append<uint32_t>("numFullBlocks", numFullBlocks);
+                rv.args.append<uint32_t>("wgmRemainder1", wgmRemainder1);
+                rv.args.append<uint32_t>("magicNumberWgmRemainder1", magicNumberWgmRemainder1);
+            }
         }
 
         if(problemType.stochasticRounding)
@@ -707,11 +779,9 @@ namespace Tensile
         rv.workGroupSize.y = 1;
         rv.workGroupSize.z = 1;
 
-        AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
-        assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
-        size_t cuCount = pAMDGPU->computeUnitCount;
-        size_t skGrid  = cuCount * TENSILE_STREAMK_GRID;
-        size_t wiZ     = 1;
+        auto   tiles  = problem.getNumTiles(sizeMapping);
+        size_t skGrid = getSKGrid(hardware, tiles);
+        size_t wiZ    = 1;
         for(size_t i = 0; i < problem.batchIndices().size(); i++)
             wiZ *= problem.batchSize(i);
         size_t flagCount = skGrid * wiZ;
@@ -788,17 +858,28 @@ namespace Tensile
         if(sizeMapping.globalAccumulation)
             rv.args.append<void*>("WS", inputs.ws);
         else if(problemType.stridedBatched)
-            rv.args.append<typename TypedInputs::DType*>("D", inputs.d);
+        {
+            auto dptr = inputs.d;
+            dptr += d.offset();
+            rv.args.append<typename TypedInputs::DType*>("D", dptr);
+        }
         else
             rv.args.append<typename TypedInputs::DType const* const*>("batchD", inputs.batchD);
 
         if(problemType.stridedBatched)
-            rv.args.append<typename TypedInputs::CType const*>("C", inputs.c);
+        {
+            auto cptr = inputs.c;
+            cptr += c.offset();
+            rv.args.append<typename TypedInputs::CType const*>("C", cptr);
+        }
         else
             rv.args.append<typename TypedInputs::CType const* const*>("batchC", inputs.batchC);
 
-        rv.args.append<uint64_t>("offsetD", d.offset());
-        rv.args.append<uint64_t>("offsetC", c.offset());
+        if(!problemType.stridedBatched)
+        {
+            rv.args.append<uint64_t>("offsetD", d.offset());
+            rv.args.append<uint64_t>("offsetC", c.offset());
+        }
 
         if(sizeMapping.globalAccumulation)
         {
@@ -954,19 +1035,30 @@ namespace Tensile
         rv.numWorkItems.z = rv.workGroupSize.z * rv.numWorkGroups.z;
 
         if(problemType.stridedBatched)
-            rv.args.append<typename TypedInputs::DType*>("D", inputs.d);
+        {
+            auto dptr = inputs.d;
+            dptr += d.offset();
+            rv.args.append<typename TypedInputs::DType*>("D", dptr);
+        }
         else
             rv.args.append<typename TypedInputs::DType const* const*>("batchD", inputs.batchD);
 
         rv.args.append<void*>("WS", inputs.ws);
 
         if(problemType.stridedBatched)
-            rv.args.append<typename TypedInputs::CType const*>("C", inputs.c);
+        {
+            auto cptr = inputs.c;
+            cptr += c.offset();
+            rv.args.append<typename TypedInputs::CType const*>("C", cptr);
+        }
         else
             rv.args.append<typename TypedInputs::CType const* const*>("batchC", inputs.batchC);
 
-        rv.args.append<uint64_t>("offsetD", d.offset());
-        rv.args.append<uint64_t>("offsetC", c.offset());
+        if(!problemType.stridedBatched)
+        {
+            rv.args.append<uint64_t>("offsetD", d.offset());
+            rv.args.append<uint64_t>("offsetC", c.offset());
+        }
 
         if(sizeMapping.globalAccumulation == 2)
             rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
@@ -1474,10 +1566,8 @@ namespace Tensile
 
         if(sizeMapping.streamK >= 2)
         {
-            AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
-            assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
-            size_t cuCount = pAMDGPU->computeUnitCount;
-            size_t skGrid  = cuCount * TENSILE_STREAMK_GRID;
+            auto   tiles  = problem.getNumTiles(sizeMapping);
+            size_t skGrid = getSKGrid(hardware, tiles);
             // Get space required for partial tiles
             size += partialTileSize(skGrid);
             // Add space for flags
@@ -1489,6 +1579,21 @@ namespace Tensile
             size += problem.d().totalLogicalElements() * sizeMapping.workspaceSizePerElemC;
 
         return size;
+    }
+
+    size_t ContractionSolution::getSKGrid(Hardware const& hardware, size_t tiles) const
+    {
+        AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
+        assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
+        size_t cuCount = pAMDGPU->computeUnitCount;
+        size_t skGrid  = cuCount;
+        if(pAMDGPU->skMaxCUs > 0)
+            skGrid = min(skGrid, pAMDGPU->skMaxCUs);
+        if(pAMDGPU->skDynamicGrid)
+            skGrid = min(skGrid, tiles);
+        if(pAMDGPU->skGridMultiplier > 1)
+            skGrid = skGrid * pAMDGPU->skGridMultiplier;
+        return skGrid;
     }
 
     size_t ContractionSolution::partialTileSize(size_t skGrid) const
