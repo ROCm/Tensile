@@ -12905,9 +12905,21 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_waitcnt", "vmcnt(0)", "wait for data store")
     kStr += inst("s_barrier", "store all data before setting flag")
     kStr += inst("s_lshl_b32", sgpr(tmpSgpr), sgpr("StreamKIdx"), log2(4), "flag offset based on CTA index")
-    kStr += inst("s_mov_b32", sgpr(tmpSgpr+2), 1, "flag data")
-    kStr += inst("s_store_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), "glc", "set flag")
-    kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag") # TODO just for testing
+    if self.version == (9,4,2): # TODO: Temporary workaround
+      flagReg = self.vgprPool.checkOut(1, "flagReg")
+      flagOffsetReg = self.vgprPool.checkOut(1, "flagOffsetReg")
+      kStr += inst("v_mov_b32 ", vgpr(flagReg), 1, "flag data")
+      kStr += inst("v_mov_b32 ", vgpr(flagOffsetReg), sgpr(tmpSgpr), "flag offset into vgpr")
+      kStr += inst("s_mov_b64  ", "exec", "0x00000001", "set exec mask for only the first thread")
+      kStr += inst("global_store_dword ", vgpr(flagOffsetReg), vgpr(flagReg), sgpr("AddressFlags", 2), "sc0", "set flag")
+      self.vgprPool.checkIn(flagReg)
+      self.vgprPool.checkIn(flagOffsetReg)
+      kStr += inst("s_mov_b64  ", "exec", "0xFFFFFFFF", "reset exec mask for all threads")
+      kStr += inst("s_waitcnt", "lgkmcnt(0)", "vmcnt(0)", "wait for flag") # TODO just for testing
+    else:
+      kStr += inst("s_mov_b32", sgpr(tmpSgpr+2), 1, "flag data")
+      kStr += inst("s_store_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), "glc", "set flag")
+      kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag") # TODO just for testing
     
     # TODO - if this is the last tile, don't need to jump to next instruction
     # NOTE: in SR kernel, we need long branch since PRNG explodes the line of codes 
