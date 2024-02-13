@@ -13531,6 +13531,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("global_load_dword ", vgpr(flagOffsetReg), vgpr(flagOffsetReg), sgpr("AddressFlags", 2), "sc0", "get flag")
         kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load")
         kStr += inst("v_readlane_b32", sgpr(tmpSgpr+2), vgpr(flagOffsetReg), "0x0000000000000001", "flag to sgpr")
+        self.vgprPool.checkIn(flagOffsetReg)
       else:
         kStr += inst("s_load_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), "glc", "get flag")
         kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load")
