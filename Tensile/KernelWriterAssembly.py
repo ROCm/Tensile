@@ -12910,11 +12910,11 @@ class KernelWriterAssembly(KernelWriter):
       flagOffsetReg = self.vgprPool.checkOut(1, "flagOffsetReg")
       kStr += inst("v_mov_b32 ", vgpr(flagReg), 1, "flag data")
       kStr += inst("v_mov_b32 ", vgpr(flagOffsetReg), sgpr(tmpSgpr), "flag offset into vgpr")
-      kStr += inst("s_mov_b64  ", "exec", "0x00000001", "set exec mask for only the first thread")
+      kStr += inst("s_mov_b64  ", "exec", "0x0000000000000001", "set exec mask for only the first thread")
       kStr += inst("global_store_dword ", vgpr(flagOffsetReg), vgpr(flagReg), sgpr("AddressFlags", 2), "sc0", "set flag")
       self.vgprPool.checkIn(flagReg)
       self.vgprPool.checkIn(flagOffsetReg)
-      kStr += inst("s_mov_b64  ", "exec", "0xFFFFFFFF", "reset exec mask for all threads")
+      kStr += inst("s_mov_b64  ", "exec", "0xFFFFFFFFFFFFFFFF", "reset exec mask for all threads")
       kStr += inst("s_waitcnt", "lgkmcnt(0)", "vmcnt(0)", "wait for flag") # TODO just for testing
     else:
       kStr += inst("s_mov_b32", sgpr(tmpSgpr+2), 1, "flag data")
@@ -13525,8 +13525,16 @@ class KernelWriterAssembly(KernelWriter):
 
       # Check flag
       kStr += inst("s_lshl_b32", sgpr(tmpSgpr), sgpr(sCtaIdx), log2(4), "flag offset based on CTA index")
-      kStr += inst("s_load_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), "glc", "get flag")
-      kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load")
+      if self.version == (9,4,2): # TODO: Temporary workaround
+        flagOffsetReg = self.vgprPool.checkOut(1, "flagOffsetReg")
+        kStr += inst("v_mov_b32 ", vgpr(flagOffsetReg), sgpr(tmpSgpr), "flag offset into vgpr")
+        kStr += inst("global_load_dword ", vgpr(flagOffsetReg), vgpr(flagOffsetReg), sgpr("AddressFlags", 2), "sc0", "get flag")
+        kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load")
+        kStr += inst("v_readlane_b32", sgpr(tmpSgpr+2), vgpr(flagOffsetReg), "0x0000000000000001", "flag to sgpr")
+      else:
+        kStr += inst("s_load_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), "glc", "get flag")
+        kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load")
+
       kStr += inst("s_cmp_eq_u32", sgpr(tmpSgpr+2), 1, "check if ready")
       kStr += inst("s_cbranch_scc0 %s" % skFixupLabel, "if flag not set, wait and check again")
 
