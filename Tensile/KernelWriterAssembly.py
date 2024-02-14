@@ -8266,8 +8266,10 @@ class KernelWriterAssembly(KernelWriter):
     extraFields = ""
     if tP["NonTemporal"]%2==1:
       extraFields += " " + getGlcBitName(kernel["MemoryModifierFormat"])
-    if tP["NonTemporal"]//2==1:
+    if (tP["NonTemporal"]//2)%2==1:
       extraFields += " " + getSlcBitName(kernel["MemoryModifierFormat"])
+    if (tP["NonTemporal"]//4)%2==1:
+      extraFields += " nt"
     dtlNoDestVgpr = False
     if kernel["DirectToLds%s"%tc]:
       extraFields += " lds"
@@ -8756,8 +8758,10 @@ class KernelWriterAssembly(KernelWriter):
     extraFields = ""
     if tP["NonTemporal"]%2==1:
       extraFields += " " + getGlcBitName(kernel["MemoryModifierFormat"])
-    if tP["NonTemporal"]//2==1:
+    if (tP["NonTemporal"]//2)%2==1:
       extraFields += " " + getSlcBitName(kernel["MemoryModifierFormat"])
+    if (tP["NonTemporal"]//4)%2==1:
+      extraFields += " nt"
     dtlNoDestVgpr = False
     if kernel["DirectToLds%s"%tc]:
       extraFields += " lds"
@@ -10734,8 +10738,10 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_setprio", "1", "")
     if kernel["NonTemporalD"]%2==1 or kernel["ForceStoreSC1"]:
       ntStr += " " + getGlcBitName(kernel["MemoryModifierFormat"])
-    if kernel["NonTemporalD"]//2==1 or kernel["ForceStoreSC1"]:
+    if (kernel["NonTemporalD"]//2)%2==1 or kernel["ForceStoreSC1"]:
       ntStr += " " + getSlcBitName(kernel["MemoryModifierFormat"])
+    if (kernel["NonTemporalD"]//4)%2==1:
+      ntStr += " nt"
 
     addr1 = sgpr("SrdD", 4)
     packedD1 = kernel["PackedC1IndicesX"]
@@ -13790,8 +13796,10 @@ class KernelWriterAssembly(KernelWriter):
       ntStr = ""
       if kernel["NonTemporalD"]%2==1 or kernel["ForceStoreSC1"]:
         ntStr += " " + getGlcBitName(kernel["MemoryModifierFormat"])
-      if kernel["NonTemporalD"]//2==1 or kernel["ForceStoreSC1"]:
+      if (kernel["NonTemporalD"]//2)%2==1 or kernel["ForceStoreSC1"]:
         ntStr += " " + getSlcBitName(kernel["MemoryModifierFormat"])
+      if (kernel["NonTemporalD"]//4)%2==1:
+        ntStr += " nt"
 
       bps = self.bpeCexternal * ss.cfg.gwvw
       rpv = self.bpeCexternal * ss.cfg.gwvw / self.bpr
@@ -13998,8 +14006,10 @@ class KernelWriterAssembly(KernelWriter):
     extraStr = ""
     if kernel["NonTemporalC"]%2==1:
       extraStr += " " + getGlcBitName(kernel["MemoryModifierFormat"])
-    if kernel["NonTemporalC"]//2==1:
+    if (kernel["NonTemporalC"]//2)%2==1:
       extraStr += " " + getSlcBitName(kernel["MemoryModifierFormat"])
+    if (kernel["NonTemporalC"]//4)%2==1:
+      extraStr += " nt"
 
     if ss.optSrdIncForRow and addrCalc.rowInc and not isWorkspace:
       kStr += addrCalc.incrementToNextRow(kernel, tc, ss, tmpS01)
