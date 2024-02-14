@@ -63,8 +63,7 @@ def runCI =
         platform, project->
 
         def test_marks = "extended"
-        boolean skipHostTest = true // Skip host test for now, until compiler update is available
-        commonGroovy.runTestCommand(platform, project, jobName, test_marks, skipHostTest)
+        commonGroovy.runTestCommand(platform, project, jobName, test_marks)
     }
 
     buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, testCommand, null)
