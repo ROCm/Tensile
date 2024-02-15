@@ -37,7 +37,7 @@ from .Common import globalParameters, HR, print1, print2, printExit, ensurePath,
                     CHeader, CMakeHeader, assignGlobalParameters, gfxName, architectureMap
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
-from .SolutionLibrary import MasterSolutionLibrary
+from .SolutionLibrary import MasterSolutionLibrary, solutionIndexMap
 from .SolutionStructs import Solution
 
 import argparse
@@ -911,8 +911,7 @@ def generateLogicDataAndSolutions(logicFiles, args):
   masterLibraries = {}
   fullMasterLibrary = None
 
-  nextSolIndex = 0
-
+  nextSolIndex = {}
   for logic in Utils.tqdm(libraries, "Processing logic data"):
     (_, architectureName, _, solutionsForSchedule, _, newLibrary) = logic
 
@@ -923,10 +922,13 @@ def generateLogicDataAndSolutions(logicFiles, args):
         masterLibraries[architectureName] = deepcopy(newLibrary)
         masterLibraries[architectureName].version = args.version
     elif globalParameters["SeparateArchitectures"] or globalParameters["LazyLibraryLoading"]:
+
       if architectureName in masterLibraries:
-        nextSolIndex = masterLibraries[architectureName].merge(deepcopy(newLibrary), nextSolIndex)
+        nextSolIndex[architectureName] = masterLibraries[architectureName].merge(deepcopy(newLibrary), nextSolIndex[architectureName])
       else:
         masterLibraries[architectureName] = deepcopy(newLibrary)
+        masterLibraries[architectureName].remapSolutionIndicesStartingFrom(solutionIndexMap[architectureName])
+        nextSolIndex[architectureName] = solutionIndexMap[architectureName]
         masterLibraries[architectureName].version = args.version
     else:
       if fullMasterLibrary is None:
@@ -944,8 +946,7 @@ def generateLogicDataAndSolutions(logicFiles, args):
     if "fallback" in masterLibraries.keys():
       for key, value in masterLibraries.items():
         if key != "fallback":
-          value.merge(deepcopy(masterLibraries["fallback"]))
-
+          value.insert(deepcopy(masterLibraries["fallback"]))
       masterLibraries.pop("fallback")
 
     for _, masterLibrary in masterLibraries.items():
@@ -1018,6 +1019,21 @@ def WriteClientLibraryFromSolutions(solutionList, libraryWorkingPath, tensileSou
   return (codeObjectFiles, newLibrary)
 
 ################################################################################
+# Write Master Solution Index CSV
+################################################################################
+def writeMasterSolutionIndexCSV(outputPath, masterLibraries):
+  libraryPath = os.path.join(outputPath, "library")
+  ensurePath(libraryPath)
+  indexFile = open(os.path.join(libraryPath, "TensileMasterSolutionIndex.csv"), "w")
+  indexFile.write("architectureName,libraryName,libraryIndex,solutionIndex,solutionName\n")
+  for arch,lib in masterLibraries.items():
+    for lazylibname,lazylibvals in lib.lazyLibraries.items():
+      for solidx,solution in lazylibvals.solutions.items():
+        line = ",".join(str(x) for x in [arch, lazylibname, solidx, solution.index, solution.name])
+        indexFile.write("%s\n" %(line))
+  indexFile.close()
+
+################################################################################
 # Tensile Create Library
 ################################################################################
 def TensileCreateLibrary():
@@ -1084,6 +1100,8 @@ def TensileCreateLibrary():
   argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
   argParser.add_argument("--ignore-asm-cap-cache", dest="IgnoreAsmCapCache", action="store_true", default=False,
                          help="Ignore asm cap cache and derive the asm caps at runtime")
+  argParser.add_argument("--write-master-solution-index",   dest="WriteMasterSolutionIndex", action="store_true",
+                          default=False, help="Output master solution index in csv format.")
   args = argParser.parse_args()
 
   logicPath = args.LogicPath
@@ -1123,7 +1141,8 @@ def TensileCreateLibrary():
   arguments["CpuThreads"] = args.CpuThreads
   arguments["PrintLevel"] = args.PrintLevel
   arguments["IgnoreAsmCapCache"] = args.IgnoreAsmCapCache
-  
+  arguments["WriteMasterSolutionIndex"] = args.WriteMasterSolutionIndex
+
   for key, value in args.global_parameters:
     arguments[key] = value
 
@@ -1173,6 +1192,9 @@ def TensileCreateLibrary():
 
   # Parse logicData, solutions, and masterLibraries from logic files
   solutions, masterLibraries, fullMasterLibrary = generateLogicDataAndSolutions(logicFiles, args)
+
+  if globalParameters["LazyLibraryLoading"] and arguments["WriteMasterSolutionIndex"]:
+    writeMasterSolutionIndexCSV(outputPath, masterLibraries)
 
   kernels, kernelHelperObjs, _ = generateKernelObjectsFromSolutions(solutions)
 
