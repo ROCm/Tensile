@@ -317,7 +317,13 @@ class ProblemPredicate(Properties.Predicate):
         if key == "AssertSizeMultiple":
             return extractDimPredicate(cls, key, value, "SizeMultiple")
 
-        #Alpha and beta value assertions
+        # Arithmetic intensity assertions
+        if key == "AssertAIGreaterThanEqual":
+            return cls("AIGreaterThanEqual", value=value) if value > 0 else None
+        if key == "AssertAILessThanEqual":
+            return cls("AILessThanEqual", value=value) if value > 0 else None
+
+        # Alpha and beta value assertions
         if key == "AssertAlphaValue":
             return cls("AlphaValue", value=str(value)) if value != False else None
         if key == "AssertBetaValue":
@@ -458,6 +464,7 @@ class SizeMapping:
                  'sourceKernel',
                  'globalAccumulation',
                  'workspaceSizePerElemC',
+                 'preloadKernargs'
                  ]
 
     @classmethod
@@ -469,6 +476,8 @@ class SizeMapping:
             globalAccum = 2
         if d['_GlobalAccumulation'] == 'PartialsBuffer':
             globalAccum = 3
+
+        assert d["PreloadKernelArguments"] in (0, 1), d["PreloadKernelArguments"]
         return cls(workGroup             = d['WorkGroup'],
                    macroTile             = cls.ReadOriginalMacroTile(d),
                    threadTile            = d['ThreadTile'],
@@ -486,6 +495,7 @@ class SizeMapping:
                    sourceKernel          = d['KernelLanguage'] == 'Source',
                    globalAccumulation    = globalAccum,
                    workspaceSizePerElemC = d['_WorkspaceSizePerElemC'],
+                   preloadKernargs       = d["PreloadKernelArguments"]
                    )
 
     @classmethod

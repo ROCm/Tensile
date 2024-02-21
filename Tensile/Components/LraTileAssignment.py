@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2021-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2021-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -120,9 +120,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         else:
             dividedForBlkId  = (kernel["MatrixInstN"] * kernel["MatrixInstBN"]) if (tile01 == 0) else kernel["MatrixInstN"]
         dividedForWaveId = waveWidth if (tile01 == 0) else (waveWidth * kernel["MIWaveGroup"][0])
-        vectorWidth      = kernel["VectorWidth"] if ((tile01 == 0) and kernel["SourceSwap"]) else 1 # TODO: nonSwap VectorWidth
-        if tP["isB"] :
-          vectorWidth = writer.VectorWidthB
+        vectorWidth      = kernel["VectorWidth%s"%tc]
 
         # strider for each type of index
         mt               = kernel["MacroTile%u" % tile01]

@@ -93,6 +93,7 @@ namespace Tensile
                 iot::mapRequired(io, "persistentKernel", s.persistentKernel);
                 iot::mapRequired(io, "persistentKernelAlongBatch", s.persistentKernelAlongBatch);
                 iot::mapRequired(io, "sourceKernel", s.sourceKernel);
+                iot::mapOptional(io, "preloadKernargs", s.preloadKernargs);
 
                 iot::mapRequired(io, "globalAccumulation", s.globalAccumulation);
                 iot::mapRequired(io, "workspaceSizePerElemC", s.workspaceSizePerElemC);

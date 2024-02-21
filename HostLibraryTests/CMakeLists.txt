@@ -131,6 +131,7 @@ set(test_sources ${test_sources}
     DataTypes_test.cpp
     EmbeddedData_test.cpp
     KernelArguments_test.cpp
+    Predicates_test.cpp
     ProjectedPerformance_test.cpp
     DecisionTree_test.cpp
     TensorDescriptor_test.cpp
@@ -161,10 +162,6 @@ endif()
 
 if(TENSILE_USE_HIP)
     add_subdirectory(hip)
-endif()
-
-if(TENSILE_USE_OPENCL)
-    add_subdirectory(ocl)
 endif()
 
 add_executable(TensileTests ${test_sources})
@@ -205,22 +202,6 @@ if(TENSILE_USE_HIP)
     foreach(arch IN LISTS TENSILE_GPU_ARCHS)
         target_link_libraries(TensileTests PRIVATE "--offload-arch=${arch}")
     endforeach(arch)
-endif()
-
-if(TENSILE_USE_OPENCL)
-
-    add_dependencies(TensileTests ${OCL_TEST_COPY_TARGET_DEPS})
-
-    # Make sure the embedded libraries are not stripped
-    target_link_libraries(TensileTests PRIVATE "-Xlinker --whole-archive")
-    target_link_libraries(TensileTests PUBLIC ${OCL_TEST_LIBRARIES})
-    target_link_libraries(TensileTests PRIVATE "-Xlinker --no-whole-archive")
-
-    target_compile_definitions(TensileTests PUBLIC CL_TARGET_OPENCL_VERSION=200)
-    target_compile_definitions(TensileTests PUBLIC CL_HPP_TARGET_OPENCL_VERSION=200)
-    target_compile_definitions(TensileTests PUBLIC CL_HPP_ENABLE_EXCEPTIONS)
-    target_link_libraries(TensileTests PRIVATE ${OPENCL_LIBRARIES})
-    target_include_directories(TensileTests PUBLIC ${OPENCL_INCLUDE_DIRS})
 endif()
 
 if(TENSILE_USE_OPENMP)

@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -75,10 +75,12 @@ class MemoryInstruction:
     if highBits:
       name += "_d16_hi"
     instStr = "%s %s" % (name, (self.formatting % params) )
-    if nonTemporal%2==1 or self.forceSC1:
+    if (nonTemporal & 1) != 0 or self.forceSC1:
       instStr += " " + getGlcBitName(self.memoryModifierFormat)
-    if nonTemporal//2==1 or self.forceSC1:
+    if (nonTemporal & 2) != 0 or self.forceSC1:
       instStr += " " + getSlcBitName(self.memoryModifierFormat)
+    if (nonTemporal & 4) != 0:
+      instStr += " nt"
     line = "%-50s // %s%s" % (instStr, comment, self.endLine)
     return line
 
@@ -91,8 +93,10 @@ class MemoryInstruction:
     instStr = "%s %s" % (name, (self.formatting % params) )
     if nonTemporal%2==1 or self.forceSC1:
       instStr += " " + getGlcBitName(self.memoryModifierFormat)
-    if nonTemporal//2==1 or self.forceSC1:
+    if (nonTemporal//2)%2==1 or self.forceSC1:
       instStr += " " + getSlcBitName(self.memoryModifierFormat)
+    if (nonTemporal//4)%2==1:
+      instStr += " nt"
     line = "%-50s" % (instStr)
     return line
 

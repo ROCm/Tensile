@@ -54,7 +54,7 @@ BenchmarkProblems:
             - Range: [ [126,2,130], 0, [2], [62,2,66] ]
             - Conv: { n: 64, c: 256, h: 20, w: 14, k: 1024, x: 1, y: 1, u: 2, v: 2 }
 
-LibraryLogic:
-    ScheduleName: "vega10"
-    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861"]
-    ArchitectureName: "gfx900"
+# LibraryLogic:
+#     ScheduleName: "vega10"
+#     DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861"]
+#     ArchitectureName: "gfx900"

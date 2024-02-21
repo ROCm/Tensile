@@ -451,6 +451,8 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param("num-syncs-per-benchmark",  globalParameters["SyncsPerBenchmark"])
         param("use-gpu-timer",            globalParameters["KernelTime"])
         param("hardware-monitor",         globalParameters["HardwareMonitor"])
+        param("flush-count",              globalParameters["FlushCount"])
+        param("flush-memory-size",           globalParameters["FlushMemorySize"])
         if convValidation:
             param("convolution-vs-contraction", globalParameters["ConvolutionVsContraction"])
         param("sleep-percent",            globalParameters["SleepPercent"])
