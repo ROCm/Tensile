@@ -37,7 +37,7 @@ from .Common import globalParameters, HR, print1, print2, printExit, ensurePath,
                     CHeader, CMakeHeader, assignGlobalParameters, gfxName, architectureMap
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
-from .SolutionLibrary import MasterSolutionLibrary, solutionIndexMap
+from .SolutionLibrary import MasterSolutionLibrary
 from .SolutionStructs import Solution
 
 import argparse
@@ -927,8 +927,9 @@ def generateLogicDataAndSolutions(logicFiles, args):
         nextSolIndex[architectureName] = masterLibraries[architectureName].merge(deepcopy(newLibrary), nextSolIndex[architectureName])
       else:
         masterLibraries[architectureName] = deepcopy(newLibrary)
-        masterLibraries[architectureName].remapSolutionIndicesStartingFrom(solutionIndexMap[architectureName])
-        nextSolIndex[architectureName] = solutionIndexMap[architectureName]
+        archIndexMap = MasterSolutionLibrary.ArchitectureIndexMap(architectureName)
+        masterLibraries[architectureName].remapSolutionIndicesStartingFrom(archIndexMap)
+        nextSolIndex[architectureName] = archIndexMap
         masterLibraries[architectureName].version = args.version
     else:
       if fullMasterLibrary is None:
@@ -1024,14 +1025,16 @@ def WriteClientLibraryFromSolutions(solutionList, libraryWorkingPath, tensileSou
 def writeMasterSolutionIndexCSV(outputPath, masterLibraries):
   libraryPath = os.path.join(outputPath, "library")
   ensurePath(libraryPath)
-  indexFile = open(os.path.join(libraryPath, "TensileMasterSolutionIndex.csv"), "w")
-  indexFile.write("architectureName,libraryName,libraryIndex,solutionIndex,solutionName\n")
-  for arch,lib in masterLibraries.items():
-    for lazylibname,lazylibvals in lib.lazyLibraries.items():
-      for solidx,solution in lazylibvals.solutions.items():
-        line = ",".join(str(x) for x in [arch, lazylibname, solidx, solution.index, solution.name])
-        indexFile.write("%s\n" %(line))
-  indexFile.close()
+  try:
+    with open(os.path.join(libraryPath, "TensileMasterSolutionIndex.csv"), "w") as indexFile:
+      indexFile.write("architectureName,libraryName,libraryIndex,solutionIndex,solutionName\n")
+      for arch,lib in masterLibraries.items():
+        for lazylibname,lazylibvals in lib.lazyLibraries.items():
+          for solidx,solution in lazylibvals.solutions.items():
+            line = ",".join(str(x) for x in [arch, lazylibname, solidx, solution.index, solution.name])
+            indexFile.write("%s\n" %(line))
+  except IOError as err:
+    print1("Error writing MasterSolutionIndex %s" % err)
 
 ################################################################################
 # Tensile Create Library

@@ -23,6 +23,7 @@
 ################################################################################
 
 import itertools
+import re
 
 from . import Properties
 from . import Hardware
@@ -31,12 +32,6 @@ from . import Contractions
 from .SolutionStructs import Solution as OriginalSolution
 from .Utils import state
 
-architectureList = ['fallback', 'gfx803', 'gfx900', 'gfx906', 'gfx908', 'gfx90a',
-                    'gfx940', 'gfx941', 'gfx942', 'gfx1010', 'gfx1011', 'gfx1012',
-                    'gfx1030', 'gfx1031', 'gfx1032', 'gfx1034', 'gfx1035', 'gfx1100', 
-                    'gfx1101', 'gfx1102']
-solutionIndexMap = {architectureName:int(offset*pow(2,16)) 
-                    for architectureName,offset in zip(architectureList,range(len(architectureList)))}
 
 class SingleSolutionLibrary:
     Tag = "Single"
@@ -254,6 +249,22 @@ class PredicateLibrary:
 
 class MasterSolutionLibrary:
     StateKeys = ["solutions", "library"]
+
+    @classmethod
+    def ArchitectureIndexMap(cls, architectureName):
+        # 'fallback', 'gfx803', 'gfx900', 'gfx906', 'gfx908', 'gfx90a',
+        # 'gfx940', 'gfx941', 'gfx942', 'gfx1010', 'gfx1011', 'gfx1012',
+        # 'gfx1030', 'gfx1031', 'gfx1032', 'gfx1034', 'gfx1035', 'gfx1100',
+        # 'gfx1101', 'gfx1102'
+        archval = -1
+        if architectureName == "fallback":
+            archval = 0
+        elif architectureName.startswith("gfx"):
+            archString = re.search('(?<=gfx)[0-9a-f]*', architectureName)
+            if archString is not None:
+                archLiteral = archString.group(0)
+                archval = (int(archLiteral, 16) << 18)
+        return archval
 
     @classmethod
     def FixSolutionIndices(cls, solutions):
