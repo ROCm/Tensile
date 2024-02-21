@@ -75,11 +75,11 @@ class MemoryInstruction:
     if highBits:
       name += "_d16_hi"
     instStr = "%s %s" % (name, (self.formatting % params) )
-    if nonTemporal%2==1 or self.forceSC1:
+    if (nonTemporal & 1) != 0 or self.forceSC1:
       instStr += " " + getGlcBitName(self.memoryModifierFormat)
-    if (nonTemporal//2)%2==1 or self.forceSC1:
+    if (nonTemporal & 2) != 0 or self.forceSC1:
       instStr += " " + getSlcBitName(self.memoryModifierFormat)
-    if (nonTemporal//4)%2==1:
+    if (nonTemporal & 4) != 0:
       instStr += " nt"
     line = "%-50s // %s%s" % (instStr, comment, self.endLine)
     return line
