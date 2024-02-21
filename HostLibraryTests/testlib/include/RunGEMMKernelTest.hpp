@@ -68,8 +68,7 @@ private:
 *  Tests for different backends can
 *  be defined in each their own backend
 *  ecosystems.
-*  See hip/RunGEMMKernel_test.cpp or
-*  ocl/RunGEMMKernel_test.cpp
+*  See hip/RunGEMMKernel_test.cpp
 */
 template <typename DeviceBackend>
 struct RunGEMMKernelTest
