@@ -38,7 +38,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     
     int systemCPUs = sh(script: 'nproc', returnStdout: true ).trim().toInteger()
     //int systemRAM = sh(script: 'free -g | grep -P "[[:digit:]]+" -m 1 -o | head -n 1', returnStdout: true ).trim().toInteger()
-    int containerRAMbytes = sh(script: 'cat /sys/fs/cgroup/memory/memory.limit_in_bytes', returnStdout: true ).trim().toInteger()
+    long containerRAMbytes = sh(script: 'cat /sys/fs/cgroup/memory/memory.limit_in_bytes', returnStdout: true ).trim().toLong()
     int containerRAM = containerRAMbytes / (1024 * 1024)
     //int maxThreads = Math.min(Math.min(systemCPUs, systemRAM / 10), 64)
     int maxThreads = containerRAM / 8
