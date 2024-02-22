@@ -13583,6 +13583,7 @@ class KernelWriterAssembly(KernelWriter):
                        addr0, addr1, soffset, offset, extraFields, dtlNoDestVgpr, hi16=0, ubyteLoad=0, comment="load C"):
   # rpv = regs per vector
     rpv = bpl/4.0
+
     if useBuffer:
       rv = Code.Module("Global Read")
       tailFields = "offen offset:%u"%offset
