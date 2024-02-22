@@ -37,13 +37,17 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     String parallelJobs = "export HIPCC_COMPILE_FLAGS_APPEND='-O3 -Wno-format-nonliteral -parallel-jobs=4'"
     
     int systemCPUs = sh(script: 'nproc', returnStdout: true ).trim().toInteger()
-    int systemRAM = sh(script: 'free -g | grep -P "[[:digit:]]+" -m 1 -o | head -n 1', returnStdout: true ).trim().toInteger()
+    //int systemRAM = sh(script: 'free -g | grep -P "[[:digit:]]+" -m 1 -o | head -n 1', returnStdout: true ).trim().toInteger()
+    int containerRAMbytes = sh(script: 'cat /sys/fs/cgroup/memory/memory.limit_in_bytes', returnStdout: true ).trim().toInteger()
+    int containerRAM = containerRAMbytes / (1024 * 1024)
     //int maxThreads = Math.min(Math.min(systemCPUs, systemRAM / 10), 64)
-    int maxThreads = systemRAM / 10
+    int maxThreads = containerRAM / 8
     if (maxThreads > systemCPUs)
         maxThreads = systemCPUs
     if (maxThreads > 64)
         maxThreads = 64
+    if (maxThreads < 1)
+        maxThreads = 1
     
     String buildThreads = maxThreads.toString() // if hipcc is used may be multiplied by parallel-jobs
 
