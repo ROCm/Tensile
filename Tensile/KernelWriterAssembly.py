@@ -13515,7 +13515,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_lshl_b32", sgpr(tmpSgpr), sgpr(sCtaIdx), log2(4), "flag offset based on CTA index")
       kStr += inst("s_load_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), "glc", "get flag")
       kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load")
-
       kStr += inst("s_cmp_eq_u32", sgpr(tmpSgpr+2), 1, "check if ready")
       kStr += inst("s_cbranch_scc0 %s" % skFixupLabel, "if flag not set, wait and check again")
 
