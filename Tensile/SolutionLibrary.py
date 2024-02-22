@@ -249,6 +249,7 @@ class PredicateLibrary:
 
 class MasterSolutionLibrary:
     StateKeys = ["solutions", "library"]
+    ArchitectureSet = set()
 
     @classmethod
     def ArchitectureIndexMap(cls, architectureName):
@@ -264,6 +265,11 @@ class MasterSolutionLibrary:
             if archString is not None:
                 archLiteral = archString.group(0)
                 archval = (int(archLiteral, 16) << 18)
+        # Check for duplicate architecture values
+        if archval >= 0 and not archval in cls.ArchitectureSet:
+            cls.ArchitectureSet.add(archval)
+        else:
+            raise RuntimeError("ERROR in architecture solution index mapping.")
         return archval
 
     @classmethod
