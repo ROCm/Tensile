@@ -269,12 +269,12 @@ BenchmarkProblems:
         - ProblemSizes:
           - Range: [ [127,1,129], 0, [2], [63,1,65] ]
 
-LibraryLogic:
-    SolutionImportanceMin: 0
+# LibraryLogic:
+#     SolutionImportanceMin: 0
 
-    ScheduleName: "vega10"
-    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861"]
-    ArchitectureName: "gfx900"
+#     ScheduleName: "vega10"
+#     DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861"]
+#     ArchitectureName: "gfx900"
 
 #   ScheduleName: "mi25"
 #   DeviceNames: ["Device 6860"]

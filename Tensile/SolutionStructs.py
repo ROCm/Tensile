@@ -3079,6 +3079,12 @@ class Solution(collections.abc.Mapping):
        (state["ForceStoreSC1"] not in validParameters["ForceStoreSC1"]):
       state["ForceStoreSC1"] = globalParameters["ArchCaps"][isa]["ForceStoreSC1"]
 
+    if not globalParameters["AsmCaps"][isa]["HasNTModifier"]:
+      # force to disable nt flag if it is not supported by arch
+      for ch in ["A", "B", "C", "D"]:
+        if state["NonTemporal%s"%ch] >= 4:
+          state["NonTemporal%s"%ch] -= 4
+
     if state["WavefrontSize"] == 32 and not globalParameters["ArchCaps"][isa]["HasWave32"]:
       reject(state, "WavefrontSize=32 not supported for ISA {}".format(isa))
 

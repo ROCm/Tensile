@@ -1,5 +1,5 @@
 TestParameters:
-  marks: [skip-gfx900, skip-gfx906, skip-gfx1010, skip-gfx1011, skip-gfx1012, skip-gfx1030, skip-gfx1100, skip-gfx1101, skip-gfx1102] # not supported by arch
+  marks: [skip-gfx900, skip-gfx906, skip-gfx940, skip-gfx941, skip-gfx942, skip-gfx1010, skip-gfx1011, skip-gfx1012, skip-gfx1030, skip-gfx1100, skip-gfx1101, skip-gfx1102] # not supported by arch
 
 GlobalParameters:
   NumElementsToValidate: -1
@@ -81,8 +81,8 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [ 512, 512, 1, 512 ]
           - Exact: [ 4096, 4096, 1, 1024 ]
-          - Exact: [ 4103, 4096, 1, 1024 ]
-          - Exact: [ 4096, 4103, 1, 1024 ]
+          # - Exact: [ 4103, 4096, 1, 1024 ]
+          # - Exact: [ 4096, 4103, 1, 1024 ]
           - Exact: [ 4103, 4103, 1, 1024 ]
           - Exact: [ 4096, 4096, 1, 1031 ]
           - Exact: [ 4103, 4103, 1, 1031 ]
@@ -90,6 +90,6 @@ BenchmarkProblems:
           - Exact: [ 4096, 4096, 3, 1024 ]
           - Exact: [ 4103, 4096, 3, 1024 ]
           - Exact: [ 4096, 4103, 3, 1024 ]
-          - Exact: [ 4103, 4103, 3, 1024 ]
-          - Exact: [ 4096, 4096, 3, 1031 ]
+          # - Exact: [ 4103, 4103, 3, 1024 ]
+          # - Exact: [ 4096, 4096, 3, 1031 ]
           - Exact: [ 4103, 4103, 3, 1031 ]

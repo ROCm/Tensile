@@ -1350,12 +1350,12 @@ validParameters = {
 
     # add gls or slc after global memory read/writes to change caching, not caching the writes is promising and improved performance a tiny bit
     # 1: glc, 2: slc, 3: glc+slc
-    # For gfx940, sets sc0/sc1 bits to control scope
-    # 0: wave (none), 1: group (sc0), 2: device (sc1), 3: system (sc0+sc1)
-    "NonTemporalD":               list(range(0,4)),
-    "NonTemporalC":               list(range(0,4)),
-    "NonTemporalA":               list(range(0,4)),
-    "NonTemporalB":               list(range(0,4)),
+    # For gfx940, sets sc0/sc1/nt bits to control scope
+    # 0: wave (none), 1: group (sc0), 2: device (sc1), 3: system (sc0+sc1) , 4-7: add "nt"
+    "NonTemporalD":               list(range(0,8)),
+    "NonTemporalC":               list(range(0,8)),
+    "NonTemporalA":               list(range(0,8)),
+    "NonTemporalB":               list(range(0,8)),
 
     # force sc0/sc1 bits on all stores, "Auto" for auto select by arch
     "ForceStoreSC1":              ["Auto", False, True],
@@ -1995,6 +1995,7 @@ def GetAsmCaps(isaVersion):
 
     derivedAsmCaps["HasAtomicAdd"]          = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
     derivedAsmCaps["HasGLCModifier"]        = tryAssembler(isaVersion, "buffer_load_dwordx4 v[10:13], v[0], s[0:3], 0, offen offset:0, glc")
+    derivedAsmCaps["HasNTModifier"]         = tryAssembler(isaVersion, "buffer_load_dwordx4 v[10:13], v[0], s[0:3], 0, offen offset:0, nt")
 
     if tryAssembler(isaVersion, "s_waitcnt vmcnt(63)"):
       derivedAsmCaps["MaxVmcnt"] = 63
