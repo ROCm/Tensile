@@ -12905,19 +12905,9 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_waitcnt", "vmcnt(0)", "wait for data store")
     kStr += inst("s_barrier", "store all data before setting flag")
     kStr += inst("s_lshl_b32", sgpr(tmpSgpr), sgpr("StreamKIdx"), log2(4), "flag offset based on CTA index")
-    if self.version == (9,4,1) or self.version == (9,4,2): # TODO: Temporary workaround
-      flagReg = tmpVgpr
-      flagOffsetReg = tmpVgpr + 1
-      kStr += inst("v_mov_b32 ", vgpr(flagReg), 1, "flag data")
-      kStr += inst("v_mov_b32 ", vgpr(flagOffsetReg), sgpr(tmpSgpr), "flag offset into vgpr")
-      kStr += inst("s_mov_b64  ", "exec", "0x0000000000000001", "set exec mask for only the first thread")
-      kStr += inst("global_store_dword ", vgpr(flagOffsetReg), vgpr(flagReg), sgpr("AddressFlags", 2), "sc0", "set flag")
-      kStr += inst("s_mov_b64  ", "exec", "0xFFFFFFFFFFFFFFFF", "reset exec mask for all threads")
-      kStr += inst("s_waitcnt", "lgkmcnt(0)", "vmcnt(0)", "wait for flag") # TODO just for testing
-    else:
-      kStr += inst("s_mov_b32", sgpr(tmpSgpr+2), 1, "flag data")
-      kStr += inst("s_store_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), "glc", "set flag")
-      kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag") # TODO just for testing
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr+2), 1, "flag data")
+    kStr += inst("s_store_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), "glc", "set flag")
+    kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag") # TODO just for testing
     
     # TODO - if this is the last tile, don't need to jump to next instruction
     # NOTE: in SR kernel, we need long branch since PRNG explodes the line of codes 
@@ -13523,15 +13513,8 @@ class KernelWriterAssembly(KernelWriter):
 
       # Check flag
       kStr += inst("s_lshl_b32", sgpr(tmpSgpr), sgpr(sCtaIdx), log2(4), "flag offset based on CTA index")
-      if self.version == (9,4,1) or self.version == (9,4,2): # TODO: Temporary workaround
-        flagOffsetReg = tmpVgpr
-        kStr += inst("v_mov_b32 ", vgpr(flagOffsetReg), sgpr(tmpSgpr), "flag offset into vgpr")
-        kStr += inst("global_load_dword ", vgpr(flagOffsetReg), vgpr(flagOffsetReg), sgpr("AddressFlags", 2), "sc0", "get flag")
-        kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load")
-        kStr += inst("v_readlane_b32", sgpr(tmpSgpr+2), vgpr(flagOffsetReg), "0x0000000000000001", "flag to sgpr")
-      else:
-        kStr += inst("s_load_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), "glc", "get flag")
-        kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load")
+      kStr += inst("s_load_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), "glc", "get flag")
+      kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load")
 
       kStr += inst("s_cmp_eq_u32", sgpr(tmpSgpr+2), 1, "check if ready")
       kStr += inst("s_cbranch_scc0 %s" % skFixupLabel, "if flag not set, wait and check again")
@@ -13601,7 +13584,6 @@ class KernelWriterAssembly(KernelWriter):
                        addr0, addr1, soffset, offset, extraFields, dtlNoDestVgpr, hi16=0, ubyteLoad=0, comment="load C"):
   # rpv = regs per vector
     rpv = bpl/4.0
-
     if useBuffer:
       rv = Code.Module("Global Read")
       tailFields = "offen offset:%u"%offset
@@ -13806,9 +13788,9 @@ class KernelWriterAssembly(KernelWriter):
       # if GWVW > Vw, might need to support loops to
       # implement wider stores
       ntStr = ""
-      if kernel["NonTemporalD"]%2==1 or kernel["ForceStoreSC1"]:
+      if kernel["NonTemporalD"]%2==1 or kernel["ForceStoreSC1"] or isWorkspace:
         ntStr += " " + getGlcBitName(kernel["MemoryModifierFormat"])
-      if kernel["NonTemporalD"]//2==1 or kernel["ForceStoreSC1"]:
+      if kernel["NonTemporalD"]//2==1 or kernel["ForceStoreSC1"] or isWorkspace:
         ntStr += " " + getSlcBitName(kernel["MemoryModifierFormat"])
 
       bps = self.bpeCexternal * ss.cfg.gwvw
