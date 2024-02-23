@@ -68,6 +68,9 @@ def ParallelMap(function, objects, message="", enable=True, multiArg=True):
   from .Common import globalParameters
   from . import Utils
   threadCount = CPUThreadCount(enable)
+
+  # Test having a max threadCount on CI
+  threadCount = min(threadCount, 4)
   
   if threadCount <= 1 and globalParameters["ShowProgressBar"]:
     # Provide a progress bar for single-threaded operation.
