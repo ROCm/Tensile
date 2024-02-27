@@ -42,10 +42,10 @@ namespace Tensile
     {
         ReferenceValidator::ReferenceValidator(po::variables_map const&            args,
                                                std::shared_ptr<DataInitialization> dataInit,
-                                               hipStream_t stream)
+                                               hipStream_t                         stream)
 
-             : m_dataInit(dataInit)
-             , m_stream(stream)
+            : m_dataInit(dataInit)
+            , m_stream(stream)
         {
             m_elementsToValidate = args["num-elements-to-validate"].as<int>();
             m_printValids        = args["print-valids"].as<bool>();
