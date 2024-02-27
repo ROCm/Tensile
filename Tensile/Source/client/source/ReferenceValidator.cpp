@@ -402,7 +402,9 @@ namespace Tensile
                 HIP_CHECK_EXC(hipMemcpyAsync(m_cpuResultBuffer.get(),
                                              result.a,
                                              m_problem.a().totalAllocatedBytes(),
-                                             hipMemcpyDeviceToHost));
+                                             hipMemcpyDeviceToHost,
+                                             m_stream));
+                HIP_CHECK_EXC(hipStreamSynchronize(m_stream));
                 auto const* buffer = reinterpret_cast<typename ManagedInputs::AType const*>(
                     m_cpuResultBuffer.get());
 
