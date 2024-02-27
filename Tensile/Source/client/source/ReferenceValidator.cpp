@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -41,8 +41,9 @@ namespace Tensile
     namespace Client
     {
         ReferenceValidator::ReferenceValidator(po::variables_map const&            args,
-                                               std::shared_ptr<DataInitialization> dataInit)
-            : m_dataInit(dataInit)
+                                               std::shared_ptr<DataInitialization> dataInit,
+                                               hipStream_t stream)
+            : m_dataInit(dataInit), m_stream(stream)
         {
             m_elementsToValidate = args["num-elements-to-validate"].as<int>();
             m_printValids        = args["print-valids"].as<bool>();
@@ -396,7 +397,7 @@ namespace Tensile
 
             if(m_printTensorA)
             {
-                HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.get(),
+                HIP_CHECK_EXC(hipMemcpyAsync(m_cpuResultBuffer.get(),
                                         result.a,
                                         m_problem.a().totalAllocatedBytes(),
                                         hipMemcpyDeviceToHost));
@@ -408,10 +409,12 @@ namespace Tensile
 
             if(m_printTensorB)
             {
-                HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.get(),
+                HIP_CHECK_EXC(hipMemcpyAsync(m_cpuResultBuffer.get(),
                                         result.b,
                                         m_problem.b().totalAllocatedBytes(),
-                                        hipMemcpyDeviceToHost));
+                                        hipMemcpyDeviceToHost,
+                                        m_stream));
+                HIP_CHECK_EXC(hipStreamSynchronize(m_stream));
                 auto const* buffer = reinterpret_cast<typename ManagedInputs::BType const*>(
                     m_cpuResultBuffer.get());
 
@@ -421,10 +424,12 @@ namespace Tensile
             if(result.c == result.d && (m_printTensorC || m_printTensorD))
             {
                 // If the pointers are the same, only print the buffer once.
-                HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.get(),
+                HIP_CHECK_EXC(hipMemcpyAsync(m_cpuResultBuffer.get(),
                                         result.c,
                                         m_problem.c().totalAllocatedBytes(),
-                                        hipMemcpyDeviceToHost));
+                                        hipMemcpyDeviceToHost,
+                                        m_stream));
+                HIP_CHECK_EXC(hipStreamSynchronize(m_stream));
                 auto const* buffer = reinterpret_cast<typename ManagedInputs::CType const*>(
                     m_cpuResultBuffer.get());
 
@@ -434,10 +439,12 @@ namespace Tensile
             {
                 if(m_printTensorC)
                 {
-                    HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.get(),
+                    HIP_CHECK_EXC(hipMemcpyAsync(m_cpuResultBuffer.get(),
                                             result.c,
                                             m_problem.c().totalAllocatedBytes(),
-                                            hipMemcpyDeviceToHost));
+                                            hipMemcpyDeviceToHost,
+                                            m_stream));
+                    HIP_CHECK_EXC(hipStreamSynchronize(m_stream));
                     auto const* buffer = reinterpret_cast<typename ManagedInputs::CType const*>(
                         m_cpuResultBuffer.get());
 
@@ -446,10 +453,12 @@ namespace Tensile
 
                 if(m_printTensorD)
                 {
-                    HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.get(),
+                    HIP_CHECK_EXC(hipMemcpyAsync(m_cpuResultBuffer.get(),
                                             result.d,
                                             m_problem.d().totalAllocatedBytes(),
-                                            hipMemcpyDeviceToHost));
+                                            hipMemcpyDeviceToHost,
+                                            m_stream));
+                    HIP_CHECK_EXC(hipStreamSynchronize(m_stream));
                     auto const* buffer = reinterpret_cast<typename ManagedInputs::DType const*>(
                         m_cpuResultBuffer.get());
 
@@ -491,10 +500,12 @@ namespace Tensile
 
             auto copykind = result.gpu ? hipMemcpyDeviceToHost : hipMemcpyHostToHost;
 
-            HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.get(),
+            HIP_CHECK_EXC(hipMemcpyAsync(m_cpuResultBuffer.get(),
                                     result.managedD.get() + elementsOffsetToCopy,
                                     bytesToCopy,
-                                    copykind));
+                                    copykind,
+                                    m_stream));
+            HIP_CHECK_EXC(hipStreamSynchronize(m_stream));
 
             if(boundsCheck == BoundsCheckMode::NaN)
             {
