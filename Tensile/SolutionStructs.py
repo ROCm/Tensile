@@ -4721,7 +4721,7 @@ class Solution(collections.abc.Mapping):
           factor = 2
         elif state["LoopDoWhile"]:
           factor = 1
-        if not (3 in state["AssertSizeGreaterThan"].keys() and state["AssertSizeGreaterThan"][3] >= state["DepthU"] * state["GlobalSplitU"] * factor - 1):
+        if factor > 0 and (not (3 in state["AssertSizeGreaterThan"].keys() and state["AssertSizeGreaterThan"][3] >= state["DepthU"] * state["GlobalSplitU"] * factor - 1)):
           reject(state, "Source kernel requires AssertSizeGreaterThan for K > (DepthU(%u) * GlobalSplitU(%u) * PGR/LoopDoWhile factor(%u) - 1)"%(state["DepthU"], state["GlobalSplitU"], factor))
 
   ########################################
