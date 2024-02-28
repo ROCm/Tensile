@@ -23,6 +23,7 @@
 ################################################################################
 
 import itertools
+import re
 
 from . import Properties
 from . import Hardware
@@ -248,6 +249,28 @@ class PredicateLibrary:
 
 class MasterSolutionLibrary:
     StateKeys = ["solutions", "library"]
+    ArchitectureSet = set()
+
+    @classmethod
+    def ArchitectureIndexMap(cls, architectureName):
+        # 'fallback', 'gfx803', 'gfx900', 'gfx906', 'gfx908', 'gfx90a',
+        # 'gfx940', 'gfx941', 'gfx942', 'gfx1010', 'gfx1011', 'gfx1012',
+        # 'gfx1030', 'gfx1031', 'gfx1032', 'gfx1034', 'gfx1035', 'gfx1100',
+        # 'gfx1101', 'gfx1102'
+        archval = -1
+        if architectureName == "fallback":
+            archval = 0
+        elif architectureName.startswith("gfx"):
+            archString = re.search('(?<=gfx)[0-9a-f]*', architectureName)
+            if archString is not None:
+                archLiteral = archString.group(0)
+                archval = (int(archLiteral, 16) << 18)
+        # Check for duplicate architecture values
+        if archval >= 0 and not archval in cls.ArchitectureSet:
+            cls.ArchitectureSet.add(archval)
+        else:
+            raise RuntimeError("ERROR in architecture solution index mapping.")
+        return archval
 
     @classmethod
     def FixSolutionIndices(cls, solutions):
@@ -478,16 +501,43 @@ class MasterSolutionLibrary:
             s.name = OriginalSolution.getNameMin(s.originalSolution.getKernels()[0], naming)
 
     def remapSolutionIndicesStartingFrom(self, curIndex):
+        if self.lazyLibraries:
+            lazyLibrary = {}
+            for name, lib in self.lazyLibraries.items():
+                reIndexMap = {}
+                newSolutions = {}
+
+                for k, s in lib.solutions.items():
+                    reIndexMap[s.index] = curIndex
+                    s.index = curIndex
+                    newSolutions[curIndex] = s
+                    curIndex += 1
+
+                lib.solutions = newSolutions
+                lib.library.remapSolutionIndices(reIndexMap)
+
+                lazyLibrary[name] = lib
+            self.lazyLibraries = lazyLibrary
+
         reIndexMap = {}
-        solutionCopy = self.solutions
-        self.solutions = dict()
-        for k, s in solutionCopy.items():
+        newSolutions = {}
+        for k, s in self.solutions.items():
             reIndexMap[s.index] = curIndex
             s.index = curIndex
-            self.solutions[curIndex] = s
+            newSolutions[curIndex] = s
             curIndex += 1
-
+        self.solutions = newSolutions
         self.library.remapSolutionIndices(reIndexMap)
+
+    def insert(self, other):
+        assert self.__class__ == other.__class__
+
+        for name, lib in other.lazyLibraries.items():
+            self.lazyLibraries[name] = lib
+
+        for _, s in other.solutions.items():
+            self.solutions[s.index] = s
+        self.library.merge(other.library)
 
     def merge(self, other, startIndex=0):
         assert self.__class__ == other.__class__
