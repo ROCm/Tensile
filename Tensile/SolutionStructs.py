@@ -4708,18 +4708,14 @@ class Solution(collections.abc.Mapping):
 
     # SourceKernel with PrefetchGlobalRead / LoopDoWhile case
     # - SourceKernel + PGR2 does not work
-    # - SourceKernel + PGR1 requires at least 2 loop iteration (K > (DepthU * GSU * 2) - 1)
     # - SourceKernel + LoopDoWhile requires at least 1 loop iteration (K > (DepthU * GSU * 2) - 1)
     if state["KernelLanguage"] == "Source":
       if state["PrefetchGlobalRead"] == 2:
         reject(state, "Source kernel does not support PGR2")
       else:
         factor = 0
-        # PGR case, minimum iteration is PGR + 1 (regardless of DoWhile)
         # DoWhile case, minimum iteration is 1
-        if state["PrefetchGlobalRead"] == 1:
-          factor = 2
-        elif state["LoopDoWhile"]:
+        if state["LoopDoWhile"]:
           factor = 1
         if factor > 0 and (not (3 in state["AssertSizeGreaterThan"].keys() and state["AssertSizeGreaterThan"][3] >= state["DepthU"] * state["GlobalSplitU"] * factor - 1)):
           reject(state, "Source kernel requires AssertSizeGreaterThan for K > (DepthU(%u) * GlobalSplitU(%u) * PGR/LoopDoWhile factor(%u) - 1)"%(state["DepthU"], state["GlobalSplitU"], factor))
