@@ -2038,8 +2038,21 @@ def GetAsmCaps(isaVersion):
       ignoreCacheCheck = True
 
     # check if derived caps matches asm cap cache
-    if not ignoreCacheCheck and derivedAsmCaps != CACHED_ASM_CAPS[isaVersion]:
-      printExit("Cached asm caps differ from derived asm caps for {}".format(isaVersion))      
+    if not ignoreCacheCheck:
+      exitFlag = False
+      # rocm<=5, ignore KernargPreloading
+      if compilerVer[0] <= 5:
+        derivedAsmCapsCopy = deepcopy(derivedAsmCaps)
+        # copy KernargPreloading from CACHED_ASM_CAPS (to ignore this)
+        derivedAsmCapsCopy["KernargPreloading"] = CACHED_ASM_CAPS[isaVersion]["KernargPreloading"]
+        # compare with copied version (need to keep original value)
+        if derivedAsmCapsCopy != CACHED_ASM_CAPS[isaVersion]:
+          exitFlag = True
+      # rocm>=6
+      elif derivedAsmCaps != CACHED_ASM_CAPS[isaVersion]:
+        exitFlag = True
+      if exitFlag:
+        printExit("Cached asm caps differ from derived asm caps for {}".format(isaVersion))
     return derivedAsmCaps
   else:
     printWarning("Assembler not present, asm caps loaded from cache are unverified")
