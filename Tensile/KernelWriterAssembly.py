@@ -13794,9 +13794,9 @@ class KernelWriterAssembly(KernelWriter):
       # if GWVW > Vw, might need to support loops to
       # implement wider stores
       ntStr = ""
-      if (kernel["NonTemporalD"] & 1) != 0 or kernel["ForceStoreSC1"]:
+      if (kernel["NonTemporalD"] & 1) != 0 or kernel["ForceStoreSC1"] or isWorkspace:
         ntStr += " " + getGlcBitName(kernel["MemoryModifierFormat"])
-      if (kernel["NonTemporalD"] & 2) != 0 or kernel["ForceStoreSC1"]:
+      if (kernel["NonTemporalD"] & 2) != 0 or kernel["ForceStoreSC1"] or isWorkspace:
         ntStr += " " + getSlcBitName(kernel["MemoryModifierFormat"])
       if (kernel["NonTemporalD"] & 4) != 0:
         ntStr += " nt"
