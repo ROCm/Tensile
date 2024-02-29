@@ -2997,8 +2997,10 @@ class Solution(collections.abc.Mapping):
 
     def supportsPreloadKernelArguments():
       if not globalParameters["AsmCaps"][isa]["KernargPreloading"]:
+        # force to disable preloading (instead of rejecting kernel)
+        state["PreloadKernelArguments"] = 0
         return False, f"{isa} doesn't support preloading."
-      
+
       if not state["ProblemType"]["StridedBatched"]:
         return False, "Preloading only supported in StridedBatched mode."
 
