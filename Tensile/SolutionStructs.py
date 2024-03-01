@@ -4708,6 +4708,20 @@ class Solution(collections.abc.Mapping):
     if state["ExtraLatencyForLR"] < 0 and not (state["DirectToVgprA"] or state["DirectToVgprB"]):
       state["ExtraLatencyForLR"] = 0
 
+    # SourceKernel with PrefetchGlobalRead / LoopDoWhile case
+    # - SourceKernel + PGR2 does not work
+    # - SourceKernel + LoopDoWhile requires at least 1 loop iteration (K > (DepthU * GSU * 2) - 1)
+    if state["KernelLanguage"] == "Source":
+      if state["PrefetchGlobalRead"] == 2:
+        reject(state, "Source kernel does not support PGR2")
+      else:
+        factor = 0
+        # DoWhile case, minimum iteration is 1
+        if state["LoopDoWhile"]:
+          factor = 1
+        if factor > 0 and (not (3 in state["AssertSizeGreaterThan"].keys() and state["AssertSizeGreaterThan"][3] >= state["DepthU"] * state["GlobalSplitU"] * factor - 1)):
+          reject(state, "Source kernel requires AssertSizeGreaterThan for K > (DepthU(%u) * GlobalSplitU(%u) * PGR/LoopDoWhile factor(%u) - 1)"%(state["DepthU"], state["GlobalSplitU"], factor))
+
   ########################################
   # create a dictionary with booleans on whether to include parameter in name
   @staticmethod
