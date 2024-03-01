@@ -122,6 +122,13 @@ namespace Tensile
             strideB = 1;
             strideC = 1;
 
+            if(b > 1)
+            {
+                strideA = ldA * (transA ? m : k);
+                strideB = ldB * (transB ? k : n);
+                strideC = ldC * n;
+            }
+
             if(entries_n == 15)
             {
                 // Expected layout: transA,transB,M,N,batch_count,K,alpha,beta,lda,ldb,ldc,input_type,output_type,compute_type,solution_index
