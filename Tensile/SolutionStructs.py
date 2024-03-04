@@ -2953,8 +2953,10 @@ class Solution(collections.abc.Mapping):
         # StreamK Workspace size
         computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
         state["_GlobalAccumulation"] = 'PartialsBuffer'
-        state["_WorkspaceSizePerElemC"] = computeBytes
-        
+        # not enable WorkspaceSizePerElemC for StreamK>=2 because WorkspaceSizePerElemC is not used for workspace calculation
+        # TODO: enable workspaceSize check for StreamK>=2
+        #state["_WorkspaceSizePerElemC"] = computeBytes
+
       if state["GlobalSplitU"] > 1:
         computeName  = state["ProblemType"]["ComputeDataType"].toName()
         computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
