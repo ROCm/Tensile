@@ -609,7 +609,7 @@ int main(int argc, const char* argv[])
     listeners.addListener(std::make_shared<ProgressListener>(args));
     if(runKernels)
     {
-        listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit[0]));
+        listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit[0], stream));
         listeners.addListener(std::make_shared<BenchmarkTimer>(args, *hardware));
         listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
     }
