@@ -1228,11 +1228,18 @@ namespace Tensile
 
         if(sizeMapping.streamK >= 2)
         {
-            if(debug)
-                rv.push_back(generateStreamKInitCall<TypedInputs, true>(problem, inputs, hardware));
-            else
-                rv.push_back(
-                    generateStreamKInitCall<TypedInputs, false>(problem, inputs, hardware));
+            auto   tiles  = problem.getNumTiles(sizeMapping);
+            size_t skGrid = getSKGrid(hardware, tiles);
+            // If problem can run full data-parallel, flags are not needed since there is no fixup step
+            // Skipping init kernel when flags are not needed saves significant time for small problems
+            if(tiles % skGrid != 0)
+            {
+                if(debug)
+                    rv.push_back(generateStreamKInitCall<TypedInputs, true>(problem, inputs, hardware));
+                else
+                    rv.push_back(
+                        generateStreamKInitCall<TypedInputs, false>(problem, inputs, hardware));
+            }
         }
 
         if(sizeMapping.streamK == 1
