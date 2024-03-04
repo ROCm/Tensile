@@ -1235,7 +1235,8 @@ namespace Tensile
             if(tiles % skGrid != 0)
             {
                 if(debug)
-                    rv.push_back(generateStreamKInitCall<TypedInputs, true>(problem, inputs, hardware));
+                    rv.push_back(
+                        generateStreamKInitCall<TypedInputs, true>(problem, inputs, hardware));
                 else
                     rv.push_back(
                         generateStreamKInitCall<TypedInputs, false>(problem, inputs, hardware));
