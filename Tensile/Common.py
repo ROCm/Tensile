@@ -2040,8 +2040,8 @@ def GetAsmCaps(isaVersion):
     # check if derived caps matches asm cap cache
     if not ignoreCacheCheck:
       exitFlag = False
-      # rocm<=5, ignore KernargPreloading
-      if compilerVer[0] <= 5:
+      # rocm<=6.0, ignore KernargPreloading
+      if compilerVer[0] <= 5 or (compilerVer[0] == 6 and compilerVer[1] == 0):
         derivedAsmCapsCopy = deepcopy(derivedAsmCaps)
         # copy KernargPreloading from CACHED_ASM_CAPS (to ignore this)
         derivedAsmCapsCopy["KernargPreloading"] = CACHED_ASM_CAPS[isaVersion]["KernargPreloading"]
