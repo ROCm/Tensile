@@ -943,11 +943,19 @@ def generateLogicDataAndSolutions(logicFiles, args):
     # logicData[problemType].append((scheduleName, deviceNames, \
     #     solutionsForSchedule, indexOrder, exactLogic, rangeLogic ))
 
+  (archs, _) = splitArchs()
   if globalParameters["SeparateArchitectures"] or globalParameters["LazyLibraryLoading"]:
     if "fallback" in masterLibraries.keys():
       for key, value in masterLibraries.items():
         if key != "fallback":
           value.insert(deepcopy(masterLibraries["fallback"]))
+      for archName in archs:
+        archName = archName.split('-', 1)[0]
+        if archName not in masterLibraries:
+          print1("Using fallback for arch: " + archName)
+          masterLibraries[archName] = deepcopy(masterLibraries["fallback"])
+          masterLibraries[archName].version = args.version
+
       masterLibraries.pop("fallback")
 
     for _, masterLibrary in masterLibraries.items():
