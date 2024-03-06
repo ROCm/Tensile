@@ -1120,9 +1120,8 @@ namespace Tensile
             problemPredicate->debugEval(problem, std::cout);
             taskPredicate->debugEval(task, std::cout);
         }
-        return (*taskPredicate)(task)
-            && (*problemPredicate)(problem)
-            && (*hardwarePredicate)(hardware);
+        return (*taskPredicate)(task) && (*problemPredicate)(problem)
+               && (*hardwarePredicate)(hardware);
     }
 
     bool ContractionSolution::matchesProblemType(Problem const&  problem,

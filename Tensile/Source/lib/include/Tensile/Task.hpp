@@ -34,14 +34,16 @@ namespace Tensile
 {
     struct Task
     {
-        Task(Hardware const& hardware, ContractionProblem const& problem, ContractionSolution const& solution)
+        Task(Hardware const&            hardware,
+             ContractionProblem const&  problem,
+             ContractionSolution const& solution)
             : hardware(hardware)
             , problem(problem)
             , solution(solution)
-        {                
+        {
         }
-        Hardware const& hardware;
-        ContractionProblem const& problem;
+        Hardware const&            hardware;
+        ContractionProblem const&  problem;
         ContractionSolution const& solution;
     };
 } // namespace Tensile

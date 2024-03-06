@@ -26,11 +26,11 @@
 
 #pragma once
 
-#include <Tensile/Task.hpp>
 #include <Tensile/AMDGPU.hpp>
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/ContractionSolution.hpp>
 #include <Tensile/Predicates.hpp>
+#include <Tensile/Task.hpp>
 
 #include <vector>
 
@@ -64,18 +64,19 @@ namespace Tensile
 
                 virtual bool operator()(Task const& task) const override
                 {
-                    auto required = task.solution.requiredWorkspaceSize(task.problem, task.hardware);
+                    auto required
+                        = task.solution.requiredWorkspaceSize(task.problem, task.hardware);
                     return required <= task.problem.workspaceSize();
                 }
 
-                virtual bool debugEval(Task const&   task,
-                                       std::ostream& stream) const override
+                virtual bool debugEval(Task const& task, std::ostream& stream) const override
                 {
                     bool rv = (*this)(task);
 
-                    auto required = task.solution.requiredWorkspaceSize(task.problem, task.hardware);
-                    stream << *this << ": (" << required
-                           << " <= " << task.problem.workspaceSize() << ") == " << rv;
+                    auto required
+                        = task.solution.requiredWorkspaceSize(task.problem, task.hardware);
+                    stream << *this << ": (" << required << " <= " << task.problem.workspaceSize()
+                           << ") == " << rv;
 
                     return rv;
                 }

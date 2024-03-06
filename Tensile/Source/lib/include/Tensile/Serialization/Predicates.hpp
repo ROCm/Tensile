@@ -234,7 +234,7 @@ namespace Tensile
                 iot::enumCase(io, value, "gfx1102", AMDGPU::Processor::gfx1102);
             }
         };
-        
+
         template <typename IO>
         struct SubclassMappingTraits<Predicates::Predicate<Task>, IO>
             : public DefaultSubclassMappingTraits<

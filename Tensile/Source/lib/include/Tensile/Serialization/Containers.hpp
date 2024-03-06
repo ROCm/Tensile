@@ -30,11 +30,11 @@
 
 #include <Tensile/AMDGPUPredicates.hpp>
 #include <Tensile/ContractionProblemPredicates.hpp>
-#include <Tensile/TaskPredicates.hpp>
 #include <Tensile/DecisionTreeLibrary.hpp>
 #include <Tensile/ExactLogicLibrary.hpp>
 #include <Tensile/GranularitySelectionLibrary.hpp>
 #include <Tensile/PropertyMatching.hpp>
+#include <Tensile/TaskPredicates.hpp>
 
 #include <cstddef>
 #include <map>
@@ -188,8 +188,7 @@ namespace Tensile
                                  std::shared_ptr<Tensile::Predicates::Predicate<Tensile::Task>>);
         TENSILE_SERIALIZE_VECTOR(true,
                                  std::shared_ptr<Tensile::Property<Tensile::ContractionProblem>>);
-        TENSILE_SERIALIZE_VECTOR(true,
-                                 std::shared_ptr<Tensile::Property<Tensile::Task>>);
+        TENSILE_SERIALIZE_VECTOR(true, std::shared_ptr<Tensile::Property<Tensile::Task>>);
         TENSILE_SERIALIZE_VECTOR(
             true, std::shared_ptr<Tensile::MLFeatures::MLFeature<Tensile::ContractionProblem>>);
 
