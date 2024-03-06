@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -354,9 +354,6 @@ class ProblemPredicate(Properties.Predicate):
 
             return cls(tag, index=index, value=value)
 
-        if key == "_WorkspaceSizePerElemC" and value > 0:
-            return cls("WorkspaceCheck", index=0, value=value)
-
         if key.startswith('Assert'):
             raise RuntimeError("Unknown assertion key: {}".format(key))
 
@@ -446,6 +443,19 @@ class ProblemPredicate(Properties.Predicate):
         predicates = [p for p in map(cls.FromOriginalKeyPair, d.items()) if p is not None] + extraPreds
         return cls.And(predicates)
 
+class TaskPredicate(Properties.Predicate):
+    @classmethod
+    def FromOriginalKeyPair(cls, pair):
+        (key, value) = pair
+        if key == "_WorkspaceSizePerElemC" and value > 0:
+            return cls("WorkspaceCheck")
+        return None
+
+    @classmethod
+    def FromOriginalState(cls, d, problemType, morePreds=[]):
+        predicates = [p for p in map(cls.FromOriginalKeyPair, d.items()) if p is not None]
+        return cls.And(predicates)
+
 class SizeMapping:
     StateKeys = ['workGroup',
                  'macroTile',
@@ -514,6 +524,7 @@ class Solution:
                 'problemType',
                 'hardwarePredicate',
                 'problemPredicate',
+                'taskPredicate',
                 'sizeMapping',
                 'debugKernel',
                 'libraryLogicIndex',
@@ -537,6 +548,7 @@ class Solution:
         rv.problemType = ProblemType.FromOriginalState(d['ProblemType'])
 
         rv.problemPredicate = ProblemPredicate.FromOriginalState(d, rv.problemType)
+        rv.taskPredicate = TaskPredicate.FromOriginalState(d, rv.problemType)
 
         if 'DebugKernel' in d:
             rv.debugKernel = d['DebugKernel']

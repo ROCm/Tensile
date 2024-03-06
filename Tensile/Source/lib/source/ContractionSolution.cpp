@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -1111,7 +1111,18 @@ namespace Tensile
 
     bool ContractionSolution::canSolve(Problem const& problem, Hardware const& hardware) const
     {
-        return (*problemPredicate)(problem) && (*hardwarePredicate)(hardware);
+        static const bool debug = Debug::Instance().printPredicateEvaluation();
+
+        Task task(hardware, problem, *this);
+        if(debug)
+        {
+            hardwarePredicate->debugEval(hardware, std::cout);
+            problemPredicate->debugEval(problem, std::cout);
+            taskPredicate->debugEval(task, std::cout);
+        }
+        return (*taskPredicate)(task)
+            && (*problemPredicate)(problem)
+            && (*hardwarePredicate)(hardware);
     }
 
     bool ContractionSolution::matchesProblemType(Problem const&  problem,
