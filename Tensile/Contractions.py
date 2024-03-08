@@ -591,6 +591,7 @@ class Solution:
         self.problemType = None
         self.hardwarePredicate = Hardware.HardwarePredicate('TruePred')
         self.problemPredicate = ProblemPredicate('TruePred')
+        self.taskPredicate = TaskPredicate('TruePred')
         self.sizeMapping = None
         self.debugKernel = False
         self.libraryLogicIndex = {}
