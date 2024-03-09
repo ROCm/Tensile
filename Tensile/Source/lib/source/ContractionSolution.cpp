@@ -1597,6 +1597,21 @@ namespace Tensile
         assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
         size_t cuCount = pAMDGPU->computeUnitCount;
         size_t skGrid  = cuCount;
+        if(pAMDGPU->skDynamicGrid == 2 && tiles > skGrid)
+        {
+            for(size_t i = 1; i <= 32; i *= 2)
+            {
+                size_t tilesPerCU = CeilDivide(i * tiles, skGrid);
+                size_t reducedGrid = CeilDivide(i * tiles, tilesPerCU);
+                float utilization = ((float)reducedGrid) / ((float)skGrid);
+                if(utilization > 0.75f)
+                {
+                    if(utilization < 1.0f)
+                        skGrid = reducedGrid;
+                    break;
+                }
+            }
+        }
         if(pAMDGPU->skMaxCUs > 0)
             skGrid = min(skGrid, pAMDGPU->skMaxCUs);
         if(pAMDGPU->skDynamicGrid)

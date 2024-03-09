@@ -225,7 +225,7 @@ namespace Tensile
         const int getSKDynamicGrid() const
         {
             static const char* envStr = std::getenv("TENSILE_STREAMK_DYNAMIC_GRID");
-            static const int   value  = (envStr == NULL ? 0 : (std::atoi(envStr) == 0 ? 0 : 1));
+            static const int   value  = (envStr == NULL ? 0 : std::atoi(envStr));
             return value;
         }
 
