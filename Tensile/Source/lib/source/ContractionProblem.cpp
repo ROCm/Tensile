@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -831,12 +831,6 @@ namespace Tensile
 
         // If #PKWG (PK*CUs) >= #TotalTiles, the persistent kernel behaves just like non-PK
         m_eligibleForPK = persistentGroups < problemTiles;
-    }
-
-    void ContractionProblem::checkRequiredWorkspaceSize(ContractionSolution const& solution,
-                                                        Hardware const&            hardware)
-    {
-        m_requiredWorkspaceSize = solution.requiredWorkspaceSize(*this, hardware);
     }
 
     void ContractionProblem::normalize()
