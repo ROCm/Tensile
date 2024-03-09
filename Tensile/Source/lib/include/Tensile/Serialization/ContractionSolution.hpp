@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -57,6 +57,7 @@ namespace Tensile
 
                 iot::mapRequired(io, "hardwarePredicate", s.hardwarePredicate);
                 iot::mapRequired(io, "problemPredicate", s.problemPredicate);
+                iot::mapRequired(io, "taskPredicate", s.taskPredicate);
 
                 iot::mapRequired(io, "debugKernel", s.debugKernel);
                 iot::mapOptional(io, "libraryLogicIndex", s.libraryLogicIndex);
