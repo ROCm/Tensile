@@ -1601,9 +1601,9 @@ namespace Tensile
         {
             for(size_t i = 1; i <= 32; i *= 2)
             {
-                size_t tilesPerCU = CeilDivide(i * tiles, skGrid);
+                size_t tilesPerCU  = CeilDivide(i * tiles, skGrid);
                 size_t reducedGrid = CeilDivide(i * tiles, tilesPerCU);
-                float utilization = ((float)reducedGrid) / ((float)skGrid);
+                float  utilization = ((float)reducedGrid) / ((float)skGrid);
                 if(utilization > 0.75f)
                 {
                     if(utilization < 1.0f)
