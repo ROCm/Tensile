@@ -1993,8 +1993,6 @@ def GetAsmCaps(isaVersion):
 
     derivedAsmCaps["v_fma_f64"]             = tryAssembler(isaVersion, "v_fma_f64 v[20:21], v[22:23], v[24:25], v[20:21]")
 
-    derivedAsmCaps["v_mov_b64"]             = tryAssembler(isaVersion, "v_mov_b64 v[20:21], v[22:23]")
-
     derivedAsmCaps["HasAtomicAdd"]          = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
     derivedAsmCaps["HasGLCModifier"]        = tryAssembler(isaVersion, "buffer_load_dwordx4 v[10:13], v[0], s[0:3], 0, offen offset:0, glc")
     derivedAsmCaps["HasNTModifier"]         = tryAssembler(isaVersion, "buffer_load_dwordx4 v[10:13], v[0], s[0:3], 0, offen offset:0, nt")

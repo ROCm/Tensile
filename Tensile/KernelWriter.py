@@ -3023,38 +3023,54 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     # init code optimization: generate local read address code before wait for kernel arg load (in allocateResources())
     klLR = []
-    self.isLocalReadAddressCodeGenerated = False
 
     if self.enable["PreLoop"]:
-      if self.isInitCodeOptLR:
-        ####################################
-        # Local Read Addresses
-        ####################################
-        klLR += self.generateLocalReadAddressCode(kernel, tensorParametersA, tensorParametersB)
+      ####################################
+      # Local Read Addresses
+      ####################################
+      klLR.append(self.comment3("Local Read Addresses"))
+
+      # tile assignments
+      klLR.append(self.comment("local read addresses: tile assignments a/b"))
+      klLR.append(self.lraTileAssignment(kernel, tensorParametersA, tensorParametersB))
+
+      # final offsets
+      klLR.append(self.comment("local read addresses: final offsets a"))
+      klLR.append(self.lraFinalOffset(kernel, tensorParametersA))
+      klLR.append(self.comment("local read addresses: final offsets b"))
+      klLR.append(self.lraFinalOffset(kernel, tensorParametersB))
+
+      # declare addresses
+      klLR.append(self.comment("local read addresses: declare addresses a"))
+      klLR.append(self.lraDeclareAddresses(kernel, tensorParametersA))
+      klLR.append(self.comment("local read addresses: declare addresses b"))
+      klLR.append(self.lraDeclareAddresses(kernel, tensorParametersB))
 
     # init code optimization : allocate resource
     self.lwaInitOptAllocate()
 
     lraCode=None
     placeholderInitCodeOpt=None
-    if self.isInitCodeOptLW:
-      lraCode = ""
-      placeholderInitCodeOpt = "__placeholderInitCodeOpt__" # placeholder for local write code (for future replacement)
     if self.isInitCodeOptLR:
+      if self.isInitCodeOptLW:
+        placeholderInitCodeOpt = "__placeholderInitCodeOpt__" # placeholder for local write code (for future replacement)
+
       # string for local read code
       lraCode = '\n'.join([str(x) for x in klLR])
-    # local write code is generated later. Here, just add placeholder to replace with local write code
-    if self.isInitCodeOptLW:
-      lraCode += '\n' + placeholderInitCodeOpt + '\n'
+      # local write code is generated later. Here, just add placeholder to replace with local write code
+      if self.isInitCodeOptLW:
+        lraCode += '\n' + placeholderInitCodeOpt + '\n' 
+      klLR = [] # clean up after use
 
     kl.append(self.comment3("Allocate Resources"))
     kl.append(self.allocateResources(kernel, lraCode))
+    lraCode = None # clean up after use
 
-    if (not kernel["PreloadKernelArguments"]):
-      # not PreloadKernelArguments case (local read code is delayed in PreloadKernelArguments case)
+    if not self.isInitCodeOptLR:
+      # not init code optimization case
       # add local read address code to kl after allocateResources()
-      # generate Local Read Addresses for not isInitCodeOptLR case
-      kl += self.generateLocalReadAddressCode(kernel, tensorParametersA, tensorParametersB)
+      kl += klLR
+      klLR = [] # clean up after use
 
     # doShadowInit performs initialization in the 'shadow' of the global mem prefetch
     self.doShadowInit = 0
@@ -3092,9 +3108,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
     pack = [ Code.Module() for i in range (self.numVgprBuffer+1) ]
     self.preLoopLocalWriteCode = None
 
-    # add local read address code if it is not generated (PreloadKernelArguments case)
-    kl += self.generateLocalReadAddressCode(kernel, tensorParametersA, tensorParametersB)
-
     if kernel["PrefetchGlobalRead"]:
       if self.doShadowInit:
         kl.append(self.openShadowInit(kernel))
@@ -3111,7 +3124,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.closeShadowInit(kernel))
 
       if self.enable["Wait"] and not self.canOptimizePreLoopLWVmcnt:
-        kl.append(self.getWaitcntCodeForPGR(kernel))
+        kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "8wait for global read"))
         # These cases loop back and run the prefetch loop again
         # we need an extra barrier to ensure that the ds_reads (either for SR or MFMA) from previous iteration
         # have finished before we generate the prefetch for the next summation index.
@@ -3617,39 +3630,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     kStr = beforeFunctionSignature + self.functionSignature(kernel) + afterFunctionSignature
     return (error,kStr)
 
-  ##############################################################################
-  # Kernel Body
-  ##############################################################################
-  def generateLocalReadAddressCode( self, kernel, tensorParametersA, tensorParametersB ):
-    kl = []
-    # if code is already generated, just return
-    if self.isLocalReadAddressCodeGenerated:
-      return kl
-    ####################################
-    # Local Read Addresses
-    ####################################
-    kl.append(self.comment3("Local Read Addresses"))
 
-    # tile assignments
-    kl.append(self.comment("local read addresses: tile assignments a/b"))
-    kl.append(self.lraTileAssignment(kernel, tensorParametersA, tensorParametersB))
-
-    # final offsets
-    kl.append(self.comment("local read addresses: final offsets a"))
-    kl.append(self.lraFinalOffset(kernel, tensorParametersA))
-    kl.append(self.comment("local read addresses: final offsets b"))
-    kl.append(self.lraFinalOffset(kernel, tensorParametersB))
-
-    # declare addresses
-    kl.append(self.comment("local read addresses: declare addresses a"))
-    kl.append(self.lraDeclareAddresses(kernel, tensorParametersA))
-    kl.append(self.comment("local read addresses: declare addresses b"))
-    kl.append(self.lraDeclareAddresses(kernel, tensorParametersB))
-
-    # set flag
-    self.isLocalReadAddressCodeGenerated = True
-
-    return kl
 
   ##############################################################################
   #
@@ -5192,20 +5173,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
     return ""
 
   ##############################################################################
-  # waitcnt code for DirectToVgpr
-  ##############################################################################
-  @abc.abstractmethod
-  def getWaitcntCodeForDirectToVgpr(self, kernel, localWriteEndIter, u, firstIter, isPap=True, beforeBarrier=False, NLLlast=False, oddLast=False):
-    return ""
-
-  ##############################################################################
-  # waitcnt code for PrefetchGlobalRead
-  ##############################################################################
-  @abc.abstractmethod
-  def getWaitcntCodeForPGR(self, kernel):
-    return ""
-
-  ##############################################################################
   # SyncThreads
   ##############################################################################
   @abc.abstractmethod
@@ -5590,6 +5557,129 @@ for codeObjectFileName in codeObjectFileNames:
       # replace set1 with set0
       itemStr = itemStr.replace(set1, set0)
     return itemStr
+
+  ##############################################################################
+  # return number of store instructions
+  ##############################################################################
+  def getNumStoreInst(self, str):
+    ret = 0
+    ret += str.count("_buffer_store")  # count _buffer_store
+    ret += str.count("_global_store")  # count _global_store
+    ret += str.count("buffer_atomic_add")   # count buffer_atomic_add
+    ret += str.count("global_atomic_add")   # count global_atomic_add
+    return ret
+
+  ##############################################################################
+  # return number of load instructions
+  ##############################################################################
+  def getNumLoadInst(self, str):
+    ret = 0
+    ret += str.count("_buffer_load")  # count _buffer_load
+    ret += str.count("_global_load")  # count _global_load
+    return ret
+
+  ##############################################################################
+  # waitcnt code for DirectToVgpr
+  ##############################################################################
+  def getWaitcntCodeForDirectToVgpr(self, kernel, localWriteEndIter, u, firstIter, isPap=True, beforeBarrier=False, NLLlast=False, oddLast=False):
+    retStr = ""
+    # generate wait
+    if (kernel["DirectToVgprA"] or kernel["DirectToVgprB"]):
+      if self.enable["Wait"]:
+        pgr2 = kernel["PrefetchGlobalRead"] == 2
+        numGlobalReadA = kernel["NumLoadsPerpendicularA"] * kernel["NumLoadsCoalescedA"] * self.numReadVectorComponentsA
+        numGlobalReadB = kernel["NumLoadsPerpendicularB"] * kernel["NumLoadsCoalescedB"] * self.numReadVectorComponentsB
+        numGlobalRead = numGlobalReadA if self.isSwapGlobalReadOrderForDtvOrDtl(kernel) else numGlobalReadB
+        numGlobalReadAll = numGlobalReadA + numGlobalReadB
+        numGlobalStoreC = 0
+        numReadsIterCoalesced = self.numReadsIterCoalescedA if self.isSwapGlobalReadOrderForDtvOrDtl(kernel) else self.numReadsIterCoalescedB
+        waitComment = "global read wait for DirectToVgpr"
+        # delay DirectToVgpr global read (from previous iteration) which is not referred yet (do not delay in beforeBarrier case)
+        numRegsIn1set = (numGlobalRead * numReadsIterCoalesced) // kernel["LoopIters"]
+        numSet = (u + numReadsIterCoalesced) // numReadsIterCoalesced
+        numSetMod = (u + numReadsIterCoalesced) % numReadsIterCoalesced
+        if (not beforeBarrier) and numSetMod > 0:
+          # if mod > 0, wait is already done by mod == 0 case and no need to wait for same set of global read
+          return ""
+        needToWait = numGlobalRead - numSet * numRegsIn1set
+        if not isPap:
+          # not isPap case, no global load A, B in no load loop. Reset numGlobalReadAll and numGlobalRead
+          numGlobalReadAll = 0
+          numGlobalRead = 0
+        if pgr2:
+          # PGR=2 case, add numGlobalReadAll for second set of prefetch
+          needToWait += numGlobalReadAll
+        if u > 0:
+          # count number of global read for i < u
+          count = 0
+          for i in range(u):
+            globalReadStr = ' '.join([str(x) for x in self.perIterGlobalReadCode[i].flatitems()])
+            count += self.getNumLoadInst(globalReadStr)
+            # PGR=2 case, global read is in LocalWriteCode
+            localWriteStr = ' '.join([str(x) for x in self.perIterLocalWriteCode[i].flatitems()])
+            count += self.getNumLoadInst(localWriteStr)
+          needToWait += count
+          if u == localWriteEndIter + 1 and beforeBarrier:
+            # beforeBarrier case, reduce the amount of non-Vgpr global read
+            needToWait -= (numGlobalReadAll - numGlobalRead)
+        # adjustment for oddLast
+        # oddLast case or ScheduleIterAlg < 3 case, ignore all of above and set 0
+        if oddLast or kernel["ScheduleIterAlg"] < 3:
+          needToWait = 0
+        if kernel["StoreCInUnroll"]:
+          # In StoreCInUnroll case,
+          # 1) last iteration case (u == localWriteEndIter + 1)
+          #  1-1) if StoreC is already executed in the previous u, add number of executed buffer_store/atomic_add
+          #      (global read C wait is already done in this case)
+          #  1-2) else, add number of global read C to numGlobalReadAll
+
+          # count number of StoreC in template
+          tmpStr = ' '.join([str(x) for x in self.StoreCUnrollCode.flatitems()])
+          numGlobalStoreCinTemplate  = self.getNumStoreInst(tmpStr) # count store instructions
+          numGlobalStoreC = 0
+
+          if u == localWriteEndIter + 1:
+            if beforeBarrier:
+              # before barrier case (DirectToLds+DirectToVgpr), put waitcnt vmcnt just before barrier (before ds_read)
+              # In that case, StoreC is already done. Add number of store C from template to vmcnt.
+              numGlobalStoreC += numGlobalStoreCinTemplate
+              # It means LoadC wait is already done. Deduct the number of load C in template
+              # count number of Load in template
+              tmpStr = ' '.join([str(x) for x in self.LoadCUnrollCode.flatitems()])
+              numGlobalLoadCinTemplate  = self.getNumLoadInst(tmpStr)  # count load instructions
+              needToWait -= numGlobalLoadCinTemplate
+            else:
+              # check if store C is already in perIterLocalWriteCode
+              for i in range(u):
+                # scheduled storeC in unroll is in LocalWriteCode
+                localWriteStr = ' '.join([str(x) for x in self.perIterLocalWriteCode[i].flatitems()])
+                numGlobalStoreC += self.getNumStoreInst(localWriteStr)
+              # no LDS write (DirectToLds+DirectToVgpr) and not beforeBarrier and not firstIter case, 
+              # no need to wait for StoreC in previous iteration
+              # Then, add the number of storeC in template
+              #if kernel["NoLdsWriteCode"] and not firstIter:
+              #  numGlobalStoreC += numGlobalStoreCinTemplate
+          # 2) add number of store C from previous iter to needToWait
+          #   2-1) not firstIter and u < localWriteEndIter + 1 case
+          #   2-2) noLoadC and last NoLoadLoop
+          needLoadC = (not kernel["AtomicAddC"]) and kernel["ProblemType"]["UseBeta"]
+          if not firstIter and (u < localWriteEndIter + 1 or ((not needLoadC) and NLLlast)):
+            numGlobalStoreC += numGlobalStoreCinTemplate
+
+          # oddLast case, ignore all of above and set numGlobalStoreCinTemplate
+          if oddLast:
+            numGlobalStoreC = numGlobalStoreCinTemplate
+
+          # add numGlobalStoreC to needToWait
+          needToWait += numGlobalStoreC
+          waitComment = "global read/store wait for DirectToVgpr with StoreCInUnroll (StoreC=%u)"%(numGlobalStoreC)
+
+        # vmcnt should not go over MaxVmcnt
+        maxVmcnt = globalParameters["AsmCaps"][self.version]["MaxVmcnt"]
+        needToWait = min(needToWait, maxVmcnt)
+
+        retStr = "s_waitcnt vmcnt(%u) // %s\n"%(needToWait, waitComment)
+    return retStr
 
   ##############################################################################
   # Backup StoreCInUnroll related code
