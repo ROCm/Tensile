@@ -1130,6 +1130,7 @@ validParameters = {
     #   problems to a subset based on the number of output tiles.
     #   0 = off (default)
     #   1 = on
+    #   2 = also reduce CUs used for large sizes to improve data-parallel portion and reduce power
     # TENSILE_STREAMK_MAX_CUS allows the user to manually set maximum number of CUs used, which could free up some CUs for
     #   other operations to run in parallel with gemm.
     #   0 = use all CUs (default)
