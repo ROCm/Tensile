@@ -40,7 +40,7 @@ def CPUThreadCount(enable=True):
       cpu_count = len(os.sched_getaffinity(0))
     cpuThreads = globalParameters["CpuThreads"]
     if cpuThreads < 1:
-        return cpu_count
+        return min(cpu_count, 64) # Max build threads to avoid out-of-memory
     return min(cpu_count, cpuThreads)
 
 def OverwriteGlobalParameters(newGlobalParameters):
