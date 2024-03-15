@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -77,18 +77,11 @@ namespace Tensile
                                                              double*          fitness
                                                              = nullptr) const override
         {
-            bool debug = Debug::Instance().printPredicateEvaluation();
+            static const bool debug = Debug::Instance().printPredicateEvaluation();
 
             if(solution)
             {
-                if(debug)
-                {
-                    solution->hardwarePredicate->debugEval(hardware, std::cout);
-                    solution->problemPredicate->debugEval(problem, std::cout);
-                }
-
-                if((*solution->hardwarePredicate)(hardware)
-                   && (*solution->problemPredicate)(problem))
+                if(solution->canSolve(problem, hardware))
                     return solution;
             }
             else if(debug)

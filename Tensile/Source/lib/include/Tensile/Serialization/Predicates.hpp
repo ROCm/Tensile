@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -234,5 +234,47 @@ namespace Tensile
                 iot::enumCase(io, value, "gfx1102", AMDGPU::Processor::gfx1102);
             }
         };
+
+        template <typename IO>
+        struct SubclassMappingTraits<Predicates::Predicate<Task>, IO>
+            : public DefaultSubclassMappingTraits<
+                  SubclassMappingTraits<Predicates::Predicate<Task>, IO>,
+                  Predicates::Predicate<Task>,
+                  IO>
+        {
+            using Self = SubclassMappingTraits<Predicates::Predicate<Task>, IO>;
+            using Base = DefaultSubclassMappingTraits<
+                SubclassMappingTraits<Predicates::Predicate<Task>, IO>,
+                Predicates::Predicate<Task>,
+                IO>;
+            using SubclassMap = typename Base::SubclassMap;
+            const static SubclassMap subclasses;
+
+            using Generic = PredicateMappingTraits<Task, IO>;
+
+            static SubclassMap GetSubclasses()
+            {
+                SubclassMap rv({Base::template Pair<Predicates::Complex::WorkspaceCheck>()});
+
+                auto gmap = Generic::GetSubclasses();
+                rv.insert(gmap.begin(), gmap.end());
+
+                return rv;
+            }
+        };
+
+        template <typename IO>
+        using TaskPredicateSMT = SubclassMappingTraits<Predicates::Predicate<Task>, IO>;
+
+        template <typename IO>
+        const typename TaskPredicateSMT<IO>::SubclassMap TaskPredicateSMT<IO>::subclasses
+            = TaskPredicateSMT<IO>::GetSubclasses();
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Complex::WorkspaceCheck, IO>
+            : public AutoMappingTraits<Predicates::Complex::WorkspaceCheck, IO>
+        {
+        };
+
     } // namespace Serialization
 } // namespace Tensile
