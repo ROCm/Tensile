@@ -43,6 +43,7 @@ namespace Tensile
         , skDynamicGrid(getSKDynamicGrid())
         , skMaxCUs(getSKMaxCUs())
         , skGridMultiplier(getSKGridMultiplier())
+        , skFixedGrid(getSKFixedGrid())
     {
     }
 
@@ -55,6 +56,7 @@ namespace Tensile
         , skDynamicGrid(getSKDynamicGrid())
         , skMaxCUs(getSKMaxCUs())
         , skGridMultiplier(getSKGridMultiplier())
+        , skFixedGrid(getSKFixedGrid())
     {
     }
 
