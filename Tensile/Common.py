@@ -1136,6 +1136,8 @@ validParameters = {
     #   0 = use all CUs (default)
     # TENSILE_STREAMK_GRID_MULTIPLIER lets you set how many workgroups are created per CU being used.
     #   1 = 1 WG per CU (default)
+    # TENSILE_STREAMK_FIXED_GRID lets you override the default grid size with a specific number
+    #   0 = override disabled (default)
     "StreamK": [0, 1, 2, 3],
 
     # 0  : standard launch

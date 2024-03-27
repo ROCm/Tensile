@@ -1604,6 +1604,8 @@ namespace Tensile
     size_t ContractionSolution::getSKGrid(Hardware const& hardware, size_t tiles) const
     {
         AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
+        if(pAMDGPU->skFixedGrid > 0)
+            return pAMDGPU->skFixedGrid;
         assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
         size_t cuCount = pAMDGPU->computeUnitCount;
         size_t skGrid  = cuCount;
