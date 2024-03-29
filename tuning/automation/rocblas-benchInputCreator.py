@@ -36,6 +36,7 @@
 import argparse
 import os
 import yaml
+import math
 
 typeIndexToName = {0: "f32_r", 1: "f64_r", 2: "f32_c", 3: "f64_c", 4: "f16_r", 5: "i8_r", 6: "i32_r", 7: "bf16_r", 8: "i8_r", 10: "f8_r", 11: "bf8_r", 12: "f8b8", 13: "b8f8"}
 
@@ -171,6 +172,22 @@ def createYaml(args, outputfile, problem, sizeMappings, verify):
     benchStrided = []
     benchGeneralBatched = []
 
+    bench_rotating = []
+    benchStrided_rotating = []
+    benchGeneralBatched_rotating = []
+
+    bench_beta0 = []
+    benchStrided_beta0 = []
+    benchGeneralBatched_beta0 = []
+
+    bench_beta0_rotating = []
+    benchStrided_beta0_rotating = []
+    benchGeneralBatched_beta0_rotating = []
+
+    bench_verify = []
+    benchStrided_verify = []
+    benchGeneralBatched_verify = []
+
     # get GEMM function and matrix orientation - Fixed for each library
     problemParams = getProblemType(problem)
     transA = problem["TransposeA"]
@@ -180,9 +197,7 @@ def createYaml(args, outputfile, problem, sizeMappings, verify):
     f8gemm = True if (problem["DataType"]>=10) else False
     
     if verify:
-        otherParams = {"alpha": 1, "beta": 1, "iters": 1, "cold_iters": 0, "norm_check": 1}
-    else:
-        otherParams = {"alpha": 1, "beta": 1, "iters": 10, "cold_iters": 2}
+        otherParams_verify = {"alpha": 1, "beta": 1, "iters": 1, "cold_iters": 0, "norm_check": 1}
 
     #initialization
     if (args.initialization=='hpl' and problemParams["a_type"]!="i8_r"):
@@ -199,7 +214,8 @@ def createYaml(args, outputfile, problem, sizeMappings, verify):
     generalBatched = True if "_GB.yaml" in os.path.split(args.libLogic)[-1] else False
 
     # create rocBLAS-bench call for each size in logic file
-    for (size, _) in sizeMappings: # size[0] = M, size[1] = N, size[2] = batch_count, size[3] = K, size[4] = ldc, size[5] = ldd, size[6] = lda, size[7] = ldb
+    for (size, perf) in sizeMappings: # size[0] = M, size[1] = N, size[2] = batch_count, size[3] = K, size[4] = ldc, size[5] = ldd, size[6] = lda, size[7] = ldb
+
         params = {}
  
         if (not generalBatched and size[2] == 1 and not f8gemm):  # non-f8, non-batched gemm (serves both HPA and non-HPA)
@@ -215,38 +231,140 @@ def createYaml(args, outputfile, problem, sizeMappings, verify):
 
         sizeParams = getSizeParams(size, transA, transB)
 
+        latency = 2*sizeParams['M']*sizeParams['N']*sizeParams['K']/perf[1]/1000 # us
+        niters = math.ceil( 1.15 * 3e6 / latency)
+        
+        otherParams = {"alpha": 1, "beta": 1, "iters": f"{niters}", "cold_iters": f"{niters}"}
+        otherParams_rotating = {"alpha": 1, "beta": 1, "iters": f"{niters}", "cold_iters": f"{niters}", "flush_memory_size": 536870812}
+        
+        niters=math.ceil( 1.25 * 3e6 / latency)
+        otherParams_beta0 = {"alpha": 1, "beta": 0, "iters": f"{niters}", "cold_iters": f"{niters}"}
+        otherParams_beta0_rotating = {"alpha": 1, "beta": 0, "iters": f"{niters}", "cold_iters": f"{niters}", "flush_memory_size": 536870812}
+
         params.update(problemParams)
         params.update(sizeParams)
-        params.update(otherParams)
         params.update(init)
 
         if (size[2] == 1 and not generalBatched):
-            bench.append(params)
+            bench.append({**params, **otherParams})
+            bench_rotating.append({**params, **otherParams_rotating})
+            bench_beta0.append({**params, **otherParams_beta0})
+            bench_beta0_rotating.append({**params, **otherParams_beta0_rotating})
+            if verify:
+                bench_verify.append({**params, **otherParams_verify})
+
         elif (generalBatched):
-            benchGeneralBatched.append(params)
+            benchGeneralBatched.append({**params, **otherParams})
+            benchGeneralBatched_rotating.append({**params, **otherParams_rotating})
+            benchGeneralBatched_beta0.append({**params, **otherParams_beta0})
+            benchGeneralBatched_beta0_rotating.append({**params, **otherParams_beta0_rotating})
+            if verify:
+                benchGeneralBatched_verify.append({**params, **otherParams_verify})            
         else:
-            benchStrided.append(params)
-
-    # output file names
-    postfix = "_verify" if verify else "_bench"
-
-    benchPath = os.path.join(args.outDir, outputfile + postfix + ".yaml")
-    benchStridedPath = os.path.join(args.outDir, outputfile + postfix +"-strided.yaml")
-    benchGeneralBatchedPath = os.path.join(args.outDir, outputfile + postfix+ "-general-batched.yaml")
+            benchStrided.append({**params, **otherParams})
+            benchStrided_rotating.append({**params, **otherParams_rotating})
+            benchStrided_beta0.append({**params, **otherParams_beta0})
+            benchStrided_beta0_rotating.append({**params, **otherParams_beta0_rotating})
+            if verify:
+                benchStrided_verify.append({**params, **otherParams_verify})
 
     # write output
     if len(bench) > 0:
+        
+        name = outputfile+"_bench.yaml"
+        benchPath = os.path.join(args.outDir, name)
         with open(benchPath, "w") as f:
             yaml.safe_dump(bench, f, default_flow_style=None, sort_keys=False, width=5000)
-            f.write(f"# End of {benchPath} \n")
+            f.write(f"# End of {name} \n")
+
+        name = outputfile+"_bench_beta0.yaml"
+        benchPath = os.path.join(args.outDir, name)
+        with open(benchPath, "w") as f:
+            yaml.safe_dump(bench_beta0, f, default_flow_style=None, sort_keys=False, width=5000)
+            f.write(f"# End of {name} \n")
+
+        name = outputfile+"_bench_rotating.yaml"
+        benchPath = os.path.join(args.outDir, name)
+        with open(benchPath, "w") as f:
+            yaml.safe_dump(bench_rotating, f, default_flow_style=None, sort_keys=False, width=5000)
+            f.write(f"# End of {name} \n")
+
+        name = outputfile+"_bench_beta0_rotating.yaml"
+        benchPath = os.path.join(args.outDir, name)
+        with open(benchPath, "w") as f:
+            yaml.safe_dump(bench_beta0_rotating, f, default_flow_style=None, sort_keys=False, width=5000)
+            f.write(f"# End of {name} \n")
+        
+        if verify:
+            name = outputfile+"_verify.yaml"
+            benchPath = os.path.join(args.outDir, name)
+            with open(benchPath, "w") as f:
+                yaml.safe_dump(bench_verify, f, default_flow_style=None, sort_keys=False, width=5000)
+                f.write(f"# End of {name} \n")
+
     if len(benchStrided) > 0:
-        with open(benchStridedPath, "w") as f:
+        name = outputfile+"_bench-strided.yaml"
+        benchPath = os.path.join(args.outDir, name)
+        with open(benchPath, "w") as f:
             yaml.safe_dump(benchStrided, f, default_flow_style=None, sort_keys=False, width=5000)
-            f.write(f"# End of {benchStrided} \n")
+            f.write(f"# End of {name} \n")
+
+        name = outputfile+"_bench-strided_beta0.yaml"
+        benchPath = os.path.join(args.outDir, name)
+        with open(benchPath, "w") as f:
+            yaml.safe_dump(benchStrided_beta0, f, default_flow_style=None, sort_keys=False, width=5000)
+            f.write(f"# End of {name} \n")
+
+        name = outputfile+"_bench-strided_rotating.yaml"
+        benchPath = os.path.join(args.outDir, name)
+        with open(benchPath, "w") as f:
+            yaml.safe_dump(benchStrided_rotating, f, default_flow_style=None, sort_keys=False, width=5000)
+            f.write(f"# End of {name} \n")
+
+        name = outputfile+"_bench-strided_beta0_rotating.yaml"
+        benchPath = os.path.join(args.outDir, name)
+        with open(benchPath, "w") as f:
+            yaml.safe_dump(benchStrided_beta0_rotating, f, default_flow_style=None, sort_keys=False, width=5000)
+            f.write(f"# End of {name} \n")
+        
+        if verify:
+            name = outputfile+"_verify-strided.yaml"
+            benchPath = os.path.join(args.outDir, name)
+            with open(benchPath, "w") as f:
+                yaml.safe_dump(benchStrided_verify, f, default_flow_style=None, sort_keys=False, width=5000)
+                f.write(f"# End of {name} \n")
+
     if len(benchGeneralBatched) > 0:
-        with open(benchGeneralBatchedPath, "w") as f:
+        name = outputfile+"_bench-general-batched.yaml"
+        benchPath = os.path.join(args.outDir, name)
+        with open(benchPath, "w") as f:
             yaml.safe_dump(benchGeneralBatched, f, default_flow_style=None, sort_keys=False, width=5000)
-            f.write(f"# End of {benchGeneralBatched} \n")
+            f.write(f"# End of {name} \n")
+
+        name = outputfile+"_bench-general-batched_beta0.yaml"
+        benchPath = os.path.join(args.outDir, name)
+        with open(benchPath, "w") as f:
+            yaml.safe_dump(benchGeneralBatched_beta0, f, default_flow_style=None, sort_keys=False, width=5000)
+            f.write(f"# End of {name} \n")
+
+        name = outputfile+"_bench-general-batched_rotating.yaml"
+        benchPath = os.path.join(args.outDir, name)
+        with open(benchPath, "w") as f:
+            yaml.safe_dump(benchGeneralBatched_rotating, f, default_flow_style=None, sort_keys=False, width=5000)
+            f.write(f"# End of {name} \n")
+
+        name = outputfile+"_bench-general-batched_beta0_rotating.yaml"
+        benchPath = os.path.join(args.outDir, name)
+        with open(benchPath, "w") as f:
+            yaml.safe_dump(benchGeneralBatched_beta0_rotating, f, default_flow_style=None, sort_keys=False, width=5000)
+            f.write(f"# End of {name} \n")
+        
+        if verify:
+            name = outputfile+"_verify-general-batched.yaml"
+            benchPath = os.path.join(args.outDir, name)
+            with open(benchPath, "w") as f:
+                yaml.safe_dump(benchGeneralBatched_verify, f, default_flow_style=None, sort_keys=False, width=5000)
+                f.write(f"# End of {name} \n")
 
 def main():
     args = parseArgs()
@@ -269,9 +387,7 @@ def main():
         problem = logicData[4]
         sizeMappings = logicData[7]
 
-        createYaml(args, output, problem, sizeMappings, False)
-        if args.verify:
-            createYaml(args, output, problem, sizeMappings, True)
+        createYaml(args, output, problem, sizeMappings, args.verify)
 
 if __name__ == "__main__":
     main()
