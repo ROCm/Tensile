@@ -234,12 +234,12 @@ def createYaml(args, outputfile, problem, sizeMappings, verify):
         latency = 2*sizeParams['M']*sizeParams['N']*sizeParams['K']/perf[1]/1000 # us
         niters = math.ceil( 1.15 * 3e6 / latency)
         
-        otherParams = {"alpha": 1, "beta": 1, "iters": f"{niters}", "cold_iters": f"{niters}"}
-        otherParams_rotating = {"alpha": 1, "beta": 1, "iters": f"{niters}", "cold_iters": f"{niters}", "flush_memory_size": 536870812}
+        otherParams = {"alpha": 1, "beta": 1, "iters": niters, "cold_iters": niters}
+        otherParams_rotating = {"alpha": 1, "beta": 1, "iters": niters, "cold_iters": niters, "flush_memory_size": 536870812}
         
         niters=math.ceil( 1.25 * 3e6 / latency)
-        otherParams_beta0 = {"alpha": 1, "beta": 0, "iters": f"{niters}", "cold_iters": f"{niters}"}
-        otherParams_beta0_rotating = {"alpha": 1, "beta": 0, "iters": f"{niters}", "cold_iters": f"{niters}", "flush_memory_size": 536870812}
+        otherParams_beta0 = {"alpha": 1, "beta": 0, "iters": niters, "cold_iters": niters}
+        otherParams_beta0_rotating = {"alpha": 1, "beta": 0, "iters": niters, "cold_iters": niters, "flush_memory_size": 536870812}
 
         params.update(problemParams)
         params.update(sizeParams)
