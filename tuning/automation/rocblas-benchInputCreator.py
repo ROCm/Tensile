@@ -22,15 +22,21 @@
 #
 ################################################################################
 
-# Generates rocblas-bench input files from the library logic files.
+# Generates four rocblas-bench input files from the library logic files: beta 0/1 + rotating buffer 0/1. The cold and hot iteration counts are based on the performance in the library logic. 
+
 # Usage:
 # $ python3 rocblas-benchInputCreator.py [-v] [-i <init>] <lib logic dir> <output dir>
 
-# creates the benchmark and verification files:
+# creates the benchmark yamls and verification files with default iterations and initialization:
 # $ python3 rocblas-benchInputCreator.py -v ../libLogics ./
-# creates the benchmark and verification files with hpl initialization:
+
+# creates the benchmark yamls for 3s of benchamrking with default initialization:
+# $ python3 rocblas-benchInputCreator.py -v -d 3.0 ../libLogics ./
+
+# creates the benchmark yamls and verification files with hpl initialization:
 # $ python3 rocblas-benchInputCreator.py -v -i hpl ../libLogics ./
-# creates the benchmark file:
+
+# creates the benchmark yamls using the default initialization (trig or int)
 # $ python3 rocblas-benchInputCreator.py ../libLogics ./
 
 import argparse
@@ -46,13 +52,15 @@ def parseArgs():
     h = {"libLogic" : "Input library logic file",
          "outDir"   : "Output directory for rocBLAS-bench yaml files",
          "verify"   : "Also output verify version of yaml files",
-         "initial"  : "Matrix initialization: hpl, trig, int. The default is trig for non Int8 datatype, and int for Int8."
+         "initial"  : "Matrix initialization: hpl, trig, int. The default is trig for non Int8 datatype, and int for Int8.",
+         "duration" : "total benchmark duration in seconds. Default is 0 (10/2 iterations)"
     }
 
     argParser.add_argument("libLogic", metavar="logic-file", type=str, help=h["libLogic"])
     argParser.add_argument("outDir", metavar="output-dir", type=str, help=h["outDir"])
     argParser.add_argument("--verify", "-v", action="store_true", help=h["verify"])
     argParser.add_argument("--initialization", "-i", action="store", type=str, default = 'trig',  help=h["initial"])
+    argParser.add_argument("--duration", "-d", action="store", type=float, default = 0.0,  help=h["duration"])
 
     return argParser.parse_args()
 
@@ -167,6 +175,14 @@ def getSizeParams(size, transA, transB):
 
     return sizeDict
 
+
+def dumpYaml(outDir, outputfile,postfix, content):
+    name = outputfile+postfix
+    benchPath = os.path.join(outDir, name)
+    with open(benchPath, "w") as f:
+        yaml.safe_dump(content, f, default_flow_style=None, sort_keys=False, width=5000)
+        f.write(f"# End of {name} \n")
+
 def createYaml(args, outputfile, problem, sizeMappings, verify):
     bench = []
     benchStrided = []
@@ -231,15 +247,22 @@ def createYaml(args, outputfile, problem, sizeMappings, verify):
 
         sizeParams = getSizeParams(size, transA, transB)
 
-        latency = 2*sizeParams['M']*sizeParams['N']*sizeParams['K']/perf[1]/1000 # us
-        niters = math.ceil( 1.15 * 3e6 / latency)
+        if  args.duration>0.0:
+            latency = 2*sizeParams['M']*sizeParams['N']*sizeParams['K']/perf[1]/1000 # us
+            latency *= sizeParams["batch_count"] if "batch_count" in sizeParams else 1
+            cold_iters = math.ceil( args.duration* 1e6 / latency)
+            iters = cold_iters
+            coe = 1.15
+        else:
+            cold_iters = 2
+            iters = 10
+            coe = 1
         
-        otherParams = {"alpha": 1, "beta": 1, "iters": niters, "cold_iters": niters}
-        otherParams_rotating = {"alpha": 1, "beta": 1, "iters": niters, "cold_iters": niters, "flush_memory_size": 536870812}
-        
-        niters=math.ceil( 1.25 * 3e6 / latency)
-        otherParams_beta0 = {"alpha": 1, "beta": 0, "iters": niters, "cold_iters": niters}
-        otherParams_beta0_rotating = {"alpha": 1, "beta": 0, "iters": niters, "cold_iters": niters, "flush_memory_size": 536870812}
+        otherParams = {"alpha": 1, "beta": 1, "iters": iters, "cold_iters": cold_iters}
+        otherParams_rotating = {**otherParams, "flush_memory_size": 536870812}
+
+        otherParams_beta0 = {"alpha": 1, "beta": 0, "iters": math.ceil( coe * iters), "cold_iters": math.ceil( coe * cold_iters)}
+        otherParams_beta0_rotating = {**otherParams_beta0, "flush_memory_size": 536870812}
 
         params.update(problemParams)
         params.update(sizeParams)
@@ -270,101 +293,28 @@ def createYaml(args, outputfile, problem, sizeMappings, verify):
 
     # write output
     if len(bench) > 0:
-        
-        name = outputfile+"_bench.yaml"
-        benchPath = os.path.join(args.outDir, name)
-        with open(benchPath, "w") as f:
-            yaml.safe_dump(bench, f, default_flow_style=None, sort_keys=False, width=5000)
-            f.write(f"# End of {name} \n")
-
-        name = outputfile+"_bench_beta0.yaml"
-        benchPath = os.path.join(args.outDir, name)
-        with open(benchPath, "w") as f:
-            yaml.safe_dump(bench_beta0, f, default_flow_style=None, sort_keys=False, width=5000)
-            f.write(f"# End of {name} \n")
-
-        name = outputfile+"_bench_rotating.yaml"
-        benchPath = os.path.join(args.outDir, name)
-        with open(benchPath, "w") as f:
-            yaml.safe_dump(bench_rotating, f, default_flow_style=None, sort_keys=False, width=5000)
-            f.write(f"# End of {name} \n")
-
-        name = outputfile+"_bench_beta0_rotating.yaml"
-        benchPath = os.path.join(args.outDir, name)
-        with open(benchPath, "w") as f:
-            yaml.safe_dump(bench_beta0_rotating, f, default_flow_style=None, sort_keys=False, width=5000)
-            f.write(f"# End of {name} \n")
-        
+        dumpYaml(args.outDir, outputfile,"_bench.yaml", bench)
+        dumpYaml(args.outDir, outputfile,"_bench_beta0.yaml", bench_beta0)
+        dumpYaml(args.outDir, outputfile, "_bench_rotating.yaml", bench_rotating)
+        dumpYaml(args.outDir, outputfile, "_bench_beta0_rotating.yaml", bench_beta0_rotating)
         if verify:
-            name = outputfile+"_verify.yaml"
-            benchPath = os.path.join(args.outDir, name)
-            with open(benchPath, "w") as f:
-                yaml.safe_dump(bench_verify, f, default_flow_style=None, sort_keys=False, width=5000)
-                f.write(f"# End of {name} \n")
+            dumpYaml(args.outDir, outputfile, "_verify.yaml", bench_verify)
 
     if len(benchStrided) > 0:
-        name = outputfile+"_bench-strided.yaml"
-        benchPath = os.path.join(args.outDir, name)
-        with open(benchPath, "w") as f:
-            yaml.safe_dump(benchStrided, f, default_flow_style=None, sort_keys=False, width=5000)
-            f.write(f"# End of {name} \n")
-
-        name = outputfile+"_bench-strided_beta0.yaml"
-        benchPath = os.path.join(args.outDir, name)
-        with open(benchPath, "w") as f:
-            yaml.safe_dump(benchStrided_beta0, f, default_flow_style=None, sort_keys=False, width=5000)
-            f.write(f"# End of {name} \n")
-
-        name = outputfile+"_bench-strided_rotating.yaml"
-        benchPath = os.path.join(args.outDir, name)
-        with open(benchPath, "w") as f:
-            yaml.safe_dump(benchStrided_rotating, f, default_flow_style=None, sort_keys=False, width=5000)
-            f.write(f"# End of {name} \n")
-
-        name = outputfile+"_bench-strided_beta0_rotating.yaml"
-        benchPath = os.path.join(args.outDir, name)
-        with open(benchPath, "w") as f:
-            yaml.safe_dump(benchStrided_beta0_rotating, f, default_flow_style=None, sort_keys=False, width=5000)
-            f.write(f"# End of {name} \n")
-        
+        dumpYaml(args.outDir, outputfile, "_bench-strided.yaml", benchStrided)
+        dumpYaml(args.outDir, outputfile, "_bench-strided_beta0.yaml", benchStrided_beta0)
+        dumpYaml(args.outDir, outputfile, "_bench-strided_rotating.yaml", benchStrided_rotating)
+        dumpYaml(args.outDir, outputfile, "_bench-strided_beta0_rotating.yaml", benchStrided_beta0_rotating)
         if verify:
-            name = outputfile+"_verify-strided.yaml"
-            benchPath = os.path.join(args.outDir, name)
-            with open(benchPath, "w") as f:
-                yaml.safe_dump(benchStrided_verify, f, default_flow_style=None, sort_keys=False, width=5000)
-                f.write(f"# End of {name} \n")
+            dumpYaml(args.outDir, outputfile, "_verify-strided.yaml", benchStrided_verify)
 
     if len(benchGeneralBatched) > 0:
-        name = outputfile+"_bench-general-batched.yaml"
-        benchPath = os.path.join(args.outDir, name)
-        with open(benchPath, "w") as f:
-            yaml.safe_dump(benchGeneralBatched, f, default_flow_style=None, sort_keys=False, width=5000)
-            f.write(f"# End of {name} \n")
-
-        name = outputfile+"_bench-general-batched_beta0.yaml"
-        benchPath = os.path.join(args.outDir, name)
-        with open(benchPath, "w") as f:
-            yaml.safe_dump(benchGeneralBatched_beta0, f, default_flow_style=None, sort_keys=False, width=5000)
-            f.write(f"# End of {name} \n")
-
-        name = outputfile+"_bench-general-batched_rotating.yaml"
-        benchPath = os.path.join(args.outDir, name)
-        with open(benchPath, "w") as f:
-            yaml.safe_dump(benchGeneralBatched_rotating, f, default_flow_style=None, sort_keys=False, width=5000)
-            f.write(f"# End of {name} \n")
-
-        name = outputfile+"_bench-general-batched_beta0_rotating.yaml"
-        benchPath = os.path.join(args.outDir, name)
-        with open(benchPath, "w") as f:
-            yaml.safe_dump(benchGeneralBatched_beta0_rotating, f, default_flow_style=None, sort_keys=False, width=5000)
-            f.write(f"# End of {name} \n")
-        
+        dumpYaml(args.outDir, outputfile, "_bench-general-batched.yaml", benchGeneralBatched)
+        dumpYaml(args.outDir, outputfile, "_bench-general-batched_beta0.yaml", benchGeneralBatched_beta0)
+        dumpYaml(args.outDir, outputfile, "_bench-general-batched_rotating.yaml", benchGeneralBatched_rotating)
+        dumpYaml(args.outDir, outputfile, "_bench-general-batched_beta0_rotating.yaml", benchGeneralBatched_beta0_rotating)
         if verify:
-            name = outputfile+"_verify-general-batched.yaml"
-            benchPath = os.path.join(args.outDir, name)
-            with open(benchPath, "w") as f:
-                yaml.safe_dump(benchGeneralBatched_verify, f, default_flow_style=None, sort_keys=False, width=5000)
-                f.write(f"# End of {name} \n")
+            dumpYaml(args.outDir, outputfile, "_verify-general-batched.yaml", benchGeneralBatched_verify)
 
 def main():
     args = parseArgs()
