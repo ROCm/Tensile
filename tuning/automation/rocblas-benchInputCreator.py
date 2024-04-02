@@ -22,20 +22,27 @@
 #
 ################################################################################
 
-# Generates rocblas-bench input files from the library logic files.
+# Generates four rocblas-bench input files from the library logic files: beta 0/1 + rotating buffer 0/1. The cold and hot iteration counts are based on the performance in the library logic. 
+
 # Usage:
 # $ python3 rocblas-benchInputCreator.py [-v] [-i <init>] <lib logic dir> <output dir>
 
-# creates the benchmark and verification files:
+# creates the benchmark yamls and verification files with default iterations and initialization:
 # $ python3 rocblas-benchInputCreator.py -v ../libLogics ./
-# creates the benchmark and verification files with hpl initialization:
+
+# creates the benchmark yamls for 3s of benchamrking with default initialization:
+# $ python3 rocblas-benchInputCreator.py -v -d 3.0 ../libLogics ./
+
+# creates the benchmark yamls and verification files with hpl initialization:
 # $ python3 rocblas-benchInputCreator.py -v -i hpl ../libLogics ./
-# creates the benchmark file:
+
+# creates the benchmark yamls using the default initialization (trig or int)
 # $ python3 rocblas-benchInputCreator.py ../libLogics ./
 
 import argparse
 import os
 import yaml
+import math
 
 typeIndexToName = {0: "f32_r", 1: "f64_r", 2: "f32_c", 3: "f64_c", 4: "f16_r", 5: "i8_r", 6: "i32_r", 7: "bf16_r", 8: "i8_r", 10: "f8_r", 11: "bf8_r", 12: "f8b8", 13: "b8f8"}
 
@@ -45,13 +52,15 @@ def parseArgs():
     h = {"libLogic" : "Input library logic file",
          "outDir"   : "Output directory for rocBLAS-bench yaml files",
          "verify"   : "Also output verify version of yaml files",
-         "initial"  : "Matrix initialization: hpl, trig, int. The default is trig for non Int8 datatype, and int for Int8."
+         "initial"  : "Matrix initialization: hpl, trig, int. The default is trig for non Int8 datatype, and int for Int8.",
+         "duration" : "total benchmark duration in seconds. Default is 0 (10/2 iterations)"
     }
 
     argParser.add_argument("libLogic", metavar="logic-file", type=str, help=h["libLogic"])
     argParser.add_argument("outDir", metavar="output-dir", type=str, help=h["outDir"])
     argParser.add_argument("--verify", "-v", action="store_true", help=h["verify"])
     argParser.add_argument("--initialization", "-i", action="store", type=str, default = 'trig',  help=h["initial"])
+    argParser.add_argument("--duration", "-d", action="store", type=float, default = 0.0,  help=h["duration"])
 
     return argParser.parse_args()
 
@@ -166,10 +175,34 @@ def getSizeParams(size, transA, transB):
 
     return sizeDict
 
+
+def dumpYaml(outDir, outputfile,postfix, content):
+    name = outputfile+postfix
+    benchPath = os.path.join(outDir, name)
+    with open(benchPath, "w") as f:
+        yaml.safe_dump(content, f, default_flow_style=None, sort_keys=False, width=5000)
+        f.write(f"# End of {name} \n")
+
 def createYaml(args, outputfile, problem, sizeMappings, verify):
     bench = []
     benchStrided = []
     benchGeneralBatched = []
+
+    bench_rotating = []
+    benchStrided_rotating = []
+    benchGeneralBatched_rotating = []
+
+    bench_beta0 = []
+    benchStrided_beta0 = []
+    benchGeneralBatched_beta0 = []
+
+    bench_beta0_rotating = []
+    benchStrided_beta0_rotating = []
+    benchGeneralBatched_beta0_rotating = []
+
+    bench_verify = []
+    benchStrided_verify = []
+    benchGeneralBatched_verify = []
 
     # get GEMM function and matrix orientation - Fixed for each library
     problemParams = getProblemType(problem)
@@ -180,9 +213,7 @@ def createYaml(args, outputfile, problem, sizeMappings, verify):
     f8gemm = True if (problem["DataType"]>=10) else False
     
     if verify:
-        otherParams = {"alpha": 1, "beta": 1, "iters": 1, "cold_iters": 0, "norm_check": 1}
-    else:
-        otherParams = {"alpha": 1, "beta": 1, "iters": 10, "cold_iters": 2}
+        otherParams_verify = {"alpha": 1, "beta": 1, "iters": 1, "cold_iters": 0, "norm_check": 1}
 
     #initialization
     if (args.initialization=='hpl' and problemParams["a_type"]!="i8_r"):
@@ -199,7 +230,8 @@ def createYaml(args, outputfile, problem, sizeMappings, verify):
     generalBatched = True if "_GB.yaml" in os.path.split(args.libLogic)[-1] else False
 
     # create rocBLAS-bench call for each size in logic file
-    for (size, _) in sizeMappings: # size[0] = M, size[1] = N, size[2] = batch_count, size[3] = K, size[4] = ldc, size[5] = ldd, size[6] = lda, size[7] = ldb
+    for (size, perf) in sizeMappings: # size[0] = M, size[1] = N, size[2] = batch_count, size[3] = K, size[4] = ldc, size[5] = ldd, size[6] = lda, size[7] = ldb
+
         params = {}
  
         if (not generalBatched and size[2] == 1 and not f8gemm):  # non-f8, non-batched gemm (serves both HPA and non-HPA)
@@ -215,38 +247,74 @@ def createYaml(args, outputfile, problem, sizeMappings, verify):
 
         sizeParams = getSizeParams(size, transA, transB)
 
+        if  args.duration>0.0:
+            latency = 2*sizeParams['M']*sizeParams['N']*sizeParams['K']/perf[1]/1000 # us
+            latency *= sizeParams["batch_count"] if "batch_count" in sizeParams else 1
+            cold_iters = math.ceil( args.duration* 1e6 / latency)
+            iters = cold_iters
+            coe = 1.15
+        else:
+            cold_iters = 2
+            iters = 10
+            coe = 1
+        
+        otherParams = {"alpha": 1, "beta": 1, "iters": iters, "cold_iters": cold_iters}
+        otherParams_rotating = {**otherParams, "flush_memory_size": 536870812}
+
+        otherParams_beta0 = {"alpha": 1, "beta": 0, "iters": math.ceil( coe * iters), "cold_iters": math.ceil( coe * cold_iters)}
+        otherParams_beta0_rotating = {**otherParams_beta0, "flush_memory_size": 536870812}
+
         params.update(problemParams)
         params.update(sizeParams)
-        params.update(otherParams)
         params.update(init)
 
         if (size[2] == 1 and not generalBatched):
-            bench.append(params)
+            bench.append({**params, **otherParams})
+            bench_rotating.append({**params, **otherParams_rotating})
+            bench_beta0.append({**params, **otherParams_beta0})
+            bench_beta0_rotating.append({**params, **otherParams_beta0_rotating})
+            if verify:
+                bench_verify.append({**params, **otherParams_verify})
+
         elif (generalBatched):
-            benchGeneralBatched.append(params)
+            benchGeneralBatched.append({**params, **otherParams})
+            benchGeneralBatched_rotating.append({**params, **otherParams_rotating})
+            benchGeneralBatched_beta0.append({**params, **otherParams_beta0})
+            benchGeneralBatched_beta0_rotating.append({**params, **otherParams_beta0_rotating})
+            if verify:
+                benchGeneralBatched_verify.append({**params, **otherParams_verify})            
         else:
-            benchStrided.append(params)
-
-    # output file names
-    postfix = "_verify" if verify else "_bench"
-
-    benchPath = os.path.join(args.outDir, outputfile + postfix + ".yaml")
-    benchStridedPath = os.path.join(args.outDir, outputfile + postfix +"-strided.yaml")
-    benchGeneralBatchedPath = os.path.join(args.outDir, outputfile + postfix+ "-general-batched.yaml")
+            benchStrided.append({**params, **otherParams})
+            benchStrided_rotating.append({**params, **otherParams_rotating})
+            benchStrided_beta0.append({**params, **otherParams_beta0})
+            benchStrided_beta0_rotating.append({**params, **otherParams_beta0_rotating})
+            if verify:
+                benchStrided_verify.append({**params, **otherParams_verify})
 
     # write output
     if len(bench) > 0:
-        with open(benchPath, "w") as f:
-            yaml.safe_dump(bench, f, default_flow_style=None, sort_keys=False, width=5000)
-            f.write(f"# End of {benchPath} \n")
+        dumpYaml(args.outDir, outputfile,"_bench.yaml", bench)
+        dumpYaml(args.outDir, outputfile,"_bench_beta0.yaml", bench_beta0)
+        dumpYaml(args.outDir, outputfile, "_bench_rotating.yaml", bench_rotating)
+        dumpYaml(args.outDir, outputfile, "_bench_beta0_rotating.yaml", bench_beta0_rotating)
+        if verify:
+            dumpYaml(args.outDir, outputfile, "_verify.yaml", bench_verify)
+
     if len(benchStrided) > 0:
-        with open(benchStridedPath, "w") as f:
-            yaml.safe_dump(benchStrided, f, default_flow_style=None, sort_keys=False, width=5000)
-            f.write(f"# End of {benchStrided} \n")
+        dumpYaml(args.outDir, outputfile, "_bench-strided.yaml", benchStrided)
+        dumpYaml(args.outDir, outputfile, "_bench-strided_beta0.yaml", benchStrided_beta0)
+        dumpYaml(args.outDir, outputfile, "_bench-strided_rotating.yaml", benchStrided_rotating)
+        dumpYaml(args.outDir, outputfile, "_bench-strided_beta0_rotating.yaml", benchStrided_beta0_rotating)
+        if verify:
+            dumpYaml(args.outDir, outputfile, "_verify-strided.yaml", benchStrided_verify)
+
     if len(benchGeneralBatched) > 0:
-        with open(benchGeneralBatchedPath, "w") as f:
-            yaml.safe_dump(benchGeneralBatched, f, default_flow_style=None, sort_keys=False, width=5000)
-            f.write(f"# End of {benchGeneralBatched} \n")
+        dumpYaml(args.outDir, outputfile, "_bench-general-batched.yaml", benchGeneralBatched)
+        dumpYaml(args.outDir, outputfile, "_bench-general-batched_beta0.yaml", benchGeneralBatched_beta0)
+        dumpYaml(args.outDir, outputfile, "_bench-general-batched_rotating.yaml", benchGeneralBatched_rotating)
+        dumpYaml(args.outDir, outputfile, "_bench-general-batched_beta0_rotating.yaml", benchGeneralBatched_beta0_rotating)
+        if verify:
+            dumpYaml(args.outDir, outputfile, "_verify-general-batched.yaml", benchGeneralBatched_verify)
 
 def main():
     args = parseArgs()
@@ -269,9 +337,7 @@ def main():
         problem = logicData[4]
         sizeMappings = logicData[7]
 
-        createYaml(args, output, problem, sizeMappings, False)
-        if args.verify:
-            createYaml(args, output, problem, sizeMappings, True)
+        createYaml(args, output, problem, sizeMappings, args.verify)
 
 if __name__ == "__main__":
     main()
