@@ -240,8 +240,9 @@ def create_rocBLAS_bench(benchFile, matrices,verify,initialization):
         print(gemmtype)
         # get GEMM function type: a/b/c/d/compute_type
         problemDict = {}
+        problemDict["rocblas_function"] = "rocblas_gemm_strided_batched_ex" if "SB" in gemmtype else  "rocblas_gemm_ex"
+
         if ("HHS" in gemmtype):
-            problemDict["rocblas_function"] = "rocblas_gemm_strided_batched_ex" if "SB" in gemmtype else  "rocblas_gemm_ex"
             problemDict["a_type"] = "f16_r"
             problemDict["b_type"] = "f16_r"
             problemDict["c_type"] = "f16_r"
@@ -249,7 +250,6 @@ def create_rocBLAS_bench(benchFile, matrices,verify,initialization):
             problemDict["compute_type"] = "f32_r"
     
         elif ("HSS" in gemmtype):
-            problemDict["rocblas_function"] = "rocblas_gemm_strided_batched_ex" if "SB" in gemmtype else  "rocblas_gemm_ex"
             problemDict["a_type"] = "f16_r"
             problemDict["b_type"] = "f16_r"
             problemDict["c_type"] = "f32_r"
@@ -257,7 +257,6 @@ def create_rocBLAS_bench(benchFile, matrices,verify,initialization):
             problemDict["compute_type"] = "f32_r"
 
         elif ("BBS" in gemmtype):
-            problemDict["rocblas_function"] = "rocblas_gemm_strided_batched_ex" if "SB" in gemmtype else  "rocblas_gemm_ex"
             problemDict["a_type"] = "bf16_r"
             problemDict["b_type"] = "bf16_r"
             problemDict["c_type"] = "bf16_r"
@@ -265,7 +264,6 @@ def create_rocBLAS_bench(benchFile, matrices,verify,initialization):
             problemDict["compute_type"] = "f32_r"
     
         elif ("BSS" in gemmtype):
-            problemDict["rocblas_function"] = "rocblas_gemm_strided_batched_ex" if "SB" in gemmtype else  "rocblas_gemm_ex"
             problemDict["a_type"] = "bf16_r"
             problemDict["b_type"] = "bf16_r"
             problemDict["c_type"] = "f32_r"
@@ -273,10 +271,18 @@ def create_rocBLAS_bench(benchFile, matrices,verify,initialization):
             problemDict["compute_type"] = "f32_r"
 
         elif ("SGEMM" in gemmtype):
-            problemDict["rocblas_function"] ="rocblas_sgemm_strided_batched" if "SB" in gemmtype else "rocblas_sgemm"
+            problemDict["a_type"] = "f32_r"
+            problemDict["b_type"] = "f32_r"
+            problemDict["c_type"] = "f32_r"
+            problemDict["d_type"] = "f32_r"
+            problemDict["compute_type"] = "f32_r"
 
         elif ("DGEMM" in gemmtype):
-            problemDict["rocblas_function"] ="rocblas_dgemm_strided_batched" if "SB" in gemmtype else "rocblas_dgemm"
+            problemDict["a_type"] = "f64_r"
+            problemDict["b_type"] = "f64_r"
+            problemDict["c_type"] = "f64_r"
+            problemDict["d_type"] = "f64_r"
+            problemDict["compute_type"] = "f64_r"
 
         # get GEMM function and matrix orientation: transA/B, a/b/c/d/compute_type
         if ("NN" in gemmtype):
