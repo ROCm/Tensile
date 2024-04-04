@@ -1140,6 +1140,7 @@ validParameters = {
     #   0 = override disabled (default)
     "StreamK": [0, 1, 2, 3],
     "DebugStreamKNoFixup": [0, 1],
+    "DebugStreamKNoPartials": [0, 1],
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
@@ -1542,6 +1543,7 @@ defaultBenchmarkCommonParameters = [
     {"MacroTileShapeMax":         [ 64 ] },
     {"StreamK":                   [ 0 ] },
     {"DebugStreamKNoFixup":       [ 0 ] },
+    {"DebugStreamKNoPartials":    [ 0 ] },
     {"PersistentKernel":          [ 0 ] },
     {"PersistentKernelAlongBatch":[ False ] },    # May be default True is better ?
     {"PackBatchDims":             [ 0 ] },
