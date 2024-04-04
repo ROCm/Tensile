@@ -386,8 +386,8 @@ class ProblemPredicate(Properties.Predicate):
             if ('_GlobalAccumulation' not in state) or (state['_GlobalAccumulation'] != 'MultipleBuffer'):
                 rv += [cls("DeterministicMode", value = False)]
 
-        if ('StreamK' in state) and (state['StreamK'] == 1):
-            # StreamK = 1 uses atomic for partial tiles
+        if ('StreamK' in state) and (state['StreamK'] > 0) and ('StreamKAtomic' in state) and (state['StreamKAtomic'] == 1):
+            # StreamKAtomic = 1 uses atomic for partial tiles
             rv += [cls("DeterministicMode", value = False)]
 
         # debugging: mark this set to allow the problem always runnable with PK
@@ -469,6 +469,7 @@ class SizeMapping:
                  'packBatchDims',
                  'magicDivAlg',
                  'streamK',
+                 'streamKAtomic',
                  'persistentKernel',
                  'persistentKernelAlongBatch',
                  'sourceKernel',
@@ -499,6 +500,7 @@ class SizeMapping:
                    packSummationDims     = d['PackSummationDims'] if 'PackSummationDims' in d else 0,
                    packBatchDims         = d['PackBatchDims'] if 'PackBatchDims' in d else 0,
                    streamK               = d['StreamK'] if 'StreamK' in d else 0,
+                   streamKAtomic         = d['StreamKAtomic'] if 'StreamKAtomic' in d else 0,
                    persistentKernel      = d['PersistentKernel'] if 'PersistentKernel' in d else 0,
                    persistentKernelAlongBatch   = d['PersistentKernelAlongBatch'] if 'PersistentKernelAlongBatch' in d else False,
                    magicDivAlg           = d.get('MagicDivAlg', 1),
