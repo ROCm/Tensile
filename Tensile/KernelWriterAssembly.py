@@ -13536,51 +13536,54 @@ class KernelWriterAssembly(KernelWriter):
       # branch to beta == 0 store path
       kStr += inst("s_cmp_eq_u32", sgpr("StreamKLocalStart"), 0, "does wg start tile?")
       kStr += inst("s_cbranch_scc0 %s" % skPartialsLabel, "Branch if not start tile, store partials")
-      # if we started and finished the tile, regular store code
-      # branch to regular store code, skip fixup step
-      kStr += inst("s_cmp_eq_u32", sgpr("StreamKLocalEnd"), sgpr("ItersPerTile"), "does wg finish tile?")
-      kStr += inst("s_cbranch_scc1 %s" % skStoreLabel, "Branch if started and finished tile, go to regular store code")
-
-      # if we started the tile but did not finish it, fix up step
-      # run fixup code before regular store code
-      sCtaIdx = self.sgprPool.checkOut(1, "CtaIdx", preventOverflow=0) # self.defineSgpr("CtaIdx", 1)
-      kStr += inst("s_add_u32", sgpr(sCtaIdx), sgpr("StreamKIdx"), 1, "input partial tile index")
-
-      sFixupEnd = self.sgprPool.checkOut(1, "FixupEnd", preventOverflow=0) # self.defineSgpr("CtaEnd", 1)
-      kStr += self.sMagicDivAlg2(kernel, tmpSgpr, sgpr("StreamKIterEnd"), sgpr("MagicNumberItersPerTile"), sgpr("MagicShiftItersPerTile"))
-      kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr), sgpr("ItersPerTile"), "start iteration of partial tile")
-      kStr += inst("s_sub_u32", sgpr(sFixupEnd), sgpr("StreamKIterEnd"), sgpr(tmpSgpr), "calc iterations completed by this WG")
-
-      kStr += "%s:\n" % (skFixupLabel)
-
-      # Check flag
-      kStr += inst("s_lshl_b32", sgpr(tmpSgpr), sgpr(sCtaIdx), log2(4), "flag offset based on CTA index")
-      kStr += inst("s_load_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), "glc", "get flag")
-      kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load")
-      kStr += inst("s_cmp_eq_u32", sgpr(tmpSgpr+2), 1, "check if ready")
-      kStr += inst("s_cbranch_scc0 %s" % skFixupLabel, "if flag not set, wait and check again")
-
-      self.sgprPool.checkIn(tmpSgpr)
-
-      fixupEdge = [False] # Temporary hack to test no edge variant
-      kStr += self.fixupStep(kernel, vectorWidths, elements, fixupEdge, tmpVgpr, tmpCVTVgpr, sCtaIdx, skStoreLabel)
       
-      if kernel["StreamK"] == 3:
-        sIterCount = self.sgprPool.checkOut(1, "iterCount", preventOverflow=0)
-        kStr += inst("s_add_u32", sgpr(sIterCount), sgpr("SKItersPerWG"), 1, "Add extra iter")
-        kStr += inst("s_cmp_lt_u32", sgpr(sCtaIdx), sgpr("skExtraIters"), "Check if next WG had an extra iteration")
-        kStr += inst("s_cselect_b32", sgpr(sIterCount), sgpr(sIterCount), sgpr("SKItersPerWG"), "Select correct number of iterations for next WG")
-        kStr += inst("s_add_u32", sgpr(sFixupEnd), sgpr(sFixupEnd), sgpr(sIterCount), "next partial tile iteration")
-        self.sgprPool.checkIn(sIterCount)
-      kStr += inst("s_add_u32", sgpr(sCtaIdx), sgpr(sCtaIdx), 1, "next partial tile index")
-      if kernel["StreamK"] == 2:
-        kStr += inst("s_add_u32", sgpr(sFixupEnd), sgpr(sFixupEnd), sgpr("SKItersPerWG"), "next partial tile iteration")
-      kStr += inst("s_cmp_lt_u32", sgpr(sFixupEnd), sgpr("ItersPerTile"), "done loading partial tiles?")
-      kStr += inst("s_cbranch_scc1 %s" % skFixupLabel, "Branch to continue fixup loop")
+      if kernel["DebugStreamKNoFixup"] == 0:
+        # if we started and finished the tile, regular store code
+        # branch to regular store code, skip fixup step
+        kStr += inst("s_cmp_eq_u32", sgpr("StreamKLocalEnd"), sgpr("ItersPerTile"), "does wg finish tile?")
+        kStr += inst("s_cbranch_scc1 %s" % skStoreLabel, "Branch if started and finished tile, go to regular store code")
+
+        # if we started the tile but did not finish it, fix up step
+        # run fixup code before regular store code
+        sCtaIdx = self.sgprPool.checkOut(1, "CtaIdx", preventOverflow=0) # self.defineSgpr("CtaIdx", 1)
+        kStr += inst("s_add_u32", sgpr(sCtaIdx), sgpr("StreamKIdx"), 1, "input partial tile index")
+
+        sFixupEnd = self.sgprPool.checkOut(1, "FixupEnd", preventOverflow=0) # self.defineSgpr("CtaEnd", 1)
+        kStr += self.sMagicDivAlg2(kernel, tmpSgpr, sgpr("StreamKIterEnd"), sgpr("MagicNumberItersPerTile"), sgpr("MagicShiftItersPerTile"))
+        kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr), sgpr("ItersPerTile"), "start iteration of partial tile")
+        kStr += inst("s_sub_u32", sgpr(sFixupEnd), sgpr("StreamKIterEnd"), sgpr(tmpSgpr), "calc iterations completed by this WG")
+
+        kStr += "%s:\n" % (skFixupLabel)
+
+        # Check flag
+        kStr += inst("s_lshl_b32", sgpr(tmpSgpr), sgpr(sCtaIdx), log2(4), "flag offset based on CTA index")
+        kStr += inst("s_load_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), "glc", "get flag")
+        kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load")
+        kStr += inst("s_cmp_eq_u32", sgpr(tmpSgpr+2), 1, "check if ready")
+        kStr += inst("s_cbranch_scc0 %s" % skFixupLabel, "if flag not set, wait and check again")
+
+        self.sgprPool.checkIn(tmpSgpr)
+
+        fixupEdge = [False] # Temporary hack to test no edge variant
+        kStr += self.fixupStep(kernel, vectorWidths, elements, fixupEdge, tmpVgpr, tmpCVTVgpr, sCtaIdx, skStoreLabel)
+        
+        if kernel["StreamK"] == 3:
+          sIterCount = self.sgprPool.checkOut(1, "iterCount", preventOverflow=0)
+          kStr += inst("s_add_u32", sgpr(sIterCount), sgpr("SKItersPerWG"), 1, "Add extra iter")
+          kStr += inst("s_cmp_lt_u32", sgpr(sCtaIdx), sgpr("skExtraIters"), "Check if next WG had an extra iteration")
+          kStr += inst("s_cselect_b32", sgpr(sIterCount), sgpr(sIterCount), sgpr("SKItersPerWG"), "Select correct number of iterations for next WG")
+          kStr += inst("s_add_u32", sgpr(sFixupEnd), sgpr(sFixupEnd), sgpr(sIterCount), "next partial tile iteration")
+          self.sgprPool.checkIn(sIterCount)
+        kStr += inst("s_add_u32", sgpr(sCtaIdx), sgpr(sCtaIdx), 1, "next partial tile index")
+        if kernel["StreamK"] == 2:
+          kStr += inst("s_add_u32", sgpr(sFixupEnd), sgpr(sFixupEnd), sgpr("SKItersPerWG"), "next partial tile iteration")
+        kStr += inst("s_cmp_lt_u32", sgpr(sFixupEnd), sgpr("ItersPerTile"), "done loading partial tiles?")
+        kStr += inst("s_cbranch_scc1 %s" % skFixupLabel, "Branch to continue fixup loop")
+        
+        self.sgprPool.checkIn(sFixupEnd)
+        self.sgprPool.checkIn(sCtaIdx)
+
       kStr += "%s:\n" % (skStoreLabel)
-      
-      self.sgprPool.checkIn(sFixupEnd)
-      self.sgprPool.checkIn(sCtaIdx)
 
     if False in betas and True in betas:
       kStr += self.checkIsBetaZero(kernel, betaLabel)
