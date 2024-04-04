@@ -23,7 +23,7 @@
 ################################################################################
 
 # This script reads the output of rocblas-bench with ROCBLAS_LAYER=2 (default) or ROCBLAS_LAYER=4, and summarizes the sizes based on GEMM types.
-# It covers HHS/HSS/BBS/BSS/SGEMM/DGEMM.
+# It covers I8/HHS/HSS/BBS/BSS/SGEMM/DGEMM/CGEMM/ZGEMM.
 
 # Usage
 # python3 .\rocblas-parser.py --input .\parser\test2.log --output .\parser\summary.log -b .\parser\bench.yaml
@@ -65,10 +65,16 @@ def gemmfinder(config):
             output = "HHS"
         elif (config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r"): 
             output = "HSS"
+    elif (config.a_type == "i8_r" and config.b_type == "i8_r" and config.c_type == "i_r32"  and config.d_type == "i_r32" and config.compute_type == "i_r32" ):     
+            output = "I8II"
     elif (((config.f == "gemm_ex" or config.f == "gemm_strided_batched_ex") or (config.rocblas_function == "rocblas_gemm_ex" or config.rocblas_function == "rocblas_gemm_strided_batched_ex"))  and config.a_type == "f32_r" and config.b_type == "f32_r"  and config.c_type == "f32_r"  and config.d_type == "f32_r" and config.compute_type == "f32_r") or ((config.f == "gemm" or config.f == "gemm_strided_batched") and config.r == "f32_r"): 
         output = "SGEMM"
     elif ((config.f == "gemm_ex" or config.f == "gemm_strided_batched_ex") and config.a_type == "f64_r" and config.b_type == "f64_r"  and config.c_type == "f64_r"  and config.d_type == "f64_r" and config.compute_type == "f64_r") or ((config.f == "gemm" or config.f == "gemm_strided_batched") and config.r == "f64_r"): 
         output = "DGEMM"
+    elif (((config.f == "gemm_ex" or config.f == "gemm_strided_batched_ex") or (config.rocblas_function == "rocblas_gemm_ex" or config.rocblas_function == "rocblas_gemm_strided_batched_ex"))  and config.a_type == "f32_c" and config.b_type == "f32_c"  and config.c_type == "f32_c"  and config.d_type == "f32_c" and config.compute_type == "f32_c") or ((config.f == "gemm" or config.f == "gemm_strided_batched") and config.r == "f32_c"): 
+        output = "CGEMM"
+    elif (((config.f == "gemm_ex" or config.f == "gemm_strided_batched_ex") or (config.rocblas_function == "rocblas_gemm_ex" or config.rocblas_function == "rocblas_gemm_strided_batched_ex"))  and config.a_type == "f64_c" and config.b_type == "f64_c"  and config.c_type == "f64_c"  and config.d_type == "f64_c" and config.compute_type == "f64_c") or ((config.f == "gemm" or config.f == "gemm_strided_batched") and config.r == "f64_c"): 
+        output = "ZGEMM"
 
     if   ((config.transposeA == "N" and config.transposeB == "N") or (config.transA == "N" and config.transB == "N")):
         output += "_NN"
@@ -79,7 +85,7 @@ def gemmfinder(config):
     elif ((config.transposeA == "T" and config.transposeB == "T") or (config.transposeA == "T" and config.transposeB == "T")):
         output += "_TT"    
 
-    if (config.f == "gemm_strided_batched_ex" or config.f == "gemm_strided_batched"): 
+    if (config.f == "gemm_strided_batched_ex" or config.f == "gemm_strided_batched" or config.f == "rocblas_gemm_strided_batched_ex" or config.f == "rocblas_gemm_strided_batched"): 
         output +="_SB"
 
     return output
@@ -203,9 +209,9 @@ def createOutput(filename, matrices,count,duplicate_count, blas_layer):
       f.write(f"\n\n--- {gemmtype} (with duplicates): {len(matrices[gemmtype])} \n")
       previous_size = (0,0,0,0,0,0,0) if strided else (0,0,0,0,0,0)
       for size in matrices[gemmtype]:
-        duplicate = ""
+        duplicate = "duplicate"
         if size[:-2] != previous_size:
-            duplicate = "duplicate" if blas_layer == 2 else ""
+            duplicate = ""
             count_unique+=1
 
         if (strided): # for strided
@@ -287,9 +293,9 @@ def create_rocBLAS_bench(benchFile, matrices,verify,initialization):
             problemDict["transB"] = "T"
 
         if "SB" in gemmtype:
-            otherParams = {"iters": 50000, "cold_iters": 100000}
+            otherParams = {"iters": 5000, "cold_iters": 10000}
         else:
-            otherParams = {"iters": 100000, "cold_iters": 200000}
+            otherParams = {"iters": 10000, "cold_iters": 20000}
 
         #initialization
         if (initialization=='hpl'):
