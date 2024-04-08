@@ -1189,6 +1189,7 @@ namespace Tensile
                                                                   Hardware const&    hardware) const
     {
         bool debug = Debug::Instance().printKernelArguments() || this->kernelArgsLog;
+        bool debugSkipInit = Debug::Instance().skipInitKernelLaunch();
 
         int boundSize = 1;
         for(size_t i = 0; i < problem.boundIndices().size(); i++)
@@ -1236,7 +1237,7 @@ namespace Tensile
 
         std::vector<KernelInvocation> rv;
 
-        if(sizeMapping.streamK >= 2)
+        if(sizeMapping.streamK >= 2 && !debugSkipInit)
         {
             auto   tiles  = problem.getNumTiles(sizeMapping);
             size_t skGrid = getSKGrid(hardware, tiles);
