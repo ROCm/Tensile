@@ -8,7 +8,7 @@
 - add reject conditions for SourceKernel + PrefetchGlobalRead/LoopDoWhile
 - add reject condition for PreloadKernelArguments (disable PreloadKernelArguments if not supported (instead of rejecting kernel generation))
 - support NT flag for global load and store for gfx94x
-- new Kerngarg preloading feature (DelayRemainingArgument: initiate the load of the remaining (non-preloaded) arguments, updated AsmCaps, AsmRegisterPool to track registers for arguments and preload)
+- new Kernarg preloading feature (DelayRemainingArgument: initiate the load of the remaining (non-preloaded) arguments, updated AsmCaps, AsmRegisterPool to track registers for arguments and preload)
 - add option for rotating buffers timing with cache eviction
 - add predicate for arithmetic intensity
 - add DirectToVgpr + packing for f8/f16 + TLU cases
