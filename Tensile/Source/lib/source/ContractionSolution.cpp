@@ -419,7 +419,8 @@ namespace Tensile
             }
         }
 
-        if(sizeMapping.globalAccumulation && (sizeMapping.streamK == 0 || sizeMapping.streamKAtomic == 1))
+        if(sizeMapping.globalAccumulation
+           && (sizeMapping.streamK == 0 || sizeMapping.streamKAtomic == 1))
         {
             rv.args.append<void const*>("ws_d", inputs.ws);
             rv.args.append<void const*>("ws_c", inputs.ws);
@@ -485,7 +486,8 @@ namespace Tensile
                 rv.args.append<typename TypedInputs::BetaType>("beta_2", inputs.beta);
         }
 
-        if(sizeMapping.globalAccumulation && (sizeMapping.streamK == 0 || sizeMapping.streamKAtomic == 1))
+        if(sizeMapping.globalAccumulation
+           && (sizeMapping.streamK == 0 || sizeMapping.streamKAtomic == 1))
         {
             size_t wsStride = startStrideCD ? d.sizes()[0] : 1;
             for(size_t i = startStrideCD; i < d.dimensions(); i++)
