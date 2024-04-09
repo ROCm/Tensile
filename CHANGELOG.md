@@ -1,6 +1,82 @@
 # Change Log for Tensile
 
 ## (Unreleased) Tensile 4.40.0
+## (Unreleased) Tensile 4.41.0
+### Additions
+- new tuning script to summarize rocBLAS log file
+- new environment variable to test fixed grid size with Stream-K kernels
+- new Stream-K dynamic mode to run large problems at slightly reduced CU count if it improves work division and power
+- add reject conditions for SourceKernel + PrefetchGlobalRead/LoopDoWhile
+- add reject condition for PreloadKernelArguments (disable PreloadKernelArguments if not supported (instead of rejecting kernel generation))
+- support NT flag for global load and store for gfx94x
+- new Kernarg preloading feature (DelayRemainingArgument: initiate the load of the remaining (non-preloaded) arguments, updated AsmCaps, AsmRegisterPool to track registers for arguments and preload)
+- add option for rotating buffers timing with cache eviction
+- add predicate for arithmetic intensity
+- add DirectToVgpr + packing for f8/f16 + TLU cases
+- enable negative values for ExtraLatencyForLR to reduce interval of local read and wait for DTV
+- add test cases for DirectToVgpr + packing
+- add batch support for Stream-K kernels and new test cases
+- new tuning scripts to analyze rocblas-bench results and remove tuned sizes from liblogic
+- enable VgprForLocalReadPacking + PrefetchLocalRead=1 (removed the reject condition for VFLRP + PLR=1, added test cases for VFLRP + PLR=1)
+- support VectorWidthB (new parameter VectorWidthB)
+- support VectorWidth + non SourceSwap
+- add test cases for VectorWidthB, VectorWidth + non SourceSwap
+- add code owners file
+- new environment variables to dynamically adjust number of CUs used in Stream-K
+- add new parameters to specify global load width for A and B separately (GlobalLoadVectorWidthA, B (effective with GlobalReadVectorWidth=-1))
+- add xf32 option to rocblas-bench input creator
+
+### Optimizations
+- initialization optimizations (reordered init code for PreloadKernelArguments opt, used s_mov_b64 for 64 bit address copy, used v_mov_b64/ds_read_b64 for C register initialization, added undefine AddressC/D with PreloadKernelArguments, optimized waitcnt for prefetch global read with DirectToVgpr, refactored waitcnt code for DTV and moved all asm related code to KernelWriterAssembly.py)
+- optimize temp vgpr allocation for ClusterLocalRead (added if condition to allocate temp vgpr only for 8bit datatype)
+- reverse MFMA order in inner loop for odd outer iteration
+- optimize waitcnt lgkmcnt for 1LDSBuffer + PGR>1 (removed redundant waitcnt lgkmcnt after 1LDSBuffer sync)
+- enhance maximum value of DepthU to 1024 (used globalParameters MaxDepthU to define maximum value of DepthU)
+
+### Changes
+- update rocBLAS-bench-input-create script (added number of iteration based on performance, rotating buffer flag)
+- limit build threads based on CPUs/RAM available on system (for tests)
+- update required workspace size for Stream-K, skip kernel initialization when possible
+- use fallback libraries for archs without optimized logic
+- use hipMemcpyAsync for validation (replace hipMemcpy with hipMemcpyAsync + hipStreamSynchronize in ReferenceValidator)
+- remove OCL tests
+- disable HostLibraryTests
+- reduce extended test time by removing extra parameters in the test config files
+- disable InitAccVgprOpt for Stream-K
+- skip sgemm 64bit offset tests for gfx94x
+- skip DTV, DTL, LSU+MFMA tests for gfx908
+- increase extended test timeout to 720 min
+- update xfail test (1sum tests only failing on gfx90a)
+- update lib logic convertor script
+- test limiting CI threads for only gfx11
+- WGM related kernargs are removed if they are not needed (WGM=-1,0,1)
+- cleanup on unused old code, mostly related to old client
+- change GSUA to SingleBuffer if GlobalSplitU=1 + MultipleBuffer, instead of rejecting it
+- update efficiency script for new architecture and xf32 datatype
+- re-enable negative values for WorkGroupMapping (asm kernel only)
+- disable HW monitor for aquvavanjaram941
+- pre-apply offsets for strided batch kernels
+- update tensile build with 16 threads
+
+### Fixes
+- fix WorkspaceCheck implementation when used in rocBLAS
+- ignore asm cap check for kernel arg preload for rocm6.0 and older
+- fix Stream-K partials cache behavior
+- fix MasterSolutionLibrary indexing for multiple architecture build
+- fix memory allocation fail with FlushMemorySize + StridedBatched/Batched cases (multiply batch count size when calculating array size)
+- fix BufferLoad=False with Stream-K
+- fix mismatch issue with GlobalReadCoalesceGroup
+- fix rocblas build fail on gfx11 (used state["ISA"] for reject conditions instead of globalParameters["CurrentISA"])
+- fix for LdsPad auto (fixed incorrect value assignment for autoAdjusted, set LdsBlockSizePerPadA or B = 0 if stride is not power of 2)
+- fix inacurate vgpr allocation for ClusterLocalRead
+- fix mismatch issue with LdsBlockSizePerPad + MT1(or 0) not power of 2
+- fix mismatch issue with InitAccOpt + InnerUnroll (use const 0 for src1 of MFMA only if index of innerUnrll (iui) is 0)
+- fix HostLibraryTests on gfx942 and gfx941
+- fix LLVM crash issue
+- fix for newer windows vcpkg msgpack and vcpkg version package name
+- fix an error with DisableKernelPieces + 32bit ShadowLimit
+
+## Tensile 4.40.0 for ROCm 6.1.0
 ### Additions
 - new DisableKernelPieces values to invalidate local read, local write, and global read
 - stream-K kernel generation, including two-tile stream-k algorithm by setting StreamK=3

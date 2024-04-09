@@ -20,6 +20,7 @@ GlobalParameters:
   DataInitTypeAB: 3
   DataInitTypeC: 3
   KernelTime: True
+  FlushCount: 10
 
 BenchmarkProblems:
 

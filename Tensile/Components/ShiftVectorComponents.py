@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2021-2023 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2021-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -264,21 +264,11 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
                use partial thread algorithm
         """
 
-        # TODO: use this for non SourceSwap for B?
-        # this part can  support non SourceSwap for B
-        # But let non SourceSwap for B go original shiftptr path
-        # return here only for LSU=1. LSU>1 case needs the code below
-        if (not kernel["SourceSwap"]) and tP["isB"] and kernel["LocalSplitU"]==1:
-            return ""
-
         # common parameter
+        tc              = tP["tensorChar"]
         glvw            = tP["glvw"]
         numThreadInWave = writer.kernel["WavefrontSize"]
-        vectorWidth     = kernel["VectorWidth"] if (kernel["SourceSwap"] and tP["isA"]) else 1
-        # support for VectorWidthB
-        # use lrvwB as vectorWidth in B case
-        if tP["isB"]:
-          vectorWidth = writer.VectorWidthB
+        vectorWidth     = kernel["VectorWidth%s"%tc]
 
         # use to handle MatrixInst 4x4
         matrixInstM     = kernel["MatrixInstM"] * kernel["MatrixInstBM"] if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstM"]

@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@ from . import __version__
 from . import Parallel
 from collections import OrderedDict
 from copy import deepcopy
+from .AsmCaps import CACHED_ASM_CAPS
 
 
 import math
@@ -69,6 +70,29 @@ globalParameters["NumWarmups"] = 0                # how many warmup runs to perf
 globalParameters["SyncsPerBenchmark"] = 1         # how iterations of the stream synchronization for-loop to do per benchmark data point
 globalParameters["EnqueuesPerSync"] = 1           # how many solution enqueues to perform per synchronization
 globalParameters["SleepPercent"] = 300            # how long to sleep after every data point: 25 means 25% of solution time. Sleeping lets gpu cool down more.
+globalParameters["FlushCount"] = 1                # Number of copies of arrays to allocate for cache flushing in timing code.
+                                                  # Functions are called iters times in a timing loop.
+                                                  # If the problem memory footprint is small enough, then arrays will be cached.
+                                                  # flush_count can be used to prevent caching.
+                                                  # For example, for sgemm with transA=transB=N:
+                                                  # problem_memory_footprint = (m*k + k*n + m*n) * sizeof(float).
+                                                  # To flush arrays before reusing set:
+                                                  # flush_count >= 1 + cache_size / problem_memory_footprint
+                                                  # Note that in the calculation of flush_count any padding from leading
+                                                  # dimensions are not loaded to cache and not included in the problem_memory_footprint.
+                                                  # If you specify flush_count you cannot also specify flush_memory_size)
+globalParameters["FlushMemorySize"] = 0           # Bytes of memory that will be occupied by arrays. Used only in timing code for cache flushing. Set to greater than
+                                                  # cache size, so that arrays are flushed from cache before they are reused. When the size of arrays (the problem_memory_footprint)
+                                                  # is smaller than flush_memory_size, then flush_count copies of arrays are allocated where:
+                                                  # flush_count = flush_memory_size / problem_memory_footprint.
+                                                  # For sgemm with transA=transB=N
+                                                  # problem_memory_footprint = (m*k + k*n + m*n) * sizeof(float). Note that any padding from leading
+                                                  # dimensions are not loaded to cache and not included in the problem_memory_footprint.
+                                                  # If you specify flush_memory_size you cannot also specify flush_count)
+                                                  # Also note that Tensile allocates enough memory once at setup to accommodate
+                                                  # the largest problem. Similarly, the largest problem will be used to calculate flush_count.
+                                                  # Configs with largely contrasting sizes may not guarantee cache eviction for the smaller problems
+
 # validation
 globalParameters["NumElementsToValidate"] = 128   # number of elements to validate, 128 will be evenly spaced out (with prime number stride) across C tensor
 globalParameters["BoundsCheck"] = 0   # Bounds check
@@ -194,7 +218,7 @@ globalParameters["Device"] = 0                    # select hip device or opencl 
 # shouldn't need to change
 globalParameters["DeviceLDS"] = 65536             # LDS bytes per CU, for computing occupancy
 globalParameters["MaxLDS"] = 65536                # max LDS a kernel should attempt to use
-globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
+globalParameters["MaxDepthU"] = 1024              # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
 globalParameters["NumMergedFiles"] = 1            # The number of files that kernels should be split between when merging
@@ -285,26 +309,6 @@ architectureMap = {
   'gfx1100':'navi31', 'gfx1101':'navi32', 'gfx1102':'navi33'
 }
 
-CACHED_ASM_CAPS = {
-  (8, 0, 3): {'SupportedISA': True, 'HasExplicitCO': False, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': False, 'HasLshlOr': False, 'HasSMulHi': False, 'HasWMMA': False, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': True, 'v_fma_f16': False, 'v_fmac_f16': False, 'v_pk_fma_f16': False, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': False, 'v_dot2_f32_f16': False, 'v_dot2c_f32_f16': False, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': False, 'v_fma_f64': True, 'HasAtomicAdd': False, 'HasGLCModifier': True, 'MaxVmcnt': 15, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (9, 0, 0): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': True, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': True, 'v_fma_mix_f32': False, 'v_dot2_f32_f16': False, 'v_dot2c_f32_f16': False, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': False, 'v_fma_f64': True, 'HasAtomicAdd': False, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (9, 0, 6): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': True, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': False, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': False, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (9, 0, 8): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': True, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': True, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': True, 'HasMFMA_i8_940': False, 'v_mac_f16': True, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (9, 0, 10): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': True, 'HasMFMA_constSrc': True, 'HasMFMA_vgpr': True, 'HasMFMA_f64': True, 'HasMFMA_bf16_original': True, 'HasMFMA_bf16_1k': True, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': True, 'HasMFMA_i8_940': False, 'v_mac_f16': True, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (9, 4, 0): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': True, 'HasMFMA_constSrc': True, 'HasMFMA_vgpr': True, 'HasMFMA_f64': True, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': True, 'HasMFMA_xf32': True, 'HasMFMA_f8': True, 'HasMFMA_b8': True, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': True, 'v_mac_f16': True, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'HasGLCModifier': False, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (9, 4, 1): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': True, 'HasMFMA_constSrc': True, 'HasMFMA_vgpr': True, 'HasMFMA_f64': True, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': True, 'HasMFMA_xf32': True, 'HasMFMA_f8': True, 'HasMFMA_b8': True, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': True, 'v_mac_f16': True, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'HasGLCModifier': False, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (9, 4, 2): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': True, 'HasMFMA_constSrc': True, 'HasMFMA_vgpr': True, 'HasMFMA_f64': True, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': True, 'HasMFMA_xf32': True, 'HasMFMA_f8': True, 'HasMFMA_b8': True, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': True, 'v_mac_f16': True, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'HasGLCModifier': False, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (10, 1, 0): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': False, 'v_dot2c_f32_f16': False, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': False, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (10, 1, 1): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': False, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (10, 1, 2): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': False, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (10, 3, 0): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': False, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (10, 3, 1): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': False, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': False, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (11, 0, 0): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': False, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': True, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (11, 0, 1): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': False, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': True, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (11, 0, 2): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': False, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasWMMA': True, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'HasGLCModifier': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-  (0, 0, 0): {'SupportedISA': False, 'HasExplicitCO': False, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': False, 'HasAddLshl': False, 'HasLshlOr': False, 'HasSMulHi': False, 'HasWMMA': False, 'HasMFMA': False, 'HasMFMA_constSrc': False, 'HasMFMA_vgpr': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_original': False, 'HasMFMA_bf16_1k': False, 'HasMFMA_xf32': False, 'HasMFMA_f8': False, 'HasMFMA_b8': False, 'HasMFMA_i8_908': False, 'HasMFMA_i8_940': False, 'v_mac_f16': False, 'v_fma_f16': False, 'v_fmac_f16': False, 'v_pk_fma_f16': False, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': False, 'v_dot2_f32_f16': False, 'v_dot2c_f32_f16': False, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': False, 'v_fma_f32': False, 'v_fmac_f32': False, 'v_fma_f64': False, 'HasAtomicAdd': False, 'HasGLCModifier': False, 'MaxVmcnt': 0, 'MaxLgkmcnt': 15, 'SupportedSource': True},
-}
-
 def getArchitectureName(gfxName):
   if gfxName in architectureMap:
     return architectureMap[gfxName]
@@ -339,7 +343,7 @@ validMacroTiles = []
 validISA = [(0,0,0)]
 validISA.extend(globalParameters["SupportedISA"])
 depthUs = list(range(-16, 0))
-depthUs.extend(list(range(2,512+1,1)))
+depthUs.extend(list(range(2,globalParameters["MaxDepthU"]+1,1)))
 for i in validMacroTileSides:
   for j in validMacroTileSides:
     validMacroTiles.append([i, j])
@@ -843,6 +847,12 @@ validParameters = {
     "AssertSizeLessThan":    -1,
     "AssertSizeMultiple":    -1,
 
+    # Assertions that require arithmetic intensity to be specified value.
+    # Arithmetic intensity measures the ratio of computation to memory bandwidth required for a problem.
+    # These predicates can be used to adjust solution selection compute-bound or memory-bound problems.
+    "AssertAIGreaterThanEqual": -1,
+    "AssertAILessThanEqual":    -1,
+
     #Assert values for alpha and beta
     "AssertBetaValue":       [False, 1, -1],
     "AssertAlphaValue":      [False, 1, -1],
@@ -911,7 +921,9 @@ validParameters = {
     # For Block Mapping type:
     # 0   : Use hardware-assigned wg number with no remapping.
     # N   : WG block width.  "Wrap" to a new wg1 "row" assignment after N WGs assigned in that row.
-    # < 0 : Swaps the position of wg0 and wg1.  Does not change NumWorkGroups* or ProblemNumWorkGroups*. No longer supported.
+    # < 0 : Swaps the position of wg0 and wg1.  Does not change NumWorkGroups* or ProblemNumWorkGroups*.
+    #       Can be effective in M>N case.
+    #       -1 is same as 1
     # Tensor C always mapped with first free coord as fastest moving
     # (Elements in this dimension are sequential in memory.
     #
@@ -933,7 +945,7 @@ validParameters = {
     #
     # Formula for wgSerial:
     # wgSerial = wg0 + (wg1 % WorkGroupMapping) * nwg0
-    "WorkGroupMapping":           list(range(0,1024+1)),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
+    "WorkGroupMapping":           list(range(-1024,1024+1)),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
     "WorkGroupMappingType":       ["B", "Z"],           # Blocking, Z-order (not any faster than blocking, especially for the arithmetic it requires)
     "MaxOccupancy":               list(range(1, 40+1)),       # wg / CU; if cache thrashing is hurting performance, this allocates extra lds to artificially limit occupancy
     "WorkGroup":                  validWorkGroups,      # ( wg0 x wg1 x LocalSplitU ) dimensions of the workgroup which will operate on a tile and share lds
@@ -1111,6 +1123,21 @@ validParameters = {
     # 1: Basic StreamK atomic (uses atomics to accumulate partial tiles)
     # 2: Basic StreamK non-atomic (uses workspace to store partial tiles, accumulate in deterministic fix-up step)
     # 3: Two-Tile StreamK (non-atomic, each WG completes an even number of sk iterations, followed by an even number of dp tiles)
+    # StreamK kernels can adjust the number of CUs being used.
+    # Using fewer sometimes increases overall throughput by allowing other kernels to run in parallel.
+    # StreamK grid is controlled by setting these enviornment variables:
+    # TENSILE_STREAMK_DYNAMIC_GRID enables dynamic grid mode, which automatically limits the number of CUs used for small
+    #   problems to a subset based on the number of output tiles.
+    #   0 = off (default)
+    #   1 = on
+    #   2 = also reduce CUs used for large sizes to improve data-parallel portion and reduce power
+    # TENSILE_STREAMK_MAX_CUS allows the user to manually set maximum number of CUs used, which could free up some CUs for
+    #   other operations to run in parallel with gemm.
+    #   0 = use all CUs (default)
+    # TENSILE_STREAMK_GRID_MULTIPLIER lets you set how many workgroups are created per CU being used.
+    #   1 = 1 WG per CU (default)
+    # TENSILE_STREAMK_FIXED_GRID lets you override the default grid size with a specific number
+    #   0 = override disabled (default)
     "StreamK": [0, 1, 2, 3],
 
     # 0  : standard launch
@@ -1138,9 +1165,9 @@ validParameters = {
     # The byte address of the last element in the packed array must fit in 2^32.
     # 0x0 = each workgroup works on a single batch dim.
     # 0x1 = pack Batch dimensions into wg0/A - works if all batch strides for B==0.
-    #       Also must set AssertFree0ElementMultiple to >= GlobalReadVectorWidth
+    #       Also must set AssertFree0ElementMultiple to >= GlobalLoadVectorWidthA
     # 0x2 = pack Batch dimensions into wg1/B - works if all batch strides for A==0
-    #       Also must set AssertFree1ElementMultiple to >= GlobalReadVectorWidth
+    #       Also must set AssertFree1ElementMultiple to >= GlobalLoadVectorWidthB
     # 0x3 = pack batch dims into both A and B. Could support any stride for A and B. (Not supported yet)
     "PackBatchDims":             [0,1,2],
 
@@ -1172,14 +1199,23 @@ validParameters = {
 
     # Controls desired width (#elements) for loads from global memory -> LDS.
     # and eliminates the pointer unshift logic
-    # -1 : Set GlobalReadVectorWidth =  VectorWidth
+    # Setting different GlobalLoadVectorWidth for A,B is now supported
+    # (GlobalReadVectorWidth is still valid to set the same value to both A and B)
+    # -1 : Set GlobalLoadVectorWidthA/B = VectorWidth
     # NOTE: for input bpe=32, max GRVW is 4  (to fit dwordX4) (FP32), min GRVW is 1 (dword)
     #                 bpe=16, max GRVW is 8  (to fit dwordX4) (FP16), min GRVW is 2 (dword)
     #                 bpe=8,  max GRVW is 16 (to fit dwordX4) (INT8), min GRVW is 4 (dword)
+    # NOTE: GlobalLoadVectorWidthA/B can be auto-adjusted in SolutionStruct.py
+    "GlobalLoadVectorWidthA":     [ -1, 1, 2, 3, 4, 6, 8, 16 ],
+    "GlobalLoadVectorWidthB":     [ -1, 1, 2, 3, 4, 6, 8, 16 ],
+
+    # legacy setting for global load width
+    #   -1 : use GlobalLoadVectorWidthA, GlobalLoadVectorWidthB
+    #  > 0 : GlobalLoadVectorWidthA=GlobalLoadVectorWidthB=GlobalReadVectorWidth
     "GlobalReadVectorWidth":      [ -1, 1, 2, 3, 4, 6, 8, 16 ],
 
     # Controls desired width (#elements) for loads from LDS -> VGPR.
-    # -1 : Set LocalReadVectorWidth =  VectorWidth
+    # -1 : Set LocalReadVectorWidth =  MIInputPerThread if MatrixInstruction else VectorWidth
     #  1 cannot be used for half type.
     # used in combination with TransposeLDS=True
     # in TransposeLDS=1 case, use wider load to fetch elements in summation dimension from LDS
@@ -1195,14 +1231,14 @@ validParameters = {
     # If the ThreadTile is > VectorWidth then thread0 will next operate on the 4 elements in C at (4*NumThreads)
     # Typically the load vector width and store vector width are directly related to the VW.
     # The global load width is closely related to the width of local stores so
-    # GlobalReadVectorWidth also controls local write width.
+    # GlobalLoadVectorWidthA/B also controls local write width.
     # Local read width also matches since VectorWidth consecutive elements must be read
     # Typically matching 16 bytes is good choice since the stores will be optimally coalesced with 16 bytes/WI.
     # -1 means use the largest vector width up to 128 bits.
     # Using a VW too large which results in >16bytes/thread isn't supported
-    # For MFMA non SourceSwap: this parameter didn't take effect
-    # For MFMA SourceSwap: this parameter only take effect on A buffer for now
     "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8, 16 ],
+    # VectorWidth for B (MatrixInstruction only)
+    "VectorWidthB":               [ -1, 1, 2, 4, 8, 16 ],
 
     # If 0, store 1 element per instruction.
     # If 1, store vector-width elements per instruction.
@@ -1295,7 +1331,8 @@ validParameters = {
     "ExtraMiLatencyLeft":         list(range(0,9,2)),
 
     # Add extra latency to calculate number of MFMA to insert between local read and wait
-    "ExtraLatencyForLR":          list(range(0,17,2)),
+    # Negative value means reduce interval between local read and wait (for DirectToVgpr only)
+    "ExtraLatencyForLR":          list(range(0,17,2)) + list(range(-80,0,10)),
 
     # Allocate dedicated vgpr for local read with packing
     #   False: use tmp vgpr. Less vgpr usage, but not best for local read scheduling
@@ -1316,12 +1353,12 @@ validParameters = {
 
     # add gls or slc after global memory read/writes to change caching, not caching the writes is promising and improved performance a tiny bit
     # 1: glc, 2: slc, 3: glc+slc
-    # For gfx940, sets sc0/sc1 bits to control scope
-    # 0: wave (none), 1: group (sc0), 2: device (sc1), 3: system (sc0+sc1)
-    "NonTemporalD":               list(range(0,4)),
-    "NonTemporalC":               list(range(0,4)),
-    "NonTemporalA":               list(range(0,4)),
-    "NonTemporalB":               list(range(0,4)),
+    # For gfx940, sets sc0/sc1/nt bits to control scope
+    # 0: wave (none), 1: group (sc0), 2: device (sc1), 3: system (sc0+sc1) , 4-7: add "nt"
+    "NonTemporalD":               list(range(0,8)),
+    "NonTemporalC":               list(range(0,8)),
+    "NonTemporalA":               list(range(0,8)),
+    "NonTemporalB":               list(range(0,8)),
 
     # force sc0/sc1 bits on all stores, "Auto" for auto select by arch
     "ForceStoreSC1":              ["Auto", False, True],
@@ -1349,6 +1386,19 @@ validParameters = {
     # Some of these may cause instability, particularly s_setprio
     # 0=none, 1=add setprio, 2=add setprio and modify LDS to allow only 2 waves/simd
     "AggressivePerfMode":       [0,1,2],
+
+    # Use the feature whereby 56 bytes of kernel arguments can be preloaded in SGPRs
+    # before the kernel begins executing.  This is currently only supported in cases
+    # where that is enough to initiate the first load of the A and B tensors before
+    # the remaining arguments have been loaded.
+    # -1: Use if it's supported (by the GPU and in combination with other features)
+    #  0: Don't use
+    #  1: Use, reject solution if not supported.
+    "PreloadKernelArguments": [-1, 0, 1],
+
+    # If PreloadKernelArguments is 1, specifies whether we delay initiating the load
+    # of the remaining arguments until after the load of A and B has been initiated.
+    "DelayRemainingArguments": [False, True],
 
     # Kernels should be written in assembly or source
     # if assembly, ISA will determine architecture
@@ -1395,6 +1445,7 @@ defaultBenchmarkCommonParameters = [
     {"InnerUnroll":               [ 1 ] },
     {"LocalDotLayout":            [ 1 ] },
     {"AggressivePerfMode":        [ 1 ] },
+    {"PreloadKernelArguments":    [ 0 ] },
     {"KernelLanguage":            [ "Source" ] },
     {"LdsPadA":                   [ -1 ] },
     {"LdsPadB":                   [ -1 ] },
@@ -1409,8 +1460,11 @@ defaultBenchmarkCommonParameters = [
     {"ClusterLocalRead":          [ False ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
+    {"VectorWidthB":              [ -1 ] },
     {"VectorStore":               [ -1 ] },
     {"StoreVectorWidth":          [ -1 ] },
+    {"GlobalLoadVectorWidthA":    [ -1 ] },
+    {"GlobalLoadVectorWidthB":    [ -1 ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"LocalReadVectorWidth":      [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
@@ -1466,6 +1520,8 @@ defaultBenchmarkCommonParameters = [
     {"AssertSizeGreaterThan":     [ {} ] },
     {"AssertSizeMultiple":        [ {} ] },
     {"AssertSizeLessThan":        [ {} ] },
+    {"AssertAIGreaterThanEqual":  [ -1 ] },
+    {"AssertAILessThanEqual":     [ -1 ] },
     {"AssertAlphaValue":          [ False ]},
     {"AssertBetaValue":           [ False ]},
     {"AssertCEqualsD":            [ False ]},
@@ -1539,7 +1595,7 @@ defaultBenchmarkCommonParameters = [
     {"Fp16AltImplRound":          [ False ] },
     {"ThreadSeparateGlobalReadA": [ 0 ] },
     {"ThreadSeparateGlobalReadB": [ 0 ] },
-    {"MinKForGSU":                [256]}
+    {"MinKForGSU":                [256]},
     ]
 
 # dictionary of defaults comprised of default option for each parameter
@@ -1940,8 +1996,11 @@ def GetAsmCaps(isaVersion):
 
     derivedAsmCaps["v_fma_f64"]             = tryAssembler(isaVersion, "v_fma_f64 v[20:21], v[22:23], v[24:25], v[20:21]")
 
+    derivedAsmCaps["v_mov_b64"]             = tryAssembler(isaVersion, "v_mov_b64 v[20:21], v[22:23]")
+
     derivedAsmCaps["HasAtomicAdd"]          = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
     derivedAsmCaps["HasGLCModifier"]        = tryAssembler(isaVersion, "buffer_load_dwordx4 v[10:13], v[0], s[0:3], 0, offen offset:0, glc")
+    derivedAsmCaps["HasNTModifier"]         = tryAssembler(isaVersion, "buffer_load_dwordx4 v[10:13], v[0], s[0:3], 0, offen offset:0, nt")
 
     if tryAssembler(isaVersion, "s_waitcnt vmcnt(63)"):
       derivedAsmCaps["MaxVmcnt"] = 63
@@ -1952,6 +2011,20 @@ def GetAsmCaps(isaVersion):
 
     # TODO- Need to query the max cap, just like vmcnt as well?
     derivedAsmCaps["MaxLgkmcnt"] = 15
+
+    derivedAsmCaps["KernargPreloading"] = tryAssembler(isaVersion, """
+      TestKernel:
+      s_endpgm
+      .amdhsa_kernel TestKernel
+      .amdhsa_next_free_vgpr 8
+      .amdhsa_next_free_sgpr 4
+      .amdhsa_group_segment_fixed_size 0 // lds bytes
+      .amdhsa_user_sgpr_kernarg_segment_ptr 1
+      .amdhsa_user_sgpr_kernarg_preload_length 3
+      .amdhsa_user_sgpr_kernarg_preload_offset 0
+      .amdhsa_accum_offset 4
+      .end_amdhsa_kernel
+      """)
 
     derivedAsmCaps["SupportedSource"] = True
 
@@ -1970,8 +2043,21 @@ def GetAsmCaps(isaVersion):
       ignoreCacheCheck = True
 
     # check if derived caps matches asm cap cache
-    if not ignoreCacheCheck and derivedAsmCaps != CACHED_ASM_CAPS[isaVersion]:
-      printExit("Cached asm caps differ from derived asm caps for {}".format(isaVersion))      
+    if not ignoreCacheCheck:
+      exitFlag = False
+      # rocm<=6.0, ignore KernargPreloading
+      if compilerVer[0] <= 5 or (compilerVer[0] == 6 and compilerVer[1] == 0):
+        derivedAsmCapsCopy = deepcopy(derivedAsmCaps)
+        # copy KernargPreloading from CACHED_ASM_CAPS (to ignore this)
+        derivedAsmCapsCopy["KernargPreloading"] = CACHED_ASM_CAPS[isaVersion]["KernargPreloading"]
+        # compare with copied version (need to keep original value)
+        if derivedAsmCapsCopy != CACHED_ASM_CAPS[isaVersion]:
+          exitFlag = True
+      # rocm>=6
+      elif derivedAsmCaps != CACHED_ASM_CAPS[isaVersion]:
+        exitFlag = True
+      if exitFlag:
+        printExit("Cached asm caps differ from derived asm caps for {}".format(isaVersion))
     return derivedAsmCaps
   else:
     printWarning("Assembler not present, asm caps loaded from cache are unverified")
@@ -2222,9 +2308,9 @@ def assignGlobalParameters( config ):
     if os.name == "nt":
       globalParameters["CurrentISA"] = (9,0,6)
       printWarning("Failed to detect ISA so forcing (gfx906) on windows")
-  if globalParameters["CurrentISA"] == (9,4,2) or globalParameters["CurrentISA"] == (11,0,0) or \
+  if globalParameters["CurrentISA"] == (9,4,1) or globalParameters["CurrentISA"] == (9,4,2) or globalParameters["CurrentISA"] == (11,0,0) or \
      globalParameters["CurrentISA"] == (11,0,1) or globalParameters["CurrentISA"] == (11,0,2):
-    printWarning("HardwareMonitor currently disabled for gfx942 or gfx1100/gfx1101/gfx1102")
+    printWarning("HardwareMonitor currently disabled for gfx941/942 or gfx1100/gfx1101/gfx1102")
     globalParameters["HardwareMonitor"] = False
 
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
@@ -2262,6 +2348,14 @@ def assignGlobalParameters( config ):
 
   if globalParameters["PrintLevel"] >= 1:
     printCapTable(globalParameters)
+
+    if globalParameters["AsmCaps"] != CACHED_ASM_CAPS:
+      import pprint
+      print("ASM Caps differ from cache. New caps:")
+      print("####################")
+      print("CACHED_ASM_CAPS = \\\n")
+      pprint.pprint(globalParameters["AsmCaps"])
+      print("####################")
 
   globalParameters["SupportedISA"] = list([i for i in globalParameters["SupportedISA"] if globalParameters["AsmCaps"][i]["SupportedISA"]])
 

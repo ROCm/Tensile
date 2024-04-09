@@ -27,6 +27,7 @@
 #pragma once
 
 #include <Tensile/Tensile.hpp>
+#include <cstdlib>
 
 namespace Tensile
 {
@@ -203,6 +204,10 @@ namespace Tensile
         int         simdPerCu        = 4;
         int         computeUnitCount = 0;
         int         isAPU            = 0;
+        int         skDynamicGrid    = 0;
+        int         skMaxCUs         = 0;
+        int         skGridMultiplier = 1;
+        int         skFixedGrid      = 0;
         std::string deviceName;
 
         virtual bool   runsKernelTargeting(Processor p) const;
@@ -217,6 +222,34 @@ namespace Tensile
         }
 
         virtual std::string description() const;
+
+        const int getSKDynamicGrid() const
+        {
+            static const char* envStr = std::getenv("TENSILE_STREAMK_DYNAMIC_GRID");
+            static const int   value  = (envStr == NULL ? 0 : std::atoi(envStr));
+            return value;
+        }
+
+        const int getSKMaxCUs() const
+        {
+            static const char* envStr = std::getenv("TENSILE_STREAMK_MAX_CUS");
+            static const int   value  = (envStr == NULL ? 0 : std::atoi(envStr));
+            return value;
+        }
+
+        const int getSKGridMultiplier() const
+        {
+            static const char* envStr = std::getenv("TENSILE_STREAMK_GRID_MULTIPLIER");
+            static const int   value  = (envStr == NULL ? 1 : std::atoi(envStr));
+            return value;
+        }
+
+        const int getSKFixedGrid() const
+        {
+            static const char* envStr = std::getenv("TENSILE_STREAMK_FIXED_GRID");
+            static const int   value  = (envStr == NULL ? 0 : std::atoi(envStr));
+            return value;
+        }
 
         bool operator==(AMDGPU const& rhs) const
         {

@@ -76,8 +76,9 @@ class KernelWriterBetaOnly(KernelWriterBase):
     kStr += "  " + ptrStr + " const * " + batch + "C," + self.endLine
 
     # offset
-    kStr += "  uint64_t offsetD,%s" % self.endLine
-    kStr += "  uint64_t offsetC,%s" % self.endLine
+    if not isStridedBuffer:
+      kStr += "  uint64_t offsetD,%s" % self.endLine
+      kStr += "  uint64_t offsetC,%s" % self.endLine
 
     # strides
     firstStrideCD = 1
@@ -191,11 +192,11 @@ class KernelWriterBetaOnly(KernelWriterBase):
       zeroStr = self.state["ProblemType"]["ComputeDataType"].zeroString(self.language, 1)
       kStr += "  " + ptrStr + f" const* C = (beta == {zeroStr}) ? nullptr : BatchC[wg];" + self.endLine
 
-    # apply offset
-    kStr += self.endLine
-    if not self.state["_GlobalAccumulation"]:
-      kStr += "  D = D + offsetD;" + self.endLine
-    kStr += "  C = C + offsetC;" + self.endLine
+      # apply offset only for general batch
+      kStr += self.endLine
+      if not self.state["_GlobalAccumulation"]:
+        kStr += "  D = D + offsetD;" + self.endLine
+      kStr += "  C = C + offsetC;" + self.endLine
 
 
     kStr += self.endLine

@@ -63,7 +63,8 @@ def runCI =
         platform, project->
 
         def test_marks = "pre_checkin"
-        commonGroovy.runTestCommand(platform, project, jobName, test_marks)
+        boolean skipHostTest = false
+        commonGroovy.runTestCommand(platform, project, jobName, test_marks, skipHostTest)
     }
 
     buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, testCommand, null)
