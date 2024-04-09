@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -48,7 +48,8 @@ namespace Tensile
         {
         public:
             ReferenceValidator(po::variables_map const&            args,
-                               std::shared_ptr<DataInitialization> dataInit);
+                               std::shared_ptr<DataInitialization> dataInit,
+                               hipStream_t                         stream);
 
             virtual bool needMoreBenchmarkRuns() const override;
             virtual void preBenchmarkRun() override;
@@ -129,6 +130,8 @@ namespace Tensile
             std::shared_ptr<uint8_t> m_cpuResultBuffer;
 
             ContractionProblem m_problem;
+
+            hipStream_t m_stream;
 
             bool m_enabled;
 

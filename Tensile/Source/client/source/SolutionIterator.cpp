@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2020-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2020-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -88,14 +88,16 @@ namespace Tensile
 
             // Test if the persistent kernel is eligible for the current hw and solution
             m_problem.checkPersistentKernelEligibility(solution, *m_hardware);
-            m_problem.checkRequiredWorkspaceSize(solution, *m_hardware);
-            if(!(*solution.problemPredicate)(m_problem))
+            Task task(*m_hardware, m_problem, solution);
+            if(!(*solution.problemPredicate)(m_problem) || !(*solution.taskPredicate)(task))
             {
                 m_reporter->report(ResultKey::Validation, "DID_NOT_SATISFY_ASSERTS");
                 if(m_reporter->logAtLevel(LogLevel::Verbose))
                 {
                     std::ostringstream msg;
                     solution.problemPredicate->debugEval(m_problem, msg);
+                    msg << std::endl;
+                    solution.taskPredicate->debugEval(task, msg);
                     msg << std::endl;
                     m_reporter->log(LogLevel::Verbose, msg.str());
                 }

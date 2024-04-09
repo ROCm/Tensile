@@ -40,7 +40,7 @@ def CPUThreadCount(enable=True):
       cpu_count = len(os.sched_getaffinity(0))
     cpuThreads = globalParameters["CpuThreads"]
     if cpuThreads < 1:
-        return cpu_count
+        return min(cpu_count, 64) # Max build threads to avoid out-of-memory
     return min(cpu_count, cpuThreads)
 
 def OverwriteGlobalParameters(newGlobalParameters):
@@ -71,7 +71,7 @@ def ParallelMap(function, objects, message="", enable=True, multiArg=True):
   
   if threadCount <= 1 and globalParameters["ShowProgressBar"]:
     # Provide a progress bar for single-threaded operation.
-    return list(map(function, Utils.tqdm(objects, message)))
+    return list(map(lambda objs: function(*objs), Utils.tqdm(objects, message)))
   
   countMessage = ""
   try:

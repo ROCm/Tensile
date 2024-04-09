@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -75,6 +75,8 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::StrideDEqual>(),
                     Base::template Pair<Predicates::Contraction::LDCEqualsLDD>(),
                     Base::template Pair<Predicates::Contraction::CEqualsD>(),
+                    Base::template Pair<Predicates::Contraction::AIGreaterThanEqual>(),
+                    Base::template Pair<Predicates::Contraction::AILessThanEqual>(),
                     Base::template Pair<Predicates::Contraction::AlphaValue>(),
                     Base::template Pair<Predicates::Contraction::BetaValue>(),
                     Base::template Pair<Predicates::Contraction::BetaZero>(),
@@ -87,7 +89,6 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::OperationIdentifierEqual>(),
                     Base::template Pair<Predicates::Contraction::BufferLoadOffsetLimitCheck>(),
                     Base::template Pair<Predicates::Contraction::BufferStoreOffsetLimitCheck>(),
-                    Base::template Pair<Predicates::Contraction::WorkspaceCheck>(),
                     Base::template Pair<Predicates::Contraction::PersistentKernelCheck>(),
                     Base::template Pair<Predicates::Contraction::GlobalSplitUCheckMinK>(),
                     Base::template Pair<Predicates::Contraction::CDStridesEqual>(),
@@ -227,6 +228,18 @@ namespace Tensile
         };
 
         template <typename IO>
+        struct MappingTraits<Predicates::Contraction::AIGreaterThanEqual, IO>
+            : public AutoMappingTraits<Predicates::Contraction::AIGreaterThanEqual, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::AILessThanEqual, IO>
+            : public AutoMappingTraits<Predicates::Contraction::AILessThanEqual, IO>
+        {
+        };
+
+        template <typename IO>
         struct MappingTraits<Predicates::Contraction::AlphaValue, IO>
             : public AutoMappingTraits<Predicates::Contraction::AlphaValue, IO>
         {
@@ -295,12 +308,6 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::BufferStoreOffsetLimitCheck, IO>
             : public AutoMappingTraits<Predicates::Contraction::BufferStoreOffsetLimitCheck, IO>
-        {
-        };
-
-        template <typename IO>
-        struct MappingTraits<Predicates::Contraction::WorkspaceCheck, IO>
-            : public AutoMappingTraits<Predicates::Contraction::WorkspaceCheck, IO>
         {
         };
 

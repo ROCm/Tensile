@@ -29,6 +29,7 @@
 #include <array>
 #include <cmath>
 #include <cstdlib>
+#include <iomanip>
 #include <iostream>
 #include <mutex>
 #include <sstream>
@@ -186,6 +187,26 @@ namespace Tensile
             return "";
 
         return concatenate(std::forward<Ts>(vals)...);
+    }
+
+    inline void print_memory_size(size_t memory_size)
+    {
+        if(memory_size < 1024)
+        {
+            std::cout << std::setprecision(0) << memory_size << " Bytes";
+        }
+        else if(memory_size < 1048576)
+        {
+            std::cout << std::setprecision(3) << float(memory_size) / 1024.0f << " KB";
+        }
+        else if(memory_size < 1073741824)
+        {
+            std::cout << std::setprecision(6) << float(memory_size) / 1048576.0f << " MB";
+        }
+        else
+        {
+            std::cout << std::setprecision(9) << float(memory_size) / 1073741824.0f << " GB";
+        }
     }
 
     class StreamRead

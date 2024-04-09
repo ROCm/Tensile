@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,7 @@
 #include <Tensile/ExactLogicLibrary.hpp>
 #include <Tensile/GranularitySelectionLibrary.hpp>
 #include <Tensile/PropertyMatching.hpp>
+#include <Tensile/TaskPredicates.hpp>
 
 #include <cstddef>
 #include <map>
@@ -184,7 +185,10 @@ namespace Tensile
         TENSILE_SERIALIZE_VECTOR(true,
                                  std::shared_ptr<Tensile::Predicates::Predicate<Tensile::AMDGPU>>);
         TENSILE_SERIALIZE_VECTOR(true,
+                                 std::shared_ptr<Tensile::Predicates::Predicate<Tensile::Task>>);
+        TENSILE_SERIALIZE_VECTOR(true,
                                  std::shared_ptr<Tensile::Property<Tensile::ContractionProblem>>);
+        TENSILE_SERIALIZE_VECTOR(true, std::shared_ptr<Tensile::Property<Tensile::Task>>);
         TENSILE_SERIALIZE_VECTOR(
             true, std::shared_ptr<Tensile::MLFeatures::MLFeature<Tensile::ContractionProblem>>);
 

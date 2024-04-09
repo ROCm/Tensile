@@ -1,6 +1,8 @@
+#!/usr/bin/env python3
+
 ################################################################################
 #
-# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,18 +24,15 @@
 #
 ################################################################################
 
-from .Common import printExit
-import csv
+import sys
+import yaml
+import msgpack
 
-def readCSV(csvFileName):
-    csvData = None
-    try:
-        with open(csvFileName, "r") as selectionfFile:
-            csvFile = csv.reader(selectionfFile)
-            csvData = list(csvFile)
-    except IOError:
-        printExit("Can't open \"%s\" to get data" % csvFileName)
-
-    return csvData
-
-
+if __name__ == "__main__":
+    args = sys.argv[1:]
+    infile = args[0]
+    outfile = args[1]
+    with open(infile) as f:
+        data = yaml.load(f)
+    with open(outfile, 'wb') as f:
+        msgpack.dump(data, f)
