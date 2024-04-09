@@ -1,6 +1,5 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.40.0
 ## (Unreleased) Tensile 4.41.0
 ### Additions
 - new tuning script to summarize rocBLAS log file
