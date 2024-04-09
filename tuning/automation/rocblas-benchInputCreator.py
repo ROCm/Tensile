@@ -229,22 +229,6 @@ def createYaml(args, outputfile, problem, sizeMappings, verify):
     # check if the library is General Batched based on the library name
     generalBatched = True if "_GB.yaml" in os.path.split(args.libLogic)[-1] else False
 
-    #initialization
-    if (args.initialization=='hpl' and problemParams["a_type"]!="i8_r"):
-        init = {"initialization": "hpl"}
-    elif (args.initialization=='trig' and problemParams["a_type"]!="i8_r"):
-        init = {"initialization": "trig_float"}
-    elif args.initialization== 'int':
-        init = {"initialization": "rand_int"}
-    else:
-      print(f"Initialization {args.initialization} is not allowed for int8 datatype. Initialization changed to rand_int.")
-      init = {"initialization": "rand_int"}
-
-    # check if the library is General Batched based on the library name
-    generalBatched = False
-    if "_GB.yaml" in os.path.split(args.libLogic)[-1]:
-        generalBatched = True
-
     # create rocBLAS-bench call for each size in logic file
     for (size, perf) in sizeMappings: # size[0] = M, size[1] = N, size[2] = batch_count, size[3] = K, size[4] = ldc, size[5] = ldd, size[6] = lda, size[7] = ldb
 
