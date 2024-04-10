@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -920,6 +920,83 @@ namespace Tensile
                 }
             };
 
+            struct AIGreaterThanEqual
+                : public Predicate_CRTP<AIGreaterThanEqual, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+
+                double value;
+
+                AIGreaterThanEqual() = default;
+                AIGreaterThanEqual(double value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "AIGreaterThanEqual";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.arithmeticIntensity() >= value;
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.arithmeticIntensity() << " >= " << value
+                           << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
+            struct AILessThanEqual : public Predicate_CRTP<AILessThanEqual, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+
+                double value;
+
+                AILessThanEqual() = default;
+                AILessThanEqual(double value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "AILessThanEqual";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.arithmeticIntensity() <= value;
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.arithmeticIntensity() << " <= " << value
+                           << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
             struct AlphaValue : public Predicate_CRTP<AlphaValue, ContractionProblem>
             {
                 enum
@@ -1154,45 +1231,6 @@ namespace Tensile
                     stream << *this << ": (" << problem.d().strides()[1] << " * "
                            << problem.d().elementBytes() << " * " << value << " < 4294967296"
                            << ") == " << rv;
-
-                    return rv;
-                }
-            };
-
-            struct WorkspaceCheck : public Predicate_CRTP<WorkspaceCheck, ContractionProblem>
-            {
-                enum
-                {
-                    HasIndex = true,
-                    HasValue = true
-                };
-                size_t index;
-                size_t value;
-
-                WorkspaceCheck() = default;
-                WorkspaceCheck(size_t index, size_t value)
-                    : index(index)
-                    , value(value)
-                {
-                }
-
-                static std::string Type()
-                {
-                    return "WorkspaceCheck";
-                }
-
-                virtual bool operator()(ContractionProblem const& problem) const override
-                {
-                    return problem.getRequiredWorkspaceSize() <= problem.workspaceSize();
-                }
-
-                virtual bool debugEval(ContractionProblem const& problem,
-                                       std::ostream&             stream) const override
-                {
-                    bool rv = (*this)(problem);
-
-                    stream << *this << ": (" << problem.getRequiredWorkspaceSize()
-                           << " <= " << problem.workspaceSize() << ") == " << rv;
 
                     return rv;
                 }

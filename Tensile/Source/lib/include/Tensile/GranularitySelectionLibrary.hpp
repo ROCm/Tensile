@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -99,16 +99,7 @@ namespace Tensile
 
                 auto rv = solutions.at(index);
 
-                if(debug)
-                {
-                    std::cout << "Exact match: " << rv->description();
-                    rv->problemPredicate->debugEval(problem, std::cout);
-                    std::cout << std::endl;
-                    rv->hardwarePredicate->debugEval(hardware, std::cout);
-                    std::cout << std::endl;
-                }
-
-                if((*rv->problemPredicate)(problem) && (*rv->hardwarePredicate)(hardware))
+                if(rv->canSolve(problem, hardware))
                 {
                     return rv;
                 }
@@ -133,8 +124,7 @@ namespace Tensile
 
                 if(myPerformance > bestPerformance)
                 {
-                    if((*row.second->problemPredicate)(problem)
-                       && (*row.second->hardwarePredicate)(hardware))
+                    if(row.second->canSolve(problem, hardware))
                     {
                         bestPerformance = myPerformance;
                         bestSolution    = row.second;
@@ -145,14 +135,6 @@ namespace Tensile
                     else if(debug)
                     {
                         std::cout << " <-- Best, but predicate failure";
-                    }
-
-                    if(debug)
-                    {
-                        row.second->problemPredicate->debugEval(problem, std::cout);
-                        std::cout << std::endl;
-                        row.second->hardwarePredicate->debugEval(hardware, std::cout);
-                        std::cout << std::endl;
                     }
                 }
             }
@@ -174,8 +156,7 @@ namespace Tensile
                     std::cout << row.second->description() << ": ";
                 }
 
-                if((*row.second->problemPredicate)(problem)
-                   && (*row.second->hardwarePredicate)(hardware))
+                if(row.second->canSolve(problem, hardware))
                 {
                     rv.insert(row.second);
 
@@ -186,14 +167,6 @@ namespace Tensile
                 {
                     if(debug)
                         std::cout << " Predicate failed";
-                }
-
-                if(debug)
-                {
-                    row.second->problemPredicate->debugEval(problem, std::cout);
-                    std::cout << std::endl;
-                    row.second->hardwarePredicate->debugEval(hardware, std::cout);
-                    std::cout << std::endl;
                 }
             }
 

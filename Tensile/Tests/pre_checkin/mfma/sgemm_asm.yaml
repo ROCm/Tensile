@@ -639,7 +639,7 @@ BenchmarkProblems:
           - [ 16, 16, 1 ]
           - [ 32,  8, 1 ]
           - [ 64,  4, 1 ]
-        - WorkGroupMapping: [8]
+        - WorkGroupMapping: [-8] # for negative WGM test
         - GlobalSplitU: [1]
         - DepthU: [ 8 ]
         - VectorWidth: [1]
@@ -669,7 +669,7 @@ BenchmarkProblems:
           - [   8, 32, 1 ]
           - [  16, 16, 1 ]
           - [  32,  8, 1 ]
-        - WorkGroupMapping: [8]
+        - WorkGroupMapping: [-4] # for negative WGM test
         - GlobalSplitU: [1]
         - DepthU: [ 16 ]
         - VectorWidth: [1]

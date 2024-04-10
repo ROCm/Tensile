@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -706,6 +706,7 @@ namespace Tensile
             m_beta); // Set enum using beta to potentially allow for faster solutions
         consistencyCheck();
         normalize();
+        calcArithmeticIntensity();
     }
 
     size_t ContractionProblem::toAPos(size_t idx) const
@@ -781,8 +782,7 @@ namespace Tensile
         numWG.y *= sizeMapping.globalSplitU;
 
         size_t problemTiles = numWG.x * numWG.y;
-        // if(sizeMapping.persistentKernelAlongBatch || sizeMapping.streamK != 0)
-        if(sizeMapping.persistentKernelAlongBatch)
+        if(sizeMapping.persistentKernelAlongBatch || sizeMapping.streamK != 0)
             problemTiles *= numWG.z;
 
         return problemTiles;
@@ -831,12 +831,6 @@ namespace Tensile
 
         // If #PKWG (PK*CUs) >= #TotalTiles, the persistent kernel behaves just like non-PK
         m_eligibleForPK = persistentGroups < problemTiles;
-    }
-
-    void ContractionProblem::checkRequiredWorkspaceSize(ContractionSolution const& solution,
-                                                        Hardware const&            hardware)
-    {
-        m_requiredWorkspaceSize = solution.requiredWorkspaceSize(*this, hardware);
     }
 
     void ContractionProblem::normalize()
@@ -1047,6 +1041,42 @@ namespace Tensile
         for(auto const& op : m_dOps)
             if(op.type == TensorOp::Type::ComplexConjugate)
                 TENSILE_ASSERT_EXC(DataTypeInfo::Get(m_d.dataType()).isComplex);
+    }
+
+    void ContractionProblem::calcArithmeticIntensity()
+    {
+        size_t problemSize = 1;
+        for(size_t i = 0; i < m_problemSizes.size(); ++i)
+        {
+            problemSize *= m_problemSizes[i];
+        }
+        double gflop = 2 * problemSize * 1e-9;
+
+        size_t aSize = 1;
+        for(size_t i = 0; i < m_a.dimensions(); ++i)
+        {
+            aSize *= m_a.sizes()[i];
+        }
+        size_t bSize = 1;
+        for(size_t i = 0; i < m_b.dimensions(); ++i)
+        {
+            bSize *= m_b.sizes()[i];
+        }
+        size_t cSize = 1;
+        for(size_t i = 0; i < m_c.dimensions(); ++i)
+        {
+            cSize *= m_c.sizes()[i];
+        }
+        if(m_beta != 0) // If problem includes beta, update gflops and gbytes
+        {
+            gflop += 2 * cSize * 1e-9; // Include (+ beta * C) in gflops
+            cSize *= 2; // Include read C and write D in gbytes
+        }
+        double gbyte
+            = (aSize * m_a.elementBytes() + bSize * m_b.elementBytes() + cSize * m_c.elementBytes())
+              * 1e-9;
+
+        m_arithmeticIntensity = gflop / gbyte;
     }
 
     size_t ContractionProblem::freeSizeA(size_t idx) const

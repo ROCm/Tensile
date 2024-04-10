@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -862,10 +862,11 @@ class KernelWriterSource(KernelWriter):
     s += "  " + globalStr + ptrStr + " const * " + batchStr + "B"
 
     # offset
-    s += "," + self.endLine + "  uint64_t offsetD"
-    s += "," + self.endLine + "  uint64_t offsetC"
-    s += "," + self.endLine + "  uint64_t offsetA"
-    s += "," + self.endLine + "  uint64_t offsetB"
+    if not kernel["ProblemType"]["StridedBatched"]:
+      s += "," + self.endLine + "  uint64_t offsetD"
+      s += "," + self.endLine + "  uint64_t offsetC"
+      s += "," + self.endLine + "  uint64_t offsetA"
+      s += "," + self.endLine + "  uint64_t offsetB"
 
     # alpha & beta
     s += "," + self.endLine + "  " \
@@ -1070,14 +1071,13 @@ class KernelWriterSource(KernelWriter):
       kStr += f"  DATA_TYPE      const* A = ((alpha == {zeroStr}) || (sizeUnroll == 0)) ? nullptr : BatchA[wg];" + self.endLine
       kStr += f"  DATA_TYPE      const* B = ((alpha == {zeroStr}) || (sizeUnroll == 0)) ? nullptr : BatchB[wg];" + self.endLine
 
-    ####################################
-    # apply offset
-    kStr += self.endLine
-    if not kernel["_GlobalAccumulation"]:
-      kStr += "  D = D + offsetD;" + self.endLine
-      kStr += "  C = C + offsetC;" + self.endLine
-    kStr += "  A = A + offsetA;" + self.endLine
-    kStr += "  B = B + offsetB;" + self.endLine
+      # apply offset only for general batch
+      kStr += self.endLine
+      if not kernel["_GlobalAccumulation"]:
+        kStr += "  D = D + offsetD;" + self.endLine
+        kStr += "  C = C + offsetC;" + self.endLine
+      kStr += "  A = A + offsetA;" + self.endLine
+      kStr += "  B = B + offsetB;" + self.endLine
 
     if 0:
       # in some cases we know the pad values at compile time and could hard-code here.  Not enabled.
@@ -3333,6 +3333,18 @@ class KernelWriterSource(KernelWriter):
   # WaitCnt
   ##############################################################################
   def wait(self, kernel, tPA, tPB, globalRead, localWrite, localRead, comment):
+    return ""
+
+  ##############################################################################
+  # waitcnt code for DirectToVgpr
+  ##############################################################################
+  def getWaitcntCodeForDirectToVgpr(self, kernel, localWriteEndIter, u, firstIter, isPap=True, beforeBarrier=False, NLLlast=False, oddLast=False):
+    return ""
+
+  ##############################################################################
+  # waitcnt code for PrefetchGlobalRead
+  ##############################################################################
+  def getWaitcntCodeForPGR(self, kernel):
     return ""
 
   ##############################################################################

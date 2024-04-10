@@ -560,9 +560,7 @@ private:
 struct ProblemProperties
 {
 
-    // Constructor used in solution tables-
-    // See writeSolutionAndExactTable in TensileCreateLibrary - this constructor
-    // must be in-sync with the table written there.
+    // Constructor used in solution tables
     ProblemProperties(unsigned summationElementMultiple,
                       unsigned free0ElementMultiple,
                       unsigned free1ElementMultiple,

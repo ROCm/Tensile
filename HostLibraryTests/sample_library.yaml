@@ -23,6 +23,7 @@ solutions:
 
     hardwarePredicate: { type: TruePred }
     problemPredicate:  { type: TruePred }
+    taskPredicate:  { type: TruePred }
     info: {}
     debugKernel: false
     index:           0
@@ -51,6 +52,7 @@ solutions:
 
     hardwarePredicate: { type: TruePred }
     problemPredicate:  { type: TruePred }
+    taskPredicate:  { type: TruePred }
     info: {}
     debugKernel: false
     index:           1
@@ -79,6 +81,7 @@ solutions:
 
     hardwarePredicate: { type: TruePred }
     problemPredicate:  { type: TruePred }
+    taskPredicate:  { type: TruePred }
     info: {}
     debugKernel: false
     index:           2
@@ -107,6 +110,7 @@ solutions:
 
     hardwarePredicate: { type: TruePred }
     problemPredicate:  { type: TruePred }
+    taskPredicate:  { type: TruePred }
     info: {}
     debugKernel: false
     index:           3

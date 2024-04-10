@@ -1,5 +1,5 @@
 TestParameters:
-  marks: [skip-gfx900, skip-gfx906, skip-gfx940, skip-gfx941, skip-gfx942, skip-gfx1010, skip-gfx1011, skip-gfx1012, skip-gfx1030, skip-gfx1100, skip-gfx1101, skip-gfx1102] # not supported by arch
+  marks: [skip-gfx900, skip-gfx906, skip-gfx908, skip-gfx940, skip-gfx941, skip-gfx942, skip-gfx1010, skip-gfx1011, skip-gfx1012, skip-gfx1030, skip-gfx1100, skip-gfx1101, skip-gfx1102] # not supported by arch
 
 GlobalParameters:
   NumElementsToValidate: -1
@@ -38,10 +38,10 @@ BenchmarkProblems:
             - [16, 16, 16, 1, 1, 2, 2, 1,1]  # 32x32
             - [16, 16, 16, 1, 1, 2, 2, 1,2]  # 32x64
             - [16, 16, 16, 1, 1, 2, 2, 2,1]  # 64x32
-            - [16, 16, 16, 1, 1, 2, 2, 4,1]  # 128x32
+            # - [16, 16, 16, 1, 1, 2, 2, 4,1]  # 128x32
             - [16, 16, 16, 1, 1, 4, 2, 2,2]  # 128x64
             - [32, 32, 8, 1, 1, 2, 2, 1,1]  # 64x64
-            - [32, 32, 8, 1, 1, 2, 1, 1,2]  # 64x64
+            # - [32, 32, 8, 1, 1, 2, 1, 1,2]  # 64x64
             - [32, 32, 8, 1, 1, 2, 1, 1,4]  # 64x128
         #- ThreadTile:
         #  - [ 2, 2 ]
@@ -52,14 +52,14 @@ BenchmarkProblems:
         - AssertFree0ElementMultiple : [4]
         - AssertFree1ElementMultiple : [2]
         - AssertSummationElementMultiple: [2]
-        - DepthU: [32,64,128]#[8,16,32]
+        - DepthU: [64,128]#[8,16,32]
         - GlobalSplitU: [1,4]
-        #- GlobalSplitUAlgorithm: ["SingleBuffer","MultipleBuffer"]
+        - GlobalSplitUAlgorithm: ["SingleBuffer"]#["SingleBuffer","MultipleBuffer"]
         - 1LDSBuffer: [0]
         - LoopTail: [True]
         - OptNoLoadLoop: [1]
         - PrefetchGlobalRead: [2]
-        - PrefetchLocalRead: [1,3,5]
+        - PrefetchLocalRead: [3,5] # 1
         - ScheduleIterAlg: [3]
         - StaggerU: [0]
         - SourceSwap: [0,1]
@@ -73,12 +73,63 @@ BenchmarkProblems:
         - UseSgprForGRO: [0]
         - BufferLoad: [0,1]
         - BufferStore: [0,1]
-        - VgprForLocalReadPacking: [0,1]
-        - ClusterLocalRead: [0,1]
+        - VgprForLocalReadPacking: [1] # 0
+        - ClusterLocalRead: [1] # 0
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [ 252, 254, 1, 2050]
+
+  ########################################
+  # I8II NT - LSU + VFLRP + VWB
+  ########################################
+    -
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - KernelLanguage: ["Assembly"]
+      ForkParameters:
+        - MatrixInstruction:
+            - [16, 16, 16, 1, 1, 8, 8, 2,1]  # 256x128
+            - [16, 16, 16, 1, 1, 8, 8, 2,2]  # 256x256
+        #- ThreadTile:
+        #  - [ 2, 2 ]
+        - WorkGroup:
+          - [ 64, 1, 1 ] # only WG2 is effective for 9 parameter MI
+          - [ 64, 1, 2 ] # only WG2 is effective for 9 parameter MI
+          #- [ 64, 1, 4 ] # only WG2 is effective for 9 parameter MI
+        - AssertFree0ElementMultiple : [4]
+        - AssertFree1ElementMultiple : [4]
+        - AssertSummationElementMultiple: [4]
+        - DepthU: [32,64]#[8,16,32]
+        #- GlobalSplitU: [1,4]
+        #- GlobalSplitUAlgorithm: ["SingleBuffer","MultipleBuffer"]
+        - 1LDSBuffer: [0]
+        - LoopTail: [True]
+        - OptNoLoadLoop: [1]
+        - PrefetchGlobalRead: [2]
+        - PrefetchLocalRead: [1,3,5]
+        - ScheduleIterAlg: [3]
+        - StaggerU: [0]
+        # - SourceSwap: [0,1]
+        #- TransposeLDS: [0,1]
+        - GlobalReadVectorWidth: [4,8,16]
+        - VectorWidth: [2,4,8]
+        - VectorWidthB: [1,2,4,8]
+        #- VectorAtomicWidth: [-1,1,2]
+        #- WaveSeparateGlobalReadB: [1]
+        #- MIArchVgpr: [True, False]
+        - NumElementsPerBatchStore: [4]
+        - UseSgprForGRO: [0]
+        #- BufferLoad: [0,1]
+        #- BufferStore: [0,1]
+        - VgprForLocalReadPacking: [1]#[0,1]
+        - ClusterLocalRead: [0,1]
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 252, 252, 1, 2052]
 
   ########################################
   # I8II NT - LSU + GSU + MIB>1
@@ -92,7 +143,7 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
             # MIB>1
-            - [16, 16, 4, 4, 1, 2, 2, 1,1]  # 32x128
+            # - [16, 16, 4, 4, 1, 2, 2, 1,1]  # 32x128
             - [16, 16, 4, 4, 1, 2, 2, 2,1]  # 64x128
             - [16, 16, 4, 4, 2, 2, 2, 2,1]  # 128x64
             - [16, 16, 4, 4, 4, 2, 2, 1,2]  # 128x64
@@ -104,11 +155,11 @@ BenchmarkProblems:
           #- [ 64, 1, 1 ] # only WG2 is effective for 9 parameter MI
           - [ 64, 1, 2 ] # only WG2 is effective for 9 parameter MI
           - [ 64, 1, 4 ] # only WG2 is effective for 9 parameter MI
-        - AssertFree0ElementMultiple : [1,2,4]
-        - AssertFree1ElementMultiple : [1,2,4]
+        - AssertFree0ElementMultiple : [1,4] # 2
+        - AssertFree1ElementMultiple : [1,4] # 2
         - AssertSummationElementMultiple: [2]
         - DepthU: [32,64,128]#[8,16,32]
-        - GlobalSplitU: [1,4]
+        - GlobalSplitU: [4] # 1
         - GlobalSplitUAlgorithm: ["SingleBuffer","MultipleBuffer"]
         - 1LDSBuffer: [0]
         - LoopTail: [True]
@@ -160,8 +211,8 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
             - [16, 16, 16, 1, 1, 2, 2, 1,1]  # 32x32
-            - [16, 16, 16, 1, 1, 2, 2, 1,2]  # 32x64
-            - [16, 16, 16, 1, 1, 2, 2, 2,1]  # 64x32
+            # - [16, 16, 16, 1, 1, 2, 2, 1,2]  # 32x64
+            # - [16, 16, 16, 1, 1, 2, 2, 2,1]  # 64x32
             - [16, 16, 16, 1, 1, 2, 2, 4,1]  # 128x32
             - [16, 16, 16, 1, 1, 4, 2, 2,2]  # 128x64
             - [32, 32, 8, 1, 1, 2, 2, 1,1]  # 64x64
@@ -177,8 +228,8 @@ BenchmarkProblems:
         - AssertFree1ElementMultiple : [2]
         - AssertSummationElementMultiple: [2]
         - DepthU: [32,64,128]#[8,16,32]
-        - GlobalSplitU: [1,4]
-        #- GlobalSplitUAlgorithm: ["SingleBuffer","MultipleBuffer"]
+        - GlobalSplitU: [4] # 1
+        - GlobalSplitUAlgorithm: ["SingleBuffer"]#["SingleBuffer","MultipleBuffer"]
         - 1LDSBuffer: [0]
         - LoopTail: [True]
         - OptNoLoadLoop: [1]
@@ -198,7 +249,7 @@ BenchmarkProblems:
         #- BufferLoad: [0,1]
         #- BufferStore: [0,1]
         - TransposeLDS: [1]
-        - LocalReadVectorWidth: [-1,8]
+        - LocalReadVectorWidth: [-1]#[-1,8]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
@@ -217,11 +268,11 @@ BenchmarkProblems:
         - MatrixInstruction:
             - [16, 16, 16, 1, 1, 2, 2, 1,1]  # 32x32
             - [16, 16, 16, 1, 1, 2, 2, 1,2]  # 32x64
-            - [16, 16, 16, 1, 1, 2, 2, 2,1]  # 64x32
+            # - [16, 16, 16, 1, 1, 2, 2, 2,1]  # 64x32
             - [16, 16, 16, 1, 1, 2, 2, 4,1]  # 128x32
-            - [16, 16, 16, 1, 1, 4, 2, 2,2]  # 128x64
+            # - [16, 16, 16, 1, 1, 4, 2, 2,2]  # 128x64
             - [32, 32, 8, 1, 1, 2, 2, 1,1]  # 64x64
-            - [32, 32, 8, 1, 1, 2, 1, 1,2]  # 64x64
+            # - [32, 32, 8, 1, 1, 2, 1, 1,2]  # 64x64
             - [32, 32, 8, 1, 1, 2, 1, 1,4]  # 64x128
         #- ThreadTile:
         #  - [ 2, 2 ]
@@ -232,14 +283,14 @@ BenchmarkProblems:
         - AssertFree0ElementMultiple : [4]
         - AssertFree1ElementMultiple : [2]
         - AssertSummationElementMultiple: [2]
-        - DepthU: [32,64,128]#[8,16,32]
+        - DepthU: [64,128]#[8,16,32]
         - GlobalSplitU: [1,4]
-        #- GlobalSplitUAlgorithm: ["SingleBuffer","MultipleBuffer"]
+        - GlobalSplitUAlgorithm: ["SingleBuffer"]#["SingleBuffer","MultipleBuffer"]
         - 1LDSBuffer: [0]
         - LoopTail: [True]
         - OptNoLoadLoop: [1]
         - PrefetchGlobalRead: [2]
-        - PrefetchLocalRead: [1,3,5]
+        - PrefetchLocalRead: [3,5] # 1
         - ScheduleIterAlg: [3]
         - StaggerU: [0]
         - SourceSwap: [0,1]
@@ -254,15 +305,14 @@ BenchmarkProblems:
         #- BufferLoad: [0,1]
         #- BufferStore: [0,1]
         - TransposeLDS: [1]
-        - LocalReadVectorWidth: [-1,8]
+        - LocalReadVectorWidth: [-1]#[-1,8]
         - DirectToVgprB: [0,1]
-        - VgprForLocalReadPacking: [0,1]
+        - VgprForLocalReadPacking: [1]#[0,1]
         - ClusterLocalRead: [0,1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [ 252, 254, 1, 2050]
-
 
   ########################################
   # I8II TN - standard
@@ -291,11 +341,11 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
             - [16, 16, 16, 1, 1, 2, 2, 1,1]  # 32x32
-            - [16, 16, 16, 1, 1, 2, 2, 1,2]  # 32x64
+            # - [16, 16, 16, 1, 1, 2, 2, 1,2]  # 32x64
             - [16, 16, 16, 1, 1, 2, 2, 2,1]  # 64x32
-            - [16, 16, 16, 1, 1, 2, 2, 4,1]  # 128x32
+            # - [16, 16, 16, 1, 1, 2, 2, 4,1]  # 128x32
             - [16, 16, 16, 1, 1, 4, 2, 2,2]  # 128x64
-            - [32, 32, 8, 1, 1, 2, 2, 1,1]  # 64x64
+            # - [32, 32, 8, 1, 1, 2, 2, 1,1]  # 64x64
             - [32, 32, 8, 1, 1, 2, 1, 1,2]  # 64x64
             - [32, 32, 8, 1, 1, 2, 1, 1,4]  # 64x128
         #- ThreadTile:
@@ -309,7 +359,7 @@ BenchmarkProblems:
         - AssertSummationElementMultiple: [2]
         - DepthU: [32,64,128]#[8,16,32]
         - GlobalSplitU: [1,4]
-        #- GlobalSplitUAlgorithm: ["SingleBuffer","MultipleBuffer"]
+        - GlobalSplitUAlgorithm: ["SingleBuffer"]#["SingleBuffer","MultipleBuffer"]
         - 1LDSBuffer: [0]
         - LoopTail: [True]
         - OptNoLoadLoop: [1]
@@ -320,7 +370,7 @@ BenchmarkProblems:
         - SourceSwap: [0,1]
         #- TransposeLDS: [0,1]
         - GlobalReadVectorWidth: [4,8]
-        - VectorWidth: [2,4]
+        - VectorWidth: [2] # 4
         - VectorAtomicWidth: [-1,1,2]
         #- WaveSeparateGlobalReadB: [1]
         #- MIArchVgpr: [True, False]
@@ -329,10 +379,8 @@ BenchmarkProblems:
         #- BufferLoad: [0,1]
         #- BufferStore: [0,1]
         - TransposeLDS: [1]
-        - LocalReadVectorWidth: [-1,8]
+        - LocalReadVectorWidth: [-1]#[-1,8]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [ 252, 254, 1, 2050]
-
-
