@@ -1188,7 +1188,7 @@ namespace Tensile
                                                                   TypedInputs const& inputs,
                                                                   Hardware const&    hardware) const
     {
-        bool debug = Debug::Instance().printKernelArguments() || this->kernelArgsLog;
+        bool debug         = Debug::Instance().printKernelArguments() || this->kernelArgsLog;
         bool debugSkipInit = Debug::Instance().skipInitKernelLaunch();
 
         int boundSize = 1;
