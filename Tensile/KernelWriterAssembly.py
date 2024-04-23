@@ -13537,7 +13537,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cmp_eq_u32", sgpr("StreamKLocalStart"), 0, "does wg start tile?")
       kStr += inst("s_cbranch_scc0 %s" % skPartialsLabel, "Branch if not start tile, store partials")
       
-      if kernel["DebugStreamKNoFixup"] == 0:
+      if kernel["DebugStreamK"] & 1 == 0:
         # if we started and finished the tile, regular store code
         # branch to regular store code, skip fixup step
         kStr += inst("s_cmp_eq_u32", sgpr("StreamKLocalEnd"), sgpr("ItersPerTile"), "does wg finish tile?")
@@ -13559,7 +13559,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_lshl_b32", sgpr(tmpSgpr), sgpr(sCtaIdx), log2(4), "flag offset based on CTA index")
         kStr += inst("s_load_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), "glc", "get flag")
         kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load")
-        if kernel["DebugStreamKNoPartials"] == 0:
+        if kernel["DebugStreamK"] & 2 == 0:
           kStr += inst("s_cmp_eq_u32", sgpr(tmpSgpr+2), 1, "check if ready")
           kStr += inst("s_cbranch_scc0 %s" % skFixupLabel, "if flag not set, wait and check again")
 
@@ -13607,7 +13607,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["StreamK"] == 2 or kernel["StreamK"] == 3:
       kStr += "%s:\n" % (skPartialsLabel)
-      if kernel["DebugStreamKNoPartials"] == 0:
+      if kernel["DebugStreamK"] & 2 == 0:
         fixupEdge = [False] # Temporary hack to test no edge variant
         kStr += self.writePartials(kernel, vectorWidths, elements, fixupEdge, atomic, tmpVgpr, tmpCVTVgpr, isOptNLL, endLabel)
       

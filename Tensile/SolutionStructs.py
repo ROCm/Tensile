@@ -2991,8 +2991,7 @@ class Solution(collections.abc.Mapping):
           reject(state, "Atomic Stream-K not working with LocalSplitU")
     else:
       # If not using StreamK, clear debug modes to avoid duplicate kernels
-      state["DebugStreamKNoFixup"] = 0
-      state["DebugStreamKNoPartials"] = 0
+      state["DebugStreamK"] = 0
 
     if state["KernelLanguage"] == "Assembly" and not state["BufferLoad"]:
       # StaggerU only works with source kernels, or with BufferLoad.

@@ -1139,8 +1139,16 @@ validParameters = {
     # TENSILE_STREAMK_FIXED_GRID lets you override the default grid size with a specific number
     #   0 = override disabled (default)
     "StreamK": [0, 1, 2, 3],
-    "DebugStreamKNoFixup": [0, 1],
-    "DebugStreamKNoPartials": [0, 1],
+
+    # Debug settings for stream-k kernels to disable parts of the kernel
+    #   Bit 0: Don't generate fixup code
+    #   Bit 1: Don't generate write to partials code
+    # Both parts can be disabled together
+    #   0 = Debug mode off, generate full kernel
+    #   1 = No fixup
+    #   2 = No partials
+    #   3 = Nofixup and no partials
+    "DebugStreamK": [0, 1, 2, 3],
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
@@ -1542,8 +1550,7 @@ defaultBenchmarkCommonParameters = [
     {"MacroTileShapeMin":         [ 1 ] },
     {"MacroTileShapeMax":         [ 64 ] },
     {"StreamK":                   [ 0 ] },
-    {"DebugStreamKNoFixup":       [ 0 ] },
-    {"DebugStreamKNoPartials":    [ 0 ] },
+    {"DebugStreamK":              [ 0 ] },
     {"PersistentKernel":          [ 0 ] },
     {"PersistentKernelAlongBatch":[ False ] },    # May be default True is better ?
     {"PackBatchDims":             [ 0 ] },
