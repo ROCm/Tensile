@@ -13444,7 +13444,7 @@ class KernelWriterAssembly(KernelWriter):
       if not self.do["PostLoop"]: return ""
     kStr = ""
     atomic = (kernel["GlobalSplitU"] > 1) and (kernel["_GlobalAccumulation"] != 'MultipleBuffer')
-    atomic = atomic or (kernel["StreamK"] > 0 and kernel["StreamKAtomic"] == 1)
+    atomic = atomic or kernel["StreamKAtomic"] == 1
     useCodeMulAlpha =  kernel["MIArchVgpr"] and applyAlpha and not (kernel["GlobalSplitU"] > 1)
 
     # write possibilities and labels
