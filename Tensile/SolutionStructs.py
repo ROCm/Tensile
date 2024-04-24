@@ -1791,7 +1791,7 @@ class Solution(collections.abc.Mapping):
   # create StreamKInit Kernels
   def initStreamKInitKernelObjects(self):
     self.streamKInitKernelObjects = []
-    if self["StreamK"] == 2 or self["StreamK"] == 3:
+    if self["StreamK"] > 0 and self["StreamKAtomic"] == 0:
       state = {}
       state["ProblemType"] = deepcopy(self["ProblemType"])
       state["KernelLanguage"] = "Source"
@@ -1803,7 +1803,7 @@ class Solution(collections.abc.Mapping):
   # create BetaOnly Kernels
   def initBetaOnlyKernelObjects(self):
     self.betaOnlyKernelObjects = []
-    if self["GlobalSplitU"] > 1 or self["StreamK"] == 1:
+    if self["GlobalSplitU"] > 1 or self["StreamK"] > 0 and self["StreamKAtomic"] == 1:
       state = {}
       state["ProblemType"] = deepcopy(self["ProblemType"])
       state["KernelLanguage"] = "Source"
@@ -2949,7 +2949,7 @@ class Solution(collections.abc.Mapping):
       state["_GlobalAccumulation"] = None
       state["_WorkspaceSizePerElemC"] = 0
 
-      if state["StreamK"] == 2 or state["StreamK"] == 3:
+      if state["StreamK"] > 0 and state["StreamKAtomic"] == 0:
         # StreamK Workspace size
         computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
         state["_GlobalAccumulation"] = 'PartialsBuffer'
@@ -2982,7 +2982,7 @@ class Solution(collections.abc.Mapping):
         reject(state, "Cannot enable both Stream-K and PersistentKernel")
       if not state["ProblemType"]["StridedBatched"]:
         reject(state, "General batch not supported with Stream-K")
-      if state["StreamK"] == 1:
+      if state["StreamKAtomic"] == 1:
         if not state["ProblemType"]["DataType"].isSingle():
           reject(state, "Atomic Stream-K currently only tested for SGEMM")
         if not state["BufferStore"]:
@@ -2990,6 +2990,8 @@ class Solution(collections.abc.Mapping):
         if state["LocalSplitU"] > 1:
           reject(state, "Atomic Stream-K not working with LocalSplitU")
     else:
+      # If not using StreamK, set StreamKAtomic to 0 to avoid possibility of duplicate kernels
+      state["StreamKAtomic"] = 0
       # If not using StreamK, clear debug modes to avoid duplicate kernels
       state["DebugStreamK"] = 0
 
@@ -3055,7 +3057,7 @@ class Solution(collections.abc.Mapping):
       print2("in assignDerivedParameters, state['Valid'] = False")
       return
 
-    atomic = ((state["GlobalSplitU"] > 1) and (state["_GlobalAccumulation"] != 'MultipleBuffer')) or state["AtomicAddC"] or state["StreamK"] == 1
+    atomic = ((state["GlobalSplitU"] > 1) and (state["_GlobalAccumulation"] != 'MultipleBuffer')) or state["AtomicAddC"] or (state["StreamK"] > 0 and state["StreamKAtomic"] == 1)
     if atomic and globalParameters["DebugSkipAtomic"]:
       reject(state, "DEBUG: DebugSkipAtomic enabled, rejecting atomic kernel")
     if not atomic and globalParameters["DebugSkipNonAtomic"]:

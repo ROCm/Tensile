@@ -82,6 +82,7 @@ namespace Tensile
         int    packSummationDims          = 0;
         int    magicDivAlg                = 1;
         int    streamK                    = 0;
+        int    streamKAtomic              = 0;
         int    persistentKernel           = 0;
         bool   persistentKernelAlongBatch = false;
 

@@ -603,8 +603,8 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("StreamKIterEnd", 1)
       self.defineSgpr("StreamKLocalStart", 1)
       self.defineSgpr("StreamKLocalEnd", 1)
-    if kernel["StreamK"] == 2 or kernel["StreamK"] == 3:
-      self.defineSgpr("SrdWS", 4, 4)
+      if kernel["StreamKAtomic"] == 0:
+        self.defineSgpr("SrdWS", 4, 4)
 
     if kernel["PackSummationDims"] and kernel["GlobalSplitU"]>1:
       self.defineSgpr("GsuNumIter%s"%self.loopChar(kernel,self.unrollIdx), 1)
@@ -882,6 +882,7 @@ class KernelWriterAssembly(KernelWriter):
       kernel["LocalWriteUseSgprB"] = False # Requires DirectToLdsB
 
     # set up useAtomicAdd
+    # TODO Stream-K In future change, either gneeralize GSUAA option, or add toggle to control SK behaviour
     self.useAtomicAdd = kernel["GlobalSplitUAtomicAdd"]
 
     # OptPreLoopVmcnt for PAP:
@@ -1894,7 +1895,7 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("AddressC", numSgprAddressC, numSgprAddressC, kernarg=True)
     self.defineSgpr("AddressA", numSgprAddressA, numSgprAddressA, preload=True)
     self.defineSgpr("AddressB", numSgprAddressB, numSgprAddressB, preload=True)
-    if kernel["StreamK"] == 2 or kernel["StreamK"] == 3:
+    if kernel["StreamK"] > 0 and kernel["StreamKAtomic"] == 0:
       self.defineSgpr("AddressWS", numSgprAddressWS, kernarg=True)
       self.defineSgpr("AddressFlags", numSgprAddressFlags, kernarg=True)
 
@@ -1975,13 +1976,12 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("TotalIters", 1, kernarg=True)
       self.defineSgpr("SKItersPerWG", 1, kernarg=True)
       skArgumentToLoad += 9
-      if kernel["StreamK"] == 3: # Two-tile SK
+      if kernel["StreamK"] == 2: # Two-tile SK
         self.defineSgpr("skGrid", 1, kernarg=True)
         self.defineSgpr("skTiles", 1, kernarg=True)
         self.defineSgpr("skExtraIters", 1, kernarg=True)
         # self.defineSgpr("dpTilesPerWG", 1, kernarg=True)
         skArgumentToLoad += 3
-
 
     #------------------------
     # Registers defined below this point are not available in the post-loop
@@ -3764,7 +3764,7 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["StreamK"]:
         # Workload calculations
         kStr += inst("s_mov_b32", sgpr("StreamKIdx"), sgpr("WorkGroup0"), "Save original StreamK index")
-        if kernel["StreamK"] < 3: # Basic SK
+        if kernel["StreamK"] == 1: # Basic SK
           kStr += inst("s_mul_i32", sgpr("StreamKIter"), sgpr("StreamKIdx"), sgpr("SKItersPerWG"), "StreamK starting iteration")
           kStr += inst("s_add_u32", sgpr("StreamKIterEnd"), sgpr("StreamKIter"), sgpr("SKItersPerWG"), "StreamK ending iteration")
           kStr += inst("s_min_u32", sgpr("StreamKIterEnd"), sgpr("StreamKIterEnd"), sgpr("TotalIters"), "Cap ending iter at total iters")
@@ -3772,7 +3772,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.longBranchScc0("label_%04u" % (self.getLabelNum("KernelEnd")), positiveOnly=True)
           # kStr += inst("s_cbranch_scc0", "label_%04u" % (self.getLabelNum("KernelEnd")), "edge case that work doesn't divide well")        
           kStr += self.undefineSgpr("TotalIters")
-        elif kernel["StreamK"] == 3: # Two-tile SK
+        elif kernel["StreamK"] == 2: # Two-tile SK
           # iter count after all extra iters have been distributed
           kStr += inst("s_mul_i32", sgpr("StreamKIter"), sgpr("StreamKIdx"), sgpr("SKItersPerWG"), "StreamK starting iteration (case: after extra iters)")
           kStr += inst("s_add_u32", sgpr("StreamKIter"), sgpr("StreamKIter"), sgpr("skExtraIters"), "Add extra iters")
@@ -3833,7 +3833,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_min_u32", sgpr("StreamKLocalEnd"), sgpr("StreamKIterEnd"), sgpr(stmp+2), "1. (Local) iteration end (SK tile)")
       kStr += inst("s_sub_u32", sgpr("StreamKLocalEnd"), sgpr("StreamKLocalEnd"), sgpr(stmp+1), "2. Local iteration end (SK tile)")
 
-      if kernel["StreamK"] == 3: # Two-tile algorithm
+      if kernel["StreamK"] == 2: # Two-tile algorithm
         # local end (DP tile)
         kStr += inst("s_sub_u32", sgpr(stmp+3), sgpr(stmp+2), sgpr(stmp+1), "Local iteration end (DP tile)")
         # select correct local end
@@ -13444,7 +13444,7 @@ class KernelWriterAssembly(KernelWriter):
       if not self.do["PostLoop"]: return ""
     kStr = ""
     atomic = (kernel["GlobalSplitU"] > 1) and (kernel["_GlobalAccumulation"] != 'MultipleBuffer')
-    atomic = atomic or kernel["StreamK"] == 1
+    atomic = atomic or kernel["StreamKAtomic"] == 1
     useCodeMulAlpha =  kernel["MIArchVgpr"] and applyAlpha and not (kernel["GlobalSplitU"] > 1)
 
     # write possibilities and labels
@@ -13529,14 +13529,14 @@ class KernelWriterAssembly(KernelWriter):
     skFixupLabel = self.getNamedLabelUnique("SK_Fixup")
     skStoreLabel = self.getNamedLabelUnique("SK_Store")
 
-    if kernel["StreamK"] == 2 or kernel["StreamK"] == 3:
+    if kernel["StreamK"] > 0 and kernel["StreamKAtomic"] == 0:
       # StreamK store branches
       tmpSgpr = self.sgprPool.checkOut(4, "globalWriteElements", preventOverflow=0)
       # if we did not start the tile, store partials
       # branch to beta == 0 store path
       kStr += inst("s_cmp_eq_u32", sgpr("StreamKLocalStart"), 0, "does wg start tile?")
       kStr += inst("s_cbranch_scc0 %s" % skPartialsLabel, "Branch if not start tile, store partials")
-      
+
       if kernel["DebugStreamK"] & 1 == 0:
         # if we started and finished the tile, regular store code
         # branch to regular store code, skip fixup step
@@ -13568,7 +13568,7 @@ class KernelWriterAssembly(KernelWriter):
         fixupEdge = [False] # Temporary hack to test no edge variant
         kStr += self.fixupStep(kernel, vectorWidths, elements, fixupEdge, tmpVgpr, tmpCVTVgpr, sCtaIdx, skStoreLabel)
         
-        if kernel["StreamK"] == 3:
+        if kernel["StreamK"] == 2:
           sIterCount = self.sgprPool.checkOut(1, "iterCount", preventOverflow=0)
           kStr += inst("s_add_u32", sgpr(sIterCount), sgpr("SKItersPerWG"), 1, "Add extra iter")
           kStr += inst("s_cmp_lt_u32", sgpr(sCtaIdx), sgpr("skExtraIters"), "Check if next WG had an extra iteration")
@@ -13576,7 +13576,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_add_u32", sgpr(sFixupEnd), sgpr(sFixupEnd), sgpr(sIterCount), "next partial tile iteration")
           self.sgprPool.checkIn(sIterCount)
         kStr += inst("s_add_u32", sgpr(sCtaIdx), sgpr(sCtaIdx), 1, "next partial tile index")
-        if kernel["StreamK"] == 2:
+        if kernel["StreamK"] == 1:
           kStr += inst("s_add_u32", sgpr(sFixupEnd), sgpr(sFixupEnd), sgpr("SKItersPerWG"), "next partial tile iteration")
         kStr += inst("s_cmp_lt_u32", sgpr(sFixupEnd), sgpr("ItersPerTile"), "done loading partial tiles?")
         kStr += inst("s_cbranch_scc1 %s" % skFixupLabel, "Branch to continue fixup loop")
@@ -13605,7 +13605,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += "%s:%s"%(writeLabels[beta][edge], self.endLine)
         kStr += self.globalWriteProcedure(kernel, vectorWidths, elements, applyAlpha, beta, edge, atomic, tmpVgpr, tmpCVTVgpr, isOptNLL, endLabel)
 
-    if kernel["StreamK"] == 2 or kernel["StreamK"] == 3:
+    if kernel["StreamK"] > 0 and kernel["StreamKAtomic"] == 0:
       kStr += "%s:\n" % (skPartialsLabel)
       if kernel["DebugStreamK"] & 2 == 0:
         fixupEdge = [False] # Temporary hack to test no edge variant
@@ -15234,11 +15234,11 @@ class KernelWriterAssembly(KernelWriter):
   def persistentLoopendLongjump(self, kernel):
     kStr = ""
     if kernel["StreamK"]:
-      endIter = "StreamKIterEnd" if kernel["StreamK"] < 3 else "TotalIters"
+      endIter = "StreamKIterEnd" if kernel["StreamK"] == 1 else "TotalIters"
       kStr += inst("s_cmp_ge_u32", sgpr("StreamKIter"), sgpr(endIter), "Check if done all StreamK iterations")
       kStr += self.longBranchScc0(self.getLabelTarget("PersistentLoopStart"), negativeOnly=True)
 
-    if kernel["PersistentKernel"]: # or kernel["StreamK"]:
+    if kernel["PersistentKernel"]:
       # Persistent may generate a SerialWorkGroupIter which is OOB, only loop back if we are in a valid WG:
       stmp = self.getTmpSgpr(1).idx()
       kStr += inst("s_mul_i32", sgpr(stmp), sgpr("NumWorkGroups0"), sgpr("NumWorkGroups1"), "Total WG-0x1")
@@ -16628,7 +16628,7 @@ class KernelWriterAssembly(KernelWriter):
     acc2arch, _ = self.AccToArchMapper(kernel)
 
     complexMultiplier = 2 if kernel["ProblemType"]["DataType"].isComplex() else 1
-    streamK = (kernel["StreamK"] == 2 or kernel["StreamK"] == 3)
+    streamK = (kernel["StreamK"] > 0 and kernel["StreamKAtomic"] == 0)
     self.codeAccVgprRead = Code.Module("AccVgprRead")
     self.codeAccVgprRead.itemList = [None] * kernel["MIRegPerOut"] * complexMultiplier * len(acc2arch)
     if streamK:

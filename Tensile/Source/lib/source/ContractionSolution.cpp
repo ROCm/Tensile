@@ -419,7 +419,7 @@ namespace Tensile
             }
         }
 
-        if(sizeMapping.globalAccumulation && sizeMapping.streamK < 2)
+        if(sizeMapping.globalAccumulation && sizeMapping.streamK == 0)
         {
             rv.args.append<void const*>("ws_d", inputs.ws);
             rv.args.append<void const*>("ws_c", inputs.ws);
@@ -453,7 +453,7 @@ namespace Tensile
             rv.args.append<typename TypedInputs::BType const* const*>("batchB", inputs.batchB);
         }
 
-        if(sizeMapping.streamK >= 2)
+        if(sizeMapping.streamK > 0 && sizeMapping.streamKAtomic == 0)
         {
             // StreamK workspace + flags
             rv.args.append<void const*>("ws", inputs.ws);
@@ -485,7 +485,7 @@ namespace Tensile
                 rv.args.append<typename TypedInputs::BetaType>("beta_2", inputs.beta);
         }
 
-        if(sizeMapping.globalAccumulation && sizeMapping.streamK < 2)
+        if(sizeMapping.globalAccumulation && sizeMapping.streamK == 0)
         {
             size_t wsStride = startStrideCD ? d.sizes()[0] : 1;
             for(size_t i = startStrideCD; i < d.dimensions(); i++)
@@ -642,7 +642,6 @@ namespace Tensile
                 rv.args.append<uint32_t>("gridNumWorkGroups0", rv.numWorkGroups.x);
             }
 
-            // if(sizeMapping.persistentKernelAlongBatch || sizeMapping.streamK != 0)
             if(sizeMapping.persistentKernelAlongBatch)
             {
                 uint32_t numGroupTiles0x1 = problemNumGroupTiles0 * problemNumGroupTiles1;
@@ -677,12 +676,12 @@ namespace Tensile
                                          magicShiftProblemNumGroupTiles0By1);
 
                 rv.args.append<uint32_t>("totalIters", totalIters);
-                if(sizeMapping.streamK < 3) // Basic SK
+                if(sizeMapping.streamK == 1) // Basic SK
                 {
                     uint32_t itersPerWave = CeilDivide(totalIters, rv.numWorkGroups.x);
                     rv.args.append<uint32_t>("SKItersPerWG", itersPerWave);
                 }
-                else if(sizeMapping.streamK == 3) // Two-tile SK
+                else if(sizeMapping.streamK == 2) // Two-tile SK
                 {
                     bool bigEnough = tiles > skGrid;
                     // skTiles is number of Stream-K tiles to complete
@@ -1237,7 +1236,7 @@ namespace Tensile
 
         std::vector<KernelInvocation> rv;
 
-        if(sizeMapping.streamK >= 2 && !debugSkipInit)
+        if(sizeMapping.streamK > 0 && sizeMapping.streamKAtomic == 0 && !debugSkipInit)
         {
             auto   tiles  = problem.getNumTiles(sizeMapping);
             size_t skGrid = getSKGrid(hardware, tiles);
@@ -1254,7 +1253,7 @@ namespace Tensile
             }
         }
 
-        if(sizeMapping.streamK == 1
+        if((sizeMapping.streamK > 0 && sizeMapping.streamKAtomic == 1)
            || (sizeMapping.globalSplitU > 1 && sizeMapping.globalAccumulation != 2))
         {
             if(debug)
@@ -1583,7 +1582,7 @@ namespace Tensile
     {
         size_t size = 0;
 
-        if(sizeMapping.streamK >= 2)
+        if(sizeMapping.streamK > 0 && sizeMapping.streamKAtomic == 0)
         {
             auto   tiles  = problem.getNumTiles(sizeMapping);
             size_t skGrid = getSKGrid(hardware, tiles);
@@ -1954,6 +1953,7 @@ namespace Tensile
                << std::endl
                << std::setw(30) << "magicDivAlg: " << sizeMapping.magicDivAlg << std::endl
                << std::setw(30) << "streamK: " << sizeMapping.streamK << std::endl
+               << std::setw(30) << "streamKAtomic: " << sizeMapping.streamKAtomic << std::endl
                << std::setw(30) << "persistentKernel: " << sizeMapping.persistentKernel << std::endl
                << std::setw(30)
                << "persistentKernelAlongBatch: " << sizeMapping.persistentKernelAlongBatch
