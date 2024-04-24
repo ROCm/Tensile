@@ -77,6 +77,7 @@ namespace Tensile
         bool naivePropertySearch() const;
 
         bool skipKernelLaunch() const;
+        bool skipInitKernelLaunch() const;
 
         bool enableDebugSelection() const;
 

@@ -143,6 +143,11 @@ namespace Tensile
         return m_value2 & 0x1;
     }
 
+    bool Debug::skipInitKernelLaunch() const
+    {
+        return m_value2 & 0x2;
+    }
+
     bool Debug::enableDebugSelection() const
     {
         return m_debugSelection;

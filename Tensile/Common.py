@@ -1142,6 +1142,15 @@ validParameters = {
     # 0: uses workspace to store partial tiles, accumulate in deterministic fix-up step
     # 1: uses atomics to accumulate partial tiles
     "StreamKAtomic": [0, 1],
+    # Debug settings for stream-k kernels to disable parts of the kernel
+    #   Bit 0: Don't generate fixup code
+    #   Bit 1: Don't generate write to partials code
+    # Both parts can be disabled together
+    #   0 = Debug mode off, generate full kernel
+    #   1 = No fixup
+    #   2 = No partials
+    #   3 = Nofixup and no partials
+    "DebugStreamK": [0, 1, 2, 3],
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
@@ -1544,6 +1553,7 @@ defaultBenchmarkCommonParameters = [
     {"MacroTileShapeMax":         [ 64 ] },
     {"StreamK":                   [ 0 ] },
     {"StreamKAtomic":             [ 0 ] },
+    {"DebugStreamK":              [ 0 ] },
     {"PersistentKernel":          [ 0 ] },
     {"PersistentKernelAlongBatch":[ False ] },    # May be default True is better ?
     {"PackBatchDims":             [ 0 ] },
