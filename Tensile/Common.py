@@ -1137,7 +1137,7 @@ validParameters = {
     #   1 = 1 WG per CU (default)
     # TENSILE_STREAMK_FIXED_GRID lets you override the default grid size with a specific number
     #   0 = override disabled (default)
-    "StreamK": [0, 1, 2],
+    "StreamK": [0, 1, 2, 3],
     # Determines if StreamK kernel uses atomics
     # 0: uses workspace to store partial tiles, accumulate in deterministic fix-up step
     # 1: uses atomics to accumulate partial tiles

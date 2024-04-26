@@ -1976,7 +1976,7 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("TotalIters", 1, kernarg=True)
       self.defineSgpr("SKItersPerWG", 1, kernarg=True)
       skArgumentToLoad += 9
-      if kernel["StreamK"] == 2: # Two-tile SK
+      if kernel["StreamK"] >= 2: # Two-tile SK
         self.defineSgpr("skGrid", 1, kernarg=True)
         self.defineSgpr("skTiles", 1, kernarg=True)
         self.defineSgpr("skExtraIters", 1, kernarg=True)
@@ -3797,6 +3797,44 @@ class KernelWriterAssembly(KernelWriter):
           # check if this WG has no work to do
           kStr += inst("s_cmp_lt_u32", sgpr("StreamKIter"), sgpr("TotalIters"), "Make sure there's work to do")
           kStr += self.longBranchScc0("label_%04u" % (self.getLabelNum("KernelEnd")), positiveOnly=True)
+        elif kernel["StreamK"] == 3: # Two-tile SK after DP
+          # Do DP tiles before SK
+          skInitDone = self.getNamedLabelUnique("SK_InitDone")
+          kStr += inst("s_mul_i32", sgpr("StreamKIter"), sgpr("StreamKIdx"), sgpr("ItersPerTile"), "DP starting iteration (case: DP work to do)")
+          kStr += inst("s_mov_b32", sgpr("StreamKIterEnd"), sgpr("TotalIters"), "DP ending iteration (case: only DP work to do)")
+          stmp = self.sgprPool.checkOut(1, "TotalSKIters", preventOverflow=0)
+          kStr += inst("s_mul_i32", sgpr(stmp), sgpr("skTiles"), sgpr("ItersPerTile"), "Total SK iters")
+          kStr += inst("s_cmp_lt_u32", sgpr(stmp), sgpr("TotalIters"), "Check if there are DP tiles to do")
+          kStr += inst("s_cbranch_scc1 %s" % skInitDone, "Done init")
+          self.sgprPool.checkIn(stmp)
+
+          # If there are no DP tiles to do, regular SK init
+          # iter count after all extra iters have been distributed
+          kStr += inst("s_mul_i32", sgpr("StreamKIter"), sgpr("StreamKIdx"), sgpr("SKItersPerWG"), "StreamK starting iteration (case: after extra iters)")
+          kStr += inst("s_add_u32", sgpr("StreamKIter"), sgpr("StreamKIter"), sgpr("skExtraIters"), "Add extra iters")
+          kStr += inst("s_add_u32", sgpr("StreamKIterEnd"), sgpr("StreamKIter"), sgpr("SKItersPerWG"), "StreamK ending iteration (case: after extra iters)")
+          # iter count before all extra iters have been distributed
+          # stmp+1 = SKItersPerWG + 1 extra iteration
+          sIter = self.sgprPool.checkOut(2, "SKIter", preventOverflow=0)
+          kStr += inst("s_add_u32", sgpr(sIter+1), sgpr("SKItersPerWG"), 1, "Spread out extra iterations")
+          kStr += inst("s_mul_i32", sgpr(sIter), sgpr("StreamKIdx"), sgpr(sIter+1), "StreamK starting iteration (case: before extra iters)")
+          kStr += inst("s_add_u32", sgpr(sIter+1), sgpr(sIter), sgpr(sIter+1), "StreamK ending iteration (case: before extra iters)")
+          # select correct start/end iteration index
+          kStr += inst("s_cmp_lt_u32", sgpr("StreamKIdx"), sgpr("skExtraIters"), "Check if lane gets an extra iteration")
+          kStr += inst("s_cselect_b32", sgpr("StreamKIter"), sgpr(sIter), sgpr("StreamKIter"), "Set start iter")
+          kStr += inst("s_cselect_b32", sgpr("StreamKIterEnd"), sgpr(sIter+1), sgpr("StreamKIterEnd"), "Set end iter")
+          self.sgprPool.checkIn(sIter)
+          # clamp to end of sk iterations
+          # TODO maybe remove clamp, since extra iters code should guarantee total iterations match
+          stmp = self.sgprPool.checkOut(1, "TotalSKIters", preventOverflow=0)
+          kStr += inst("s_mul_i32", sgpr(stmp), sgpr("skTiles"), sgpr("ItersPerTile"), "Total SK iters")
+          kStr += inst("s_min_u32", sgpr("StreamKIterEnd"), sgpr("StreamKIterEnd"), sgpr(stmp), "Cap ending iter at total SK iters")
+          self.sgprPool.checkIn(stmp)
+
+          kStr += "%s:\n" % (skInitDone)
+          # check if this WG has no work to do
+          kStr += inst("s_cmp_lt_u32", sgpr("StreamKIter"), sgpr("TotalIters"), "Make sure there's work to do")
+          kStr += self.longBranchScc0("label_%04u" % (self.getLabelNum("KernelEnd")), positiveOnly=True)
         
       kStr += self.comment3("Persistent Loop Start")
       kStr += self.getLabelDef("PersistentLoopStart")
@@ -3835,6 +3873,7 @@ class KernelWriterAssembly(KernelWriter):
 
       if kernel["StreamK"] == 2: # Two-tile algorithm
         # local end (DP tile)
+        # TODO This line isnt needed?
         kStr += inst("s_sub_u32", sgpr(stmp+3), sgpr(stmp+2), sgpr(stmp+1), "Local iteration end (DP tile)")
         # select correct local end
         kStr += inst("s_cmp_lt_u32", sgpr("StreamKIter"), sgpr("StreamKIterEnd"), "Check if in SK or DP section")
@@ -3855,6 +3894,52 @@ class KernelWriterAssembly(KernelWriter):
         # If staying in SK portion, next iteration is stmp+2
         kStr += inst("s_cmp_lt_u32", sgpr(stmp+2), sgpr("StreamKIterEnd"), "Check if there are more SK tiles")
         kStr += inst("s_cselect_b32", sgpr("StreamKIter"), sgpr(stmp+2), sgpr(stmp+3), "Select next SK or DP tile")
+
+      elif kernel["StreamK"] == 3: # Two-tile SK after DP
+        skUpdateDone = self.getNamedLabelUnique("SK_UpdateDone")
+        # stmp+3 = Offset to first SK tile
+        kStr += inst("s_mul_i32", sgpr(stmp+3), sgpr("skTiles"), sgpr("ItersPerTile"), "Total SK iters")
+        kStr += inst("s_sub_u32", sgpr(stmp+3), sgpr("TotalIters"), sgpr(stmp+3), "Offset to first SK tile")
+        # If in DP, add dpShift
+        kStr += inst("s_mul_i32", sgpr(stmp+1), sgpr("skGrid"), sgpr("ItersPerTile"), "DP iterations shift")
+        kStr += inst("s_add_u32", sgpr(stmp+1), sgpr(stmp+1), sgpr("StreamKIter"), "Add DP shift")
+        # if stmp+1 < stmp+3, continue DP (add dpShift)
+        kStr += inst("s_cmp_lt_u32", sgpr(stmp+1), sgpr(stmp+3), "Check if still in DP section")
+        kStr += inst("s_cbranch_scc1 %s" % skUpdateDone, "Done update")
+        # if StreamKIter >= stmp+3, continue SK (add skShift?)
+        kStr += inst("s_mov_b32", sgpr(stmp+1), sgpr(stmp+2), "SK iterations shift")
+        kStr += inst("s_cmp_le_u32", sgpr(stmp+3), sgpr("StreamKIter"), "Check if continuing in SK section")
+        kStr += inst("s_cbranch_scc1 %s" % skUpdateDone, "Done update")
+        # if stmp+1 > stmp+3 and StreamKIter < stmp+3, switch from DP to SK (add dpShift)
+        # iter count after all extra iters have been distributed
+        kStr += inst("s_mul_i32", sgpr("StreamKIter"), sgpr("StreamKIdx"), sgpr("SKItersPerWG"), "StreamK starting iteration (case: after extra iters)")
+        kStr += inst("s_add_u32", sgpr("StreamKIter"), sgpr("StreamKIter"), sgpr("skExtraIters"), "Add extra iters")
+        kStr += inst("s_add_u32", sgpr("StreamKIterEnd"), sgpr("StreamKIter"), sgpr("SKItersPerWG"), "StreamK ending iteration (case: after extra iters)")
+        # iter count before all extra iters have been distributed
+        # stmp+1 = SKItersPerWG + 1 extra iteration
+        sIter = self.sgprPool.checkOut(2, "SKIter", preventOverflow=0)
+        kStr += inst("s_add_u32", sgpr(sIter+1), sgpr("SKItersPerWG"), 1, "Spread out extra iterations")
+        kStr += inst("s_mul_i32", sgpr(sIter), sgpr("StreamKIdx"), sgpr(sIter+1), "StreamK starting iteration (case: before extra iters)")
+        kStr += inst("s_add_u32", sgpr(sIter+1), sgpr(sIter), sgpr(sIter+1), "StreamK ending iteration (case: before extra iters)")
+        # select correct start/end iteration index
+        kStr += inst("s_cmp_lt_u32", sgpr("StreamKIdx"), sgpr("skExtraIters"), "Check if lane gets an extra iteration")
+        kStr += inst("s_cselect_b32", sgpr("StreamKIter"), sgpr(sIter), sgpr("StreamKIter"), "Set start iter")
+        kStr += inst("s_cselect_b32", sgpr("StreamKIterEnd"), sgpr(sIter+1), sgpr("StreamKIterEnd"), "Set end iter")
+        self.sgprPool.checkIn(sIter)
+        kStr += inst("s_add_u32", sgpr(stmp+1), sgpr("StreamKIter"), sgpr(stmp+3), "Offset to start of SK section")
+        kStr += inst("s_add_u32", sgpr("StreamKIterEnd"), sgpr("StreamKIterEnd"), sgpr(stmp+3), "Offset to start of SK section")
+        # clamp to end of iterations
+        # TODO maybe remove clamp, since extra iters code should guarantee total iterations match
+        kStr += inst("s_min_u32", sgpr("StreamKIterEnd"), sgpr("StreamKIterEnd"), sgpr("TotalIters"), "Cap ending iter at total SK iters")
+        # check if this WG has no work to do
+        # TODO Shouldn't need this check!
+        kStr += inst("s_cmp_lt_u32", sgpr("StreamKIter"), sgpr("TotalIters"), "Make sure there's work to do")
+        kStr += self.longBranchScc0("label_%04u" % (self.getLabelNum("KernelEnd")), positiveOnly=True)
+        
+        # If in SK, next iteration is stmp+2
+        # Increment StreamK iteration
+        kStr += "%s:\n" % (skUpdateDone)
+        kStr += inst("s_mov_b32", sgpr("StreamKIter"), sgpr(stmp+1), "Store current iteration")
 
       else: # Basic Stream-K
         # Increment StreamK iteration
@@ -13568,7 +13653,7 @@ class KernelWriterAssembly(KernelWriter):
         fixupEdge = [False] # Temporary hack to test no edge variant
         kStr += self.fixupStep(kernel, vectorWidths, elements, fixupEdge, tmpVgpr, tmpCVTVgpr, sCtaIdx, skStoreLabel)
         
-        if kernel["StreamK"] == 2:
+        if kernel["StreamK"] >= 2:
           sIterCount = self.sgprPool.checkOut(1, "iterCount", preventOverflow=0)
           kStr += inst("s_add_u32", sgpr(sIterCount), sgpr("SKItersPerWG"), 1, "Add extra iter")
           kStr += inst("s_cmp_lt_u32", sgpr(sCtaIdx), sgpr("skExtraIters"), "Check if next WG had an extra iteration")
@@ -15234,7 +15319,8 @@ class KernelWriterAssembly(KernelWriter):
   def persistentLoopendLongjump(self, kernel):
     kStr = ""
     if kernel["StreamK"]:
-      endIter = "StreamKIterEnd" if kernel["StreamK"] == 1 else "TotalIters"
+      # endIter = "StreamKIterEnd" if kernel["StreamK"] == 1 else "TotalIters"
+      endIter = "TotalIters" if kernel["StreamK"] == 2 else "StreamKIterEnd"
       kStr += inst("s_cmp_ge_u32", sgpr("StreamKIter"), sgpr(endIter), "Check if done all StreamK iterations")
       kStr += self.longBranchScc0(self.getLabelTarget("PersistentLoopStart"), negativeOnly=True)
 
