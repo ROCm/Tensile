@@ -186,9 +186,9 @@ auto RunGEMMKernelTestParams<DeviceBackend>::TestLibraries_Impl() -> std::vector
 
     {
         auto library = LoadLibraryFile<ContractionProblem, ContractionSolution>(
-            TestData::Instance().file("kernels_lite/TensileLibrary").native());
+            TestData::Instance().file("test_kernels_lite/library/TensileLibrary").native());
         auto adapter = std::make_shared<SolutionAdapter>(debug, "kernels_lite (file)");
-        for(auto file : TestData::Instance().glob("kernels_lite/*.*co"))
+        for(auto file : TestData::Instance().glob("test_kernels_lite/library/*.*co"))
             adapter->loadCodeObjectFile(file.native());
 
         rv.emplace_back(library, adapter, false);
@@ -196,9 +196,9 @@ auto RunGEMMKernelTestParams<DeviceBackend>::TestLibraries_Impl() -> std::vector
 
     {
         auto library = LoadLibraryFile<ContractionProblem, ContractionSolution>(
-            TestData::Instance().file("kernels_lite_mixed/TensileLibrary").native());
+            TestData::Instance().file("test_kernels_lite_mixed/library/TensileLibrary").native());
         auto adapter = std::make_shared<SolutionAdapter>(debug, "kernels_lite_mixed (file)");
-        for(auto file : TestData::Instance().glob("kernels_lite_mixed/*.*co"))
+        for(auto file : TestData::Instance().glob("test_kernels_lite_mixed/library/*.*co"))
             adapter->loadCodeObjectFile(file.native());
 
         rv.emplace_back(library, adapter, true);
@@ -206,13 +206,13 @@ auto RunGEMMKernelTestParams<DeviceBackend>::TestLibraries_Impl() -> std::vector
 
     {
         auto library = LoadLibraryFile<ContractionProblem, ContractionSolution>(
-            TestData::Instance().file("tile_aware_selection/library/TensileLibrary").native());
+            TestData::Instance().file("test_tile_aware_selection/library/TensileLibrary").native());
 
         auto adapter = std::make_shared<SolutionAdapter>(debug, "tile_aware_selection");
-        for(auto file : TestData::Instance().glob("tile_aware_selection/library/*.*co"))
+        for(auto file : TestData::Instance().glob("test_tile_aware_selection/library/*.*co"))
             adapter->loadCodeObjectFile(file.native());
 
-        for(auto file : TestData::Instance().glob("tile_aware_selection/library/*.*hsaco"))
+        for(auto file : TestData::Instance().glob("test_tile_aware_selection/library/*.*hsaco"))
             adapter->loadCodeObjectFile(file.native());
 
         rv.emplace_back(library, adapter, false);
