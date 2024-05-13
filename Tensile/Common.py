@@ -1122,6 +1122,7 @@ validParameters = {
     # 0: Standard data-parallel kernel
     # 1: Basic StreamK
     # 2: Two-Tile StreamK (each WG completes an even number of sk iterations, followed by an even number of dp tiles)
+    # 3: Two-Tile StreamK with DP before SK tiles
     # StreamK kernels can adjust the number of CUs being used.
     # Using fewer sometimes increases overall throughput by allowing other kernels to run in parallel.
     # StreamK grid is controlled by setting these enviornment variables:
