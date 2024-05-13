@@ -3851,7 +3851,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["StreamK"]:
       # StreamK workgroup mapping
-      stmp = self.sgprPool.checkOut(4, "SKMappingTemp", preventOverflow=0)
+      stmp = self.sgprPool.checkOutAligned(4, 2, "SKMappingTemp", preventOverflow=0)
       # Always reset pointers to handle odd-exit case which moves LRO to the upper bank
       if not self.prefetchAcrossPersistent and kernel["PrefetchGlobalRead"]:
         kStr += self.localReadResetOffsets(kernel, self.tPA)
@@ -3934,7 +3934,7 @@ class KernelWriterAssembly(KernelWriter):
         # check if this WG has no work to do
         # TODO Shouldn't need this check!
         kStr += inst("s_cmp_lt_u32", sgpr("StreamKIter"), sgpr("TotalIters"), "Make sure there's work to do")
-        kStr += self.longBranchScc0("label_%04u" % (self.getLabelNum("KernelEnd")), positiveOnly=True)
+        kStr += self.longBranchScc0("label_%04u" % (self.getLabelNum("KernelEnd")), positiveOnly=True, tmpSgpr=stmp) # reuse tmp
         
         # If in SK, next iteration is stmp+2
         # Increment StreamK iteration
@@ -6044,9 +6044,10 @@ class KernelWriterAssembly(KernelWriter):
   # we must use a longer 32 bit version.
   # Use when erroring out "invalid operand due to label > SIMM16"
   ##############################################################################
-  def longBranch(self, label):
+  def longBranch(self, label, tmpSgpr):
     kStr = ""
-    tmpSgpr = self.getTmpSgpr(3).idx()
+    if tmpSgpr is None:
+      tmpSgpr = self.getTmpSgpr(3).idx()
     positiveLabel = self.getNamedLabelUnique("Positive")
     kStr += inst("s_getpc_B64", sgpr(tmpSgpr,2), "addr of next instr")
     kStr += inst("s_add_i32",  sgpr(tmpSgpr+2), "%s"%label, hex(4), "target branch offset")
@@ -6073,9 +6074,10 @@ class KernelWriterAssembly(KernelWriter):
   # we must use a longer 32 bit version.
   # Use when erroring out "invalid operand due to label > SIMM16"
   ##############################################################################
-  def longBranchPositive(self, label):
+  def longBranchPositive(self, label, tmpSgpr):
     kStr = ""
-    tmpSgpr = self.getTmpSgpr(3).idx()
+    if tmpSgpr is None:
+      tmpSgpr = self.getTmpSgpr(3).idx()
     kStr += inst("s_getpc_B64", sgpr(tmpSgpr,2), "addr of next instr")
     kStr += inst("s_add_i32",  sgpr(tmpSgpr+2), "%s"%label, hex(4), "target branch offset")
 
@@ -6092,9 +6094,10 @@ class KernelWriterAssembly(KernelWriter):
   # we must use a longer 32 bit version.
   # Use when erroring out "invalid operand due to label > SIMM16"
   ##############################################################################
-  def longBranchNegative(self, label):
+  def longBranchNegative(self, label, tmpSgpr):
     kStr = ""
-    tmpSgpr = self.getTmpSgpr(3).idx()
+    if tmpSgpr is None:
+      tmpSgpr = self.getTmpSgpr(3).idx()
     kStr += inst("s_getpc_B64", sgpr(tmpSgpr,2), "addr of next instr")
     kStr += inst("s_add_i32",  sgpr(tmpSgpr+2), "%s"%label, hex(4), "target branch offset")
 
@@ -6110,16 +6113,16 @@ class KernelWriterAssembly(KernelWriter):
   # Conditional branch to label when SCC == 0
   # Use when erroring out "invalid operand due to label > SIMM16"
   ##############################################################################
-  def longBranchScc0(self, label, positiveOnly=False, negativeOnly=False):
+  def longBranchScc0(self, label, positiveOnly=False, negativeOnly=False, tmpSgpr=None):
     kStr = ""
     noBranchLabel = self.getNamedLabelUnique("NoBranch")
     kStr += inst("s_cbranch_scc1 label_%s" % noBranchLabel, "Only branch on scc0")
     if positiveOnly:
-      kStr += self.longBranchPositive(label)
+      kStr += self.longBranchPositive(label, tmpSgpr)
     elif negativeOnly:
-      kStr += self.longBranchNegative(label)
+      kStr += self.longBranchNegative(label, tmpSgpr)
     else:
-      kStr += self.longBranch(label)
+      kStr += self.longBranch(label, tmpSgpr)
     kStr += "label_%s:%s"%(noBranchLabel, self.endLine)
     return kStr
 
@@ -6128,16 +6131,16 @@ class KernelWriterAssembly(KernelWriter):
   # Conditional branch to label when SCC == 1
   # Use when erroring out "invalid operand due to label > SIMM16"
   ##############################################################################
-  def longBranchScc1(self, label, positiveOnly=False, negativeOnly=False):
+  def longBranchScc1(self, label, positiveOnly=False, negativeOnly=False, tmpSgpr=None):
     kStr = ""
     noBranchLabel = self.getNamedLabelUnique("NoBranch")
     kStr += inst("s_cbranch_scc0 label_%s" % noBranchLabel, "Only branch on scc1")
     if positiveOnly:
-      kStr += self.longBranchPositive(label)
+      kStr += self.longBranchPositive(label, tmpSgpr)
     elif negativeOnly:
-      kStr += self.longBranchNegative(label)
+      kStr += self.longBranchNegative(label, tmpSgpr)
     else:
-      kStr += self.longBranch(label)
+      kStr += self.longBranch(label, tmpSgpr)
     kStr += "label_%s:%s"%(noBranchLabel, self.endLine)
     return kStr
 
