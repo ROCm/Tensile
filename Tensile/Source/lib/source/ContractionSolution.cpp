@@ -681,7 +681,7 @@ namespace Tensile
                     uint32_t itersPerWave = CeilDivide(totalIters, rv.numWorkGroups.x);
                     rv.args.append<uint32_t>("SKItersPerWG", itersPerWave);
                 }
-                else if(sizeMapping.streamK == 2) // Two-tile SK
+                else if(sizeMapping.streamK >= 2) // Two-tile SK
                 {
                     bool bigEnough = tiles > skGrid;
                     // skTiles is number of Stream-K tiles to complete
