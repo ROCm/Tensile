@@ -6074,7 +6074,7 @@ class KernelWriterAssembly(KernelWriter):
   # we must use a longer 32 bit version.
   # Use when erroring out "invalid operand due to label > SIMM16"
   ##############################################################################
-  def longBranchPositive(self, label, tmpSgpr):
+  def longBranchPositive(self, label, tmpSgpr=None):
     kStr = ""
     if tmpSgpr is None:
       tmpSgpr = self.getTmpSgpr(3).idx()
@@ -6094,7 +6094,7 @@ class KernelWriterAssembly(KernelWriter):
   # we must use a longer 32 bit version.
   # Use when erroring out "invalid operand due to label > SIMM16"
   ##############################################################################
-  def longBranchNegative(self, label, tmpSgpr):
+  def longBranchNegative(self, label, tmpSgpr=None):
     kStr = ""
     if tmpSgpr is None:
       tmpSgpr = self.getTmpSgpr(3).idx()
