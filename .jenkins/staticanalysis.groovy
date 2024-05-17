@@ -65,7 +65,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
 
             popd
 
-            doxygen docs/Doxyfile
+            doxygen docs/doxygen/Doxyfile
             """
 
     try
