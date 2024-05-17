@@ -1,0 +1,18 @@
+defaults:
+  numbered: False
+root: src/index.rst
+subtrees:
+  - entries:
+    - file: src/getting-started
+    - file: src/concepts
+      entries:
+      - file: src/concepts/benchmarking
+      - file: src/concepts/tuning
+      - file: src/concepts/kernels
+      - file: src/concepts/library-creation
+    - file: src/api-reference
+    - file: src/cli-reference
+    - file: src/contributor-guide
+    - file: src/developer-guide
+    - file: license
+
