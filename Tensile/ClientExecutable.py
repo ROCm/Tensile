@@ -79,8 +79,8 @@ def clientExecutableEnvironment(builddir=None):
         builddir = os.path.join(globalParameters["OutputPath"], globalParameters["ClientBuildPath"])
     builddir = Common.ensurePath(builddir)
 
-    CxxCompiler = "clang++.exe" if ((os.name == "nt") and (globalParameters['CxxCompiler'] == "hipcc")) else globalParameters['CxxCompiler']
-    CCompiler   = "clang.exe"   if ((os.name == "nt") and (globalParameters['CxxCompiler'] == "hipcc")) else globalParameters['CxxCompiler']
+    CxxCompiler = "clang++.exe" if ((os.name == "nt") and (globalParameters['CxxCompiler'] == "hipcc" or globalParameters['CxxCompiler'] == "amdclang++")) else globalParameters['CxxCompiler']
+    CCompiler   = "clang.exe"   if ((os.name == "nt") and (globalParameters['CxxCompiler'] == "hipcc" or globalParameters['CxxCompiler'] == "amdclang")) else globalParameters['CCompiler']
 
     options = {'CMAKE_BUILD_TYPE': globalParameters["CMakeBuildType"],
                'TENSILE_USE_MSGPACK': 'ON',
