@@ -1,17 +1,19 @@
 defaults:
   numbered: False
-root: src/index.rst
+root: src/index
 subtrees:
   - entries:
     - file: src/getting-started
     - file: src/concepts
       entries:
-      - file: src/concepts/benchmarking
-      - file: src/concepts/tuning
-      - file: src/concepts/kernels
-      - file: src/concepts/library-creation
+        - file: src/concepts/benchmarking
+        - file: src/concepts/tuning
+        - file: src/concepts/kernels
+        - file: src/concepts/library-creation
     - file: src/api-reference
     - file: src/cli-reference
+      entries: 
+      - file: src/cli-reference/TensileCreateLibrary                    
     - file: src/contributor-guide
     - file: src/developer-guide
     - file: license
