@@ -10,22 +10,22 @@ Syntax
 
 .. code-block::
 
-    TensileCreateLibrary [OPTION...] [LOGIC DIRECTORY] [OUTPUT DIRECTORY] [RUNTIME LANGUAGE]
-
-When invoking *TensileCreateLibrary*, one can provide zero or more options.
-The absolute path to Logic files, the (absolute|relative) path to an 
-output directory and the runtime language {OCL, HIP, HSA} are required. 
+    TensileCreateLibrary [OPTIONS...] <LOGIC DIRECTORY> <OUTPUT DIRECTORY> <RUNTIME LANGUAGE>
 
 Options
 -------
 
+When invoking *TensileCreateLibrary*, one can provide zero or more options.
+
 \-\-architecture=ARCHITECTURE
-    Supported archs: all gfx000 gfx803 gfx900 gfx900:xnack- gfx906 gfx906:xnack+ gfx906:xnack- gfx908 gfx908:xnack+
+    Architectures to generate a library for. When specifying multiple options, use quoted, semicolon delimited 
+    architectures, e.g., --architecture='gfx908;gfx1012'.
+    Supported architechures include: all gfx000 gfx803 gfx900 gfx900:xnack- gfx906 gfx906:xnack+ gfx906:xnack- gfx908 gfx908:xnack+
     gfx908:xnack- gfx90a gfx90a:xnack+ gfx90a:xnack- gfx940 gfx940:xnack+ gfx940:xnack- gfx941 gfx941:xnack+
     gfx941:xnack- gfx942 gfx942:xnack+ gfx942:xnack- gfx1010 gfx1011 gfx1012 gfx1030 gfx1031 gfx1032 gfx1034 gfx1035
     gfx1100 gfx1101 gfx1102.
 \-\-build-client
-    Build Tensile client executable analogous to rocBLAS used for stand alone benchmarking (default).
+    Build Tensile client executable; used for stand alone benchmarking (default).
 \-\-client-config 
     Creates best-solution.ini in the output directory for the library and code object files created (default).
 \-\-code-object-version={default,V4,V5}
@@ -47,7 +47,9 @@ Options
 \-\-ignore-asm-cap-cache
     Ignore asm capability cache and derive the asm capabilities at runtime.    
 \-\-jobs=CPUTHREADS, \-j CPUTHREADS
-    Number of parallel jobs to launch.    
+    Number of parallel jobs to launch. If this options is set higher than *nproc* the number of parallel 
+    jobs will be equal to the number of cores. If the this option is set below 1 (e.g. 0 or -1), the number
+    of parallel jobs will be set to the number of cores, up to a maximum of 64. (default = -1).    
 \-\-lazy-library-loading
     Loads Tensile libraries when needed instead of upfront.
 \-\-library-format={yaml,msgpack}
@@ -83,6 +85,20 @@ Options
 \-\-write-master-solution-index
     Output master solution index in csv format including number 
     of kernels per architecture post build in csv format.
+
+Arguments
+---------
+
+When invoking *TensileCreateLibrary*, the following arguments are required.
+
+\<LOGIC DIRECTORY\>
+    Absolute path for logic files. These files are generally found in one of two ways: (i) they are
+    generated via the `Tensile` program and placed in the build directory under *3_LibraryLogic* (see :ref:`quick-start-example`).
+    (ii) they are found within a project that hosts pre-generated logic files, e.g., `rocBLAS <https://github.com/ROCm/rocBLAS/tree/develop/library/src/blas3/Tensile/Logic>`_.
+\<OUTPUT DIRECTORY\>
+    Absolute or relative path to the output directory where build artifacts are placed.
+\<RUNTIME LANGUAGE\>
+    One of: {OCL, HIP, HSA}
 
 Examples
 --------
