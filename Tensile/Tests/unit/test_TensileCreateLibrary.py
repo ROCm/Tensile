@@ -34,6 +34,8 @@ import Tensile.SolutionStructs as SolutionStructs
 import yaml
 import contextlib
 
+from pathlib import Path
+
 mylogger = logging.getLogger()
 
 def test_loadSolutions(caplog, useGlobalParameters):
@@ -150,28 +152,42 @@ def test_CreateBenchmarkClientParametersForSizes(tmpdir):
 
 def test_verifyManifest():
   
-  manifestFile = "test_manifest.txt"
-  # ensure clean state before running test
-  with contextlib.suppress(FileNotFoundError):
-    os.remove(manifestFile)
-    os.remove("foo.asm")    
-    os.remove("bar.asm")        
-  # create an empty manifest 
-  with open(manifestFile, "x") as manifest:
-   
-    assert TensileCreateLibrary.verifyManifest(manifestFile), "an empty manifest should always succeed"
-        
-    # add to file manifest that is not on disk
-    manifest.write("foo.asm\n")
-    manifest.flush()
-    assert not TensileCreateLibrary.verifyManifest(manifestFile), "file in manifest should not be on disk"
+    manifestFile = Path("test_manifest.txt")
+    testFoo = Path("foo.asm")
+    testBar = Path("bar.asm")
+
+    # ensure clean state before running test
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(manifestFile)
+        os.remove(testFoo)    
+        os.remove(testBar)
+
+    # Verification should fail if the manifest can't be found
+    with pytest.raises(FileNotFoundError, match=r"(.*) No such file or directory: 'test_manifest.txt'"):
+        TensileCreateLibrary.verifyManifest(manifestFile)
+
+    # Create an empty manifest 
+    with open(manifestFile, mode="x") as manifest:
+           
+        assert TensileCreateLibrary.verifyManifest(manifestFile), "an empty manifest should always succeed"
+
+        # add to file manifest that is not on disk
+        manifest.write("foo.asm\n")
+        manifest.flush()
+        assert not TensileCreateLibrary.verifyManifest(manifestFile), "file in manifest are on disk, but shouldn't be"
+    
+        with open(testFoo, mode="x"):
+            assert TensileCreateLibrary.verifyManifest(manifestFile), "file in manifest isn't on disk, but should be"
+    
+        manifest.write("bar.asm\n")
+        manifest.flush()
+        assert not TensileCreateLibrary.verifyManifest(manifestFile), "bar.asm in manifest should not be on disk"
   
-    with open("foo.asm", "x"):
-      assert TensileCreateLibrary.verifyManifest(manifestFile), "file in manifest should be on disk"
-  
-    manifest.write("bar.asm\n")
-    manifest.flush()
-    assert not TensileCreateLibrary.verifyManifest(manifestFile), "bar.asm in manifest should not be on disk"
-  
-    with open("bar.asm", "x"):
-      assert TensileCreateLibrary.verifyManifest(manifestFile), "files in manifest should be on disk"
+    with open(testBar, mode="x"):
+      assert TensileCreateLibrary.verifyManifest(manifestFile), "files in manifest isn't on disk, but should be"
+
+    with open(manifestFile, "a") as generatedFile:  
+        for filePath in range(5):
+            generatedFile.write("%s\n" %(filePath) )
+
+    assert not TensileCreateLibrary.verifyManifest(manifestFile), "files in manifest are on disk, but shouldn't be"

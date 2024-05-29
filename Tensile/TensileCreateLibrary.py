@@ -53,6 +53,10 @@ import sys
 import time
 
 from copy import deepcopy
+from pathlib import Path
+
+TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
+TENSILE_LIBRARY_DIR = "library"
 
 ################################################################################
 def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
@@ -1047,19 +1051,20 @@ def writeMasterSolutionIndexCSV(outputPath, masterLibraries):
     print1("Error writing MasterSolutionIndex %s" % err)
 
 
-def verifyManifest(manifest) -> bool:
-  """Returns a bool indicating if the files listed in the manifest exist on disk.
+def verifyManifest(manifest: Path) -> bool:
+  """Verifies whether the files listed in the manifest exist on disk.
   
   Args:
-      manifest (str): path to the manifest file
+      manifest: Path to the manifest file.
   
   Returns:
-      list: a list of strings representing the header columns
+      True if all files exist on disk, otherwise False.
   """
-  with open(manifest, "r") as generatedFiles:
-    files = [filename for filename in generatedFiles.readlines() if not os.path.exists(filename.rstrip())]
-  
-  return False if len(files) > 0  else True
+  with open(manifest, mode="r") as generatedFiles:
+    for f in generatedFiles.readlines():
+      if not Path(f.rstrip()).exists():
+        return False
+  return True
 
 ################################################################################
 # Tensile Create Library
@@ -1185,9 +1190,8 @@ def TensileCreateLibrary():
 
   assignGlobalParameters(arguments)
 
-  libraryPath = os.path.join(outputPath, "library")
-  ensurePath(libraryPath)
-  manifestFile = os.path.join(libraryPath, "TensileManifest.txt")
+  manifestFile = Path(outputPath)/TENSILE_LIBRARY_DIR/TENSILE_MANIFEST_FILENAME
+  manifestFile.parent.mkdir(exist_ok=True)
 
   if globalParameters["VerifyManifest"]: 
     if verifyManifest(manifestFile):
