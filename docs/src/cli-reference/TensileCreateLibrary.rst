@@ -12,6 +12,20 @@ Syntax
 
     TensileCreateLibrary [OPTIONS...] <LOGIC DIRECTORY> <OUTPUT DIRECTORY> <RUNTIME LANGUAGE>
 
+Required Arguments
+------------------
+
+When invoking *TensileCreateLibrary*, the following arguments are required.
+
+\<LOGIC DIRECTORY\>
+    Absolute path for logic files. These files are generally found in one of two ways: (i) they are
+    generated via the `Tensile` program and placed in the build directory under *3_LibraryLogic* (see :ref:`quick-start-example`).
+    (ii) they are found within a project that hosts pre-generated logic files, e.g., `rocBLAS <https://github.com/ROCm/rocBLAS/tree/develop/library/src/blas3/Tensile/Logic>`_.
+\<OUTPUT DIRECTORY\>
+    Absolute or relative path to the output directory where build artifacts are placed.
+\<RUNTIME LANGUAGE\>
+    One of: {OCL, HIP, HSA}
+
 Options
 -------
 
@@ -20,7 +34,7 @@ When invoking *TensileCreateLibrary*, one can provide zero or more options.
 \-\-architecture=ARCHITECTURE
     Architectures to generate a library for. When specifying multiple options, use quoted, semicolon delimited 
     architectures, e.g., --architecture='gfx908;gfx1012'.
-    Supported architechures include: all gfx000 gfx803 gfx900 gfx900:xnack- gfx906 gfx906:xnack+ gfx906:xnack- gfx908 gfx908:xnack+
+    Supported architectures include: all gfx000 gfx803 gfx900 gfx900:xnack- gfx906 gfx906:xnack+ gfx906:xnack- gfx908 gfx908:xnack+
     gfx908:xnack- gfx90a gfx90a:xnack+ gfx90a:xnack- gfx940 gfx940:xnack+ gfx940:xnack- gfx941 gfx941:xnack+
     gfx941:xnack- gfx942 gfx942:xnack+ gfx942:xnack- gfx1010 gfx1011 gfx1012 gfx1030 gfx1031 gfx1032 gfx1034 gfx1035
     gfx1100 gfx1101 gfx1102.
@@ -30,7 +44,7 @@ When invoking *TensileCreateLibrary*, one can provide zero or more options.
     Creates best-solution.ini in the output directory for the library and code object files created (default).
 \-\-code-object-version={default,V4,V5}
     HSA code-object version.
-\-\-cxx-compiler={amdclang++, hipcc}
+\-\-cxx-compiler={hipcc}
     C++ compiler used when generating binaries.
 \-\-embed-library=EMBEDLIBRARY
     Embed (new) library files into static variables. Specify the name of the library.
@@ -53,9 +67,7 @@ When invoking *TensileCreateLibrary*, one can provide zero or more options.
 \-\-lazy-library-loading
     Loads Tensile libraries when needed instead of upfront.
 \-\-library-format={yaml,msgpack}
-    Select which library format to use (default: msgpack).
-\-\-library-print-debug
-    Solutions will print enqueue info when enqueueing a kernel.
+    Select which library format to use (default = msgpack).
 \-\-no-enumerate
     Do not run rocm_agent_enumerator.
 \-\-no-library-print-debug
@@ -68,16 +80,12 @@ When invoking *TensileCreateLibrary*, one can provide zero or more options.
     Number of files the kernels should be written into.
 \-\-merge-files
     Store all solutions in single file (default).
-\-\-package-library 
-    Enable the packaging of the client library code objects into separate (deprecated).
-    architectures as sub-directories within the Tensile/library directory.
 \-\-short-file-names
-    On windows kernel names can get too long. 
+    On Windows kernel names can get too long. 
     Converts solution and kernel names to serial ids (default).
 \-\-separate-architectures
     Separates TensileLibrary file by architecture to reduce the time to load the library file.
-    The separate-architectures option writes each architecture into a different TensileLibrary_gfxXXX.dat 
-    file.
+    This option writes each architecture into a different TensileLibrary_gfxXXX.dat file.
 \-\-verbose=PRINTLEVEL, \-v PRINTLEVEL
     Set printout verbosity level {0, 1, 2}.
 \-\-version=VERSION
@@ -85,20 +93,6 @@ When invoking *TensileCreateLibrary*, one can provide zero or more options.
 \-\-write-master-solution-index
     Output master solution index in csv format including number 
     of kernels per architecture post build in csv format.
-
-Arguments
----------
-
-When invoking *TensileCreateLibrary*, the following arguments are required.
-
-\<LOGIC DIRECTORY\>
-    Absolute path for logic files. These files are generally found in one of two ways: (i) they are
-    generated via the `Tensile` program and placed in the build directory under *3_LibraryLogic* (see :ref:`quick-start-example`).
-    (ii) they are found within a project that hosts pre-generated logic files, e.g., `rocBLAS <https://github.com/ROCm/rocBLAS/tree/develop/library/src/blas3/Tensile/Logic>`_.
-\<OUTPUT DIRECTORY\>
-    Absolute or relative path to the output directory where build artifacts are placed.
-\<RUNTIME LANGUAGE\>
-    One of: {OCL, HIP, HSA}
 
 Examples
 --------
@@ -115,19 +109,15 @@ will contain the artifacts.
 
 .. code-block::
 
-    TensileCreateLibrary <absolute path to>/Logic tensile-output HIP
+    TensileCreateLibrary /home/myuser/Logic tensile-output HIP
 
 Adding TensileCreateLibrary options 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The following example illustrates how to add options When
-invoking *TensileCreateLibrary*. In some cases, such as ``--seprate-architectures``
+The following example illustrates how to add options when
+invoking *TensileCreateLibrary*. In some cases, such as ``--separate-architectures``
 no arguments are required; whereas, for ``--jobs`` an argument is required.
 
 .. code-block::
 
-    TensileCreateLibrary --separate-architectures --jobs=32 <absolute path to>Logic tensile-output HIP
-
-
-.. \-\-cmake-cxx-compiler=CMAKECXXCOMPILER
-    This doesn't appear to do much and I would like to consider removing
+    TensileCreateLibrary --separate-architectures --jobs=32 /home/myuser/Logic tensile-output HIP

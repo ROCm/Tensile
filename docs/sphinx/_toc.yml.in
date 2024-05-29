@@ -13,7 +13,7 @@ subtrees:
     - file: src/api-reference
     - file: src/cli-reference
       entries: 
-      - file: src/cli-reference/TensileCreateLibrary                    
+        - file: src/cli-reference/TensileCreateLibrary                    
     - file: src/contributor-guide
     - file: src/developer-guide
     - file: license
