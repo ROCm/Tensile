@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,6 @@ import os
 import sys
 
 from joblib import Parallel, delayed
-
 
 def CPUThreadCount(enable=True):
   from .Common import globalParameters
@@ -79,13 +78,16 @@ def ParallelMap(function, objects, message="", enable=True, multiArg=True):
   except TypeError: pass
 
   if message != "": message += ": "
-  print("{0}Launching {1} threads{2}...".format(message, threadCount, countMessage))
-  sys.stdout.flush()
+  
+  if globalParameters["PrintLevel"] >= 1:
+    print("{0}Launching {1} threads{2}...".format(message, threadCount, countMessage))
+    sys.stdout.flush()  
   
   pcall = pcallWithGlobalParamsMultiArg if multiArg else pcallWithGlobalParamsSingleArg
   pargs = zip(objects, itertools.repeat(globalParameters))
   rv = Parallel(n_jobs=threadCount)(delayed(pcall)(function, a, params) for a, params in pargs)
+  if globalParameters["PrintLevel"] >= 1:
+    print("{0}Done.".format(message))    
+    sys.stdout.flush()  
   
-  print("{0}Done.".format(message))
-  sys.stdout.flush()
   return rv

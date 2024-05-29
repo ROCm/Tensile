@@ -195,11 +195,13 @@ TEST_P(RunGEMMKernelSolutionSelectionTest, KernelsTileSelection)
     // std::cout << problem << std::endl;
 
     auto library = LoadLibraryFile<ContractionProblem>(
-        TestData::Instance().file("kernels_tile_selection/TensileLibrary").native());
+        TestData::Instance().file("test_kernels_tile_selection/library/TensileLibrary").native());
 
     hip::SolutionAdapter adapter(false);
     adapter.loadCodeObjectFile(
-        TestData::Instance().file("kernels_tile_selection/TensileLibrary_gfx906", "co").native());
+        TestData::Instance()
+            .file("test_kernels_tile_selection/library/TensileLibrary_gfx906", "co")
+            .native());
 
     ASSERT_NE(library, nullptr);
 

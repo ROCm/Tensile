@@ -141,7 +141,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
         else:
           newCOFiles = [os.path.join(destDir, k + '_' + archName + '.co') for k in assemblyKernelNames]
 
-        for src, dst in Utils.tqdm(zip(origCOFiles, newCOFiles), "Copying code objects"):
+        for src, dst in zip(origCOFiles, newCOFiles) if globalParameters["PrintLevel"] == 0 else Utils.tqdm(zip(origCOFiles, newCOFiles), "Copying code objects"):
           shutil.copyfile(src, dst)
         coFiles += newCOFiles
 
@@ -527,7 +527,7 @@ def writeKernels(outputPath, CxxCompiler, problemTypes, solutions, kernels, kern
   removeKernels = []
   removeSolutions = []
   removeResults = []
-  for kernIdx, res in Utils.tqdm(enumerate(results)):
+  for kernIdx, res in enumerate(results) if globalParameters["PrintLevel"] == 0 else Utils.tqdm(enumerate(results)):
     (err,src,header,kernelName, filename) = res
     if(err == -2):
       if not errorTolerant:
@@ -610,7 +610,7 @@ def writeKernels(outputPath, CxxCompiler, problemTypes, solutions, kernels, kern
     codeObjectFiles += getAssemblyCodeObjectFiles(kernelsToBuild, kernelWriterAssembly, outputPath)
 
   stop = time.time()
-  print("# Kernel Building elapsed time = %.1f secs" % (stop-start))
+  print1("# Kernel Building elapsed time = %.1f secs" % (stop-start))
 
   Common.popWorkingPath() # outputPath.upper()
 
@@ -912,7 +912,7 @@ def generateLogicDataAndSolutions(logicFiles, args):
   fullMasterLibrary = None
 
   nextSolIndex = {}
-  for logic in Utils.tqdm(libraries, "Processing logic data"):
+  for logic in libraries if globalParameters["PrintLevel"] == 0 else Utils.tqdm(libraries, "Processing logic data"):
     (_, architectureName, _, solutionsForSchedule, _, newLibrary) = logic
 
     if globalParameters["PackageLibrary"]:
@@ -1044,15 +1044,26 @@ def writeMasterSolutionIndexCSV(outputPath, masterLibraries):
   except IOError as err:
     print1("Error writing MasterSolutionIndex %s" % err)
 
+
+def verifyManifest(manifest) -> bool:
+  """Returns a bool indicating if the files listed in the manifest exist on disk.
+  
+  Args:
+      manifest (str): path to the manifest file
+  
+  Returns:
+      list: a list of strings representing the header columns
+  """
+  with open(manifest, "r") as generatedFiles:
+    files = [filename for filename in generatedFiles.readlines() if not os.path.exists(filename.rstrip())]
+  
+  return False if len(files) > 0  else True
+
+
 ################################################################################
 # Tensile Create Library
 ################################################################################
 def TensileCreateLibrary():
-  print1("")
-  print1(HR)
-  print1("# Tensile Create Library")
-  print2(HR)
-  print2("")
 
   ##############################################################################
   # Parse Command Line Arguments
@@ -1092,6 +1103,8 @@ def TensileCreateLibrary():
   argParser.add_argument("--version", help="Version string to embed into library file.")
   argParser.add_argument("--generate-manifest-and-exit",   dest="GenerateManifestAndExit", action="store_true",
                           default=False, help="Output manifest file with list of expected library objects and exit.")
+  argParser.add_argument("--verify-manifest",   dest="VerifyManifest", action="store_true",
+                          default=False, help="Verify manifest file against generated library files and exit.")
   argParser.add_argument("--library-format", dest="LibraryFormat", choices=["yaml", "msgpack"],
                          action="store", default="msgpack", help="select which library format to use")
   argParser.add_argument("--generate-sources-and-exit",   dest="GenerateSourcesAndExit", action="store_true",
@@ -1143,6 +1156,7 @@ def TensileCreateLibrary():
   arguments["PackageLibrary"] = args.PackageLibrary
 
   arguments["GenerateManifestAndExit"] = args.GenerateManifestAndExit
+  arguments["VerifyManifest"] = args.VerifyManifest
 
   arguments["GenerateSourcesAndExit"] = args.GenerateSourcesAndExit
   if arguments["GenerateSourcesAndExit"]:
@@ -1156,9 +1170,28 @@ def TensileCreateLibrary():
 
   for key, value in args.global_parameters:
     arguments[key] = value
+  
+  globalParameters["PrintLevel"] = arguments["PrintLevel"] 
+
+  print1("")
+  print1(HR)
+  print1("# Tensile Create Library")
+  print2(HR)
+  print2("")
 
   assignGlobalParameters(arguments)
 
+  libraryPath = os.path.join(outputPath, "library")
+  ensurePath(libraryPath)
+  manifestFile = os.path.join(libraryPath, "TensileManifest.txt")
+
+  if globalParameters["VerifyManifest"]: 
+    if verifyManifest(manifestFile):
+      print1("Successfully verified all files in manifest were generated")
+      return
+    else:
+      printExit("Failed to verify all files in manifest")  
+    
   print1("# CodeObjectVersion from TensileCreateLibrary: %s" % arguments["CodeObjectVersion"])
   print1("# CxxCompiler       from TensileCreateLibrary: %s" % CxxCompiler)
   print1("# Architecture      from TensileCreateLibrary: %s" % arguments["Architecture"])
@@ -1231,15 +1264,10 @@ def TensileCreateLibrary():
    libMetadataPaths) = buildObjectFilePaths(outputPath, solutionFiles, sourceKernelFiles, \
     asmKernelFiles, sourceLibFiles, asmLibFiles, masterLibraries)
 
-  # Generate manifest file
-  libraryPath = os.path.join(outputPath, "library")
-  ensurePath(libraryPath)
-  generatedFile = open(os.path.join(libraryPath, "TensileManifest.txt"), "w")
-
   # Manifest file contains YAML file, output library paths and cpp source for embedding.
-  for filePath in libMetadataPaths + sourceLibPaths + asmLibPaths:
-    generatedFile.write("%s\n" %(filePath) )
-  generatedFile.close()
+  with open(manifestFile, "w") as generatedFile:  
+    for filePath in libMetadataPaths + sourceLibPaths + asmLibPaths:
+      generatedFile.write("%s\n" %(filePath) )
 
   if globalParameters["GenerateManifestAndExit"] == True:
     return
@@ -1316,7 +1344,7 @@ def TensileCreateLibrary():
           embedFile.embed_file(theMasterLibrary.cpp_base_class, masterFile + ext, nullTerminated=True,
                                key=args.EmbedLibraryKey)
 
-          for co in Utils.tqdm(codeObjectFiles):
+          for co in codeObjectFiles if globalParameters["PrintLevel"] == 0 else Utils.tqdm(codeObjectFiles):
               embedFile.embed_file("SolutionAdapter", co, nullTerminated=False,
                                    key=args.EmbedLibraryKey)
       embedFileNameCpp = os.path.join(outputPath, "library/{}.cpp".format(args.EmbedLibrary))
