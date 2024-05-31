@@ -34,7 +34,7 @@ from . import EmbeddedData
 from . import LibraryIO
 from . import Utils
 from .Common import getArchitectureName, globalParameters, HR, print1, print2, printExit, ensurePath, \
-                    CHeader, CMakeHeader, assignGlobalParameters, gfxName, architectureMap, \
+                    CHeader, CMakeHeader, assignGlobalParameters, gfxName, architectureMap, printWarning, \
                     supportedLinuxCompiler
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
@@ -54,6 +54,7 @@ import sys
 import time
 
 from copy import deepcopy
+from typing import Set, List
 from pathlib import Path
 
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
@@ -1073,6 +1074,31 @@ def verifyManifest(manifest: Path) -> bool:
         return False
   return True
 
+def findLogicFiles(path: Path, logicArchs: Set[str], lazyLoading: bool, experimentalDir: str, extraMatchers: Set[str]={"hip"}) -> List[str]:
+    """Recursively searches the provided path for logic files.
+    
+    Args:
+        path: The path to the directory to search.
+        logicArchs: Target logic archiectures. These are interepreted as filename substrings
+            for which logic files are to be included.
+        extraMatchers: Additional directories to include for logic files.
+    
+    Returns:
+        A list of Path objects representing the found YAML files.
+    """
+    isMatch = lambda file: any((arch in file.stem for arch in logicArchs.union(extraMatchers)))
+    isExperimental = lambda path: not experimentalDir in str(path)
+
+    extensions = ["*.yaml", "*.yml"]
+    logicFiles = filter(isMatch, (file for ext in extensions for file in path.rglob(ext)))
+    if not lazyLoading:
+      if not experimentalDir:
+        printWarning("Configuration parameter `ExperimentalLogicDir` is an empty string, "\
+                     "logic files may be filtered incorrectly.")
+      logicFiles = filter(isExperimental, logicFiles)
+
+    return list(str(l) for l in logicFiles)
+
 ################################################################################
 # Tensile Create Library
 ################################################################################
@@ -1222,17 +1248,10 @@ def TensileCreateLibrary():
   if globalParameters["LazyLibraryLoading"] and not (globalParameters["MergeFiles"] and globalParameters["SeparateArchitectures"]):
     printExit("--lazy-library-loading requires --merge-files and --separate-architectures enabled")
 
-  # Recursive directory search
-  logicFiles = []
-  for root, dirs, files in os.walk(logicPath):
-    logicFiles += [os.path.join(root, f) for f in files
-                       if os.path.splitext(f)[1]==".yaml" \
-                       and (any(logicArch in os.path.splitext(f)[0] for logicArch in logicArchs) \
-                       or "hip" in os.path.splitext(f)[0]) ]
-
-  # Skip experimental libraries (if exists) when building without lazy loading
-  if not globalParameters["LazyLibraryLoading"]:
-    logicFiles = [f for f in logicFiles if not globalParameters["ExperimentalLogicDir"] in f]
+  logicFiles = findLogicFiles(Path(logicPath),
+                              logicArchs,
+                              lazyLoading=globalParameters["LazyLibraryLoading"],
+                              experimentalDir=globalParameters["ExperimentalLogicDir"])
   
   print1("# LibraryLogicFiles:" % logicFiles)
   for logicFile in logicFiles:
