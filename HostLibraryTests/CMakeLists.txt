@@ -192,10 +192,6 @@ endif()
 
 if(TENSILE_USE_HIP)
 
-    # Make sure the testing libraries get built & copied before the client is built
-    # to avoid segfaults on gtest integration.
-    add_dependencies(TensileTests ${HIP_TEST_LIBRARY_TARGET_DEPS})
-
     target_link_libraries(TensileTests PRIVATE "-Xlinker --whole-archive")
     target_link_libraries(TensileTests PUBLIC ${HIP_TEST_LIBRARIES})
     target_link_libraries(TensileTests PRIVATE "-Xlinker --no-whole-archive")

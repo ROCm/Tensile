@@ -32,6 +32,7 @@ import Tensile.Common as Common
 import Tensile.ClientWriter as ClientWriter
 import Tensile.SolutionStructs as SolutionStructs
 import yaml
+import contextlib
 
 mylogger = logging.getLogger()
 
@@ -146,3 +147,31 @@ def test_CreateBenchmarkClientParametersForSizes(tmpdir):
     ClientWriter.CreateBenchmarkClientParametersForSizes(testDataPath, problemSizes, dataFilePath, configFile)
 
     assert os.path.exists(configFile) == 1
+
+def test_verifyManifest():
+  
+  manifestFile = "test_manifest.txt"
+  # ensure clean state before running test
+  with contextlib.suppress(FileNotFoundError):
+    os.remove(manifestFile)
+    os.remove("foo.asm")    
+    os.remove("bar.asm")        
+  # create an empty manifest 
+  with open(manifestFile, "x") as manifest:
+   
+    assert TensileCreateLibrary.verifyManifest(manifestFile), "an empty manifest should always succeed"
+        
+    # add to file manifest that is not on disk
+    manifest.write("foo.asm\n")
+    manifest.flush()
+    assert not TensileCreateLibrary.verifyManifest(manifestFile), "file in manifest should not be on disk"
+  
+    with open("foo.asm", "x"):
+      assert TensileCreateLibrary.verifyManifest(manifestFile), "file in manifest should be on disk"
+  
+    manifest.write("bar.asm\n")
+    manifest.flush()
+    assert not TensileCreateLibrary.verifyManifest(manifestFile), "bar.asm in manifest should not be on disk"
+  
+    with open("bar.asm", "x"):
+      assert TensileCreateLibrary.verifyManifest(manifestFile), "files in manifest should be on disk"

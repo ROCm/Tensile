@@ -232,6 +232,7 @@ globalParameters["SupportedISA"] = [(8,0,3),
 
 globalParameters["CleanupBuildFiles"] = False                     # cleanup build files (e.g. kernel assembly) once no longer needed
 globalParameters["GenerateManifestAndExit"] = False               # Output manifest file with list of expected library objects and exit
+globalParameters["VerifyManifest"] = False                        # Verify manifest file against generated library files and exit.
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
@@ -1122,6 +1123,7 @@ validParameters = {
     # 0: Standard data-parallel kernel
     # 1: Basic StreamK
     # 2: Two-Tile StreamK (each WG completes an even number of sk iterations, followed by an even number of dp tiles)
+    # 3: Two-Tile StreamK with DP before SK tiles
     # StreamK kernels can adjust the number of CUs being used.
     # Using fewer sometimes increases overall throughput by allowing other kernels to run in parallel.
     # StreamK grid is controlled by setting these enviornment variables:
@@ -1137,7 +1139,7 @@ validParameters = {
     #   1 = 1 WG per CU (default)
     # TENSILE_STREAMK_FIXED_GRID lets you override the default grid size with a specific number
     #   0 = override disabled (default)
-    "StreamK": [0, 1, 2],
+    "StreamK": [0, 1, 2, 3],
     # Determines if StreamK kernel uses atomics
     # 0: uses workspace to store partial tiles, accumulate in deterministic fix-up step
     # 1: uses atomics to accumulate partial tiles
