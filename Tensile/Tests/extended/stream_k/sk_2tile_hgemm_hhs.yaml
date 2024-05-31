@@ -52,6 +52,7 @@ BenchmarkProblems:
         # - DepthU: [ 8, 16, 32, 64 ]
         - VectorWidth: [1]
         - StreamK: [2, 3]
+        - StreamKXCCMapping: [0, 1]
         - StaggerU: [0, 32]
         - ScheduleIterAlg: [3]
         - SourceSwap: [False, True]

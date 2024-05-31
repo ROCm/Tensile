@@ -3763,6 +3763,31 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["PersistentKernel"] or kernel["StreamK"]:
       if kernel["StreamK"]:
         # Workload calculations
+        if kernel["StreamKXCCMapping"]:
+          sXCC = self.sgprPool.checkOut(1, "XCC", preventOverflow=0)
+          sGridC = self.sgprPool.checkOut(1, "sGridC", preventOverflow=0)
+          sGridF = self.sgprPool.checkOut(1, "sGridF", preventOverflow=0)
+          sGridM = self.sgprPool.checkOut(1, "sGridM", preventOverflow=0)
+          kStr += inst("s_add_u32", sgpr(sGridC), sgpr("skGrid"), 7, "ceil(grid/8)")
+          kStr += inst("s_lshr_b32", sgpr(sGridC), sgpr(sGridC), 3, "ceil(grid/8)")
+          kStr += inst("s_lshr_b32", sgpr(sGridF), sgpr("skGrid"), 3, "floor(grid/8)")
+          kStr += inst("s_lshl_b32", sgpr(sGridM), sgpr(sGridF), 3, "mod(grid,8)")
+          kStr += inst("s_sub_u32", sgpr(sGridM), sgpr("skGrid"), sgpr(sGridM), "mod(grid,8)")
+          kStr += inst("s_lshr_b32", sgpr(sXCC), sgpr("WorkGroup0"), 3, "XCC group")
+          kStr += inst("s_lshl_b32", sgpr(sXCC), sgpr(sXCC), 3, "XCC group")
+          kStr += inst("s_sub_u32", sgpr(sXCC), sgpr("WorkGroup0"), sgpr(sXCC), "XCC group")
+          kStr += inst("s_cmp_lt_u32", sgpr(sXCC), sgpr(sGridM), "XCCM < Remainder")
+          kStr += inst("s_cselect_b32", sgpr(sGridC), sgpr(sGridC), sgpr(sGridF), "Select multiplier")
+          kStr += inst("s_cselect_b32", sgpr(sGridM), 0, sgpr(sGridM), "Select remainder")
+          kStr += inst("s_lshr_b32", sgpr("WorkGroup0"), sgpr("WorkGroup0"), 3, "Base WG id")
+          kStr += inst("s_mul_i32", sgpr(sXCC), sgpr(sXCC), sgpr(sGridC), "XCC group id")
+          kStr += inst("s_add_u32", sgpr("WorkGroup0"), sgpr("WorkGroup0"), sgpr(sXCC), "Add XCC group offset")
+          kStr += inst("s_add_u32", sgpr("WorkGroup0"), sgpr("WorkGroup0"), sgpr(sGridM), "Add remainder offset")
+          self.sgprPool.checkIn(sXCC)
+          self.sgprPool.checkIn(sGridC)
+          self.sgprPool.checkIn(sGridF)
+          self.sgprPool.checkIn(sGridM)
+
         kStr += inst("s_mov_b32", sgpr("StreamKIdx"), sgpr("WorkGroup0"), "Save original StreamK index")
         if kernel["StreamK"] == 1: # Basic SK
           kStr += inst("s_mul_i32", sgpr("StreamKIter"), sgpr("StreamKIdx"), sgpr("SKItersPerWG"), "StreamK starting iteration")
