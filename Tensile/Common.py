@@ -1559,6 +1559,7 @@ defaultBenchmarkCommonParameters = [
     {"MacroTileShapeMax":         [ 64 ] },
     {"StreamK":                   [ 0 ] },
     {"StreamKAtomic":             [ 0 ] },
+    {"StreamKXCCMapping":         [ 0 ] },
     {"DebugStreamK":              [ 0 ] },
     {"PersistentKernel":          [ 0 ] },
     {"PersistentKernelAlongBatch":[ False ] },    # May be default True is better ?
