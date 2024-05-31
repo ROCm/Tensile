@@ -23,7 +23,7 @@
 ################################################################################
 from . import __version__
 from . import LibraryIO
-from .Common import print1,HR,defaultBenchmarkCommonParameters,defaultProblemType
+from .Common import tPrint,HR,defaultBenchmarkCommonParameters,defaultProblemType
 from .DataType import DataType
              
 import argparse
@@ -31,10 +31,10 @@ import os
 import sys
 
 def TensileLibLogicToYaml(userArgs):
-    print1("")
-    print1(HR)
-    print1("#")
-    print1("#  TensileLibLogicToYaml Library v{}".format(__version__))
+    tPrint(1, "")
+    tPrint(1, HR)
+    tPrint(1, "#")
+    tPrint(1, "#  TensileLibLogicToYaml Library v{}".format(__version__))
     
      # argument parsing and related setup
     argParser = argparse.ArgumentParser()
@@ -55,11 +55,11 @@ def TensileLibLogicToYaml(userArgs):
     solutionIndex = args.SolutionIndex
     tensileYamlFile = args.OutputYaml
     
-    print1("#  Library Logic: {}".format(logicFilePath))
-    print1("#  Solution Index: {}".format(solutionIndex))
-    print1("#")
-    print1(HR)
-    print1("")
+    tPrint(1, "#  Library Logic: {}".format(logicFilePath))
+    tPrint(1, "#  Solution Index: {}".format(solutionIndex))
+    tPrint(1, "#")
+    tPrint(1, HR)
+    tPrint(1, "")
     libYaml = LibraryIO.readYAML(logicFilePath)
     if libYaml == "":
      raise RuntimeError("Yaml file data is empty, read yaml file :{} failed".format(logicFilePath))
@@ -82,7 +82,7 @@ def TensileLibLogicToYaml(userArgs):
       if currentIndexSolution["EnableMatrixInstruction"] and currentIndexSolution["MatrixInstruction"]:
         isMatrixInsEnabled = True
       else:
-        print1("Matrix instruction is disabled skipping the matrix instruction parameter ..")
+        tPrint(1, "Matrix instruction is disabled skipping the matrix instruction parameter ..")
     
     tensileYamlFileData = []   
     if args.skipMI != True and isMatrixInsEnabled:
@@ -144,7 +144,7 @@ def formForkParametersYamlData(currentIndexSolution, MIInstruction9Bits):
     for forkKey, forkValue in currentIndexSolution.items():
       if MIInstruction9Bits == "None":
         if forkKey == "ProblemType" or forkKey == "MatrixInstruction":
-          print1("Continuing Matrix Instructions for Non MI\n")
+          tPrint(1, "Continuing Matrix Instructions for Non MI\n")
           continue
           
         if forkKey == "MACInstruction":
@@ -263,9 +263,9 @@ def writeToTensileYamlFile(tensileYamlFile, tensileYamlData):
       with open(tensileYamlFile, "w") as fileHandle:
         fileHandle.writelines("%s" % place for place in tensileYamlData)
         fileHandle.close()
-        print1("Successfully created the Tensile Input Yaml File {} from library logic file !!.\n".format(tensileYamlFile))
+        tPrint(1, "Successfully created the Tensile Input Yaml File {} from library logic file !!.\n".format(tensileYamlFile))
     except (OSError, IOError):
-      print1("Error: Creating file {} Please provide file name in this format <filename>.yaml.".format(tensileYamlFile))
+      tPrint(1, "Error: Creating file {} Please provide file name in this format <filename>.yaml.".format(tensileYamlFile))
     
 def main():
     TensileLibLogicToYaml(sys.argv[1:])

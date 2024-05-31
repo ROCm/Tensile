@@ -1,7 +1,7 @@
 # headers
 GlobalParameters:
   MinimumRequiredVersion: 4.9.0
-  PrintLevel: 1
+  PrintLevel: 2
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
   ForceRedoLibraryClient: True
@@ -19,7 +19,6 @@ GlobalParameters:
   SleepPercent: 500
   DataInitTypeAlpha: 1
   DataInitTypeBeta: 0
-#  PrintCodeCommands: True
   PrintSolutionRejectionReason: True
   PrintWinnersOnly: True
 #  PinClocks: True

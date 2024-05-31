@@ -24,7 +24,7 @@
 
 from copy import deepcopy
 import itertools
-from .Common import print1, print2, printExit, \
+from .Common import tPrint, printExit, \
         defaultBenchmarkCommonParameters, validParameters, globalParameters, \
         defaultBatchedBenchmarkFinalProblemSizes, defaultBenchmarkFinalProblemSizes
 from .CustomKernels import getAllCustomKernelNames
@@ -82,7 +82,7 @@ class BenchmarkProcess:
         """Create from the two sections of a config for a BenchmarkProblem"""
         self.problemType = ProblemType(problemTypeConfig)
         self.isBatched = "Batched" in problemTypeConfig and problemTypeConfig["Batched"]
-        print2("# BenchmarkProcess beginning {}".format(self.problemType))
+        tPrint(3, "# BenchmarkProcess beginning {}".format(self.problemType))
 
         # fill parameter values from config
         self.singleValueParams = {}
@@ -100,11 +100,11 @@ class BenchmarkProcess:
 
     def getConfigParameters(self, isbatched, config):
         """Parse and validate benchmarking parameters in config"""
-        print2("")
-        print2("####################################################################")
-        print1("# Filling in Parameters With Defaults")
-        print2("####################################################################")
-        print2("")
+        tPrint(3, "")
+        tPrint(3, "####################################################################")
+        tPrint(1, "# Filling in Parameters With Defaults")
+        tPrint(3, "####################################################################")
+        tPrint(3, "")
 
         # check for no longer supported legacy benchmark steps
         badParams = ["InitialSolutionParameters", "BenchmarkForkParameters", \
@@ -162,31 +162,31 @@ class BenchmarkProcess:
         self.singleValueParams, self.multiValueParams = separateParameters(params)
 
         # print summary of parameter values
-        print2("Single Value Parameters:")
+        tPrint(3, "Single Value Parameters:")
         for k, v in sorted(self.singleValueParams.items()):
-            print2("    {}: {}".format(k, v))
+            tPrint(3, "    {}: {}".format(k, v))
 
-        print2("Multi-Value Parameters:")
+        tPrint(3, "Multi-Value Parameters:")
         for k, v in sorted(self.multiValueParams.items()):
-            print2("    {}: {}".format(k, v))
+            tPrint(3, "    {}: {}".format(k, v))
 
         if len(self.paramGroups) > 0:
-            print2("{} Parameter Group(s):".format(len(self.paramGroups)))
+            tPrint(3, "{} Parameter Group(s):".format(len(self.paramGroups)))
             for i, group in enumerate(self.paramGroups):
-                print2("    {} entries is group {}".format(len(group), i + 1))
+                tPrint(3, "    {} entries is group {}".format(len(group), i + 1))
 
     def convertParametersToSteps(self):
         """Create benchmark steps based on parsed parameters"""
-        print2("")
-        print2("####################################################################")
-        print1("# Convert Parameters to Benchmark Step(s)")
-        print2("####################################################################")
-        print2("")
+        tPrint(3, "")
+        tPrint(3, "####################################################################")
+        tPrint(1, "# Convert Parameters to Benchmark Step(s)")
+        tPrint(3, "####################################################################")
+        tPrint(3, "")
 
         # currently only a single step is supported
-        print2("")
-        print2("####################################################################")
-        print1("# Benchmark Final")
+        tPrint(3, "")
+        tPrint(3, "####################################################################")
+        tPrint(1, "# Benchmark Final")
         benchmarkStep = BenchmarkStep( \
                 self.multiValueParams, \
                 self.singleValueParams, \
@@ -267,7 +267,7 @@ class BenchmarkStep:
             self.customKernels = getAllCustomKernelNames()
             self.customKernelWildcard = True
 
-        print2("# Creating BenchmarkStep: {} fork params and {} sizes" \
+        tPrint(3, "# Creating BenchmarkStep: {} fork params and {} sizes" \
                 .format( len(forkParams), problemSizes.totalProblemSizes))
 
     def isFinal(self):

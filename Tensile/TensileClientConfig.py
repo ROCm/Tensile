@@ -27,7 +27,7 @@ from . import ClientWriter
 from . import LibraryIO
 from .Contractions import ProblemType as ContractionsProblemType
 from .SolutionStructs import ProblemSizes, ProblemType
-from .Common import print1, printExit, printWarning, assignGlobalParameters, \
+from .Common import tPrint, printExit, printWarning, assignGlobalParameters, \
         restoreDefaultGlobalParameters, HR
 from .Tensile import addCommonArguments, argUpdatedGlobalParameters
 from . import __version__
@@ -106,13 +106,13 @@ def parseConfig(config):
 
 
 def TensileClientConfig(userArgs):
-    print1("")
-    print1(HR)
-    print1("#")
-    print1("#  Tensile Client Config v{}".format(__version__))
-    print1("#")
-    print1(HR)
-    print1("")
+    tPrint(1, "")
+    tPrint(1, HR)
+    tPrint(1, "#")
+    tPrint(1, "#  Tensile Client Config v{}".format(__version__))
+    tPrint(1, "#")
+    tPrint(1, HR)
+    tPrint(1, "")
 
     # argument parsing
     # yapf: disable
@@ -179,7 +179,7 @@ def TensileClientConfig(userArgs):
 
     overrideParameters = argUpdatedGlobalParameters(args)
     for key, value in overrideParameters.items():
-        print1("Overriding {0}={1}".format(key, value))
+        tPrint(1, "Overriding {0}={1}".format(key, value))
         Common.globalParameters[key] = value
 
     # write output

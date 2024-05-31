@@ -55,7 +55,7 @@ workingDirectoryStack = []
 ########################################
 globalParameters["MinimumRequiredVersion"] = "0.0.0" # which version of tensile is required to handle all the features required by this configuration file
 globalParameters["PerformanceMetric"] = "DeviceEfficiency" # performance metric for benchmarking; one of {DeviceEfficiency, CUEfficiency}
-globalParameters["PrintLevel"] = 1                # how much info to print in generator. 0=none, 1=standard, 2=verbose
+globalParameters["PrintLevel"] = 1                # how much info to print in generator. 0=none, 1=standard, 2=add code commands, 3=verbose
 globalParameters["ClientLogLevel"] = 3            # the log level of client. 0=Error, 1=Terse, 2=Verbose, 3=Debug (Aligned with ResultReporter.hpp)
 # benchmarking
 globalParameters["KernelTime"] = False            # T=use device timers, F=use host timers
@@ -205,7 +205,6 @@ globalParameters["PrintTensorD"] = 0          # Print TensorD.  0x1=after init; 
 globalParameters["PrintTensorRef"] = 0          # Print reference tensor.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintIndexAssignments"] = 0      # Print the tensor index assignment info
 globalParameters["PrintWinnersOnly"] = False      # Only print the solutions which become the fastest
-globalParameters["PrintCodeCommands"] = False  # print the commands used to generate the code objects (asm,link,hip-clang, etc)
 globalParameters["DumpTensors"] = False        # If True, dump tensors to binary files instead of printing them.
 
 # If PrintMax* is greater than the dimension, the middle elements will be replaced with "..."
@@ -1934,15 +1933,11 @@ def getParamValues( name, structure ):
 ################################################################################
 # Print Debug
 ################################################################################
-def print1(message):
-  if globalParameters["PrintLevel"] >= 1:
-    print(message)
+def tPrint(verbosity: int, *args):
+  if globalParameters["PrintLevel"] >= verbosity:
+    print(args)
     sys.stdout.flush()
-def print2(message):
-  if globalParameters["PrintLevel"] >= 2:
-    print(message)
-    sys.stdout.flush()
-
+    
 def printWarning(message):
   print("Tensile::WARNING: %s" % message)
   sys.stdout.flush()
@@ -2122,7 +2117,7 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
   Success is defined as assembler returning no error code or stderr/stdout
   """
   options = list(options)
-  if globalParameters["PrintLevel"] >= 2:
+  if globalParameters["PrintLevel"] >= 3:
     debug = True
 
   if isaVersion[0] >= 10:
@@ -2192,14 +2187,14 @@ def detectGlobalCurrentISA():
       arch = gfxArch(line.strip())
       if arch is not None:
         if arch in globalParameters["SupportedISA"]:
-          print1("# Detected local GPU with ISA: " + gfxName(arch))
+          tPrint(1, "# Detected local GPU with ISA: " + gfxName(arch))
           globalParameters["CurrentISA"] = arch
     else:
       for line in process.stdout.decode().split("\n"):
         arch = gfxArch(line.strip())
         if arch is not None:
           if arch in globalParameters["SupportedISA"]:
-            print1("# Detected local GPU with ISA: " + gfxName(arch))
+            tPrint(1, "# Detected local GPU with ISA: " + gfxName(arch))
             globalParameters["CurrentISA"] = arch
     if (process.returncode):
       printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
@@ -2278,17 +2273,17 @@ def assignGlobalParameters( config ):
           % (config["MinimumRequiredVersion"], __version__) )
 
   # User-specified global parameters
-  print2("GlobalParameters:")
+  tPrint(3, "GlobalParameters:")
   for key in globalParameters:
     defaultValue = globalParameters[key]
     if key in config:
       configValue = config[key]
       if configValue == defaultValue:
-        print2(" %24s: %8s (same)" % (key, configValue))
+        tPrint(3, " %24s: %8s (same)" % (key, configValue))
       else:
-        print2(" %24s: %8s (overridden)" % (key, configValue))
+        tPrint(3, " %24s: %8s (overridden)" % (key, configValue))
     else:
-      print2(" %24s: %8s (unspecified)" % (key, defaultValue))
+      tPrint(3, " %24s: %8s (unspecified)" % (key, defaultValue))
 
   globalParameters["ROCmPath"] = "/opt/rocm"
   if "ROCM_PATH" in os.environ:
@@ -2366,7 +2361,7 @@ def assignGlobalParameters( config ):
     for line in output.split('\n'):
       if 'HIP version' in line:
         globalParameters['HipClangVersion'] = line.split()[2]
-        print1("# Found  hipcc version " + globalParameters['HipClangVersion'])
+        tPrint(1, "# Found  hipcc version " + globalParameters['HipClangVersion'])
 
   except (subprocess.CalledProcessError, OSError) as e:
       printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))

@@ -28,7 +28,7 @@ from . import ClientWriter
 from . import LibraryIO
 from . import LibraryLogic
 from . import Common
-from .Common import globalParameters, print1, printWarning, ensurePath, assignGlobalParameters, \
+from .Common import globalParameters, tPrint, printWarning, ensurePath, assignGlobalParameters, \
                     pushWorkingPath, popWorkingPath, restoreDefaultGlobalParameters, HR
 from .Tensile import addCommonArguments, argUpdatedGlobalParameters
 from .SolutionStructs import ProblemSizes
@@ -121,10 +121,10 @@ def runBenchmarking(solutions, problemSizes, outPath, update):
 
 
 def TensileRetuneLibrary(userArgs):
-    print1("")
-    print1(HR)
-    print1("#")
-    print1("#  Tensile Retune Library v{}".format(__version__))
+    tPrint(1, "")
+    tPrint(1, HR)
+    tPrint(1, "#")
+    tPrint(1, "#  Tensile Retune Library v{}".format(__version__))
 
     # argument parsing and related setup
     argParser = argparse.ArgumentParser()
@@ -149,10 +149,10 @@ def TensileRetuneLibrary(userArgs):
 
     libPath = args.LogicFile
     sizePath = args.SizeFile
-    print1("#  Library Logic: {}".format(libPath))
-    print1("#")
-    print1(HR)
-    print1("")
+    tPrint(1, "#  Library Logic: {}".format(libPath))
+    tPrint(1, "#")
+    tPrint(1, HR)
+    tPrint(1, "")
 
     if args.skipRK and args.updateMethod != "remake":
         printWarning("--skip-replacement-kernels=true only compatable with --update-method=remake:"
@@ -180,7 +180,7 @@ def TensileRetuneLibrary(userArgs):
 
     overrideParameters = argUpdatedGlobalParameters(args)
     for key, value in overrideParameters.items():
-        print1("Overriding {0}={1}".format(key, value))
+        tPrint(1, "Overriding {0}={1}".format(key, value))
         Common.globalParameters[key] = value
 
     # parse library logic then setup and run benchmarks
@@ -195,9 +195,9 @@ def TensileRetuneLibrary(userArgs):
 
     if update:
         # read update yaml from benchmark client and update logic
-        print1("")
-        print1(HR)
-        print1("# Reading update file from Benchmarking Client")
+        tPrint(1, "")
+        tPrint(1, HR)
+        tPrint(1, "# Reading update file from Benchmarking Client")
         updateFile = os.path.join(outPath, "Data", "update.yaml")
         updateLogic = LibraryIO.readYAML(updateFile)
         rawYaml[7] = updateLogic
@@ -206,9 +206,9 @@ def TensileRetuneLibrary(userArgs):
         libName = os.path.basename(libPath)
         outFile = os.path.join(outPath, libName)
 
-        print1("# Writing updated Library Logic: {}".format(outFile))
+        tPrint(1, "# Writing updated Library Logic: {}".format(outFile))
         LibraryIO.writeYAML(outFile, rawYaml, explicit_start=False, explicit_end=False)
-        print1(HR)
+        tPrint(1, HR)
 
 
 def main():

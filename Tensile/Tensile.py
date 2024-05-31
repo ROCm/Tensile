@@ -29,7 +29,7 @@ if __name__ == "__main__":
 import os
 import sys
 import argparse
-from .Common import globalParameters, print1, printExit, ensurePath, \
+from .Common import globalParameters, tPrint, printExit, ensurePath, \
     assignGlobalParameters, restoreDefaultGlobalParameters, HR, gfxArch
 from . import BenchmarkProblems
 from . import ClientExecutable
@@ -55,7 +55,7 @@ def executeStepsInConfig(config):
     ##############################################################################
     if "BenchmarkProblems" in config:
         BenchmarkProblems.main(config["BenchmarkProblems"], config["UseCache"])
-        print1("")
+        tPrint(1, "")
 
     ##############################################################################
     # Library Logic
@@ -73,10 +73,10 @@ def executeStepsInConfig(config):
             else:
                 libraryLogicConfig = {}
             LibraryLogic.main(libraryLogicConfig)
-            print1("")
+            tPrint(1, "")
         else:
-            print1("# LibraryLogic already done.")
-        print1("")
+            tPrint(1, "# LibraryLogic already done.")
+        tPrint(1, "")
 
     ##############################################################################
     # Write Client
@@ -87,7 +87,7 @@ def executeStepsInConfig(config):
         else:
             libraryClientConfig = {}
         ClientWriter.main(libraryClientConfig)
-        print1("")
+        tPrint(1, "")
 
 
 def addCommonArguments(argParser):
@@ -115,9 +115,9 @@ def addCommonArguments(argParser):
         choices=["default", "V4", "V5"], help="HSA code-object version")
     argParser.add_argument("--arch", dest="arch", help="override gfx arch version")
     argParser.add_argument("-v", "--verbose", action="store_true", \
-        help="set PrintLevel=2")
+        help="set PrintLevel=3")
     argParser.add_argument("--debug", dest="debug", action="store_true", \
-        help="set PrintLevel=2 and CMakeBuildType=Debug")
+        help="set PrintLevel=3 and CMakeBuildType=Debug")
     argParser.add_argument("--short-names", dest="shortNames", action="store_true", \
         help="use serial kernel and solution names")
     argParser.add_argument("--no-merge-files", dest="noMergeFiles", action="store_true", \
@@ -140,26 +140,26 @@ def argUpdatedGlobalParameters(args):
     rv = {}
     # override config with command-line options
     if args.device:
-        print1("# Command-line override: Device")
+        tPrint(1, "# Command-line override: Device")
         rv["Device"] = args.device
     if args.platform:
-        print1("# Command-line override: Platform")
+        tPrint(1, "# Command-line override: Platform")
         rv["Platform"] = args.platform
     if args.RuntimeLanguage:
-        print1("# Command-line override: RuntimeLanguage")
+        tPrint(1, "# Command-line override: RuntimeLanguage")
         rv["RuntimeLanguage"] = args.RuntimeLanguage
     if args.CodeObjectVersion:
-        print1("# Command-line override: CodeObjectVersion")
+        tPrint(1, "# Command-line override: CodeObjectVersion")
         rv["CodeObjectVersion"] = args.CodeObjectVersion
     if args.arch:
-        print1("# Command-line override: CurrentISA")
+        tPrint(1, "# Command-line override: CurrentISA")
         rv["CurrentISA"] = gfxArch(args.arch)
     if args.verbose:
-        print1("# Command-line override: PrintLevel")
-        rv["PrintLevel"] = 2
+        tPrint(1, "# Command-line override: PrintLevel")
+        rv["PrintLevel"] = 3
     if args.debug:
-        print1("# Command-line override: Debug")
-        rv["PrintLevel"] = 2
+        tPrint(1, "# Command-line override: Debug")
+        rv["PrintLevel"] = 3
         rv["CMakeBuildType"] = "Debug"
     if args.shortNames:
         rv["ShortNames"] = True
@@ -167,7 +167,7 @@ def argUpdatedGlobalParameters(args):
         rv["MergeFiles"] = False
     if args.CxxCompiler:
         rv['CxxCompiler'] = args.CxxCompiler
-    print1("")
+    tPrint(1, "")
     if args.client_build_path:
         rv["ClientBuildPath"] = args.client_build_path
     if args.client_lock:
@@ -189,10 +189,10 @@ def Tensile(userArgs):
     global globalParameters
 
     # 1st half of splash
-    print1("")
-    print1(HR)
-    print1("#")
-    print1("#  Tensile v%s" % (__version__))
+    tPrint(1, "")
+    tPrint(1, HR)
+    tPrint(1, "#")
+    tPrint(1, "#  Tensile v%s" % (__version__))
 
     # setup argument parser
     # yapf: disable
@@ -229,15 +229,15 @@ def Tensile(userArgs):
 
     # 2nd half of splash
     if len(configPaths) == 1:
-        print1("#  Config: {}".format(configPaths[0]))
+        tPrint(1, "#  Config: {}".format(configPaths[0]))
     else:
-        print1("#  Configs: {} and {}".format(configPaths[0], configPaths[1]))
-    print1("#  Date & Time: %s" % (datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
-    print1("#")
-    print1(HR)
-    print1("")
+        tPrint(1, "#  Configs: {} and {}".format(configPaths[0], configPaths[1]))
+    tPrint(1, "#  Date & Time: %s" % (datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
+    tPrint(1, "#")
+    tPrint(1, HR)
+    tPrint(1, "")
 
-    print1("# Restoring default globalParameters")
+    tPrint(1, "# Restoring default globalParameters")
     restoreDefaultGlobalParameters()
 
     # CxxCompiler and LibraryFormat needs to be updated before assignGlobalParameters.

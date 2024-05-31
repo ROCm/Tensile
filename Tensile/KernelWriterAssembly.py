@@ -23,7 +23,7 @@
 ################################################################################
 
 from . import Code
-from .Common import gfxName, globalParameters, getCOVFromParam, print2, printExit, printWarning, roundUp
+from .Common import gfxName, globalParameters, getCOVFromParam, tPrint, printExit, printWarning, roundUp
 from .Component import Component
 from .KernelWriter import KernelWriter
 from .SolutionStructs import isPackedIndex
@@ -1740,7 +1740,7 @@ class KernelWriterAssembly(KernelWriter):
     #if globalParameters["DebugKernel"]:
     #  minVgprTmp += 2
     #vgprIdx += minVgprTmp
-    #print2("%3u vgprs <- %s" % (vgprIdx, self.kernelName) )
+    #tPrint(3, "%3u vgprs <- %s" % (vgprIdx, self.kernelName) )
     self.startVgprReuse = vgprIdx # for register reuse;
 
     self.totalVgprs = max(vgprIdx, self.numVgprValuC)
@@ -12717,20 +12717,20 @@ class KernelWriterAssembly(KernelWriter):
         elif gwvw != gwvwOrig:
           self.ss.gwvw = gwvw # make both representations consistent
           if shrinkDb:
-            print2("info: %s shrank gwvw from %u to %u but kept occupancy same=%u." \
+            tPrint(3, "info: %s shrank gwvw from %u to %u but kept occupancy same=%u." \
                 % (self.kernelName, gwvwOrig, gwvw, currentOccupancy))
 
         if numVgprAvailable < minElements*numVgprsPerElement:
-          print2("info: growing pool += %d * %d for GlobalWrite\n" \
+          tPrint(3, "info: growing pool += %d * %d for GlobalWrite\n" \
               % (minElements,numVgprsPerElement))
-          print2(self.vgprPool.state())
+          tPrint(3, self.vgprPool.state())
           tl = []
           for i in range(0,minElements):
             tl.append(self.vgprPool.checkOut(numVgprsPerElement, "grow-pool for GlobalWrite"))
           for t in tl:
             self.vgprPool.checkIn(t)
           numVgprAvailable = self.vgprPool.available()
-          print2(self.vgprPool.state())
+          tPrint(3, self.vgprPool.state())
 
       # print("NumVgprAvailable", numVgprAvailable)
       if numVgprsPerElement:
@@ -12955,20 +12955,20 @@ class KernelWriterAssembly(KernelWriter):
       elif gwvw != gwvwOrig:
         self.ss.gwvw = gwvw # make both representations consistent
         if shrinkDb:
-          print2("info: %s shrank gwvw from %u to %u but kept occupancy same=%u." \
+          tPrint(3, "info: %s shrank gwvw from %u to %u but kept occupancy same=%u." \
               % (self.kernelName, gwvwOrig, gwvw, currentOccupancy))
 
       if numVgprAvailable < minElements*numVgprsPerElement:
-        print2("info: growing pool += %d * %d for GlobalWrite\n" \
+        tPrint(3, "info: growing pool += %d * %d for GlobalWrite\n" \
             % (minElements,numVgprsPerElement))
-        print2(self.vgprPool.state())
+        tPrint(3, self.vgprPool.state())
         tl = []
         for i in range(0,minElements):
           tl.append(self.vgprPool.checkOut(numVgprsPerElement, "grow-pool for GlobalWrite"))
         for t in tl:
           self.vgprPool.checkIn(t)
         numVgprAvailable = self.vgprPool.available()
-        print2(self.vgprPool.state())
+        tPrint(3, self.vgprPool.state())
 
     # set atomicW after we potentially resize GWVW
     atomicW = min(gwvw, kernel["VectorAtomicWidth"])
@@ -13407,20 +13407,20 @@ class KernelWriterAssembly(KernelWriter):
       elif gwvw != gwvwOrig:
         self.ss.gwvw = gwvw # make both representations consistent
         if shrinkDb:
-          print2("info: %s shrank gwvw from %u to %u but kept occupancy same=%u." \
+          tPrint(3, "info: %s shrank gwvw from %u to %u but kept occupancy same=%u." \
               % (self.kernelName, gwvwOrig, gwvw, currentOccupancy))
 
       if numVgprAvailable < minElements*numVgprsPerElement:
-        print2("info: growing pool += %d * %d for GlobalWrite\n" \
+        tPrint(3, "info: growing pool += %d * %d for GlobalWrite\n" \
             % (minElements,numVgprsPerElement))
-        print2(self.vgprPool.state())
+        tPrint(3, self.vgprPool.state())
         tl = []
         for i in range(0,minElements):
           tl.append(self.vgprPool.checkOut(numVgprsPerElement, "grow-pool for GlobalWrite"))
         for t in tl:
           self.vgprPool.checkIn(t)
         numVgprAvailable = self.vgprPool.available()
-        print2(self.vgprPool.state())
+        tPrint(3, self.vgprPool.state())
 
     # set atomicW after we potentially resize GWVW
     atomicW = min(gwvw, kernel["VectorAtomicWidth"])
