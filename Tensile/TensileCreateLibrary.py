@@ -221,8 +221,8 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       
       hipFlags = ["-D__HIP_HCC_COMPAT_MODE__=1"] #needs to be fixed when Maneesh's change is made available
       hipFlags += ["--genco"] if CxxCompiler == "hipcc" else ["--cuda-device-only", "-x", "hip", "-O3"] 
-      if CxxCompiler == "amdclang++": 
-        hipFlags += ["-mllvm", "-amdgpu-early-inline-all=true", "-mllvm", "-amdgpu-function-calls=false"] 
+      #if CxxCompiler == "amdclang++": 
+        #hipFlags += ["-mllvm", "-amdgpu-early-inline-all=true", "-mllvm", "-amdgpu-function-calls=false"] 
       hipFlags += ['-I', outputPath]
 
       # Add build-id for builds with rocm 5.3+
