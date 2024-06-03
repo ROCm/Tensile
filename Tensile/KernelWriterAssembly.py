@@ -3768,18 +3768,21 @@ class KernelWriterAssembly(KernelWriter):
           sGridC = self.sgprPool.checkOut(1, "sGridC", preventOverflow=0)
           sGridF = self.sgprPool.checkOut(1, "sGridF", preventOverflow=0)
           sGridM = self.sgprPool.checkOut(1, "sGridM", preventOverflow=0)
-          kStr += inst("s_add_u32", sgpr(sGridC), sgpr("skGrid"), 7, "ceil(grid/8)")
-          kStr += inst("s_lshr_b32", sgpr(sGridC), sgpr(sGridC), 3, "ceil(grid/8)")
-          kStr += inst("s_lshr_b32", sgpr(sGridF), sgpr("skGrid"), 3, "floor(grid/8)")
-          kStr += inst("s_lshl_b32", sgpr(sGridM), sgpr(sGridF), 3, "mod(grid,8)")
-          kStr += inst("s_sub_u32", sgpr(sGridM), sgpr("skGrid"), sgpr(sGridM), "mod(grid,8)")
-          kStr += inst("s_lshr_b32", sgpr(sXCC), sgpr("WorkGroup0"), 3, "XCC group")
-          kStr += inst("s_lshl_b32", sgpr(sXCC), sgpr(sXCC), 3, "XCC group")
-          kStr += inst("s_sub_u32", sgpr(sXCC), sgpr("WorkGroup0"), sgpr(sXCC), "XCC group")
+          stmp = self.sgprPool.checkOut(2, "stmp", preventOverflow=0)
+          # sGridC = ceil(grid / xccm)
+          kStr += inst("s_add_u32", sgpr(sXCC), sgpr("skGrid"), 7, "ceil(grid/xccm)")
+          kStr += scalarStaticDivideAndRemainder(sGridC, None, sGridC, kernel["StreamKXCCMapping"], stmp, doRemainder=0)
+          # sGridF = floor(grid / xccm)
+          # sGridM = grid % xccm
+          kStr += scalarStaticDivideAndRemainder(sGridF, sGridM, "skGrid", kernel["StreamKXCCMapping"], stmp)
+          # sXCC = wg0 % xccm
+          kStr += scalarStaticDivideAndRemainder(None, sXCC, "WorkGroup0", kernel["StreamKXCCMapping"], stmp, doRemainder=2)
+          # Check if current XCC requires a remainder WG or not
           kStr += inst("s_cmp_lt_u32", sgpr(sXCC), sgpr(sGridM), "XCCM < Remainder")
           kStr += inst("s_cselect_b32", sgpr(sGridC), sgpr(sGridC), sgpr(sGridF), "Select multiplier")
           kStr += inst("s_cselect_b32", sgpr(sGridM), 0, sgpr(sGridM), "Select remainder")
-          kStr += inst("s_lshr_b32", sgpr("WorkGroup0"), sgpr("WorkGroup0"), 3, "Base WG id")
+          # WG = floor(wg0 / xccm) * xccm + XCCoffset + optional remainder
+          kStr += scalarStaticDivideAndRemainder("WorkGroup0", None, "WorkGroup0", kernel["StreamKXCCMapping"], stmp, doRemainder=0)
           kStr += inst("s_mul_i32", sgpr(sXCC), sgpr(sXCC), sgpr(sGridC), "XCC group id")
           kStr += inst("s_add_u32", sgpr("WorkGroup0"), sgpr("WorkGroup0"), sgpr(sXCC), "Add XCC group offset")
           kStr += inst("s_add_u32", sgpr("WorkGroup0"), sgpr("WorkGroup0"), sgpr(sGridM), "Add remainder offset")
@@ -3787,6 +3790,7 @@ class KernelWriterAssembly(KernelWriter):
           self.sgprPool.checkIn(sGridC)
           self.sgprPool.checkIn(sGridF)
           self.sgprPool.checkIn(sGridM)
+          self.sgprPool.checkIn(stmp)
 
         kStr += inst("s_mov_b32", sgpr("StreamKIdx"), sgpr("WorkGroup0"), "Save original StreamK index")
         if kernel["StreamK"] == 1: # Basic SK
