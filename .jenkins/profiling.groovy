@@ -99,6 +99,8 @@ def runCI =
     prj.timeout.test = 30
     prj.defaults.ccache = false
 
+    def commonGroovy
+
     def compileCommand =
     {
         platform, project->
@@ -116,6 +118,6 @@ ci: {
     properties(auxiliary.addCommonProperties([pipelineTriggers([cron('0 2 * * 6')])]))
 
     stage(urlJobName) {
-        runCI([ubuntu20:['gfx90a']], urlJobName)
+        runCI([ubuntu22:['gfx90a']], urlJobName)
     }
 }

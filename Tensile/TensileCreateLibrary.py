@@ -41,6 +41,7 @@ from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
 from .SolutionStructs import Solution
 from .Utilities.String import splitDelimitedString
+from .Utilities.Profile import profile
 
 import argparse
 import collections
@@ -918,6 +919,7 @@ def generateKernelObjectsFromSolutions(solutions):
 ################################################################################
 # Generate Logic Data and Solutions
 ################################################################################
+@profile
 def generateLogicDataAndSolutions(logicFiles, args):
   libraries = Common.ParallelMap(LibraryIO.parseLibraryLogicFile, logicFiles, "Reading logic files", multiArg=False)
   solutions = []
