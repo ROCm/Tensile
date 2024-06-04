@@ -329,6 +329,18 @@ def getArchitectureName(gfxName: str) -> Optional[str]:
         return architectureMap[archKey]
     return None
 
+def supportedLinuxCompiler(compiler: str) -> bool:
+  """ Determines if compiler is supported by Tensile
+      Args:
+          The name of a compiler to test for support.
+      
+      Return:
+          If supported True; otherwise, False.
+  """
+  if (compiler == "hipcc" or compiler == "amdclang++"): return True
+
+  return False
+
 ################################################################################
 # Enumerate Valid Solution Parameters
 ################################################################################
@@ -2252,7 +2264,7 @@ def printCapTable(parameters):
 def which(p):
     exes = [p+x for x in ['', '.exe', '.bat']]
     system_path = os.environ['PATH'].split(os.pathsep)
-    if (p == 'hipcc' or p == 'amdclang++') and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
+    if supportedLinuxCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
         return os.environ['CMAKE_CXX_COMPILER']
     for dirname in system_path+[globalParameters["ROCmBinPath"]]:
         for exe in exes:
@@ -2319,7 +2331,7 @@ def assignGlobalParameters( config ):
 
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
-  elif globalParameters["AssemblerPath"] is None and (globalParameters["CxxCompiler"] == "hipcc" or globalParameters["CxxCompiler"] == "amdclang++"):
+  elif globalParameters["AssemblerPath"] is None and supportedLinuxCompiler(globalParameters["CxxCompiler"]):
     if os.name == "nt":
       globalParameters["AssemblerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang++.exe")
     else:

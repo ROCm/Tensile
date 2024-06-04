@@ -34,7 +34,8 @@ from . import EmbeddedData
 from . import LibraryIO
 from . import Utils
 from .Common import getArchitectureName, globalParameters, HR, print1, print2, printExit, ensurePath, \
-                    CHeader, CMakeHeader, assignGlobalParameters, gfxName, architectureMap
+                    CHeader, CMakeHeader, assignGlobalParameters, gfxName, architectureMap, \
+                    supportedLinuxCompiler
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
@@ -161,7 +162,7 @@ def which(p):
     else:
         exes = [p+x for x in ['', '.exe', '.bat']]
     system_path = os.environ['PATH'].split(os.pathsep)
-    if (p == 'hipcc' or p == 'amdclang++') and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
+    if supportedLinuxCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
         return os.environ['CMAKE_CXX_COMPILER']
     for dirname in system_path+[globalParameters["ROCmBinPath"]]:
         for exe in exes:
@@ -214,7 +215,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
     coFilenames = []
 
-    if (CxxCompiler == "hipcc" or CxxCompiler == "amdclang++"):
+    if supportedLinuxCompiler(CxxCompiler):
       archs, cmdlineArchs = splitArchs()
 
       archFlags = ['--offload-arch=' + arch for arch in cmdlineArchs]
@@ -696,7 +697,7 @@ def buildObjectFileNames(kernelWriterSource, kernelWriterAssembly, solutions, ke
   cxxCompiler = globalParameters["CxxCompiler"]
 
   # Source based kernels are built for all supported architectures
-  if (cxxCompiler == 'hipcc' or cxxCompiler == 'amdclang++'):
+  if supportedLinuxCompiler(cxxCompiler):
     sourceArchs, _ = splitArchs()
   else:
     raise RuntimeError("Unknown compiler %s" % cxxCompiler)
@@ -737,12 +738,12 @@ def buildObjectFileNames(kernelWriterSource, kernelWriterAssembly, solutions, ke
     allSources = sourceKernelNames + kernelHelperObjNames
 
     for kernelName in (allSources):
-      if (cxxCompiler == 'hipcc' or cxxCompiler == 'amdclang++'):
+      if supportedLinuxCompiler(cxxCompiler):
         sourceLibFiles += ["%s.so-000-%s.hsaco" % (kernelName, arch) for arch in sourceArchs]
       else:
         raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
   elif globalParameters["NumMergedFiles"] > 1:
-    if (cxxCompiler == 'hipcc' or cxxCompiler == 'amdclang++'):
+    if supportedLinuxCompiler(cxxCompiler):
       for kernelIndex in range(0, globalParameters["NumMergedFiles"]):
         sourceLibFiles += ["Kernels%d.so-000-%s.hsaco" % (kernelIndex, arch) for arch in sourceArchs]
     else:
@@ -750,10 +751,10 @@ def buildObjectFileNames(kernelWriterSource, kernelWriterAssembly, solutions, ke
   elif globalParameters["LazyLibraryLoading"]:
     fallbackLibs = list(set([kernel._state["codeObjectFile"] for kernel in kernels if "fallback" in kernel._state.get('codeObjectFile', "")]))
     sourceLibFiles += ["{0}_{1}.hsaco".format(name, arch) for name, arch in itertools.product(fallbackLibs, sourceArchs)]
-    if (cxxCompiler == 'hipcc' or cxxCompiler == 'amdclang++'):
+    if supportedLinuxCompiler(cxxCompiler):
       sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
   else: # Merge
-    if (cxxCompiler == 'hipcc' or cxxCompiler == 'amdclang++'):
+    if supportedLinuxCompiler(cxxCompiler):
       sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
     else:
       raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
