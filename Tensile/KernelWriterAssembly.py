@@ -3768,15 +3768,21 @@ class KernelWriterAssembly(KernelWriter):
           sGridC = self.sgprPool.checkOut(1, "sGridC", preventOverflow=0)
           sGridF = self.sgprPool.checkOut(1, "sGridF", preventOverflow=0)
           sGridM = self.sgprPool.checkOut(1, "sGridM", preventOverflow=0)
-          stmp = self.sgprPool.checkOut(2, "stmp", preventOverflow=0)
+          stmp = None
+          sqtmp = None
+          divisor = kernel["StreamKXCCMapping"]
+          if ((divisor & (divisor - 1)) != 0): # Need temp registers if not power of 2
+            stmp = self.sgprPool.checkOut(3, "stmp", preventOverflow=0)
+            sqtmp = stmp + 2
           # sGridC = ceil(grid / xccm)
-          kStr += inst("s_add_u32", sgpr(sXCC), sgpr("skGrid"), 7, "ceil(grid/xccm)")
+          kStr += inst("s_add_u32", sgpr(sXCC), sgpr("skGrid"), kernel["StreamKXCCMapping"] - 1, "ceil(grid/xccm)")
           kStr += scalarStaticDivideAndRemainder(sGridC, None, sGridC, kernel["StreamKXCCMapping"], stmp, doRemainder=0)
           # sGridF = floor(grid / xccm)
           # sGridM = grid % xccm
           kStr += scalarStaticDivideAndRemainder(sGridF, sGridM, "skGrid", kernel["StreamKXCCMapping"], stmp)
           # sXCC = wg0 % xccm
-          kStr += scalarStaticDivideAndRemainder(None, sXCC, "WorkGroup0", kernel["StreamKXCCMapping"], stmp, doRemainder=2)
+          # sqtmp is temp register for quotient for non-power-of-2 case
+          kStr += scalarStaticDivideAndRemainder(sqtmp, sXCC, "WorkGroup0", kernel["StreamKXCCMapping"], stmp, doRemainder=2)
           # Check if current XCC requires a remainder WG or not
           kStr += inst("s_cmp_lt_u32", sgpr(sXCC), sgpr(sGridM), "XCCM < Remainder")
           kStr += inst("s_cselect_b32", sgpr(sGridC), sgpr(sGridC), sgpr(sGridF), "Select multiplier")
@@ -3790,7 +3796,8 @@ class KernelWriterAssembly(KernelWriter):
           self.sgprPool.checkIn(sGridC)
           self.sgprPool.checkIn(sGridF)
           self.sgprPool.checkIn(sGridM)
-          self.sgprPool.checkIn(stmp)
+          if stmp is not None:
+            self.sgprPool.checkIn(stmp)
 
         kStr += inst("s_mov_b32", sgpr("StreamKIdx"), sgpr("WorkGroup0"), "Save original StreamK index")
         if kernel["StreamK"] == 1: # Basic SK
