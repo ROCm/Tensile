@@ -1062,7 +1062,7 @@ def verifyManifest(manifest) -> bool:
   return False if len(files) > 0  else True
 
 def parseArchitectures(inputArchs: str) -> Set[str]:
-  """Parse target architectures from format ``'arch1;arch2'`` or ``arch1_arch2`` to ``{'arch1', 'arch2'}``"
+  """Parse target architectures from format ``'arch1;arch2'`` or ``'arch1_arch2'`` to ``{'arch1', 'arch2'}``"
   
   Args:
       inputArchs: Semicolon delimited gfx architectures passed via the ``--architecture`` option.
