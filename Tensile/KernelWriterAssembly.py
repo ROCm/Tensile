@@ -3782,6 +3782,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += scalarStaticDivideAndRemainder(sGridF, sGridM, "skGrid", kernel["StreamKXCCMapping"], stmp)
           # sXCC = wg0 % xccm
           # sqtmp is temp register for quotient for non-power-of-2 case
+          # sqtmp overlaps temp registers, works in this case and output is discarded
           kStr += scalarStaticDivideAndRemainder(sqtmp, sXCC, "WorkGroup0", kernel["StreamKXCCMapping"], stmp, doRemainder=2)
           # Check if current XCC requires a remainder WG or not
           kStr += inst("s_cmp_lt_u32", sgpr(sXCC), sgpr(sGridM), "XCCM < Remainder")
