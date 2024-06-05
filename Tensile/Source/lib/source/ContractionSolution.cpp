@@ -79,16 +79,16 @@ namespace Tensile
             return m_tiles * n_tiles;
         }
 
-        constexpr int num_fixup_peers(int BLK_K, int k, int g, int iters_per_cta)
+        constexpr int num_fixup_peers(int BLK_K, int k, int iters_per_cta)
         {
             return math::ceil_div(math::ceil_div(k, BLK_K), iters_per_cta);
         }
 
         std::tuple<double,int,int>
-        predicted_runtime(int BLK_M, int BLK_N, int BLK_K, int m, int n, int k, int g, int a, int b, int c, int d)
+        predicted_runtime(int BLK_M, int BLK_N, int BLK_K, int m, int n, int k, int g, double a, double b, double c, double d)
         {
             int iters_per_cta = num_iters_per_cta(BLK_M, BLK_N, BLK_K, m, n, k, g);
-            int fixup_peers = num_fixup_peers(BLK_K, k, g, iters_per_cta);
+            int fixup_peers = num_fixup_peers(BLK_K, k, iters_per_cta);
 
             return {a + (b * (fixup_peers > 1)) + (c * iters_per_cta) + (d * (fixup_peers - 1)), iters_per_cta, fixup_peers};
         }
@@ -103,23 +103,35 @@ namespace Tensile
                                      int grid_end = 304)
         {
             static const bool debug = Debug::Instance().printStreamKGridInfo();
-            // Timing in us @ 1100/900 MHz
-            double a = 5.04 + 8.3; // 5544 + 9136;  // 5.04 us
-            double b = 28; // 30800;  // 28 us
-            double c = 4.17; // 4592;  // 4.17 us
-            double d = 30; // 39600;  // 36 us
+
+            // Fixed overhead alpha (a), fixed-size cost incurred by
+            // each work-group, e.g. the grid launch latency, the initial
+            // compulsary cache misses, the cost of writing the final output tile
+            // to C.
+            double a = 5.04 + 8.30;
+            
+            // Beta (b) incorporates conditional costs of outputting temporary partial
+            // sums for scenarios where the number of output tiles does not quantize
+            // perfectly across the number of processors.
+            double b = 5.47;
+
+            // c represents instruction and stall workload of each MAC-iteration.
+            double c = 4.17;
+
+            // Delta (d) is the cost of reading and accumulating the partial sums from
+            // other work-groups covering the same tile.
+            double d = 18.59;
 
             // std::vector<double> runtimes;
-            std::pair<int,double> temp;
-            std::vector<std::pair<int,double>> runtimes;
+            std::pair<int,double> min_grid_runtime;
+            min_grid_runtime.second = std::numeric_limits<double>::max();
             int g = grid_start;
+
             // Predict the number of CTAs to use between 1 and 304
             for (; g <= grid_end; ++g) {
                 auto [runtime, iters_per_cta, fixup_peers] =
                     predicted_runtime(BLK_M, BLK_N, BLK_K, m, n, k, g, a, b, c, d);
-                temp.first = g;
-                temp.second = runtime;
-                runtimes.push_back(temp);
+
                 if (debug)
                 {
                     std::cout << "grid size: " << g 
@@ -134,23 +146,20 @@ namespace Tensile
                             << ", c: " << c 
                             << ", d: " << d << std::endl;
                 }
+
+                if (min_grid_runtime.second > runtime) {
+                    min_grid_runtime.first = g;
+                    min_grid_runtime.second = runtime;
+                } 
             }
-
-            auto min_grid_runtime = std::min_element(runtimes.begin(), runtimes.end(),
-                [](const auto& pair1, const auto& pair2) {
-                    return pair1.second < pair2.second;
-                });
-
-            if (min_grid_runtime->first > 608)
-                min_grid_runtime->first = number_of_output_tiles(BLK_M, BLK_N, m, n) / 2;
 
             if (debug)
             {
                 std::cout << "Number of Output Tiles: " << number_of_output_tiles(BLK_M, BLK_N, m, n) << std::endl;
-                std::cout << "Minimum runtime: " << min_grid_runtime->second << " @ grid size: " << min_grid_runtime->first << std::endl;
+                std::cout << "Minimum runtime: " << min_grid_runtime.second << " @ grid size: " << min_grid_runtime.first << std::endl;
             }
 
-            return min_grid_runtime->first;
+            return min_grid_runtime.first;
         }
     }  // namespace streamk
 
@@ -1718,29 +1727,52 @@ namespace Tensile
     size_t ContractionSolution::getSKGrid(Problem const& problem, Hardware const& hardware, size_t tiles) const
     {
         AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
-        if(pAMDGPU->skFixedGrid > 0)
-            return pAMDGPU->skFixedGrid;
+        
         assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
         size_t cuCount = pAMDGPU->computeUnitCount;
-        size_t skGrid  = cuCount;
-        if(pAMDGPU->skDynamicGrid == 2 && tiles > skGrid)
+        
+        // User-specified grid size for Stream-K kernel.
+        if(pAMDGPU->skFixedGrid > 0) 
         {
-            for(size_t i = 1; i <= 32; i *= 2)
+            return pAMDGPU->skFixedGrid;
+        }
+
+        // Dynamically pick the minimum between the cuCount or number of tiles.
+        else if(pAMDGPU->skDynamicGrid == 1)
+        {
+            return min(cuCount, tiles);
+        }
+
+        // Dynamically pick the minimum between the cuCount or number of tiles,
+        // and scale down really large sizes to use fewer CUs for power/energy savings.
+        else if(pAMDGPU->skDynamicGrid == 2)
+        {
+            size_t skGrid  = cuCount;
+            if (tiles > skGrid)
             {
-                size_t tilesPerCU  = CeilDivide(i * tiles, skGrid);
-                size_t reducedGrid = CeilDivide(i * tiles, tilesPerCU);
-                float  utilization = ((float)reducedGrid) / ((float)skGrid);
-                if(utilization > 0.75f)
+                for(size_t i = 1; i <= 32; i *= 2)
                 {
-                    if(utilization < 1.0f)
-                        skGrid = reducedGrid;
-                    break;
+                    size_t tilesPerCU  = CeilDivide(i * tiles, cuCount);
+                    size_t reducedGrid = CeilDivide(i * tiles, tilesPerCU);
+                    float  utilization = ((float)reducedGrid) / ((float)cuCount);
+                    if(utilization > 0.75f)
+                    {
+                        if(utilization < 1.0f)
+                            skGrid = reducedGrid;
+                        break;
+                    }
                 }
             }
+
+            return min(skGrid, tiles);
         }
+
+        // Dynamically predict the best grid-size by weighing the cost of the fix-up
+        // step and the cost of processing MAC-loop instructions. When the cost of fix-up
+        // is the bottleneck, use smaller grid size.
+        // Architecture dependent.
         else if(pAMDGPU->skDynamicGrid == 3)
         {
-            
             dim3 dSize(1, 1, 1);
             for(size_t i = 0; i < problem.freeIndicesA().size(); i++)
             {
@@ -1756,15 +1788,28 @@ namespace Tensile
                 dSize.z *= problem.boundSize(i);
             }
 
-            skGrid = streamk::best_predicted_grid_size(sizeMapping.macroTile.x, sizeMapping.macroTile.y, sizeMapping.depthU, dSize.x, dSize.y, dSize.z);
+            return streamk::best_predicted_grid_size(sizeMapping.macroTile.x, sizeMapping.macroTile.y, sizeMapping.depthU, dSize.x, dSize.y, dSize.z, cuCount);
         }
-        if(pAMDGPU->skMaxCUs > 0)
-            skGrid = min(skGrid, pAMDGPU->skMaxCUs);
-        if(pAMDGPU->skDynamicGrid)
-            skGrid = min(skGrid, tiles);
-        if(pAMDGPU->skGridMultiplier > 1)
-            skGrid = skGrid * pAMDGPU->skGridMultiplier;
-        return skGrid;
+
+        // Limit the CUs Stream-K is launched on either max or the specified,
+        // whichever is minimum.
+        else if(pAMDGPU->skMaxCUs > 0) 
+        {
+            return min(cuCount, pAMDGPU->skMaxCUs);
+        }
+
+        // Multiply the cuCount with a constant factor (c), and launch
+        // c * cuCount number of workgroups for Stream-K.
+        else if(pAMDGPU->skGridMultiplier > 1) 
+        {
+            return cuCount * pAMDGPU->skGridMultiplier;
+        }
+
+        // If no option is specified, launch exactly cuCount worth of workgroups.
+        else 
+        {
+            return cuCount;
+        }
     }
 
     size_t ContractionSolution::partialTileSize(size_t skGrid) const
