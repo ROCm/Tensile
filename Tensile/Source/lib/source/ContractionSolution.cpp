@@ -46,16 +46,6 @@ namespace Tensile
         namespace math
         {
             /**
-             * Performs `(n + d - 1) / d` (unsafe).
-             */
-            template <typename N, typename D>
-            __device__ __host__ inline constexpr N ceil_div(N n, D d)
-            {
-                // Static cast to undo integral promotion.
-                return static_cast<N>((n + d - 1) / d);
-            }
-
-            /**
              * Performs `(n + d - 1) / d`, but is robust against the case where
              * `(n + d - 1)` would overflow.
              */
@@ -67,38 +57,38 @@ namespace Tensile
             }
         }  // namespace math
 
-        constexpr int num_iters_per_cta(int BLK_M, int BLK_N, int BLK_K, int m, int n, int k, int g)
+        constexpr size_t num_iters_per_cta(size_t BLK_M, size_t BLK_N, size_t BLK_K, size_t m, size_t n, size_t k, int g)
         {
-            return math::ceil_div(math::ceil_div(m, BLK_M) * math::ceil_div(n, BLK_N) * math::ceil_div(k, BLK_K), g);
+            return math::safe_ceil_div(math::safe_ceil_div(m, BLK_M) * math::safe_ceil_div(n, BLK_N) * math::safe_ceil_div(k, BLK_K), g);
         }
 
-        constexpr int number_of_output_tiles(int BLK_M, int BLK_N, int m, int n)
+        constexpr size_t number_of_output_tiles(size_t BLK_M, size_t BLK_N, size_t m, size_t n)
         {
-            int m_tiles =  math::ceil_div(m, BLK_M);
-            int n_tiles = math::ceil_div(n, BLK_N);
+            size_t m_tiles =  math::safe_ceil_div(m, BLK_M);
+            size_t n_tiles = math::safe_ceil_div(n, BLK_N);
             return m_tiles * n_tiles;
         }
 
-        constexpr int num_fixup_peers(int BLK_K, int k, int iters_per_cta)
+        constexpr size_t num_fixup_peers(size_t BLK_K, size_t k, size_t iters_per_cta)
         {
-            return math::ceil_div(math::ceil_div(k, BLK_K), iters_per_cta);
+            return math::safe_ceil_div(math::safe_ceil_div(k, BLK_K), iters_per_cta);
         }
 
-        std::tuple<double,int,int>
-        predicted_runtime(int BLK_M, int BLK_N, int BLK_K, int m, int n, int k, int g, double a, double b, double c, double d)
+        std::tuple<double,size_t,size_t>
+        predicted_runtime(size_t BLK_M, size_t BLK_N, size_t BLK_K, size_t m, size_t n, size_t k, int g, double a, double b, double c, double d)
         {
-            int iters_per_cta = num_iters_per_cta(BLK_M, BLK_N, BLK_K, m, n, k, g);
-            int fixup_peers = num_fixup_peers(BLK_K, k, iters_per_cta);
+            size_t iters_per_cta = num_iters_per_cta(BLK_M, BLK_N, BLK_K, m, n, k, g);
+            size_t fixup_peers = num_fixup_peers(BLK_K, k, iters_per_cta);
 
             return {a + (b * (fixup_peers > 1)) + (c * iters_per_cta) + (d * (fixup_peers - 1)), iters_per_cta, fixup_peers};
         }
 
-        int best_predicted_grid_size(int BLK_M,
-                                     int BLK_N,
-                                     int BLK_K,
-                                     int m,
-                                     int n,
-                                     int k,
+        int best_predicted_grid_size(size_t BLK_M,
+                                     size_t BLK_N,
+                                     size_t BLK_K,
+                                     size_t m,
+                                     size_t n,
+                                     size_t k,
                                      int grid_start = 1,
                                      int grid_end = 304)
         {
