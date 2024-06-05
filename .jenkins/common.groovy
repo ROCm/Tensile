@@ -69,7 +69,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             ####
             tox --version
             export TENSILE_COMPILER=${compiler}
-            tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --timing-file=\$(pwd)/timing-\$gpuArch.csv
+            #tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --timing-file=\$(pwd)/timing-\$gpuArch.csv
 
             mkdir build
             pushd build
@@ -86,23 +86,24 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             popd
             """
 
-    try
-    {
-        platform.runCommand(this, command)
-    }
-    catch(e)
-    {
-        try
-        {
-            junit "${project.paths.project_build_prefix}/python_unit_tests.xml"
-        }
-        catch(ee)
-        {}
+    platform.runCommand(this, command)
+    // try
+    // {
+    //     platform.runCommand(this, command)
+    // }
+    // catch(e)
+    // {
+    //     try
+    //     {
+    //         junit "${project.paths.project_build_prefix}/python_unit_tests.xml"
+    //     }
+    //     catch(ee)
+    //     {}
 
-        throw e
-    }
+    //     throw e
+    // }
 
-    junit "${project.paths.project_build_prefix}/python_unit_tests.xml"
+    // junit "${project.paths.project_build_prefix}/python_unit_tests.xml"
 }
 
 def publishResults(project, boolean skipHostTest=false)
@@ -122,6 +123,14 @@ def publishResults(project, boolean skipHostTest=false)
             junit "${project.paths.project_build_prefix}/python_tests.xml"
         }
     }
+    try
+    {
+        archiveArtifacts "${project.paths.project_build_prefix}/htmlcov/**/*"
+    }
+    finally
+    {
+        println("Couldn't find coverage artifacts")
+    }
 }
 
 def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest=false)
@@ -138,8 +147,11 @@ def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest
 
             hostname
 
-            export PATH=/opt/rocm/bin:\$PATH
             cd ${project.paths.project_build_prefix}
+
+            export PATH=/opt/rocm/bin:\$PATH
+            export HOME=/home/jenkins
+            export TENSILE_COMPILER=${compiler}
 
             gpuArch=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
 
@@ -148,12 +160,17 @@ def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest
             ${markSkipHostTest}HOST_ERR=\$?
             ${markSkipHostTest}popd
 
-            #### temporary fix to remedy incorrect home directory
-            export HOME=/home/jenkins
-            ####
             tox --version
-            export TENSILE_COMPILER=${compiler}
-            tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --timing-file=\$(pwd)/timing-\$gpuArch.csv
+            #tox --verbose --workdir /tmp/.tensile-tox -e ${pythonVersion} \
+            #    -- ${test_dir} -m "${test_marks}" --timing-file=\$(pwd)/timing-\$gpuArch.csv
+
+            tox --verbose --workdir /tmp/.tensile-tox -e unittest -- --cov-report=xml:cobertura.xml
+
+            #### temporary find commands
+            find / -name "htmlcov" -print 2>/dev/null
+            pwd
+            ####
+
             PY_ERR=\$?
             date
 
@@ -171,22 +188,21 @@ def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest
     // This awkward sequence prevents an exception in runCommand() from being
     // eaten by an exception in publishResults(), while allowing partial results
     // to still be published.
-    try
-    {
-        platform.runCommand(this, command)
-    }
-    catch(e)
-    {
-        try
-        {
-            publishResults(project, skipHostTest)
-        }
-        catch(ee)
-        {}
 
-        throw e
-    }
-    publishResults(project, skipHostTest)
+
+    platform.runCommand(this, command)
+    // try {
+    //     platform.runCommand(this, command)
+    // }
+    // catch(e) {
+    //     try {
+    //         publishResults(project, skipHostTest)
+    //     }
+    //     catch(ee) {}
+    //     throw e
+    // }
+    recordCoverage(tools: [[parser: 'COBERTURA']])
+    // publishResults(project, skipHostTest)
 }
 
 return this
