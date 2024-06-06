@@ -1763,22 +1763,22 @@ namespace Tensile
         // Architecture dependent.
         else if(pAMDGPU->skDynamicGrid == 3)
         {
-            dim3 dSize(1, 1, 1);
+            size_t x, y, z = 1;
             for(size_t i = 0; i < problem.freeIndicesA().size(); i++)
             {
-                dSize.x *= problem.freeSizeA(i);
+                x *= problem.freeSizeA(i);
             }
             for(size_t i = 0; i < problem.freeIndicesB().size(); i++)
             {
-                dSize.y *= problem.freeSizeB(i);
+                y *= problem.freeSizeB(i);
             }
             // TODO Batch dimension
             for(size_t i = 0; i < problem.boundIndices().size(); ++i)
             {
-                dSize.z *= problem.boundSize(i);
+                z *= problem.boundSize(i);
             }
 
-            return streamk::best_predicted_grid_size(sizeMapping.macroTile.x, sizeMapping.macroTile.y, sizeMapping.depthU, dSize.x, dSize.y, dSize.z, cuCount);
+            return streamk::best_predicted_grid_size(sizeMapping.macroTile.x, sizeMapping.macroTile.y, sizeMapping.depthU, x, y, z, cuCount);
         }
 
         // Limit the CUs Stream-K is launched on either max or the specified,
