@@ -1763,7 +1763,9 @@ namespace Tensile
         // Architecture dependent.
         else if(pAMDGPU->skDynamicGrid == 3)
         {
-            size_t x, y, z = 1;
+            size_t x = 1;
+            size_t y = 1;
+            size_t z = 1;
             for(size_t i = 0; i < problem.freeIndicesA().size(); i++)
             {
                 x *= problem.freeSizeA(i);
