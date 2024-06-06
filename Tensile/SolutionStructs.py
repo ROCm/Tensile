@@ -2992,6 +2992,7 @@ class Solution(collections.abc.Mapping):
     else:
       # If not using StreamK, set StreamKAtomic to 0 to avoid possibility of duplicate kernels
       state["StreamKAtomic"] = 0
+      state["StreamKXCCMapping"] = 0
       # If not using StreamK, clear debug modes to avoid duplicate kernels
       state["DebugStreamK"] = 0
 

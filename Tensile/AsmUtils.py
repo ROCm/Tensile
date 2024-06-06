@@ -181,18 +181,15 @@ def vectorStaticRemainder(rReg, dReg, divisor, tmpSgpr, comment=""):
         kStr += inst("_v_sub_u32", vgpr(rReg), vgpr(dReg), vgpr(rReg), comment)
     return kStr
 
-# only used for loop unroll and GlobalSplitU
+# only used for loop unroll and GlobalSplitU and XCC mapping
 # doRemainder==0 : compute quotient only
 # doRemainder==1 : compute quotient and remainder
 # doRemainder==2 : only compute remainder (not quotient unless required for remainder)
 # dreg == dividend
-# tmpSgpr must be 2 SPGRs
+# tmpSgpr must be 3 SPGRs (can be None if divisor is power of 2)
 # qReg and dReg can be "sgpr[..]" or names of sgpr (will call sgpr)
 def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
         doRemainder=1):
-
-    assert (qReg != tmpSgpr)
-
 
     qRegSgpr = qReg if type(qReg) == str and qReg.startswith("s[") else sgpr(qReg)
 
@@ -208,6 +205,7 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
             kStr += inst("s_and_b32", sgpr(rReg), (divisor-1), dRegSgpr, \
                     "%s = %s %% %u"%(sgpr(rReg), dRegSgpr, divisor) )
     else:
+        assert (qReg != tmpSgpr)
         """
         if divisor == 30:
             shift = 32+2

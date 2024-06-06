@@ -1146,7 +1146,13 @@ validParameters = {
     # 0: uses workspace to store partial tiles, accumulate in deterministic fix-up step
     # 1: uses atomics to accumulate partial tiles
     "StreamKAtomic": [0, 1],
-    
+
+    # Enables XCC-based remapping of workgroups, set the value to the number of XCCs
+    # for the device/configuration being used
+    # 0: uses default workgroup assignment
+    # 2+: remaps workgroups to be contiguous within an XCC for a given number of XCCs
+    "StreamKXCCMapping": [0] + list(range(2, 9)),
+
     # Debug settings for stream-k kernels to disable parts of the kernel
     #   Bit 0: Don't generate fixup code
     #   Bit 1: Don't generate write to partials code
@@ -1558,6 +1564,7 @@ defaultBenchmarkCommonParameters = [
     {"MacroTileShapeMax":         [ 64 ] },
     {"StreamK":                   [ 0 ] },
     {"StreamKAtomic":             [ 0 ] },
+    {"StreamKXCCMapping":         [ 0 ] },
     {"DebugStreamK":              [ 0 ] },
     {"PersistentKernel":          [ 0 ] },
     {"PersistentKernelAlongBatch":[ False ] },    # May be default True is better ?
