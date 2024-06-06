@@ -76,7 +76,7 @@ def main():
     mfmaKey = "mfma" if args.mfma else "non_mfma"
 
     with open(args.specs) as y:
-        specs = yaml.safe_load(y)
+        specs = yaml.load(y, yaml.CSafeLoader)
 
     try:
         os.makedirs(args.outDir)
@@ -89,7 +89,7 @@ def main():
             print(f)
             with open(f) as y:
 
-                data = yaml.safe_load(y)
+                data = yaml.load(y, yaml.CSafeLoader)
 
                 sched = data[1]
                 if args.x:
@@ -127,7 +127,7 @@ def main():
             outFile = os.path.join(args.outDir, fName)
 
             with open(outFile, "w") as y:
-                yaml.safe_dump(data, y, default_flow_style=None)
+                yaml.dump(data, y, yaml.CSafeDumper, default_flow_style=None)
 
 if __name__ == "__main__":
     main()

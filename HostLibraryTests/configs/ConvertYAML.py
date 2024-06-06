@@ -55,7 +55,7 @@ def merge_libraries(args):
 
     with open(outFile, 'w') as outf:
         if True:
-            yaml.dump(outData, outf)
+            yaml.dump(outData, outf, yaml.CSafeDumper)
         else:
             import json
             json.dump(outData, outf, sort_keys=True, indent=2, separators=(",", ": "))
@@ -82,7 +82,7 @@ def convert_one(args):
 
     with open(args[1], 'w') as outFile:
         if True:
-            yaml.dump(outData, outFile)
+            yaml.dump(outData, outFile, yaml.CSafeDumper)
         else:
             import json
             json.dump(outData, outFile, sort_keys=True, indent=2, separators=(",", ": "))
