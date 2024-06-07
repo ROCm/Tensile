@@ -55,16 +55,19 @@ namespace Tensile
                 // Static cast to undo integral promotion.
                 return static_cast<N>(n / d + (n % d != 0 ? 1 : 0));
             }
-        }  // namespace math
+        } // namespace math
 
-        constexpr size_t num_iters_per_cta(size_t BLK_M, size_t BLK_N, size_t BLK_K, size_t m, size_t n, size_t k, int g)
+        constexpr size_t num_iters_per_cta(
+            size_t BLK_M, size_t BLK_N, size_t BLK_K, size_t m, size_t n, size_t k, int g)
         {
-            return math::safe_ceil_div(math::safe_ceil_div(m, BLK_M) * math::safe_ceil_div(n, BLK_N) * math::safe_ceil_div(k, BLK_K), g);
+            return math::safe_ceil_div(math::safe_ceil_div(m, BLK_M) * math::safe_ceil_div(n, BLK_N)
+                                           * math::safe_ceil_div(k, BLK_K),
+                                       g);
         }
 
         constexpr size_t number_of_output_tiles(size_t BLK_M, size_t BLK_N, size_t m, size_t n)
         {
-            size_t m_tiles =  math::safe_ceil_div(m, BLK_M);
+            size_t m_tiles = math::safe_ceil_div(m, BLK_M);
             size_t n_tiles = math::safe_ceil_div(n, BLK_N);
             return m_tiles * n_tiles;
         }
@@ -74,13 +77,24 @@ namespace Tensile
             return math::safe_ceil_div(math::safe_ceil_div(k, BLK_K), iters_per_cta);
         }
 
-        std::tuple<double,size_t,size_t>
-        predicted_runtime(size_t BLK_M, size_t BLK_N, size_t BLK_K, size_t m, size_t n, size_t k, int g, double a, double b, double c, double d)
+        std::tuple<double, size_t, size_t> predicted_runtime(size_t BLK_M,
+                                                             size_t BLK_N,
+                                                             size_t BLK_K,
+                                                             size_t m,
+                                                             size_t n,
+                                                             size_t k,
+                                                             int    g,
+                                                             double a,
+                                                             double b,
+                                                             double c,
+                                                             double d)
         {
             size_t iters_per_cta = num_iters_per_cta(BLK_M, BLK_N, BLK_K, m, n, k, g);
-            size_t fixup_peers = num_fixup_peers(BLK_K, k, iters_per_cta);
+            size_t fixup_peers   = num_fixup_peers(BLK_K, k, iters_per_cta);
 
-            return {a + (b * (fixup_peers > 1)) + (c * iters_per_cta) + (d * (fixup_peers - 1)), iters_per_cta, fixup_peers};
+            return {a + (b * (fixup_peers > 1)) + (c * iters_per_cta) + (d * (fixup_peers - 1)),
+                    iters_per_cta,
+                    fixup_peers};
         }
 
         int best_predicted_grid_size(size_t BLK_M,
@@ -89,8 +103,8 @@ namespace Tensile
                                      size_t m,
                                      size_t n,
                                      size_t k,
-                                     int grid_start = 1,
-                                     int grid_end = 304)
+                                     int    grid_start = 1,
+                                     int    grid_end   = 304)
         {
             static const bool debug = Debug::Instance().printStreamKGridInfo();
 
@@ -99,7 +113,7 @@ namespace Tensile
             // compulsary cache misses, the cost of writing the final output tile
             // to C.
             double a = 5.04 + 8.30;
-            
+
             // Beta (b) incorporates conditional costs of outputting temporary partial
             // sums for scenarios where the number of output tiles does not quantize
             // perfectly across the number of processors.
@@ -113,45 +127,43 @@ namespace Tensile
             double d = 18.59;
 
             // std::vector<double> runtimes;
-            std::pair<int,double> min_grid_runtime;
+            std::pair<int, double> min_grid_runtime;
             min_grid_runtime.second = std::numeric_limits<double>::max();
-            int g = grid_start;
+            int g                   = grid_start;
 
             // Predict the number of CTAs to use between 1 and 304
-            for (; g <= grid_end; ++g) {
-                auto [runtime, iters_per_cta, fixup_peers] =
-                    predicted_runtime(BLK_M, BLK_N, BLK_K, m, n, k, g, a, b, c, d);
+            for(; g <= grid_end; ++g)
+            {
+                auto [runtime, iters_per_cta, fixup_peers]
+                    = predicted_runtime(BLK_M, BLK_N, BLK_K, m, n, k, g, a, b, c, d);
 
-                if (debug)
+                if(debug)
                 {
-                    std::cout << "grid size: " << g 
-                            << ", runtime: " << runtime 
-                            << ", iters_per_cta: " << iters_per_cta
-                            << ", fixup_peers: " << fixup_peers  
-                            << ", m: " << m
-                            << ", n: " << n 
-                            << ", k: " << k 
-                            << ", a: " << a 
-                            << ", b: " << b
-                            << ", c: " << c 
-                            << ", d: " << d << std::endl;
+                    std::cout << "grid size: " << g << ", runtime: " << runtime
+                              << ", iters_per_cta: " << iters_per_cta
+                              << ", fixup_peers: " << fixup_peers << ", m: " << m << ", n: " << n
+                              << ", k: " << k << ", a: " << a << ", b: " << b << ", c: " << c
+                              << ", d: " << d << std::endl;
                 }
 
-                if (min_grid_runtime.second > runtime) {
-                    min_grid_runtime.first = g;
+                if(min_grid_runtime.second > runtime)
+                {
+                    min_grid_runtime.first  = g;
                     min_grid_runtime.second = runtime;
-                } 
+                }
             }
 
-            if (debug)
+            if(debug)
             {
-                std::cout << "Number of Output Tiles: " << number_of_output_tiles(BLK_M, BLK_N, m, n) << std::endl;
-                std::cout << "Minimum runtime: " << min_grid_runtime.second << " @ grid size: " << min_grid_runtime.first << std::endl;
+                std::cout << "Number of Output Tiles: "
+                          << number_of_output_tiles(BLK_M, BLK_N, m, n) << std::endl;
+                std::cout << "Minimum runtime: " << min_grid_runtime.second
+                          << " @ grid size: " << min_grid_runtime.first << std::endl;
             }
 
             return min_grid_runtime.first;
         }
-    }  // namespace streamk
+    } // namespace streamk
 
     PerfModel perf;
 
@@ -1714,15 +1726,17 @@ namespace Tensile
         return size;
     }
 
-    size_t ContractionSolution::getSKGrid(Problem const& problem, Hardware const& hardware, size_t tiles) const
+    size_t ContractionSolution::getSKGrid(Problem const&  problem,
+                                          Hardware const& hardware,
+                                          size_t          tiles) const
     {
         AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
-        
+
         assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
         size_t cuCount = pAMDGPU->computeUnitCount;
-        
+
         // User-specified grid size for Stream-K kernel.
-        if(pAMDGPU->skFixedGrid > 0) 
+        if(pAMDGPU->skFixedGrid > 0)
         {
             return pAMDGPU->skFixedGrid;
         }
@@ -1737,8 +1751,8 @@ namespace Tensile
         // and scale down really large sizes to use fewer CUs for power/energy savings.
         else if(pAMDGPU->skDynamicGrid == 2)
         {
-            size_t skGrid  = cuCount;
-            if (tiles > skGrid)
+            size_t skGrid = cuCount;
+            if(tiles > skGrid)
             {
                 for(size_t i = 1; i <= 32; i *= 2)
                 {
@@ -1780,25 +1794,31 @@ namespace Tensile
                 z *= problem.boundSize(i);
             }
 
-            return streamk::best_predicted_grid_size(sizeMapping.macroTile.x, sizeMapping.macroTile.y, sizeMapping.depthU, x, y, z, cuCount);
+            return streamk::best_predicted_grid_size(sizeMapping.macroTile.x,
+                                                     sizeMapping.macroTile.y,
+                                                     sizeMapping.depthU,
+                                                     x,
+                                                     y,
+                                                     z,
+                                                     cuCount);
         }
 
         // Limit the CUs Stream-K is launched on either max or the specified,
         // whichever is minimum.
-        else if(pAMDGPU->skMaxCUs > 0) 
+        else if(pAMDGPU->skMaxCUs > 0)
         {
             return min(cuCount, pAMDGPU->skMaxCUs);
         }
 
         // Multiply the cuCount with a constant factor (c), and launch
         // c * cuCount number of workgroups for Stream-K.
-        else if(pAMDGPU->skGridMultiplier > 1) 
+        else if(pAMDGPU->skGridMultiplier > 1)
         {
             return cuCount * pAMDGPU->skGridMultiplier;
         }
 
         // If no option is specified, launch exactly cuCount worth of workgroups.
-        else 
+        else
         {
             return cuCount;
         }
