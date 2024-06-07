@@ -176,10 +176,10 @@ def test_verifyManifest():
     with open("bar.asm", "x"):
       assert TensileCreateLibrary.verifyManifest(manifestFile), "files in manifest should be on disk"
 
-def test_parseArchitectures():
+def test_parseGfxArchitectures():
     # Test `all` architectures
     archs = 'all'
-    result = TensileCreateLibrary.parseArchitectures(archs)
+    result = TensileCreateLibrary.parseGfxArchitectures(archs)
     expected = set([archs])
     assert result == expected, f"arch `{archs}` should parse to {expected} but instead maps to {result}"
 
@@ -189,7 +189,7 @@ def test_parseArchitectures():
             "gfx908:xnack-;gfx90a;gfx90a:xnack+;gfx90a:xnack-;gfx940;gfx940:xnack+;gfx940:xnack-;gfx941;"+\
             "gfx941:xnack+;gfx941:xnack-;gfx942;gfx942:xnack+;gfx942:xnack-;gfx1010;gfx1011;gfx1012;"+\
             "gfx1030;gfx1031;gfx1032;gfx1034;gfx1035;gfx1100;gfx1101;gfx1102"
-    result = TensileCreateLibrary.parseArchitectures(archs)
+    result = TensileCreateLibrary.parseGfxArchitectures(archs)
     assert result == expected, f"arch `{archs}` should map to {expected} but instead maps to {result}"
 
     # Test all architectures, but supplied separately with underscore delimieter (cmake usage)
@@ -197,65 +197,65 @@ def test_parseArchitectures():
              "gfx908:xnack-_gfx90a_gfx90a:xnack+_gfx90a:xnack-_gfx940_gfx940:xnack+_gfx940:xnack-_gfx941_"+\
              "gfx941:xnack+_gfx941:xnack-_gfx942_gfx942:xnack+_gfx942:xnack-_gfx1010_gfx1011_gfx1012_"+\
              "gfx1030_gfx1031_gfx1032_gfx1034_gfx1035_gfx1100_gfx1101_gfx1102"
-    result = TensileCreateLibrary.parseArchitectures(archs)
+    result = TensileCreateLibrary.parseGfxArchitectures(archs)
     assert result == expected, f"arch `{archs}` should map to {expected} but instead maps to {result}"
 
     # Test with wrong input type
     archs = ["gfx942:xnack-", "gfx1010", "gfx1011"]
     with pytest.raises(AttributeError):
-        TensileCreateLibrary.parseArchitectures(archs)
+        TensileCreateLibrary.parseGfxArchitectures(archs)
 
     # Test with comma delimiter instead of semicolon delimiter
     archs = "gfx803,gfx906,gfx941,gfx1102"
     with pytest.raises(ValueError, match=r"(.*) is not a known Gfx architecture."):
-        TensileCreateLibrary.parseArchitectures(archs)
+        TensileCreateLibrary.parseGfxArchitectures(archs)
 
     # Test with space delimiter instead of semicolon delimiter
     archs = "gfx900 gfx90a:xnack+ gfx1010"
     with pytest.raises(ValueError, match=r"(.*) is not a known Gfx architecture."):
-        TensileCreateLibrary.parseArchitectures(archs)
+        TensileCreateLibrary.parseGfxArchitectures(archs)
 
     # Test with colon instead of semicolon delimiter
     archs = "gfx900:gfx90a:xnack+:gfx1010"
     with pytest.raises(ValueError, match=r"(.*) is not a known Gfx architecture."):
-        TensileCreateLibrary.parseArchitectures(archs)
+        TensileCreateLibrary.parseGfxArchitectures(archs)
 
     # Test with hyphen instead of semicolon delimiter
     archs = "gfx900-gfx90a:xnack+-gfx1010"
     with pytest.raises(ValueError, match=r"(.*) is not a known Gfx architecture."):
-        TensileCreateLibrary.parseArchitectures(archs)
+        TensileCreateLibrary.parseGfxArchitectures(archs)
 
     # Test with leading underscore delimiter
     archs = ";gfx803;gfx906;"
     expected = set(["gfx803", "gfx906"])
-    result = TensileCreateLibrary.parseArchitectures(archs)
+    result = TensileCreateLibrary.parseGfxArchitectures(archs)
     assert result == expected, f"arch `{archs}` should map to {expected} but instead maps to {result}"
 
     # Test with leading underscore delimiter
     archs = "_gfx803_gfx906_"
     expected = set(["gfx803", "gfx906"])
-    result = TensileCreateLibrary.parseArchitectures(archs)
+    result = TensileCreateLibrary.parseGfxArchitectures(archs)
     assert result == expected, f"arch `{archs}` should map to {expected} but instead maps to {result}"
 
     # Test an unsupported architecture - an unsupported architecture isn't
     archs = "gfx90Z"
     with pytest.raises(ValueError, match="`gfx90z` is not a known Gfx architecture."):
-        result = TensileCreateLibrary.parseArchitectures(archs)
+        result = TensileCreateLibrary.parseGfxArchitectures(archs)
 
     # Test an unsupported architecture and a supported one
     archs = "gfx90a;gfx90Z;gfx90a"
     with pytest.raises(ValueError, match="`gfx90z` is not a known Gfx architecture."):
-        result = TensileCreateLibrary.parseArchitectures(archs)
+        result = TensileCreateLibrary.parseGfxArchitectures(archs)
 
     # Test an unsupported architecture and `all` - If `all` comes second it is rejected
     archs = "gfx90Z;all"
     with pytest.raises(ValueError):
-        result = TensileCreateLibrary.parseArchitectures(archs)
+        result = TensileCreateLibrary.parseGfxArchitectures(archs)
 
     # Test an unsupported architecture and `all` - if `all` comes first it is accepted
     archs = "all;gfx90Z"
     expected = set(["all"])
-    result = TensileCreateLibrary.parseArchitectures(archs)
+    result = TensileCreateLibrary.parseGfxArchitectures(archs)
     assert result == expected, f"arch `{archs}` should map to {expected} but instead maps to {result}"
 
 def test_mapGfxArchitectures():

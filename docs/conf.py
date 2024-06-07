@@ -59,4 +59,5 @@ for sphinx_var in ROCmDocs.SPHINX_VARS:
 
 extensions += [
     "sphinx.ext.autodoc",  # Automatically create API documentation from Python docstrings
+    "sphinx.ext.napoleon"
 ]
