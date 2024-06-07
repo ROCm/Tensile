@@ -1091,10 +1091,10 @@ def TensileCreateLibrary():
   argParser.add_argument("--num-merged-files",       dest="NumMergedFiles",    type=int, default=1, help="Number of files the kernels should be written into.")
   argParser.add_argument("--short-file-names",       dest="ShortNames",        action="store_true")
   argParser.add_argument("--no-short-file-names",    dest="ShortNames",        action="store_false")
-  argParser.add_argument("--library-print-debug",    dest="LibraryPrintDebug", action="store_true")
+  argParser.add_argument("--library-print-debug",    dest="LibraryPrintDebug", action="store_true", help="Deprecated")
   argParser.add_argument("--no-library-print-debug", dest="LibraryPrintDebug", action="store_false")
   argParser.add_argument("--no-enumerate",           action="store_true", help="Do not run rocm_agent_enumerator.")
-  argParser.add_argument("--package-library",        dest="PackageLibrary",    action="store_true", default=False)
+  argParser.add_argument("--package-library",        dest="PackageLibrary",    action="store_true", default=False, help="Deprecated")
   argParser.add_argument("--embed-library",          dest="EmbedLibrary",
                          help="Embed (new) library files into static variables.  Specify the name of the library.")
 

@@ -57,6 +57,8 @@ Installation
   git clone -b master https://github.com/ROCm/Tensile.git
   cd Tensile
 
+.. _quick-start-example:
+
 Quick start example
 ===================
 
