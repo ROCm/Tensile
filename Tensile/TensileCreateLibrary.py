@@ -1106,10 +1106,10 @@ def mapGfxArchitectures(gfxArchs: Set[str]) -> Set[str]:
     """Validate and map target architectures from their Gfx name, to their common architecture name.
 
     Args:
-        gfxArchs: Parsed input architectures.
+        gfxArchs: Parsed Gfx architectures.
 
     Returns:
-        Architecture names associated with provided gfx names. See **Common.architectureMap** for mappings.
+        Common architecture names associated with provided Gfx names. See **Common.architectureMap** for mappings.
 
     Raises:
         ValueError: If an unknown architecture is found.
