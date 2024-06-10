@@ -5,5 +5,4 @@
 TensileCreateLibrary
 ====================
 
-.. autofunction:: Tensile.TensileCreateLibrary::parseGfxArchitectures
-.. autofunction:: Tensile.TensileCreateLibrary::mapGfxArchitectures
+<this file is currently empty>

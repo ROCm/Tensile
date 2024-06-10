@@ -317,8 +317,8 @@ def getArchitectureName(gfxName: str) -> Optional[str]:
       gfxName: Gfx architecture name to map.
 
   Returns:
-      Common name associated with **gfxName** if it matches or is a substring
-        of a key in **architectureMap**, otherwise None.
+      Common name associated with the provided **gfxName** if it matches or is a substring
+      of a key in **architectureMap**, otherwise None.
   """
   if gfxName in architectureMap:
     return architectureMap[gfxName]
