@@ -25,49 +25,41 @@
 from Tensile.Utilities.String import splitDelimitedString
 
 def test_splitDelimitedString():
-    # Test `all` architectures
     archs = "all"
     expected = {"all"}
     result = splitDelimitedString(archs, {";", "_"})
     assert result == expected, f"arch `{archs}` should parse to {expected} but instead maps to {result}"
 
-    # Test all architectures, but supplied separately with semicolon delimieter (cli usage)
     archs = "gfx000;gfx803;gfx900:xnack-"
     expected = {'gfx000', 'gfx803', 'gfx900:xnack-'}
     result = splitDelimitedString(archs, {";", "_"})
     assert result == expected, f"arch `{archs}` should map to {expected} but instead maps to {result}"
 
-    # Test all architectures, but supplied separately with underscore delimieter (cmake usage)
     archs = "gfx000_gfx803_gfx900:xnack-"
     expected = {'gfx000', 'gfx803', 'gfx900:xnack-'}
     result = splitDelimitedString(archs, {";", "_"})
     assert result == expected, f"arch `{archs}` should map to {expected} but instead maps to {result}"
 
-    # Test with comma and spaces and accept non-split output
     archs = "gfx803,    gfx906_gfx941:gfx1102"
     expected = {"gfx803,    gfx906", "gfx941:gfx1102"}
     result = splitDelimitedString(archs, {";", "_"})
     assert result == expected, f"arch `{archs}` should map to {expected} but instead maps to {result}"
 
-    # Test with hyphen instead of semicolon delimiter
     archs = "gfx900;gfx90a:xnack+-gfx1010"
     expected = {"gfx900", "gfx90a:xnack+-gfx1010"}
     result = splitDelimitedString(archs, {";", "_"})
     assert result == expected, f"arch `{archs}` should map to {expected} but instead maps to {result}"
 
-    # Test with leading underscore delimiter
     archs = ";gfx803;gfx906;"
     expected = {"", "gfx803", "gfx906", ""}
     result = splitDelimitedString(archs, {";", "_"})
     assert result == expected, f"arch `{archs}` should map to {expected} but instead maps to {result}"
 
-    # Test with leading underscore delimiter
     archs = "_gfx803_gfx906_"
     expected = {"", "gfx803", "gfx906", ""}
     result = splitDelimitedString(archs, {";", "_"})
     assert result == expected, f"arch `{archs}` should map to {expected} but instead maps to {result}"
 
-    # Test an unsupported architecture and a supported one
     archs = "abc;gfx90Z;all"
     expected = {"abc", "gfx90Z", "all"}
     result = splitDelimitedString(archs, {";", "_"})
