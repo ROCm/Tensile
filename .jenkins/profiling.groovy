@@ -80,7 +80,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
         throw e
     }
 
-    archiveArtifacts artifacts: 'profiling-results*/*.prof'
+    archiveArtifacts artifacts: 'profiling-results*/**/*.prof'
 }
 
 
