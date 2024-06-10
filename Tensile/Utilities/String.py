@@ -33,9 +33,6 @@ def splitDelimitedString(input: str, delimiters: Set[str]) -> Set[str]:
 
     Returns:
         Input separated by delimiters as a set.
-
-    Raises:
-        ValueError: If no provided delimiter is found in the input string.
     """
 
     for delim in delimiters:
