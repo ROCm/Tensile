@@ -27,7 +27,7 @@ from . import Parallel
 from collections import OrderedDict
 from copy import deepcopy
 from .AsmCaps import CACHED_ASM_CAPS
-
+from typing import Optional
 
 import math
 import os.path
@@ -310,7 +310,16 @@ architectureMap = {
   'gfx1100':'navi31', 'gfx1101':'navi32', 'gfx1102':'navi33'
 }
 
-def getArchitectureName(gfxName):
+def getArchitectureName(gfxName: str) -> Optional[str]:
+  """Maps the provided Gfx architecture to its common name using the **architectureMap**.
+
+  Args:
+      gfxName: Gfx architecture name to map.
+
+  Returns:
+      Common name associated with **gfxName** if it matches or is a substring
+        of a key in **architectureMap**, otherwise None.
+  """
   if gfxName in architectureMap:
     return architectureMap[gfxName]
   else:

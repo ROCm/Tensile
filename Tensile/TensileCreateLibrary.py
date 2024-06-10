@@ -33,12 +33,13 @@ from . import ClientExecutable
 from . import EmbeddedData
 from . import LibraryIO
 from . import Utils
-from .Common import globalParameters, HR, print1, print2, printExit, printWarning, ensurePath, \
+from .Common import getArchitectureName, globalParameters, HR, print1, print2, printExit, ensurePath, \
                     CHeader, CMakeHeader, assignGlobalParameters, gfxName, architectureMap
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
 from .SolutionStructs import Solution
+from .Utilities.String import splitDelimitedString
 
 import argparse
 import collections
@@ -52,7 +53,6 @@ import sys
 import time
 
 from copy import deepcopy
-from typing import Set
 
 ################################################################################
 def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
@@ -1061,70 +1061,6 @@ def verifyManifest(manifest) -> bool:
   
   return False if len(files) > 0  else True
 
-def parseGfxArchitectures(inputArchs: str) -> Set[str]:
-    """Parse target architectures from format **'arch1;arch2'** or **'arch1_arch2'** to **{'arch1', 'arch2'}**
-
-    Args:
-        inputArchs: Semicolon or underscore delimited Gfx architectures.
-
-    Returns:
-        Target Gfx architecture names.
-
-    Raises:
-        ValueError: If **inputArchs** (i) refers to an unknown Gfx architecture,
-            or (ii) uses incorrect delimiters.
-
-    """
-    inputArchs = inputArchs.lower()
-
-    # CLI uses `;` delimiters, CMake uses `_` delimiters
-    archs = inputArchs.split(";" if ";" in inputArchs else "_")
-
-    output = set()
-    for arch in archs:
-        if arch == "all":
-            return set([arch])
-        elif arch in output:
-            printWarning(f"Removing duplicate architecture {arch}.")
-            continue
-        elif arch == "":  # Omit empty archs caused by leading and trailing delimiters
-            continue
-        elif arch not in architectureMap:
-            raise ValueError(f"`{arch}` is not a known Gfx architecture.")
-        else:
-            output.add(arch)
-
-    if len(output) == 0:
-        raise ValueError(
-            "Could not parse a viable target architecture from {inputArchs}. When specifying multiple options, "
-            "use quoted, semicolon or underscore delimited Gfx architectures, e.g., `--architecture='gfx908;gfx1012'`"
-        )
-    return output
-
-
-def mapGfxArchitectures(gfxArchs: Set[str]) -> Set[str]:
-    """Validate and map target architectures from their Gfx name, to their common architecture name.
-
-    Args:
-        gfxArchs: Parsed Gfx architectures.
-
-    Returns:
-        Common architecture names associated with provided Gfx names. See **Common.architectureMap** for mappings.
-
-    Raises:
-        ValueError: If an unknown architecture is found.
-    """
-    if not isinstance(gfxArchs, set):
-        raise TypeError("`gfxArch` must be of type builtins.set")
-
-    namedArchs = set()
-    for arch in gfxArchs:
-        if arch in architectureMap:
-            namedArchs.add(architectureMap[arch])
-        else:
-            raise ValueError(f"`{arch}` is not a known Gfx architecture.")
-    return namedArchs
-
 ################################################################################
 # Tensile Create Library
 ################################################################################
@@ -1268,8 +1204,9 @@ def TensileCreateLibrary():
   if not os.path.exists(logicPath):
     printExit("LogicPath %s doesn't exist" % logicPath)
 
-  logicArchs = parseGfxArchitectures(arguments["Architecture"])
-  logicArchs = mapGfxArchitectures(logicArchs)
+  # CLI uses `;` delimiters, CMake uses `_` delimiters
+  logicArchs = splitDelimitedString(arguments["Architecture"], {";", "_"})
+  logicArchs = {name for name in (getArchitectureName(gfxName) for gfxName in logicArchs) if name}
 
   if globalParameters["LazyLibraryLoading"] and not (globalParameters["MergeFiles"] and globalParameters["SeparateArchitectures"]):
     printExit("--lazy-library-loading requires --merge-files and --separate-architectures enabled")
