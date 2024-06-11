@@ -30,33 +30,26 @@
 
 import com.amd.project.*
 import com.amd.docker.*
-import java.nio.file.Path
 
-def runCompileCommand(platform, project, jobName, boolean debug=false)
-{
+runCompileCommand(platform, project) {
     project.paths.construct_build_prefix()
 
-    def command = """#!/usr/bin/env bash
+    command = """#!/usr/bin/env bash
             set -ex
             hostname
             cd ${project.paths.project_build_prefix}
 
-            # Temporary fix to remedy incorrect home directory
             export HOME=/home/jenkins
 
-            gpuArch=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
             gfx_name="gfx90a"
             arch_name="aldebaran"
             logic_path="library/src/blas3/Tensile/Logic/asm_full"
+            repo_name="rocBLAS"
 
-            git clone --no-checkout --filter=tree:0 https://github.com/ROCm/rocBLAS.git
-            cd rocBLAS
-            git sparse-checkout set $logic_path/$arch_name
-            git checkout
-            cd ..
+            git clone --depth=1 https://github.com/ROCm/\$repo_name.git ../\$repo_name
 
             Tensile/bin/TensileCreateLibrary \
-              $PWD/rocBLAS/$logic_path/$arch_name \
+              \$PWD/../\$repo_name/\$logic_path/\$arch_name \
               _build \
               HIP \
               --merge-files \
@@ -68,30 +61,19 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
               --cxx-compiler=hipcc \
               --jobs=32 \
               --library-format=msgpack \
-              --architecture=$gfx_name
+              --architecture=\$gfx_name
             """
 
-    try
-    {
-        platform.runCommand(this, command)
-    }
-    catch(e)
-    {
-        throw e
-    }
+    platform.runCommand(this, command)
 
     archiveArtifacts artifacts: 'profiling-results*/**/*.prof'
 }
 
-
-def runCI =
-{
-    nodeDetails, jobName ->
-
-    def prj = new rocProject('Tensile', 'Profiling')
+runCI = { nodeDetails, jobName ->
+    prj = new rocProject('Tensile', 'Profiling')
 
     // Define test architectures; an optional ROCm version argument is available
-    def nodes = new dockerNodes(nodeDetails, jobName, prj)
+    nodes = new dockerNodes(nodeDetails, jobName, prj)
 
     boolean formatCheck = false
     boolean staticAnalysis = false
@@ -99,17 +81,9 @@ def runCI =
     prj.timeout.test = 30
     prj.defaults.ccache = false
 
-    def commonGroovy
-
-    def compileCommand =
-    {
-        platform, project->
-
-        runCompileCommand(platform, project, jobName, false)
-    }
+    compileCommand = { platform, project -> runCompileCommand(platform, project) }
 
     buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, null, null, staticAnalysis)
-
 }
 
 ci: {
