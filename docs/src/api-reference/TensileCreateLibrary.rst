@@ -5,4 +5,4 @@
 TensileCreateLibrary
 ====================
 
-<this file is currently empty>
+.. autofunction:: Tensile.TensileCreateLibrary::verifyManifest
