@@ -33,12 +33,13 @@ from . import ClientExecutable
 from . import EmbeddedData
 from . import LibraryIO
 from . import Utils
-from .Common import globalParameters, HR, print1, print2, printExit, ensurePath, \
+from .Common import getArchitectureName, globalParameters, HR, print1, print2, printExit, ensurePath, \
                     CHeader, CMakeHeader, assignGlobalParameters, gfxName, architectureMap
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
 from .SolutionStructs import Solution
+from .Utilities.String import splitDelimitedString
 
 import argparse
 import collections
@@ -50,6 +51,7 @@ import shutil
 import subprocess
 import sys
 import time
+
 from copy import deepcopy
 
 ################################################################################
@@ -1059,7 +1061,6 @@ def verifyManifest(manifest) -> bool:
   
   return False if len(files) > 0  else True
 
-
 ################################################################################
 # Tensile Create Library
 ################################################################################
@@ -1085,7 +1086,10 @@ def TensileCreateLibrary():
   argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hipcc"],       action="store", default="hipcc")
   argParser.add_argument("--cmake-cxx-compiler",     dest="CmakeCxxCompiler",  action="store")
   argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["default", "V4", "V5"], action="store")
-  argParser.add_argument("--architecture",           dest="Architecture",      type=str, action="store", default="all", help="Supported archs: " + " ".join(architectureMap.keys()))
+  argParser.add_argument("--architecture",           dest="Architecture",      type=str, action="store", default="all", 
+                         help="Architectures to generate a library for. When specifying multiple options, "
+                         "use quoted, semicolon delimited architectures, e.g., --architecture='gfx908;gfx1012'. "
+                         "Supported archiectures include: " + " ".join(architectureMap.keys()))
   argParser.add_argument("--merge-files",            dest="MergeFiles",        action="store_true")
   argParser.add_argument("--no-merge-files",         dest="MergeFiles",        action="store_false")
   argParser.add_argument("--num-merged-files",       dest="NumMergedFiles",    type=int, default=1, help="Number of files the kernels should be written into.")
@@ -1200,16 +1204,9 @@ def TensileCreateLibrary():
   if not os.path.exists(logicPath):
     printExit("LogicPath %s doesn't exist" % logicPath)
 
-  if ";" in arguments["Architecture"]:
-    archs = arguments["Architecture"].split(";") # user arg list format
-  else:
-    archs = arguments["Architecture"].split("_") # workaround for cmake list in list issue
-  logicArchs = set()
-  for arch in archs:
-    if arch in architectureMap:
-      logicArchs.add(architectureMap[arch])
-    else:
-      printExit("Architecture %s not supported" % arch)
+  # CLI uses `;` delimiters, CMake uses `_` delimiters
+  logicArchs = splitDelimitedString(arguments["Architecture"], {";", "_"})
+  logicArchs = {name for name in (getArchitectureName(gfxName) for gfxName in logicArchs) if name}
 
   if globalParameters["LazyLibraryLoading"] and not (globalParameters["MergeFiles"] and globalParameters["SeparateArchitectures"]):
     printExit("--lazy-library-loading requires --merge-files and --separate-architectures enabled")
