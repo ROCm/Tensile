@@ -1737,31 +1737,32 @@ namespace Tensile
         return y0 + (x - x0) * (y1 - y0) / (x1 - x0);
     }
 
-    int ContractionSolution::predictNumFullTiles(Problem const& problem, Hardware const& hardware, size_t tiles, size_t skGrid) const
+    int ContractionSolution::predictNumFullTiles(Problem const&  problem,
+                                                 Hardware const& hardware,
+                                                 size_t          tiles,
+                                                 size_t          skGrid) const
     {
         int itersPerTile = problem.getItersPerTile(sizeMapping);
-        int k = itersPerTile * sizeMapping.depthU;
+        int k            = itersPerTile * sizeMapping.depthU;
         // TODO Test if prediction should be normalized to iterations (DepthU) or full size
 
         auto remainder = tiles % skGrid;
         if(remainder == 0)
             return 0;
-        
+
         // TODO Generalize code to allow prediction models for additional architectures
-        const std::vector<std::tuple<size_t, size_t>> predictionCurve = {
-            {512, 304},
-            {768, 201},
-            {1024, 75},
-            {1536, 40},
-            {2048, 30},
-            {3072, 21},
-            {4096, 14},
-            {5120, 11},
-            {6144, 9},
-            {7168, 8},
-            {8192, 5},
-            {16384, 4}
-        };
+        const std::vector<std::tuple<size_t, size_t>> predictionCurve = {{512, 304},
+                                                                         {768, 201},
+                                                                         {1024, 75},
+                                                                         {1536, 40},
+                                                                         {2048, 30},
+                                                                         {3072, 21},
+                                                                         {4096, 14},
+                                                                         {5120, 11},
+                                                                         {6144, 9},
+                                                                         {7168, 8},
+                                                                         {8192, 5},
+                                                                         {16384, 4}};
 
         if(k < std::get<0>(predictionCurve[0]))
             return 1;
@@ -1771,9 +1772,9 @@ namespace Tensile
             if(k < std::get<0>(predictionCurve[i]))
             {
                 float threshold = lerp(k,
-                                       std::get<0>(predictionCurve[i-1]),
+                                       std::get<0>(predictionCurve[i - 1]),
                                        std::get<0>(predictionCurve[i]),
-                                       std::get<1>(predictionCurve[i-1]),
+                                       std::get<1>(predictionCurve[i - 1]),
                                        std::get<1>(predictionCurve[i]));
                 return remainder >= threshold ? 0 : 1;
             }
