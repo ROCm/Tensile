@@ -133,6 +133,11 @@ namespace Tensile
         return m_value & 0x40000;
     }
 
+    bool Debug::printStreamKGridInfo() const
+    {
+        return m_value & 0x80000;
+    }
+
     bool Debug::naivePropertySearch() const
     {
         return m_naivePropertySearch;

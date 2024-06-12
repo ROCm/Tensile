@@ -74,6 +74,8 @@ namespace Tensile
 
         bool printOverrideLogs() const;
 
+        bool printStreamKGridInfo() const;
+
         bool naivePropertySearch() const;
 
         bool skipKernelLaunch() const;
