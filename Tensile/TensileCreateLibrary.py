@@ -33,12 +33,13 @@ from . import ClientExecutable
 from . import EmbeddedData
 from . import LibraryIO
 from . import Utils
-from .Common import globalParameters, HR, print1, print2, printExit, ensurePath, \
+from .Common import getArchitectureName, globalParameters, HR, print1, print2, printExit, ensurePath, \
                     CHeader, CMakeHeader, assignGlobalParameters, gfxName, architectureMap
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
 from .SolutionStructs import Solution
+from .Utilities.String import splitDelimitedString
 
 import argparse
 import collections
@@ -50,7 +51,12 @@ import shutil
 import subprocess
 import sys
 import time
+
 from copy import deepcopy
+from pathlib import Path
+
+TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
+TENSILE_LIBRARY_DIR = "library"
 
 ################################################################################
 def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
@@ -1045,20 +1051,20 @@ def writeMasterSolutionIndexCSV(outputPath, masterLibraries):
     print1("Error writing MasterSolutionIndex %s" % err)
 
 
-def verifyManifest(manifest) -> bool:
-  """Returns a bool indicating if the files listed in the manifest exist on disk.
+def verifyManifest(manifest: Path) -> bool:
+  """Verifies whether the files listed in the manifest exist on disk.
   
   Args:
-      manifest (str): path to the manifest file
+      manifest: Path to the manifest file.
   
   Returns:
-      list: a list of strings representing the header columns
+      True if all files exist on disk, otherwise False.
   """
-  with open(manifest, "r") as generatedFiles:
-    files = [filename for filename in generatedFiles.readlines() if not os.path.exists(filename.rstrip())]
-  
-  return False if len(files) > 0  else True
-
+  with open(manifest, mode="r") as generatedFiles:
+    for f in generatedFiles.readlines():
+      if not Path(f.rstrip()).exists():
+        return False
+  return True
 
 ################################################################################
 # Tensile Create Library
@@ -1085,16 +1091,19 @@ def TensileCreateLibrary():
   argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hipcc"],       action="store", default="hipcc")
   argParser.add_argument("--cmake-cxx-compiler",     dest="CmakeCxxCompiler",  action="store")
   argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["default", "V4", "V5"], action="store")
-  argParser.add_argument("--architecture",           dest="Architecture",      type=str, action="store", default="all", help="Supported archs: " + " ".join(architectureMap.keys()))
+  argParser.add_argument("--architecture",           dest="Architecture",      type=str, action="store", default="all", 
+                         help="Architectures to generate a library for. When specifying multiple options, "
+                         "use quoted, semicolon delimited architectures, e.g., --architecture='gfx908;gfx1012'. "
+                         "Supported archiectures include: " + " ".join(architectureMap.keys()))
   argParser.add_argument("--merge-files",            dest="MergeFiles",        action="store_true")
   argParser.add_argument("--no-merge-files",         dest="MergeFiles",        action="store_false")
   argParser.add_argument("--num-merged-files",       dest="NumMergedFiles",    type=int, default=1, help="Number of files the kernels should be written into.")
   argParser.add_argument("--short-file-names",       dest="ShortNames",        action="store_true")
   argParser.add_argument("--no-short-file-names",    dest="ShortNames",        action="store_false")
-  argParser.add_argument("--library-print-debug",    dest="LibraryPrintDebug", action="store_true")
+  argParser.add_argument("--library-print-debug",    dest="LibraryPrintDebug", action="store_true", help="Deprecated")
   argParser.add_argument("--no-library-print-debug", dest="LibraryPrintDebug", action="store_false")
   argParser.add_argument("--no-enumerate",           action="store_true", help="Do not run rocm_agent_enumerator.")
-  argParser.add_argument("--package-library",        dest="PackageLibrary",    action="store_true", default=False)
+  argParser.add_argument("--package-library",        dest="PackageLibrary",    action="store_true", default=False, help="Deprecated")
   argParser.add_argument("--embed-library",          dest="EmbedLibrary",
                          help="Embed (new) library files into static variables.  Specify the name of the library.")
 
@@ -1181,9 +1190,8 @@ def TensileCreateLibrary():
 
   assignGlobalParameters(arguments)
 
-  libraryPath = os.path.join(outputPath, "library")
-  ensurePath(libraryPath)
-  manifestFile = os.path.join(libraryPath, "TensileManifest.txt")
+  manifestFile = Path(outputPath)/TENSILE_LIBRARY_DIR/TENSILE_MANIFEST_FILENAME
+  manifestFile.parent.mkdir(exist_ok=True)
 
   if globalParameters["VerifyManifest"]: 
     if verifyManifest(manifestFile):
@@ -1200,16 +1208,9 @@ def TensileCreateLibrary():
   if not os.path.exists(logicPath):
     printExit("LogicPath %s doesn't exist" % logicPath)
 
-  if ";" in arguments["Architecture"]:
-    archs = arguments["Architecture"].split(";") # user arg list format
-  else:
-    archs = arguments["Architecture"].split("_") # workaround for cmake list in list issue
-  logicArchs = set()
-  for arch in archs:
-    if arch in architectureMap:
-      logicArchs.add(architectureMap[arch])
-    else:
-      printExit("Architecture %s not supported" % arch)
+  # CLI uses `;` delimiters, CMake uses `_` delimiters
+  logicArchs = splitDelimitedString(arguments["Architecture"], {";", "_"})
+  logicArchs = {name for name in (getArchitectureName(gfxName) for gfxName in logicArchs) if name}
 
   if globalParameters["LazyLibraryLoading"] and not (globalParameters["MergeFiles"] and globalParameters["SeparateArchitectures"]):
     printExit("--lazy-library-loading requires --merge-files and --separate-architectures enabled")

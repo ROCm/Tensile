@@ -6,9 +6,13 @@
 
 import re
 import datetime
+import sys
 
+from pathlib import Path
 from rocm_docs import ROCmDocs
 
+# Add the Tensile module to PYTHON_PATH
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 def get_semantic_version_from_file(file_path: str, search_prefix: str):
     regex = rf'{search_prefix}"(\d+\.\d+\.\d+)"'
@@ -32,11 +36,27 @@ copyright = f"Copyright (c) {year} Advanced Micro Devices, Inc. All rights reser
 version = f"{semantic_version}"
 release = f"{semantic_version}"
 
+autodoc_default_options = {
+    "members": True,
+    "member-order": "bysource",
+    "undoc-members": True,
+    "special-members": "__init__, __getitem__",
+    "inherited-members": True,
+    "show-inheritance": True,
+    "imported-members": False,
+    "member-order": "bysource",  # bysource: seems unfortunately not to work for Cython modules
+}
+
 external_toc_path = "./sphinx/_toc.yml"
-external_projects_current_project = "tensile"
+external_projects_current_project = "Tensile"
 
 docs_core = ROCmDocs(left_nav_title)
 docs_core.setup()
 
 for sphinx_var in ROCmDocs.SPHINX_VARS:
     globals()[sphinx_var] = getattr(docs_core, sphinx_var)
+
+extensions += [
+    "sphinx.ext.autodoc",  # Automatically create API documentation from Python docstrings
+    "sphinx.ext.napoleon"
+]

@@ -27,7 +27,7 @@ from . import Parallel
 from collections import OrderedDict
 from copy import deepcopy
 from .AsmCaps import CACHED_ASM_CAPS
-
+from typing import Optional
 
 import math
 import os.path
@@ -310,7 +310,16 @@ architectureMap = {
   'gfx1100':'navi31', 'gfx1101':'navi32', 'gfx1102':'navi33'
 }
 
-def getArchitectureName(gfxName):
+def getArchitectureName(gfxName: str) -> Optional[str]:
+  """Maps the provided Gfx architecture to its common name using the **architectureMap**.
+
+  Args:
+      gfxName: Gfx architecture name to map.
+
+  Returns:
+      Common name associated with the provided **gfxName** if it matches or is a substring
+      of a key in **architectureMap**, otherwise None.
+  """
   if gfxName in architectureMap:
     return architectureMap[gfxName]
   else:
@@ -1117,42 +1126,46 @@ validParameters = {
     # fp16 alternate implementation round mode: false for truncate, true for round near zero
     "Fp16AltImplRound": [False, True],
 
-    # StreamK kernels divide work evenly among CUs by splitting along MT and K dimensions
-    # Total work units are calculated as (#MTs x #LoopIters) and divided among workgroups
+    # StreamK (SK) kernels divide work evenly among CUs by splitting along MT and K dimensions.
+    # Total work units are calculated as (#MTs x #LoopIters) and divided among workgroups.
     # In most cases each workgroup will calculate a partial tile that are accumulated in a fixup step in the same kernel
-    # 0: Standard data-parallel kernel
-    # 1: Basic StreamK
-    # 2: Two-Tile StreamK (each WG completes an even number of sk iterations, followed by an even number of dp tiles)
-    # 3: Two-Tile StreamK with DP before SK tiles
+    # 0 : Standard data-parallel kernel
+    # 1 : Basic StreamK
+    # 2 : Two-Tile StreamK (each WG completes an even number of sk iterations, followed by an even number of dp tiles)
+    # 3 : Two-Tile StreamK with DP before SK tiles
     # StreamK kernels can adjust the number of CUs being used.
     # Using fewer sometimes increases overall throughput by allowing other kernels to run in parallel.
     # StreamK grid is controlled by setting these enviornment variables:
-    # TENSILE_STREAMK_DYNAMIC_GRID enables dynamic grid mode, which automatically limits the number of CUs used for small
-    #   problems to a subset based on the number of output tiles.
-    #   0 = off (default)
-    #   1 = on
-    #   2 = also reduce CUs used for large sizes to improve data-parallel portion and reduce power
-    # TENSILE_STREAMK_MAX_CUS allows the user to manually set maximum number of CUs used, which could free up some CUs for
-    #   other operations to run in parallel with gemm.
-    #   0 = use all CUs (default)
-    # TENSILE_STREAMK_GRID_MULTIPLIER lets you set how many workgroups are created per CU being used.
-    #   1 = 1 WG per CU (default)
     # TENSILE_STREAMK_FIXED_GRID lets you override the default grid size with a specific number
     #   0 = override disabled (default)
     # TENSILE_STREAMK_FULL_TILES sets the number of full tiles to be included in stream-k work
     #   -1 = use prediction model for best performance (default)
     #   0 = only remainder tiles run in stream-k
     #   1+ = remainder + 1 (or more) full grids of tiles run in stream-k
+    # TENSILE_STREAMK_DYNAMIC_GRID enables dynamic grid mode, which automatically limits the number of CUs used:
+    #   0 = Off, use all CUs (default)
+    #   1 = Only reduce CUs for small problems to number of output tiles when num_tiles < CU count.
+    #   2 = Also reduce CUs used for large sizes to improve data-parallel portion and reduce power.
+    #   3 = Analytically predict the best grid-size by weighing the cost of the fix-up step and the cost of processing MACs.
+    # TENSILE_STREAMK_MAX_CUS allows the user to manually set maximum number of CUs used, which could free up some CUs for
+    #   other operations to run in parallel with gemm.
+    # TENSILE_STREAMK_GRID_MULTIPLIER lets you set how many workgroups are created per CU being used.
+    #   1 = 1 WG per CU (default), for example. 2 will launch WGs = 2 x CU count.
+    # The priority of these environment variables is defined as follows:
+    # TENSILE_STREAMK_FIXED_GRID > TENSILE_STREAMK_DYNAMIC_GRID > TENSILE_STREAMK_MAX_CUS > TENSILE_STREAMK_GRID_MULTIPLIER
     "StreamK": [0, 1, 2, 3],
+    
     # Determines if StreamK kernel uses atomics
     # 0: uses workspace to store partial tiles, accumulate in deterministic fix-up step
     # 1: uses atomics to accumulate partial tiles
     "StreamKAtomic": [0, 1],
+
     # Enables XCC-based remapping of workgroups, set the value to the number of XCCs
     # for the device/configuration being used
     # 0: uses default workgroup assignment
     # 2+: remaps workgroups to be contiguous within an XCC for a given number of XCCs
     "StreamKXCCMapping": [0] + list(range(2, 9)),
+
     # Debug settings for stream-k kernels to disable parts of the kernel
     #   Bit 0: Don't generate fixup code
     #   Bit 1: Don't generate write to partials code
