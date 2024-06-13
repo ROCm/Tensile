@@ -48,7 +48,7 @@ runCompileCommand(platform, project) {
 
             git clone --depth=1 https://github.com/ROCm/\$repo_name.git ../\$repo_name
 
-            Tensile/bin/TensileCreateLibrary \
+            TENSILE_PROFILE=ON Tensile/bin/TensileCreateLibrary \
               \$PWD/../\$repo_name/\$logic_path/\$arch_name \
               _build \
               HIP \
