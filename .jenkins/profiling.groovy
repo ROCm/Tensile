@@ -31,7 +31,7 @@
 import com.amd.project.*
 import com.amd.docker.*
 
-runCompileCommand(platform, project) {
+def runCompileCommand(platform, project, jobName, boolean debug=false) {
     project.paths.construct_build_prefix()
 
     command = """#!/usr/bin/env bash
@@ -69,11 +69,11 @@ runCompileCommand(platform, project) {
     archiveArtifacts artifacts: 'profiling-results*/**/*.prof'
 }
 
-runCI = { nodeDetails, jobName ->
-    prj = new rocProject('Tensile', 'Profiling')
+def runCI = { nodeDetails, jobName ->
+    def prj = new rocProject('Tensile', 'Profiling')
 
     // Define test architectures; an optional ROCm version argument is available
-    nodes = new dockerNodes(nodeDetails, jobName, prj)
+    def nodes = new dockerNodes(nodeDetails, jobName, prj)
 
     boolean formatCheck = false
     boolean staticAnalysis = false
@@ -81,7 +81,7 @@ runCI = { nodeDetails, jobName ->
     prj.timeout.test = 30
     prj.defaults.ccache = false
 
-    compileCommand = { platform, project -> runCompileCommand(platform, project) }
+    def compileCommand = { platform, project -> runCompileCommand(platform, project, jobName, false) }
 
     buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, null, null, staticAnalysis)
 }
