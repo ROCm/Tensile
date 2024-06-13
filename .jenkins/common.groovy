@@ -23,59 +23,47 @@
  *******************************************************************************/
 
 // This file is for internal AMD use.
-// If you are interested in running your own Jenkins, please raise a github issue for assistance.
+// If you are interested in running your own Jenkins,
+// please raise a github issue for assistance.
 
 def runCompileCommand(platform, project, jobName, boolean debug=false)
 {
     project.paths.construct_build_prefix()
 
     String compiler = '/opt/rocm/bin/amdclang++'
-    String pythonVersion = 'py3'
     // Do release build of HostLibraryTests on CI until it is upgraded to rocm 5.3 to
     // avoid bug causing long build times of certain files.
     String buildType = 'Release' // debug ? 'Debug' : 'RelWithDebInfo'
-    String parallelJobs = "export HIPCC_COMPILE_FLAGS_APPEND='-O3 -Wno-format-nonliteral -parallel-jobs=4'"
     
     int systemCPUs = sh(script: 'nproc', returnStdout: true ).trim().toInteger()
-    //int systemRAM = sh(script: 'free -g | grep -P "[[:digit:]]+" -m 1 -o | head -n 1', returnStdout: true ).trim().toInteger()
     long containerRAMbytes = sh(script: 'if [ -f /sys/fs/cgroup/memory.max ]; then cat /sys/fs/cgroup/memory.max; else cat /sys/fs/cgroup/memory/memory.limit_in_bytes; fi', returnStdout: true ).trim().toLong()
     int containerRAM = containerRAMbytes / (1024 * 1024)
-    //int maxThreads = Math.min(Math.min(systemCPUs, systemRAM / 10), 64)
     int maxThreads = containerRAM / 8
-    if (maxThreads > systemCPUs)
-        maxThreads = systemCPUs
-    if (maxThreads > 64)
-        maxThreads = 64
-    if (maxThreads < 1)
-        maxThreads = 1
+    if (maxThreads > systemCPUs) maxThreads = systemCPUs
+    if (maxThreads > 64) maxThreads = 64
+    if (maxThreads < 1) maxThreads = 1
     
     String buildThreads = maxThreads.toString() // if hipcc is used may be multiplied by parallel-jobs
 
-    def test_dir =  "Tensile/Tests"
-    def test_marks = "unit"
-
     def command = """#!/usr/bin/env bash
             set -ex
-
             hostname
-
             cd ${project.paths.project_build_prefix}
-            ${parallelJobs}
 
-            gpuArch=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
-
-            #### temporary fix to remedy incorrect home directory
+            export HIPCC_COMPILE_FLAGS_APPEND='-O3 -Wno-format-nonliteral -parallel-jobs=4'
             export HOME=/home/jenkins
-            ####
-            tox --version
             export TENSILE_COMPILER=${compiler}
-            #tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --timing-file=\$(pwd)/timing-\$gpuArch.csv
-
-            mkdir build
-            pushd build
-
             export PATH=/opt/rocm/bin:\$PATH
-            cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DCMAKE_CXX_FLAGS="-D__HIP_HCC_COMPAT_MODE__=1" -DTensile_CPU_THREADS=${buildThreads} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
+
+            mkdir build && pushd build
+
+            cmake ../HostLibraryTests \
+                -DCMAKE_BUILD_TYPE=${buildType} \
+                -DCMAKE_CXX_COMPILER=${compiler} \
+                -DCMAKE_CXX_FLAGS="-D__HIP_HCC_COMPAT_MODE__=1" \
+                -DTensile_CPU_THREADS=${buildThreads} \
+                -DTensile_ROOT=\$(pwd)/../Tensile
+            
             NPROC_BUILD=16
             if [ `nproc` -lt 16 ]
             then
@@ -87,23 +75,6 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             """
 
     platform.runCommand(this, command)
-    // try
-    // {
-    //     platform.runCommand(this, command)
-    // }
-    // catch(e)
-    // {
-    //     try
-    //     {
-    //         junit "${project.paths.project_build_prefix}/python_unit_tests.xml"
-    //     }
-    //     catch(ee)
-    //     {}
-
-    //     throw e
-    // }
-
-    // junit "${project.paths.project_build_prefix}/python_unit_tests.xml"
 }
 
 def publishResults(project, boolean skipHostTest=false)
@@ -133,20 +104,19 @@ def publishResults(project, boolean skipHostTest=false)
     }
 }
 
-def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest=false)
+def runTestCommand (platform, project, jobName, testMark, boolean skipHostTest=false, boolean skipUnitTest=false)
 {
-    def test_dir =  "Tensile/Tests"
-
     String compiler = '/opt/rocm/bin/amdclang++'
-    String pythonVersion = 'py3'
-    String markSkipHostTest = skipHostTest ? "#" : ""
-    String markSkipExtendedTest = !test_marks.contains("extended") ? "\"--gtest_filter=-*Extended*:*Ocl*\"" : "\"--gtest_filter=-*Ocl*\""
+    String markSkipExtendedTest = !testMark.contains("extended") ? "\"--gtest_filter=-*Extended*:*Ocl*\"" : "\"--gtest_filter=-*Ocl*\""
 
     def command = """#!/usr/bin/env bash
+            check_err() {
+              ERR=\$?; [ \$ERR -ne 0 ] && exit \$ERR
+            }
+
             set -x
-
             hostname
-
+            date
             cd ${project.paths.project_build_prefix}
 
             export PATH=/opt/rocm/bin:\$PATH
@@ -155,33 +125,21 @@ def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest
 
             gpuArch=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
 
-            ${markSkipHostTest}pushd build
-            ${markSkipHostTest}./TensileTests ${markSkipExtendedTest} --gtest_output=xml:host_test_output.xml --gtest_color=yes
-            ${markSkipHostTest}HOST_ERR=\$?
-            ${markSkipHostTest}popd
+            if ! ${skipHostTest}; then
+              pushd build
+              ./TensileTests ${markSkipExtendedTest} --gtest_output=xml:host_test_output.xml --gtest_color=yes
+              check_err
+              popd
+            fi
 
             tox --version
-            #tox --verbose --workdir /tmp/.tensile-tox -e ${pythonVersion} \
-            #    -- ${test_dir} -m "${test_marks}" --timing-file=\$(pwd)/timing-\$gpuArch.csv
 
-            tox --verbose --workdir /tmp/.tensile-tox -e unittest -- --cov-report=xml:cobertura.xml
+            tox run -e ci -- -m ${testMark} --timing-file=\$(pwd)/timing-\$gpuArch.csv
+            check_err
 
-            #### temporary find commands
-            find / -name "htmlcov" -print 2>/dev/null
-            pwd
-            ####
-
-            PY_ERR=\$?
-            date
-
-            ${markSkipHostTest}if [[ \$HOST_ERR -ne 0 ]]
-            ${markSkipHostTest}then
-            ${markSkipHostTest}    exit \$HOST_ERR
-            ${markSkipHostTest}fi
-
-            if [[ \$PY_ERR -ne 0 ]]
-            then
-                exit \$PY_ERR
+            if ! ${skipUnitTest}; then 
+              tox run -e unittest -- --cov-report=xml:cobertura.xml
+              check_err
             fi
         """
 
@@ -201,6 +159,9 @@ def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest
     //     catch(ee) {}
     //     throw e
     // }
+    archiveArtifacts "${project.paths.project_build_prefix}/timing*.csv"
+    if (!skipHostTest) junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
+    junit "${project.paths.project_build_prefix}/python_tests.xml"
     recordCoverage(tools: [[parser: 'COBERTURA']])
     // publishResults(project, skipHostTest)
 }
