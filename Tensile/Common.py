@@ -247,7 +247,7 @@ globalParameters["DictLibraryLogic"] = False
 globalParameters["CurrentISA"] = (0,0,0)
 globalParameters["ROCmAgentEnumeratorPath"] = None      # /opt/rocm/bin/rocm_agent_enumerator
 globalParameters["ROCmSMIPath"] = None                  # /opt/rocm/bin/rocm-smi
-globalParameters["AssemblerPath"] = None                # /opt/rocm/hip/bin/hipcc
+globalParameters["AssemblerPath"] = None                # /opt/rocm/llvm/bin/clang++
 globalParameters["WorkingPath"] = os.getcwd()           # path where tensile called from
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
@@ -261,7 +261,8 @@ else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
 globalParameters["CodeObjectVersion"] = "default"
-globalParameters["CxxCompiler"] = "hipcc"
+globalParameters["CxxCompiler"] = "amdclang++"
+globalParameters["CCompiler"] = "amdclang"
 globalParameters["Architecture"] = "all"
 
 # might be deprecated
@@ -327,6 +328,18 @@ def getArchitectureName(gfxName: str) -> Optional[str]:
       if gfxName in archKey:
         return architectureMap[archKey]
     return None
+
+def supportedLinuxCompiler(compiler: str) -> bool:
+  """ Determines if compiler is supported by Tensile
+      Args:
+          The name of a compiler to test for support.
+      
+      Return:
+          If supported True; otherwise, False.
+  """
+  if (compiler == "hipcc" or compiler == "amdclang++"): return True
+
+  return False
 
 ################################################################################
 # Enumerate Valid Solution Parameters
@@ -2251,7 +2264,7 @@ def printCapTable(parameters):
 def which(p):
     exes = [p+x for x in ['', '.exe', '.bat']]
     system_path = os.environ['PATH'].split(os.pathsep)
-    if p == 'hipcc' and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
+    if supportedLinuxCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
         return os.environ['CMAKE_CXX_COMPILER']
     for dirname in system_path+[globalParameters["ROCmBinPath"]]:
         for exe in exes:
@@ -2300,6 +2313,8 @@ def assignGlobalParameters( config ):
   globalParameters["CmakeCxxCompiler"] = None
   if "CMAKE_CXX_COMPILER" in os.environ:
     globalParameters["CmakeCxxCompiler"] = os.environ.get("CMAKE_CXX_COMPILER")
+  if "CC" in os.environ:
+    globalParameters["CmakeCCompiler"] = os.environ.get("CC")    
 
   globalParameters["ROCmBinPath"] = os.path.join(globalParameters["ROCmPath"], "bin")
 
@@ -2311,14 +2326,18 @@ def assignGlobalParameters( config ):
 
   if "CxxCompiler" in config:
     globalParameters["CxxCompiler"] = config["CxxCompiler"]
+  if "CCompiler" in config:
+    globalParameters["CCompiler"] = config["CCompiler"]    
 
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
-  elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hipcc":
+  elif globalParameters["AssemblerPath"] is None and supportedLinuxCompiler(globalParameters["CxxCompiler"]):
     if os.name == "nt":
       globalParameters["AssemblerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang++.exe")
     else:
-      globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang++")
+      bin_path = "llvm/bin" if globalParameters["CxxCompiler"] == "hipcc" else "bin"
+      compiler = "clang++" if globalParameters["CxxCompiler"] == "hipcc" else "amdclang++"
+      globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], bin_path), compiler)
 
   globalParameters["ROCmSMIPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm-smi")
 
@@ -2355,6 +2374,8 @@ def assignGlobalParameters( config ):
   # Due to platform.linux_distribution() being deprecated, just try to run dpkg regardless.
   # The alternative would be to install the `distro` package.
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
+  
+  # This may not be sufficient for amdclang
   try:
     if os.name == "nt":
       compileArgs = ['perl'] + [which('hipcc')] + ['--version']

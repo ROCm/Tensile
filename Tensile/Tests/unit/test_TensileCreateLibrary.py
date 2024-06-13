@@ -73,7 +73,7 @@ def test_WriteClientLibraryFromSolutions(tmpdir):
     Common.globalParameters["MergeFiles"] = True
     Common.globalParameters["CodeObjectVersion"] = "default"
     Common.globalParameters["YAML"] = True
-    Common.globalParameters["CxxCompiler"] = "hipcc"
+    Common.globalParameters["CxxCompiler"] = "amdclang++"
     Common.assignGlobalParameters({})
 
     libraryWorkingPath = tmpdir.mkdir("lib")

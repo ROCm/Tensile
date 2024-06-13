@@ -22,8 +22,6 @@
 #
 ################################################################################
 
-set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
-
 add_library(TensileOcl STATIC
             OclHardware.cpp
             OclSolutionAdapter.cpp

@@ -40,7 +40,7 @@ set(TENSILE_USE_OPENMP   ON CACHE BOOL "Use OpenMP to improve performance.")
 set(TENSILE_STATIC_ONLY  ON CACHE BOOL "Disable exposing Tensile symbols in a shared library.")
 
 if(NOT DEFINED CXX_VERSION_STRING)
-    if(CMAKE_CXX_COMPILER MATCHES ".*/hipcc$")
+if(CMAKE_CXX_COMPILER MATCHES ".*/hipcc$" OR CMAKE_CXX_COMPILER MATCHES ".*clang\\+\\+")
       # Determine if CXX Compiler is hip-clang or nvcc
       execute_process(COMMAND ${CMAKE_CXX_COMPILER} "--version" OUTPUT_VARIABLE CXX_OUTPUT
               OUTPUT_STRIP_TRAILING_WHITESPACE

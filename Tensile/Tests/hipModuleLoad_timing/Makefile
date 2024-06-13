@@ -22,7 +22,7 @@
 #
 ################################################################################
 
-CXX=/opt/rocm/hip/bin/hipcc
+CXX?=/opt/rocm/hip/bin/amdclang++
 LIBFLAGS=-L/opt/rocm/hip/lib/
 LIBS=-lamdhip64
 INCFLAGS=-I/opt/rocm/hip/include/
