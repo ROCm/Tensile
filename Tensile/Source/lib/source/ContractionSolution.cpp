@@ -1750,6 +1750,13 @@ namespace Tensile
         if(remainder == 0)
             return 0;
 
+        // Temporary check for correct hardware until prediction curves are made for additional devices
+        AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
+        assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
+        size_t cuCount = pAMDGPU->computeUnitCount;
+        if(cuCount != 304)
+            return 0;
+
         // TODO Generalize code to allow prediction models for additional architectures
         const std::vector<std::tuple<size_t, size_t>> predictionCurve = {{512, 304},
                                                                          {768, 201},
