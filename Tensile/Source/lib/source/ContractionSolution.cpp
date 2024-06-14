@@ -454,11 +454,11 @@ namespace Tensile
                 rv.numWorkGroups.x = skGrid;
                 rv.numWorkGroups.y = 1;
                 rv.numWorkGroups.z = 1;
-            }
-            fullTiles = pAMDGPU->skFullTiles;
-            if(fullTiles == -1)
-            {
-                fullTiles = predictNumFullTiles(problem, hardware, tiles, skGrid);
+                fullTiles = pAMDGPU->skFullTiles;
+                if(fullTiles == -1)
+                {
+                    fullTiles = predictNumFullTiles(problem, hardware, tiles, skGrid);
+                }
             }
         }
 
