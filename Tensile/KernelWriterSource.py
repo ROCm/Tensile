@@ -466,7 +466,7 @@ class KernelWriterSource(KernelWriter):
         kStr += "  } while (assumed != old);%s" % (self.endLine)
         kStr += "}%s" % (self.endLine)
         """
-        if globalParameters["CxxCompiler"] == "hipcc":
+        if globalParameters["CxxCompiler"] == "hipcc" or globalParameters["CxxCompiler"] == "amdclang++":
           kStr += self.endLine
           kStr += "__device__ inline int atomicAddType(int *fPtr, int operand)%s" % (self.endLine)
           kStr += "{%s" % (self.endLine)

@@ -21,7 +21,8 @@
 # SOFTWARE.
 #
 ################################################################################
-set(COMPILER "hipcc")
+
+get_filename_component(COMPILER ${CMAKE_CXX_COMPILER} NAME)
 set(CODE_OBJECT_VERSION "default")
 
 TensileCreateLibraryFiles(

@@ -33,6 +33,8 @@ import Tensile.ClientWriter as ClientWriter
 import Tensile.SolutionStructs as SolutionStructs
 import yaml
 import contextlib
+import uuid
+import shutil
 
 from pathlib import Path
 
@@ -73,7 +75,7 @@ def test_WriteClientLibraryFromSolutions(tmpdir):
     Common.globalParameters["MergeFiles"] = True
     Common.globalParameters["CodeObjectVersion"] = "default"
     Common.globalParameters["YAML"] = True
-    Common.globalParameters["CxxCompiler"] = "hipcc"
+    Common.globalParameters["CxxCompiler"] = "amdclang++"
     Common.assignGlobalParameters({})
 
     libraryWorkingPath = tmpdir.mkdir("lib")
@@ -191,3 +193,106 @@ def test_verifyManifest():
             generatedFile.write("%s\n" %(filePath) )
 
     assert not TensileCreateLibrary.verifyManifest(manifestFile), "files in manifest are on disk, but shouldn't be"
+
+def test_findLogicFiles():
+
+    def setup():
+        baseDir = Path("no-commit-test-logic-files")
+
+        # Start with clean state
+        with contextlib.suppress(FileNotFoundError):
+            shutil.rmtree(baseDir)
+        baseDir.mkdir()
+
+        lazyLoading = False
+        experimentalDir = "/experimental/"
+        return baseDir, lazyLoading, experimentalDir
+
+    def outputMatchesOldLogic1():
+        baseDir, lazyLoading, experimentalDir = setup()
+        logicArchs = set(Common.architectureMap.values())
+        logicArchs.add("hip")
+        logicArchs.remove("_")  # Remove the value `_` associated with key `all`
+
+        for d in logicArchs:
+            createDirectoryWithYamls(baseDir / d, "foo", "yaml")
+
+        result = TensileCreateLibrary.findLogicFiles(baseDir, logicArchs, lazyLoading, experimentalDir)
+        expected = findLogicFiles_oldLogic(baseDir, logicArchs, lazyLoading, experimentalDir)
+        return result == expected
+
+    def outputMatchesOldLogic2():
+        baseDir, lazyLoading, experimentalDir = setup()
+        logicArchs = set(Common.architectureMap.values())
+        logicArchs.add("hip")
+        logicArchs.remove("_")  # Remove the value `_` associated with key `all`
+
+        for d in logicArchs:
+            createDirectoryWithYamls(baseDir / d, d, "yaml")
+
+        result = TensileCreateLibrary.findLogicFiles(baseDir, logicArchs, lazyLoading, experimentalDir)
+        expected = findLogicFiles_oldLogic(baseDir, logicArchs, lazyLoading, experimentalDir)
+        return result == expected
+    
+    def outputMatchesOldLogic3():
+        baseDir, lazyLoading, experimentalDir = setup()
+        logicArchs = set(Common.architectureMap["all"])
+
+        for d in logicArchs:
+            createDirectoryWithYamls(baseDir / d, d, "yaml")
+
+        result = TensileCreateLibrary.findLogicFiles(baseDir, logicArchs, lazyLoading, experimentalDir)
+        expected = findLogicFiles_oldLogic(baseDir, logicArchs, lazyLoading, experimentalDir)
+        return result == expected
+
+    def verifyYamlAndYml():
+        baseDir, lazyLoading, experimentalDir = setup()
+        # Create directory structure with files that *don't* have arch in filename
+        logicArchs = set(Common.architectureMap.values())
+        logicArchs.add("hip")
+        logicArchs.remove("_")
+
+        for d in logicArchs:
+            createDirectoryWithYamls(baseDir / "yaml" / d, d, "yaml")
+            createDirectoryWithYamls(baseDir / "yml" / d, d, "yml")
+
+        result = TensileCreateLibrary.findLogicFiles(baseDir, logicArchs, lazyLoading, experimentalDir)
+        expected = findLogicFiles_oldLogic(baseDir, logicArchs, lazyLoading, experimentalDir)
+        return len(result) == len(expected)*2
+
+    assert outputMatchesOldLogic1(), "Output differs from old logic, not backwards compatible."
+    assert outputMatchesOldLogic2(), "Output differs from old logic, not backwards compatible."
+    assert outputMatchesOldLogic3(), "Output differs from old logic, not backwards compatible."
+    assert verifyYamlAndYml(), "Output should have twice as many files as old logic (which only parses .yaml)"
+
+
+# ----------------
+# Helper functions
+# ----------------
+def createDirectoryWithYamls(currentDir, prefix, ext, depth=3, nChildren=3):
+    def recurse(currentDir, depth, nChildren):
+        if depth == 0:
+            return
+
+        currentDir.mkdir(parents=True, exist_ok=True)
+        file = f"{prefix}_{str(uuid.uuid4().hex)}.{ext}"
+        with open(currentDir/file, mode="w"):
+            pass
+
+        for n in range(nChildren):
+            recurse(currentDir / str(n), depth - 1, nChildren)
+    recurse(currentDir, depth, nChildren)
+
+
+def findLogicFiles_oldLogic(logicPath, logicArchs, lazyLoading, experimentalDir):
+    # Recursive directory search
+    logicFiles = []
+    for root, dirs, files in os.walk(str(logicPath)):
+        logicFiles += [os.path.join(root, f) for f in files
+                        if os.path.splitext(f)[1]==".yaml" \
+                        and (any(logicArch in os.path.splitext(f)[0] for logicArch in logicArchs) \
+                        or "hip" in os.path.splitext(f)[0]) ]
+
+    if not lazyLoading:
+        logicFiles = [f for f in logicFiles if not experimentalDir in f]
+    return logicFiles
