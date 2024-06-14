@@ -30,6 +30,7 @@
 
 import com.amd.project.*
 import com.amd.docker.*
+import java.nio.file.Path
 
 def runCompileCommand(platform, project, jobName, boolean debug=false) {
     project.paths.construct_build_prefix()
@@ -62,14 +63,16 @@ def runCompileCommand(platform, project, jobName, boolean debug=false) {
               --jobs=32 \
               --library-format=msgpack \
               --architecture=\$gfx_name
+
+            find . -name "*.prof" -print 2>/dev/null
             """
 
     platform.runCommand(this, command)
 
-    archiveArtifacts artifacts: 'profiling-results*/**/*.prof'
+    archiveArtifacts artifacts: '**/*.prof'
 }
 
-def runCI = { nodeDetails, jobName ->
+def runCI(nodeDetails, jobName) {
     def prj = new rocProject('Tensile', 'Profiling')
 
     // Define test architectures; an optional ROCm version argument is available
@@ -86,7 +89,7 @@ def runCI = { nodeDetails, jobName ->
     buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, null, null, staticAnalysis)
 }
 
-ci: {
+def ci() {
     String urlJobName = auxiliary.getTopJobName(env.BUILD_URL)
 
     properties(auxiliary.addCommonProperties([pipelineTriggers([cron('0 2 * * 6')])]))
