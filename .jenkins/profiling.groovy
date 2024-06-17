@@ -64,12 +64,14 @@ def runCompileCommand(platform, project, jobName, boolean debug=false) {
               --library-format=msgpack \
               --architecture=\$gfx_name
 
-            find . -name "*.prof" -print 2>/dev/null
+            for i in $(find . -name "*.prof" -print 2>/dev/null); do
+              python3 -m flameprof ${i} > ${i}.svg
+            done
             """
 
     platform.runCommand(this, command)
 
-    archiveArtifacts artifacts: '**/*.prof'
+    archiveArtifacts artifacts: 'profiling-results*/**'
 }
 
 def runCI(nodeDetails, jobName) {
@@ -92,7 +94,7 @@ def runCI(nodeDetails, jobName) {
 def ci() {
     String urlJobName = auxiliary.getTopJobName(env.BUILD_URL)
 
-    properties(auxiliary.addCommonProperties([pipelineTriggers([cron('0 2 * * 6')])]))
+    properties(auxiliary.addCommonProperties([]))
 
     stage(urlJobName) {
         runCI([ubuntu22:['gfx90a']], urlJobName)
