@@ -46,10 +46,6 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     String buildThreads = maxThreads.toString() // if hipcc is used may be multiplied by parallel-jobs
 
     def command = """#!/usr/bin/env bash
-            check_err() {
-              ERR=\$?; [ \$ERR -ne 0 ] && exit \$ERR
-            }
-
             set -ex
             hostname
             cd ${project.paths.project_build_prefix}
@@ -67,10 +63,8 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
                 -DCMAKE_CXX_FLAGS="-D__HIP_HCC_COMPAT_MODE__=1" \
                 -DTensile_CPU_THREADS=${buildThreads} \
                 -DTensile_ROOT=\$(pwd)/../Tensile
-            check_err
             
             make -j\$((`nproc`<16 ? `nproc` : 16))
-            check_err
 
             popd
             """
