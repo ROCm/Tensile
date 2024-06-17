@@ -1100,20 +1100,20 @@ def findLogicFiles(path: Path, logicArchs: Set[str], lazyLoading: bool, experime
 
     return list(str(l) for l in logicFiles)
 
-def createClientConfig(outputPath: Path, masterFile: Path, codeObjectFiles: List[str]) -> None:
-    """Outputs a client config file named best-solution.ini corresponding to a master library 
-       file and code-object parameters created by a TensileCreateLibrary invocation. Also
-       sets best-solution-mode to True.
+def createClientConfig(outputPath: Path, masterFile: Path, codeObjectFiles: List[str], configFile: str = "best-solution.ini") -> None:
+    """Outputs a client config file corresponding to a master library file and code-object parameters 
+       created by a TensileCreateLibrary invocation. Also sets best-solution-mode to True.
     
     Args:
         outputPath: The path to the tensile output directory where output files are written.
         masterFile: Path to the master library file (.dat or .yaml).
         codeObjectFiles: List of code object files created by TensileCreateLibrary.
+        configFile: Name of config file written to the output directory.
     """
-    iniFile = outputPath / "best-solution.ini"
+    iniFile = outputPath / configFile
     
     def param(key, value):
-      f.write("{}={}\n".format(key, value))
+      f.write(f"{key}={value}\n")
 
     with open(iniFile, "w") as f:
       if not masterFile.is_file():
@@ -1126,7 +1126,7 @@ def createClientConfig(outputPath: Path, masterFile: Path, codeObjectFiles: List
           warnings.warn(UserWarning(f"{codeObject} does not exist. best-solution.ini may be invalid."))        
 
         param("code-object", outputPath / coFile)
-
+      
       param("best-solution", True)
 
 ################################################################################
