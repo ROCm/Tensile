@@ -63,9 +63,9 @@ def runCI =
         platform, project->
 
         def testMark = "integration"
-        boolean skipHostTest = true
-        boolean skipUnitTest = true
-        commonGroovy.runTestCommand(platform, project, jobName, testMark, skipHostTest, skipUnitTest)
+        boolean runHostTest = false
+        boolean runUnitTest = false
+        commonGroovy.runTestCommand(platform, project, jobName, testMark, runHostTest, runUnitTest)
     }
 
     buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, testCommand, null)

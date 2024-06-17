@@ -46,6 +46,10 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     String buildThreads = maxThreads.toString() // if hipcc is used may be multiplied by parallel-jobs
 
     def command = """#!/usr/bin/env bash
+            check_err() {
+              ERR=\$?; [ \$ERR -ne 0 ] && exit \$ERR
+            }
+
             set -ex
             hostname
             cd ${project.paths.project_build_prefix}
@@ -63,13 +67,10 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
                 -DCMAKE_CXX_FLAGS="-D__HIP_HCC_COMPAT_MODE__=1" \
                 -DTensile_CPU_THREADS=${buildThreads} \
                 -DTensile_ROOT=\$(pwd)/../Tensile
+            check_err
             
-            NPROC_BUILD=16
-            if [ `nproc` -lt 16 ]
-            then
-              NPROC_BUILD=`nproc`
-            fi
-            make -j\$NPROC_BUILD
+            make -j\$((`nproc`<16 ? `nproc` : 16))
+            check_err
 
             popd
             """
@@ -77,34 +78,8 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     platform.runCommand(this, command)
 }
 
-def publishResults(project, boolean skipHostTest=false)
-{
-    try
-    {
-        archiveArtifacts "${project.paths.project_build_prefix}/timing*.csv"
-    }
-    finally
-    {
-        try
-        {
-            if (!skipHostTest) junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
-        }
-        finally
-        {
-            junit "${project.paths.project_build_prefix}/python_tests.xml"
-        }
-    }
-    try
-    {
-        archiveArtifacts "${project.paths.project_build_prefix}/htmlcov/**/*"
-    }
-    finally
-    {
-        println("Couldn't find coverage artifacts")
-    }
-}
 
-def runTestCommand (platform, project, jobName, testMark, boolean skipHostTest=false, boolean skipUnitTest=false)
+def runTestCommand(platform, project, jobName, testMark, boolean runHostTest=true, boolean runUnitTest=true)
 {
     String compiler = '/opt/rocm/bin/amdclang++'
     String markSkipExtendedTest = !testMark.contains("extended") ? "\"--gtest_filter=-*Extended*:*Ocl*\"" : "\"--gtest_filter=-*Ocl*\""
@@ -125,7 +100,7 @@ def runTestCommand (platform, project, jobName, testMark, boolean skipHostTest=f
 
             gpuArch=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
 
-            if ! ${skipHostTest}; then
+            if ${runHostTest}; then
               pushd build
               ./TensileTests ${markSkipExtendedTest} --gtest_output=xml:host_test_output.xml --gtest_color=yes
               check_err
@@ -134,36 +109,18 @@ def runTestCommand (platform, project, jobName, testMark, boolean skipHostTest=f
 
             tox --version
 
-            tox run -e ci -- -m ${testMark} --timing-file=\$(pwd)/timing-\$gpuArch.csv
+            tox run -e ci -- -m ${testMark} --timing-file=\$(pwd)/timing-\$gpuArch.csv --numprocesses=auto
             check_err
 
-            if ! ${skipUnitTest}; then 
-              tox run -e unittest -- --cov-report=xml:cobertura.xml
+            if ${runUnitTest}; then 
+              tox run -e unittest -- --cov-report=xml:cobertura.xml --numprocesses=auto
               check_err
             fi
         """
-
-    // This awkward sequence prevents an exception in runCommand() from being
-    // eaten by an exception in publishResults(), while allowing partial results
-    // to still be published.
-
-
     platform.runCommand(this, command)
-    // try {
-    //     platform.runCommand(this, command)
-    // }
-    // catch(e) {
-    //     try {
-    //         publishResults(project, skipHostTest)
-    //     }
-    //     catch(ee) {}
-    //     throw e
-    // }
+
     archiveArtifacts "${project.paths.project_build_prefix}/timing*.csv"
-    if (!skipHostTest) junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
-    junit "${project.paths.project_build_prefix}/python_tests.xml"
     recordCoverage(tools: [[parser: 'COBERTURA']])
-    // publishResults(project, skipHostTest)
 }
 
 return this
