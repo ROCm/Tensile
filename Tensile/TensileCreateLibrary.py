@@ -1101,8 +1101,8 @@ def findLogicFiles(path: Path, logicArchs: Set[str], lazyLoading: bool, experime
     return list(str(l) for l in logicFiles)
 
 def createClientConfig(outputPath: Path, masterFile: Path, codeObjectFiles: List[str], configFile: str = "best-solution.ini") -> None:
-    """Outputs a client config file corresponding to a master library file and code-object parameters 
-       created by a TensileCreateLibrary invocation. Also sets best-solution-mode to True.
+    """Outputs a client config file corresponding to a master library file and code-object parameters
+           created by a TensileCreateLibrary invocation. Also sets best-solution-mode to True.
     
     Args:
         outputPath: The path to the tensile output directory where output files are written.
