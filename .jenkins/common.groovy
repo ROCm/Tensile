@@ -102,7 +102,7 @@ def runTestCommand(platform, project, jobName, testMark, boolean runHostTest=tru
 
             if ${runHostTest}; then
               pushd build
-              ./TensileTests ${markSkipExtendedTest} --gtest_output=xml:host_test_output.xml --gtest_color=yes
+              ./TensileTests ${markSkipExtendedTest} --gtest_color=yes
               check_err
               popd
             fi
