@@ -103,7 +103,7 @@ def runTestCommand(platform, project, jobName, testMark, boolean runHostTest=tru
 
             tox --version
 
-            tox run -e ci -- -m ${testMark} --timing-file=\$(pwd)/timing-\$gpuArch.csv --numprocesses=auto
+            tox run -e ci -- -m ${testMark} --timing-file=\$(pwd)/timing-\$gpuArch.csv --numprocesses=4
             check_err
 
             if ${runUnitTest}; then 
