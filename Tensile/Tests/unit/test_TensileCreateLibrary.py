@@ -307,28 +307,14 @@ def setupClientConfigTest(outputPath, masterLibrary, codeObjectFiles):
 
 
 def cleanClientConfigTest(outputPath: Path, masterLibrary, codeObjectFiles, configFile):
-    try:
+    with contextlib.suppress(FileNotFoundError):
         os.remove(configFile)
-    except:
-        pass
-    try:
         os.remove(masterLibrary)        
-    except:
-        pass
-
         for f in codeObjectFiles:
-            try:
-                os.remove(outputPath / f)
-            except:
-                pass
-        try:
-            next(outputPath.iterdir()).rmdir()
-        except:
-            pass
-        try:
-            outputPath.rmdir()
-        except:
-            pass
+            os.remove(outputPath / f)
+        next(outputPath.iterdir()).rmdir()
+        outputPath.rmdir()
+
 
 def createDirectoryWithYamls(currentDir, prefix, ext, depth=3, nChildren=3):
     def recurse(currentDir, depth, nChildren):
