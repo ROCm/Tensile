@@ -1101,20 +1101,14 @@ def findLogicFiles(path: Path, logicArchs: Set[str], lazyLoading: bool, experime
     return list(str(l) for l in logicFiles)
 
 def createClientConfig(outputPath: Path, masterFile: Path, codeObjectFiles: List[str]) -> None:
-    """Outputs a client config file named best-solution.ini corresponding a master library 
+    """Outputs a client config file named best-solution.ini corresponding to a master library 
        file and code-object parameters created by a TensileCreateLibrary invocation. Also
        sets best-solution-mode to True.
     
     Args:
         outputPath: The path to the tensile output directory where output files are written.
-        masterFile: Path to the master library file (.dat or .yaml) e.g.:
-
-          "tensile-out/library/TensileLibrary_lazy_gfx908.dat"
-
-        codeObjectFiles: List of code object files created by TensileCreateLibrary e.g.:
-          
-          ["tensile-out/library/TensileLibrary_Type_SS_Contraction_l_Alik_Bjlk_Cijk_Dijk_gfx908.hsaco', 
-           "tensile-out/library/TensileLibrary_Type_SS_Contraction_l_Ailk_Bljk_Cijk_Dijk_gfx908.hsaco", ... ]
+        masterFile: Path to the master library file (.dat or .yaml).
+        codeObjectFiles: List of code object files created by TensileCreateLibrary.
     """
     iniFile = outputPath / "best-solution.ini"
     
