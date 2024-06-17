@@ -266,9 +266,70 @@ def test_findLogicFiles():
     assert verifyYamlAndYml(), "Output should have twice as many files as old logic (which only parses .yaml)"
 
 
+def test_createClientConfig():
+    
+    outputPath: Path = Path.cwd() / "my-output"
+    masterLibrary: Path = outputPath / "masterlib.data" 
+    codeObjectFiles = ["library/foo.hsaco", "library/bar.co"]
+    configFile = outputPath / "best-solution.ini"
+    
+    cleanClientConfigTest(outputPath, masterLibrary, codeObjectFiles, configFile)
+
+    with pytest.raises(FileNotFoundError, match=r"(.*) No such file or directory: '(.*)/my-output/best-solution.ini'"): 
+        TensileCreateLibrary.createClientConfig(outputPath, masterLibrary, codeObjectFiles)        
+
+    setupClientConfigTest(outputPath, masterLibrary, codeObjectFiles)
+
+    TensileCreateLibrary.createClientConfig(outputPath, masterLibrary, codeObjectFiles)
+
+    assert configFile.is_file(), "{configFile} was not generated"
+    
+    with open(configFile, "r") as f:
+        result = f.readlines()
+        assert "library-file" in result[0], "missing library-file entry"
+        assert "code-object" in result[1], "missing code-object entry"
+        assert "code-object" in result[2], "missing code-object entry"        
+        assert "best-solution" in result[3], "missing best-solution entry"                
+
+    cleanClientConfigTest(outputPath, masterLibrary, codeObjectFiles, configFile)
+
 # ----------------
 # Helper functions
 # ----------------
+def setupClientConfigTest(outputPath, masterLibrary, codeObjectFiles):
+    outputPath.mkdir()
+    with open(masterLibrary, "w") as testFile:
+        testFile.write("foo")
+    (outputPath / "library").mkdir()
+    for f in codeObjectFiles:
+        with open(outputPath / f, "w") as testFile:
+            testFile.write("foo")
+
+
+def cleanClientConfigTest(outputPath: Path, masterLibrary, codeObjectFiles, configFile):
+    try:
+        os.remove(configFile)
+    except:
+        pass
+    try:
+        os.remove(masterLibrary)        
+    except:
+        pass
+
+        for f in codeObjectFiles:
+            try:
+                os.remove(outputPath / f)
+            except:
+                pass
+        try:
+            next(outputPath.iterdir()).rmdir()
+        except:
+            pass
+        try:
+            outputPath.rmdir()
+        except:
+            pass
+
 def createDirectoryWithYamls(currentDir, prefix, ext, depth=3, nChildren=3):
     def recurse(currentDir, depth, nChildren):
         if depth == 0:
