@@ -50,10 +50,10 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             hostname
             cd ${project.paths.project_build_prefix}
 
-            export HIPCC_COMPILE_FLAGS_APPEND='-O3 -Wno-format-nonliteral -parallel-jobs=4'
+            export PATH=/opt/rocm/bin:\${PATH}
             export HOME=/home/jenkins
             export TENSILE_COMPILER=${compiler}
-            export PATH=/opt/rocm/bin:\$PATH
+            export HIPCC_COMPILE_FLAGS_APPEND='-O3 -Wno-format-nonliteral -parallel-jobs=4'
 
             mkdir build && pushd build
 
@@ -80,7 +80,10 @@ def runTestCommand(platform, project, jobName, testMark, boolean runHostTest=tru
 
     def command = """#!/usr/bin/env bash
             check_err() {
-              ERR=\$?; [ \$ERR -ne 0 ] && exit \$ERR
+              local ERR=\$?
+              if [ \$ERR -ne 0 ]; then
+                exit \$ERR
+              fi
             }
 
             set -x
@@ -88,27 +91,26 @@ def runTestCommand(platform, project, jobName, testMark, boolean runHostTest=tru
             date
             cd ${project.paths.project_build_prefix}
 
-            export PATH=/opt/rocm/bin:\$PATH
             export HOME=/home/jenkins
+            export PATH=/opt/rocm/bin:\${PATH}
             export TENSILE_COMPILER=${compiler}
+            export GPU_ARCH=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
+            export TIMING_FILE=`pwd`/timing-\${GPU_ARCH}.csv
 
-            gpuArch=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
+            tox --version
+            tox run -e ci -- -m ${testMark} --timing-file=\${TIMING_FILE} --numprocesses=4
+            check_err
+
+            if ${runUnitTest}; then 
+              tox run -e unittest -- --cov-report=xml:cobertura.xml --numprocesses=auto
+              check_err
+            fi
 
             if ${runHostTest}; then
               pushd build
               ./TensileTests ${markSkipExtendedTest} --gtest_color=yes
               check_err
               popd
-            fi
-
-            tox --version
-
-            tox run -e ci -- -m ${testMark} --timing-file=\$(pwd)/timing-\$gpuArch.csv --numprocesses=4
-            check_err
-
-            if ${runUnitTest}; then 
-              tox run -e unittest -- --cov-report=xml:cobertura.xml --numprocesses=auto
-              check_err
             fi
         """
     platform.runCommand(this, command)
