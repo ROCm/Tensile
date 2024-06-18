@@ -38,7 +38,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false) {
     command = """#!/usr/bin/env bash
             set -ex
             hostname
-            cd ${project.paths.project_build_prefix}
+            cd \${project.paths.project_build_prefix}
 
             export HOME=/home/jenkins
 
