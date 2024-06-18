@@ -34,26 +34,48 @@ import com.amd.project.*
 import com.amd.docker.*
 import java.nio.file.Path
 
-def runCompileCommand(platform, project, jobName, boolean debug=false) {
+def runCompileCommand(platform, project, jobName, boolean debug=false)
+{
     project.paths.construct_build_prefix()
 
     String buildType = debug ? 'Debug' : 'RelWithDebInfo'
 
+    // comment
+
+    def test_dir =  "Tensile/Tests"
+    def test_marks = "unit"
+
     def command = """#!/usr/bin/env bash
             set -ex
+
             hostname
-            date
+
             cd ${project.paths.project_build_prefix}
 
-            export HOME=/home/jenkins
+            gpuArch=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
 
+            #### temporary fix to remedy incorrect home directory
+            export HOME=/home/jenkins
+            ####
             tox --version
-            tox --verbose -e lint
+            tox -v --workdir /tmp/.tensile-tox -e lint
+
+            mkdir build
+            pushd build
+
+            popd
 
             doxygen docs/doxygen/Doxyfile
             """
 
-    platform.runCommand(this, command)
+    try
+    {
+        platform.runCommand(this, command)
+    }
+    catch(e)
+    {
+        throw e
+    }
 
     publishHTML([allowMissing: false,
                 alwaysLinkToLastBuild: false,
@@ -65,7 +87,10 @@ def runCompileCommand(platform, project, jobName, boolean debug=false) {
 }
 
 
-def runCI = { nodeDetails, jobName ->
+def runCI =
+{
+    nodeDetails, jobName ->
+
     def prj = new rocProject('Tensile', 'StaticAnalysis')
 
     // Define test architectures, optional rocm version argument is available
@@ -77,7 +102,12 @@ def runCI = { nodeDetails, jobName ->
     prj.timeout.test = 30
     prj.defaults.ccache = false
 
-    def compileCommand = { platform, project ->
+    def commonGroovy
+
+    def compileCommand =
+    {
+        platform, project->
+
         runCompileCommand(platform, project, jobName, false)
     }
 
