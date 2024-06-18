@@ -65,7 +65,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false) {
               --architecture=\$gfx_name
 
             for i in $(find . -name "*.prof" -print 2>/dev/null); do
-              python3 -m flameprof ${i} > ${i}.svg
+              python3 -m flameprof \${i} > \${i}.svg
             done
             """
 
