@@ -38,7 +38,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false) {
     command = """#!/usr/bin/env bash
             set -ex
             hostname
-            cd \${project.paths.project_build_prefix}
+            cd ${project.paths.project_build_prefix}
 
             export HOME=/home/jenkins
 
@@ -63,10 +63,6 @@ def runCompileCommand(platform, project, jobName, boolean debug=false) {
               --jobs=32 \
               --library-format=msgpack \
               --architecture=\$gfx_name
-
-            for i in $(find . -name "*.prof" -print 2>/dev/null); do
-              python3 -m flameprof \${i} > \${i}.svg
-            done
             """
 
     platform.runCommand(this, command)
