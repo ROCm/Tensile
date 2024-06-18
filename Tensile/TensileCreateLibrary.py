@@ -921,7 +921,6 @@ def generateKernelObjectsFromSolutions(solutions):
 ################################################################################
 # Generate Logic Data and Solutions
 ################################################################################
-@profile
 def generateLogicDataAndSolutions(logicFiles, args):
   libraries = Common.ParallelMap(LibraryIO.parseLibraryLogicFile, logicFiles, "Reading logic files", multiArg=False)
   solutions = []
