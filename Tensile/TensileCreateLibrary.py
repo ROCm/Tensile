@@ -34,7 +34,7 @@ from . import EmbeddedData
 from . import LibraryIO
 from . import Utils
 from .Common import getArchitectureName, globalParameters, HR, print1, print2, printExit, ensurePath, \
-                    CHeader, CMakeHeader, assignGlobalParameters, gfxName, architectureMap, \
+                    CHeader, CMakeHeader, assignGlobalParameters, gfxName, architectureMap, printWarning, \
                     supportedLinuxCompiler
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
@@ -53,8 +53,10 @@ import shutil
 import subprocess
 import sys
 import time
+import warnings
 
 from copy import deepcopy
+from typing import Set, List
 from pathlib import Path
 
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
@@ -1075,6 +1077,62 @@ def verifyManifest(manifest: Path) -> bool:
         return False
   return True
 
+def findLogicFiles(path: Path, logicArchs: Set[str], lazyLoading: bool, experimentalDir: str, extraMatchers: Set[str]={"hip"}) -> List[str]:
+    """Recursively searches the provided path for logic files.
+    
+    Args:
+        path: The path to the directory to search.
+        logicArchs: Target logic archiectures. These are interepreted as filename substrings
+            for which logic files are to be included.
+        extraMatchers: Additional directories to include for logic files.
+    
+    Returns:
+        A list of Path objects representing the found YAML files.
+    """
+    isMatch = lambda file: any((arch in file.stem for arch in logicArchs.union(extraMatchers)))
+    isExperimental = lambda path: not experimentalDir in str(path)
+
+    extensions = ["*.yaml", "*.yml"]
+    logicFiles = filter(isMatch, (file for ext in extensions for file in path.rglob(ext)))
+    if not lazyLoading:
+      if not experimentalDir:
+        printWarning("Configuration parameter `ExperimentalLogicDir` is an empty string, "\
+                     "logic files may be filtered incorrectly.")
+      logicFiles = filter(isExperimental, logicFiles)
+
+    return list(str(l) for l in logicFiles)
+
+def createClientConfig(outputPath: Path, masterFile: Path, codeObjectFiles: List[str], configFile: str = "best-solution.ini") -> None:
+    """Generates a client config file.
+    
+    Generates a client config file corresponding to a master library file and code-object parameters
+    created by a TensileCreateLibrary invocation. Also sets best-solution-mode to True.
+    
+    Args:
+        outputPath: The path to the tensile output directory where output files are written.
+        masterFile: Path to the master library file (.dat or .yaml).
+        codeObjectFiles: List of code object files created by TensileCreateLibrary.
+        configFile: Name of config file written to the output directory.
+    """
+    iniFile = outputPath / configFile
+    
+    def param(key, value):
+      f.write(f"{key}={value}\n")
+
+    with open(iniFile, "w") as f:
+      if not masterFile.is_file():
+        warnings.warn(UserWarning(f"{masterFile} does not exist. best-solution.ini may be invalid."))
+      
+      param("library-file", masterFile)
+      for coFile in codeObjectFiles:
+        codeObject: Path = outputPath / coFile
+        if not codeObject.is_file():
+          warnings.warn(UserWarning(f"{codeObject} does not exist. best-solution.ini may be invalid."))        
+
+        param("code-object", outputPath / coFile)
+      
+      param("best-solution", True)
+
 ################################################################################
 # Tensile Create Library
 ################################################################################
@@ -1225,17 +1283,10 @@ def TensileCreateLibrary():
   if globalParameters["LazyLibraryLoading"] and not (globalParameters["MergeFiles"] and globalParameters["SeparateArchitectures"]):
     printExit("--lazy-library-loading requires --merge-files and --separate-architectures enabled")
 
-  # Recursive directory search
-  logicFiles = []
-  for root, dirs, files in os.walk(logicPath):
-    logicFiles += [os.path.join(root, f) for f in files
-                       if os.path.splitext(f)[1]==".yaml" \
-                       and (any(logicArch in os.path.splitext(f)[0] for logicArch in logicArchs) \
-                       or "hip" in os.path.splitext(f)[0]) ]
-
-  # Skip experimental libraries (if exists) when building without lazy loading
-  if not globalParameters["LazyLibraryLoading"]:
-    logicFiles = [f for f in logicFiles if not globalParameters["ExperimentalLogicDir"] in f]
+  logicFiles = findLogicFiles(Path(logicPath),
+                              logicArchs,
+                              lazyLoading=globalParameters["LazyLibraryLoading"],
+                              experimentalDir=globalParameters["ExperimentalLogicDir"])
   
   print1("# LibraryLogicFiles:" % logicFiles)
   for logicFile in logicFiles:
@@ -1366,21 +1417,8 @@ def TensileCreateLibrary():
     ClientExecutable.getClientExecutable(outputPath)
 
   if args.ClientConfig:
-    # write simple ini for best solution mode linked to library we just made
-    iniFile = os.path.join(outputPath, "best-solution.ini")
-    with open(iniFile, "w") as f:
-      def param(key, value):
-        f.write("{}={}\n".format(key, value))
-
-      libraryFile = masterFile + ".yaml" \
-        if globalParameters["LibraryFormat"] == "yaml" else masterFile + ".dat"
-
-      param("library-file", libraryFile)
-      for coFile in codeObjectFiles:
-        param("code-object", os.path.join(outputPath,coFile))
-
-      param("best-solution", True)
-
+    ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
+    createClientConfig(Path(outputPath), Path(masterFile).with_suffix(ext), codeObjectFiles)
 
   print1("# Tensile Library Writer DONE")
   print1(HR)
