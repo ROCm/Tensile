@@ -67,7 +67,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false) {
 
     platform.runCommand(this, command)
 
-    archiveArtifacts artifacts: 'profiling-results*/**'
+    archiveArtifacts artifacts: '**/*.prof'
 }
 
 def runCI(nodeDetails, jobName) {
