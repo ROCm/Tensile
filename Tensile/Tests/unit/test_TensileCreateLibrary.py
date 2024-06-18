@@ -266,6 +266,36 @@ def test_findLogicFiles():
     assert verifyYamlAndYml(), "Output should have twice as many files as old logic (which only parses .yaml)"
 
 
+def test_sanityCheck():
+    # setup some dummy lists with files
+    srcPaths = ["foo.hsaco", "bar.hsaco"]
+    asmPaths = ["baz.co", "gru.co"]
+    coPathsMatch = ["foo.hsaco", "bar.hsaco", "baz.co", "gru.co"]
+    coPathsExtra = ["foo.hsaco", "bar.hsaco", "baz.co", "gru.co", "tux.hsaco"]
+    coPathsMissing = ["foo.hsaco", "bar.hsaco", "baz.co"]
+
+    TensileCreateLibrary.sanityCheck(srcPaths, asmPaths, coPathsMatch, False)
+    # Ensure that old logic also succeeds
+    sanityCheck_oldLogic(srcPaths, asmPaths, coPathsMatch, False)
+
+    with pytest.raises(ValueError, match=r"(.*) unexpected code object files: \['tux.hsaco'\]"):
+        TensileCreateLibrary.sanityCheck(srcPaths, asmPaths, coPathsExtra, False)
+    # Ensure that old logic also fails
+    with pytest.raises(Exception):
+        try:
+            sanityCheck_oldLogic(srcPaths, asmPaths, coPathsExtra, False)
+        except:
+            raise Exception
+
+    with pytest.raises(ValueError, match=r"(.*) missing expected code object files: \['gru.co'\]"):
+        TensileCreateLibrary.sanityCheck(srcPaths, asmPaths, coPathsMissing, False)
+    # Ensure that old logic also fails
+    with pytest.raises(Exception):
+        try:
+            sanityCheck_oldLogic(srcPaths, asmPaths, coPathsMissing, False)
+        except:
+            raise Exception
+
 # ----------------
 # Helper functions
 # ----------------
@@ -296,3 +326,15 @@ def findLogicFiles_oldLogic(logicPath, logicArchs, lazyLoading, experimentalDir)
     if not lazyLoading:
         logicFiles = [f for f in logicFiles if not experimentalDir in f]
     return logicFiles
+
+def sanityCheck_oldLogic(sourceLibPaths, asmLibPaths, codeObjectFiles, genSourcesAndExit):
+    bothLibSet = set(sourceLibPaths + asmLibPaths)
+    setA = set( map( os.path.normcase, set(codeObjectFiles) ) )
+    setB = set( map( os.path.normcase, bothLibSet ) )
+
+    sanityCheck0 = setA - setB
+    sanityCheck1 = setB - setA
+
+    assert len(sanityCheck0) == 0, "Unexpected code object files: {}".format(sanityCheck0)
+    if not genSourcesAndExit:
+        assert len(sanityCheck1) == 0, "Missing expected code object files: {}".format(sanityCheck1)
