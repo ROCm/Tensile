@@ -35,7 +35,7 @@ from . import LibraryIO
 from . import Utils
 from .Common import getArchitectureName, globalParameters, HR, print1, print2, printExit, ensurePath, \
                     CHeader, CMakeHeader, assignGlobalParameters, gfxName, architectureMap, printWarning, \
-                    supportedLinuxCompiler
+                    supportedCompiler
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
@@ -163,7 +163,7 @@ def which(p):
     else:
         exes = [p+x for x in ['', '.exe', '.bat']]
     system_path = os.environ['PATH'].split(os.pathsep)
-    if supportedLinuxCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
+    if supportedCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
         return os.environ['CMAKE_CXX_COMPILER']
     for dirname in system_path+[globalParameters["ROCmBinPath"]]:
         for exe in exes:
@@ -216,7 +216,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
     coFilenames = []
 
-    if supportedLinuxCompiler(CxxCompiler):
+    if supportedCompiler(CxxCompiler):
       archs, cmdlineArchs = splitArchs()
 
       archFlags = ['--offload-arch=' + arch for arch in cmdlineArchs]
@@ -698,7 +698,7 @@ def buildObjectFileNames(kernelWriterSource, kernelWriterAssembly, solutions, ke
   cxxCompiler = globalParameters["CxxCompiler"]
 
   # Source based kernels are built for all supported architectures
-  if supportedLinuxCompiler(cxxCompiler):
+  if supportedCompiler(cxxCompiler):
     sourceArchs, _ = splitArchs()
   else:
     raise RuntimeError("Unknown compiler %s" % cxxCompiler)
@@ -739,12 +739,12 @@ def buildObjectFileNames(kernelWriterSource, kernelWriterAssembly, solutions, ke
     allSources = sourceKernelNames + kernelHelperObjNames
 
     for kernelName in (allSources):
-      if supportedLinuxCompiler(cxxCompiler):
+      if supportedCompiler(cxxCompiler):
         sourceLibFiles += ["%s.so-000-%s.hsaco" % (kernelName, arch) for arch in sourceArchs]
       else:
         raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
   elif globalParameters["NumMergedFiles"] > 1:
-    if supportedLinuxCompiler(cxxCompiler):
+    if supportedCompiler(cxxCompiler):
       for kernelIndex in range(0, globalParameters["NumMergedFiles"]):
         sourceLibFiles += ["Kernels%d.so-000-%s.hsaco" % (kernelIndex, arch) for arch in sourceArchs]
     else:
@@ -752,10 +752,10 @@ def buildObjectFileNames(kernelWriterSource, kernelWriterAssembly, solutions, ke
   elif globalParameters["LazyLibraryLoading"]:
     fallbackLibs = list(set([kernel._state["codeObjectFile"] for kernel in kernels if "fallback" in kernel._state.get('codeObjectFile', "")]))
     sourceLibFiles += ["{0}_{1}.hsaco".format(name, arch) for name, arch in itertools.product(fallbackLibs, sourceArchs)]
-    if supportedLinuxCompiler(cxxCompiler):
+    if supportedCompiler(cxxCompiler):
       sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
   else: # Merge
-    if supportedLinuxCompiler(cxxCompiler):
+    if supportedCompiler(cxxCompiler):
       sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
     else:
       raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
@@ -1121,7 +1121,7 @@ def TensileCreateLibrary():
   argParser.add_argument("LogicPath",       help="Path to LibraryLogic.yaml files.")
   argParser.add_argument("OutputPath",      help="Where to write library files?")
   argParser.add_argument("RuntimeLanguage", help="Which runtime language?", choices=["OCL", "HIP", "HSA"])
-  argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hipcc", 'amdclang++'],       action="store", default="amdclang++")
+  argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=['amdclang++', "clang++", "hipcc"],       action="store", default="amdclang++")
   argParser.add_argument("--cmake-cxx-compiler",     dest="CmakeCxxCompiler",  action="store")
   argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["default", "V4", "V5"], action="store")
   argParser.add_argument("--architecture",           dest="Architecture",      type=str, action="store", default="all", 
@@ -1173,10 +1173,6 @@ def TensileCreateLibrary():
   logicPath = args.LogicPath
   outputPath = args.OutputPath
   CxxCompiler = args.CxxCompiler
-  if os.name == "nt" and CxxCompiler == "amdclang++":
-    CxxCompiler = "clang++"
-    args.CxxCompiler = "clang++"
-    printWarning("On windows using clang++.")
   libraryFormat = args.LibraryFormat
   print2("OutputPath: %s" % outputPath)
   ensurePath(outputPath)
@@ -1187,7 +1183,7 @@ def TensileCreateLibrary():
   arguments["Architecture"] = args.Architecture
   arguments["SeparateArchitectures"] = args.SeparateArchitectures
   arguments["LazyLibraryLoading"] = args.LazyLibraryLoading
-  arguments["CxxCompiler"] = CxxCompiler
+  arguments["CxxCompiler"] = args.CxxCompiler
   if args.CmakeCxxCompiler:
     os.environ["CMAKE_CXX_COMPILER"] = args.CmakeCxxCompiler
   arguments["MergeFiles"] = args.MergeFiles

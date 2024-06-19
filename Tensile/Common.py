@@ -329,7 +329,7 @@ def getArchitectureName(gfxName: str) -> Optional[str]:
         return architectureMap[archKey]
     return None
 
-def supportedLinuxCompiler(compiler: str) -> bool:
+def supportedCompiler(compiler: str) -> bool:
   """ Determines if compiler is supported by Tensile.
 
       Args:
@@ -338,7 +338,15 @@ def supportedLinuxCompiler(compiler: str) -> bool:
       Return:
           If supported True; otherwise, False.
   """
-  return (compiler == "hipcc" or compiler == "amdclang++" or compiler == "clang++")
+  isSupported = (compiler == "hipcc")
+  if os.name == "nt": 
+    isSupported = (isSupported or compiler == "clang++")
+  else:
+    isSupported = (isSupported or compiler == "amdclang++")
+  
+  printWarning(f"{compiler} is unsupported for os {os.name}")
+  
+  return isSupported
 
 ################################################################################
 # Enumerate Valid Solution Parameters
@@ -2263,7 +2271,7 @@ def printCapTable(parameters):
 def which(p):
     exes = [p+x for x in ['', '.exe', '.bat']]
     system_path = os.environ['PATH'].split(os.pathsep)
-    if supportedLinuxCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
+    if supportedCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
         return os.environ['CMAKE_CXX_COMPILER']
     for dirname in system_path+[globalParameters["ROCmBinPath"]]:
         for exe in exes:
@@ -2330,7 +2338,7 @@ def assignGlobalParameters( config ):
 
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
-  elif globalParameters["AssemblerPath"] is None and supportedLinuxCompiler(globalParameters["CxxCompiler"]):
+  elif globalParameters["AssemblerPath"] is None and supportedCompiler(globalParameters["CxxCompiler"]):
     if os.name == "nt":
       globalParameters["AssemblerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang++.exe")
     else:
