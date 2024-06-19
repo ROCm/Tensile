@@ -36,7 +36,7 @@ def toFile(outputFile: Path, contents: List[str], delimiter: str = "\n") -> None
         delimiter: Symbol used to delimit elements when writing file.
     
     Raises:
-        ValueError: If contents is not a List[str]
+        AssertionError: If contents is not a List[str]
     """
     assert isinstance(contents, list), f"contents must be a list."
     assert isinstance(contents[0], str), f"contents elements must be a str."
