@@ -261,8 +261,8 @@ else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
 globalParameters["CodeObjectVersion"] = "default"
-globalParameters["CxxCompiler"] = "amdclang++"
-globalParameters["CCompiler"] = "amdclang"
+globalParameters["CxxCompiler"] = "amdclang++" if os.name != "nt" else "clang++"
+globalParameters["CCompiler"] = "amdclang" if os.name != "nt" else "clang"
 globalParameters["Architecture"] = "all"
 
 # might be deprecated
@@ -330,16 +330,15 @@ def getArchitectureName(gfxName: str) -> Optional[str]:
     return None
 
 def supportedLinuxCompiler(compiler: str) -> bool:
-  """ Determines if compiler is supported by Tensile
+  """ Determines if compiler is supported by Tensile.
+
       Args:
           The name of a compiler to test for support.
       
       Return:
           If supported True; otherwise, False.
   """
-  if (compiler == "hipcc" or compiler == "amdclang++"): return True
-
-  return False
+  return (compiler == "hipcc" or compiler == "amdclang++" or compiler == "clang++")
 
 ################################################################################
 # Enumerate Valid Solution Parameters
@@ -2377,11 +2376,11 @@ def assignGlobalParameters( config ):
   
   # This may not be sufficient for amdclang
   try:
+    compiler = "hipcc"
     if os.name == "nt":
-      compileArgs = ['perl'] + [which('hipcc')] + ['--version']
+      compileArgs = ['perl'] + [which(compiler)] + ['--version']
       output = subprocess.run(compileArgs, check=True, stdout=subprocess.PIPE).stdout.decode()
     else:
-      compiler = "hipcc"
       output = subprocess.run([compiler, "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
 
     for line in output.split('\n'):

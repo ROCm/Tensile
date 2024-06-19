@@ -1173,6 +1173,10 @@ def TensileCreateLibrary():
   logicPath = args.LogicPath
   outputPath = args.OutputPath
   CxxCompiler = args.CxxCompiler
+  if os.name == "nt" and CxxCompiler == "amdclang++":
+    CxxCompiler = "clang++"
+    args.CxxCompiler = "clang++"
+    printWarning("On windows using clang++.")
   libraryFormat = args.LibraryFormat
   print2("OutputPath: %s" % outputPath)
   ensurePath(outputPath)
@@ -1183,7 +1187,7 @@ def TensileCreateLibrary():
   arguments["Architecture"] = args.Architecture
   arguments["SeparateArchitectures"] = args.SeparateArchitectures
   arguments["LazyLibraryLoading"] = args.LazyLibraryLoading
-  arguments["CxxCompiler"] = args.CxxCompiler
+  arguments["CxxCompiler"] = CxxCompiler
   if args.CmakeCxxCompiler:
     os.environ["CMAKE_CXX_COMPILER"] = args.CmakeCxxCompiler
   arguments["MergeFiles"] = args.MergeFiles
