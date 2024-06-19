@@ -1103,7 +1103,7 @@ def sanityCheck(srcLibPaths: List[str], asmLibPaths: List[str], codeObjectPaths:
     """Verifies that generated code object paths match associated library paths.
 
     Args:
-        srcLibPaths: Source library paths (.hasco).
+        srcLibPaths: Source library paths (.hsaco).
         asmLibPaths: Assembly library paths (.co).
         coPaths: Code object paths containing generated kernels; should contain all assembly
             and source library paths.
