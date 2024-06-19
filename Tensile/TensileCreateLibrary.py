@@ -1131,6 +1131,22 @@ def createClientConfig(outputPath: Path, masterFile: Path, codeObjectFiles: List
       
       param("best-solution", True)
 
+
+def generateManifest(manifestFile: Path, contents: List[str]) -> None:
+    """Generates tensile manifest.
+
+    Generates a manifest containing all of the tensile outputs including library metadata 
+    code object files, and sources for embedding.
+    
+    Args: 
+        manifestFile: Path to file for writting manifest.
+        contents: List of items to write manifest.
+    """
+    with open(manifestFile, "w") as generatedFile:  
+      for filePath in contents:
+        generatedFile.write(f"{filePath}\n")
+
+
 ################################################################################
 # Tensile Create Library
 ################################################################################
@@ -1153,7 +1169,8 @@ def TensileCreateLibrary():
   argParser.add_argument("LogicPath",       help="Path to LibraryLogic.yaml files.")
   argParser.add_argument("OutputPath",      help="Where to write library files?")
   argParser.add_argument("RuntimeLanguage", help="Which runtime language?", choices=["OCL", "HIP", "HSA"])
-  argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hipcc", 'amdclang++'],       action="store", default="amdclang++")
+  argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hipcc", 'amdclang++'], action="store", 
+                         default="amdclang++" if os.name != "nt" else "clang++")
   argParser.add_argument("--cmake-cxx-compiler",     dest="CmakeCxxCompiler",  action="store")
   argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["default", "V4", "V5"], action="store")
   argParser.add_argument("--architecture",           dest="Architecture",      type=str, action="store", default="all", 
@@ -1323,13 +1340,8 @@ def TensileCreateLibrary():
    libMetadataPaths) = buildObjectFilePaths(outputPath, solutionFiles, sourceKernelFiles, \
     asmKernelFiles, sourceLibFiles, asmLibFiles, masterLibraries)
 
-  # Manifest file contains YAML file, output library paths and cpp source for embedding.
-  with open(manifestFile, "w") as generatedFile:  
-    for filePath in libMetadataPaths + sourceLibPaths + asmLibPaths:
-      generatedFile.write("%s\n" %(filePath) )
-
-  if globalParameters["GenerateManifestAndExit"] == True:
-    return
+  generateManifest(Path(manifestFile), libMetadataPaths + sourceLibPaths + asmLibPaths)
+  if globalParameters["GenerateManifestAndExit"]: return
 
   # generate cmake for the source kernels,
   if not arguments["GenerateSourcesAndExit"]:
