@@ -35,7 +35,6 @@ def toFile(outputFile: Path, contents: List[str], delimiter: str = "\n") -> None
         contents: List of items to write manifest.
         delimiter: Symbol used to delimit elements when writing file.
     """
-
-    with open(manifestFile, "w") as generatedFile:  
+    with open(outputFile, "w") as generatedFile:  
       for filePath in contents:
         generatedFile.write(f"{filePath}{delimiter}")

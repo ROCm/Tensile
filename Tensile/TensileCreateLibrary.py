@@ -41,7 +41,8 @@ from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
 from .SolutionStructs import Solution
 from .Utilities.String import splitDelimitedString
-from .Utilities.toFile import profile, toFile
+from .Utilities.Profile import profile
+from .Utilities.toFile import toFile
 
 import argparse
 import collections
