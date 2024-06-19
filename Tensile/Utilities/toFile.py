@@ -28,13 +28,19 @@ from typing import List
 def toFile(outputFile: Path, contents: List[str], delimiter: str = "\n") -> None:
     """Generates a user specified delimited file. 
 
-    Writes the elements of a List of strings with a given delimiter 
+    Writes the elements of a List of strings with a given delimiter.
     
     Args: 
         outputFile: Path to file for writting manifest.
         contents: List of items to write manifest.
         delimiter: Symbol used to delimit elements when writing file.
+    
+    Raises:
+        ValueError: If contents is not a List[str]
     """
+    assert isinstance(contents, list), f"contents must be a list."
+    assert isinstance(contents[0], str), f"contents elements must be a str."
+
     with open(outputFile, "w") as generatedFile:  
       for filePath in contents:
         generatedFile.write(f"{filePath}{delimiter}")
