@@ -71,8 +71,8 @@ def test_splitDelimitedString():
 def test_toFile():
     
     manifest: Path = Path.cwd() / "my-manifest.txt"
-
-    sourceCodeObjectFiles = ["library/foo.hsaco", "library/bar.hsaco"]
+    metaData = ["mylib.yaml"]
+    codeObjectFiles = ["library/foo.co", "library/bar.co"]
     sourceCodeObjectFiles = ["library/foo.hsaco", "library/bar.hsaco"]
     
     if manifest.is_file():
@@ -81,6 +81,9 @@ def test_toFile():
     toFile(manifest, metaData + codeObjectFiles + sourceCodeObjectFiles)        
 
     assert manifest.is_file(), "{manifest} was not generated"
+    with open(manifest, "r") as f:
+        result = f.readlines()
+        
     assert len(result) == 5, "Expected five entries in manifest file."
         
     if manifest.is_file():
