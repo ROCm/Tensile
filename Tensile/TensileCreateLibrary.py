@@ -41,6 +41,7 @@ from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
 from .SolutionStructs import Solution
 from .Utilities.String import splitDelimitedString
+from .Utilities.Profile import profile
 
 import argparse
 import collections
@@ -52,6 +53,7 @@ import shutil
 import subprocess
 import sys
 import time
+import warnings
 
 from copy import deepcopy
 from typing import Set, List
@@ -1099,9 +1101,41 @@ def findLogicFiles(path: Path, logicArchs: Set[str], lazyLoading: bool, experime
 
     return list(str(l) for l in logicFiles)
 
+def createClientConfig(outputPath: Path, masterFile: Path, codeObjectFiles: List[str], configFile: str = "best-solution.ini") -> None:
+    """Generates a client config file.
+    
+    Generates a client config file corresponding to a master library file and code-object parameters
+    created by a TensileCreateLibrary invocation. Also sets best-solution-mode to True.
+    
+    Args:
+        outputPath: The path to the tensile output directory where output files are written.
+        masterFile: Path to the master library file (.dat or .yaml).
+        codeObjectFiles: List of code object files created by TensileCreateLibrary.
+        configFile: Name of config file written to the output directory.
+    """
+    iniFile = outputPath / configFile
+    
+    def param(key, value):
+      f.write(f"{key}={value}\n")
+
+    with open(iniFile, "w") as f:
+      if not masterFile.is_file():
+        warnings.warn(UserWarning(f"{masterFile} does not exist. best-solution.ini may be invalid."))
+      
+      param("library-file", masterFile)
+      for coFile in codeObjectFiles:
+        codeObject: Path = outputPath / coFile
+        if not codeObject.is_file():
+          warnings.warn(UserWarning(f"{codeObject} does not exist. best-solution.ini may be invalid."))        
+
+        param("code-object", outputPath / coFile)
+      
+      param("best-solution", True)
+
 ################################################################################
 # Tensile Create Library
 ################################################################################
+@profile
 def TensileCreateLibrary():
 
   ##############################################################################
@@ -1382,21 +1416,8 @@ def TensileCreateLibrary():
     ClientExecutable.getClientExecutable(outputPath)
 
   if args.ClientConfig:
-    # write simple ini for best solution mode linked to library we just made
-    iniFile = os.path.join(outputPath, "best-solution.ini")
-    with open(iniFile, "w") as f:
-      def param(key, value):
-        f.write("{}={}\n".format(key, value))
-
-      libraryFile = masterFile + ".yaml" \
-        if globalParameters["LibraryFormat"] == "yaml" else masterFile + ".dat"
-
-      param("library-file", libraryFile)
-      for coFile in codeObjectFiles:
-        param("code-object", os.path.join(outputPath,coFile))
-
-      param("best-solution", True)
-
+    ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
+    createClientConfig(Path(outputPath), Path(masterFile).with_suffix(ext), codeObjectFiles)
 
   print1("# Tensile Library Writer DONE")
   print1(HR)
