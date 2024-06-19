@@ -31,7 +31,7 @@ def toFile(outputFile: Path, contents: List[str], delimiter: str = "\n") -> None
     Writes the elements of a List of strings with a given delimiter.
     
     Args: 
-        outputFile: Path to file for writting manifest.
+        outputFile: Path to file for writing manifest.
         contents: List of items to write manifest.
         delimiter: Symbol used to delimit elements when writing file.
     
