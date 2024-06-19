@@ -293,27 +293,6 @@ def test_createClientConfig():
 
     cleanClientConfigTest(outputPath, masterLibrary, codeObjectFiles, configFile)
 
-def test_generateManifest():
-    
-    manifest: Path = Path.cwd() / "my-manifest.txt" 
-    metaData = ["metadata.yaml"]
-    codeObjectFiles = ["library/foo.co", "library/bar.co"]
-    sourceCodeObjectFiles = ["library/foo.hsaco", "library/bar.hsaco"]    
-    
-    if manifest.is_file():
-        os.remove(manifest)
-
-    TensileCreateLibrary.generateManifest(manifest, metaData + codeObjectFiles + sourceCodeObjectFiles)        
-
-    assert manifest.is_file(), "{manifest} was not generated"
-    
-    with open(manifest, "r") as f:
-        result = f.readlines()
-        assert len(result) == 5, "Expected five entries in manifest file."
-        
-    if manifest.is_file():
-        os.remove(manifest)        
-
 # ----------------
 # Helper functions
 # ----------------

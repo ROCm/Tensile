@@ -23,6 +23,9 @@
 ################################################################################
 
 from Tensile.Utilities.String import splitDelimitedString
+from Tensile.Utilities.toFile import toFile
+from pathlib import Path
+import os
 
 def test_splitDelimitedString():
     archs = "all"
@@ -64,3 +67,21 @@ def test_splitDelimitedString():
     expected = {"abc", "gfx90Z", "all"}
     result = splitDelimitedString(archs, {";", "_"})
     assert result == expected, f"arch `{archs}` should map to {expected} but instead maps to {result}"
+
+def test_toFile():
+    
+    manifest: Path = Path.cwd() / "my-manifest.txt"
+
+    sourceCodeObjectFiles = ["library/foo.hsaco", "library/bar.hsaco"]
+    sourceCodeObjectFiles = ["library/foo.hsaco", "library/bar.hsaco"]
+    
+    if manifest.is_file():
+        os.remove(manifest)
+
+    toFile(manifest, metaData + codeObjectFiles + sourceCodeObjectFiles)        
+
+    assert manifest.is_file(), "{manifest} was not generated"
+    assert len(result) == 5, "Expected five entries in manifest file."
+        
+    if manifest.is_file():
+        os.remove(manifest)        
