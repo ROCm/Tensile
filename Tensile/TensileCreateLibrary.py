@@ -143,11 +143,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
 
         assemblyKernelNames = [kernelWriterAssembly.getKernelFileBase(k) for k in archKernels]
         origCOFiles = [os.path.join(asmDir,  k + '.co') for k in assemblyKernelNames]
-        newCOFiles  = []
-        if globalParameters["PackageLibrary"]:
-          newCOFiles = [os.path.join(destDir, archName, k + '.co') for k in assemblyKernelNames]
-        else:
-          newCOFiles = [os.path.join(destDir, k + '_' + archName + '.co') for k in assemblyKernelNames]
+        newCOFiles = [os.path.join(destDir, k + '_' + archName + '.co') for k in assemblyKernelNames]
 
         for src, dst in zip(origCOFiles, newCOFiles) if globalParameters["PrintLevel"] == 0 else Utils.tqdm(zip(origCOFiles, newCOFiles), "Copying code objects"):
           shutil.copyfile(src, dst)
@@ -319,26 +315,11 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
     else:
       raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
 
-    destCosList = []
-    if "PackageLibrary" in globalParameters and globalParameters["PackageLibrary"]:
-      for arch in archs:
-        ensurePath(os.path.join(destDir, arch))
-        archCoFilenames = [name for name in coFilenames if arch in name]
-        extractedCOs = [os.path.join(buildPath, name) for name in archCoFilenames]
-        destCOs = [os.path.join(destDir, arch, name) for name in archCoFilenames]
-        destCosList += destCOs
-        if globalParameters["PrintCodeCommands"]:
-          print1("# copy source code objects    : ", extractedCOs)
-          print1("# to dest source code objects : ", destCOs)
-        for (src, dst) in zip(extractedCOs, destCOs):
-          shutil.copyfile(src, dst)
-    else:
-      coFilenames = [name for name in coFilenames]
-      extractedCOs = [os.path.join(buildPath, name) for name in coFilenames]
-      destCOs = [os.path.join(destDir, name) for name in coFilenames]
-      destCosList += destCOs
-      for (src, dst) in zip(extractedCOs, destCOs):
-        shutil.copyfile(src, dst)
+    coFilenames = [name for name in coFilenames]
+    extractedCOs = [os.path.join(buildPath, name) for name in coFilenames]
+    destCosList = [os.path.join(destDir, name) for name in coFilenames]
+    for (src, dst) in zip(extractedCOs, destCosList):
+      shutil.copyfile(src, dst)
 
     return destCosList
   
@@ -848,16 +829,7 @@ def buildObjectFilePaths(prefixDir, solutionFiles, sourceKernelFiles, asmKernelF
   for asmLibFile in asmLibFiles:
     # Asm lib files are enumerated in the form of
     # KernelName_gfxXXXXX.co
-    # Strip the gfxXXXX portion and use that as a subdirectory
-    asmLibFileNoExt = str(os.path.splitext(asmLibFile)[0])
-    asmArch = asmLibFileNoExt[asmLibFileNoExt.find("_gfx"):]
-    if globalParameters["PackageLibrary"]:
-
-      # asmArch contains _gfxXXXX. Don't use the underscore in new path
-      asmLibPaths += [ os.path.join(
-        libDir, asmArch[1:], asmLibFile.replace(asmArch, ''))]
-    else:
-      asmLibPaths += [ os.path.join(libDir, asmLibFile) ]
+    asmLibPaths += [ os.path.join(libDir, asmLibFile) ]
 
   return (solutionPaths, sourceKernelPaths, asmKernelPaths, sourceLibPaths, asmLibPaths, libMetadataPaths)
 
@@ -929,13 +901,7 @@ def generateLogicDataAndSolutions(logicFiles, args):
   for logic in libraries if globalParameters["PrintLevel"] == 0 else Utils.tqdm(libraries, "Processing logic data"):
     (_, architectureName, _, solutionsForSchedule, _, newLibrary) = logic
 
-    if globalParameters["PackageLibrary"]:
-      if architectureName in masterLibraries:
-        masterLibraries[architectureName].merge(deepcopy(newLibrary))
-      else:
-        masterLibraries[architectureName] = deepcopy(newLibrary)
-        masterLibraries[architectureName].version = args.version
-    elif globalParameters["SeparateArchitectures"] or globalParameters["LazyLibraryLoading"]:
+    if globalParameters["SeparateArchitectures"] or globalParameters["LazyLibraryLoading"]:
 
       if architectureName in masterLibraries:
         nextSolIndex[architectureName] = masterLibraries[architectureName].merge(deepcopy(newLibrary), nextSolIndex[architectureName])
@@ -1136,7 +1102,6 @@ def TensileCreateLibrary():
   argParser.add_argument("--library-print-debug",    dest="LibraryPrintDebug", action="store_true", help="Deprecated")
   argParser.add_argument("--no-library-print-debug", dest="LibraryPrintDebug", action="store_false")
   argParser.add_argument("--no-enumerate",           action="store_true", help="Do not run rocm_agent_enumerator.")
-  argParser.add_argument("--package-library",        dest="PackageLibrary",    action="store_true", default=False, help="Deprecated")
   argParser.add_argument("--embed-library",          dest="EmbedLibrary",
                          help="Embed (new) library files into static variables.  Specify the name of the library.")
 
@@ -1195,7 +1160,6 @@ def TensileCreateLibrary():
   arguments["LibraryFormat"] = args.LibraryFormat
   if args.no_enumerate:
     arguments["ROCmAgentEnumeratorPath"] = False
-  arguments["PackageLibrary"] = args.PackageLibrary
 
   arguments["GenerateManifestAndExit"] = args.GenerateManifestAndExit
   arguments["VerifyManifest"] = args.VerifyManifest
@@ -1331,14 +1295,7 @@ def TensileCreateLibrary():
              if globalParameters["AsmCaps"][arch]["SupportedISA"]]
   newLibraryDir = ensurePath(os.path.join(outputPath, 'library'))
 
-  if globalParameters["PackageLibrary"]:
-    for archName, newMasterLibrary in masterLibraries.items():
-      if (archName in archs):
-        archPath = ensurePath(os.path.join(newLibraryDir, archName))
-        masterFile = os.path.join(archPath, "TensileLibrary")
-        newMasterLibrary.applyNaming(kernelMinNaming)
-        LibraryIO.write(masterFile, Utils.state(newMasterLibrary), args.LibraryFormat)
-  elif globalParameters["SeparateArchitectures"] or globalParameters["LazyLibraryLoading"]:
+  if globalParameters["SeparateArchitectures"] or globalParameters["LazyLibraryLoading"]:
     for archName, newMasterLibrary in masterLibraries.items():
       if archName in archs:
         if globalParameters["LazyLibraryLoading"]:
@@ -1360,7 +1317,7 @@ def TensileCreateLibrary():
     LibraryIO.write(masterFile, Utils.state(fullMasterLibrary), args.LibraryFormat)
 
   theMasterLibrary = fullMasterLibrary
-  if globalParameters["PackageLibrary"] or globalParameters["SeparateArchitectures"]:
+  if globalParameters["SeparateArchitectures"]:
     theMasterLibrary = list(masterLibraries.values())[0]
 
   if args.EmbedLibrary is not None:
