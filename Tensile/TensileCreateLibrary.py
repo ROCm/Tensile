@@ -41,6 +41,7 @@ from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
 from .SolutionStructs import Solution
 from .Utilities.String import splitDelimitedString
+from .Utilities.Profile import profile
 
 import argparse
 import collections
@@ -1134,6 +1135,7 @@ def createClientConfig(outputPath: Path, masterFile: Path, codeObjectFiles: List
 ################################################################################
 # Tensile Create Library
 ################################################################################
+@profile
 def TensileCreateLibrary():
 
   ##############################################################################
