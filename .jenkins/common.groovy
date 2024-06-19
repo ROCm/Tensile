@@ -116,7 +116,9 @@ def runTestCommand(platform, project, jobName, testMark, boolean runHostTest=tru
     platform.runCommand(this, command)
 
     archiveArtifacts "${project.paths.project_build_prefix}/timing*.csv"
-    recordCoverage(tools: [[parser: 'COBERTURA']])
+    if (runUnitTest) {
+        recordCoverage(tools: [[parser: 'COBERTURA', pattern: "${project.paths.project_build_prefix}/cobertura.xml"]])
+    }
 }
 
 return this
