@@ -1127,6 +1127,7 @@ def sanityCheck(srcLibPaths: List[str], asmLibPaths: List[str], codeObjectPaths:
         if extraLibs:
             raise ValueError(f"Sanity check failed; missing expected code object files: "\
                     f"{[p.name for p  in extraLibs]}")
+
 def createClientConfig(outputPath: Path, masterFile: Path, codeObjectFiles: List[str], configFile: str = "best-solution.ini") -> None:
     """Generates a client config file.
     

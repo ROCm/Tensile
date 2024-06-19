@@ -295,6 +295,7 @@ def test_sanityCheck():
             sanityCheck_oldLogic(srcPaths, asmPaths, coPathsMissing, False)
         except:
             raise Exception
+
 def test_createClientConfig():
     
     outputPath: Path = Path.cwd() / "my-output"
