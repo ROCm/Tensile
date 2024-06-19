@@ -2405,7 +2405,9 @@ def assignGlobalParameters( config ):
 
     except (subprocess.CalledProcessError, OSError) as e:
         printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))
-  
+        
+    return result
+
   globalParameters['HipClangVersion'] = getHipccVersion()
 
   if "IgnoreAsmCapCache" in config:
