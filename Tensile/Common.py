@@ -1158,6 +1158,10 @@ validParameters = {
     # StreamK grid is controlled by setting these enviornment variables:
     # TENSILE_STREAMK_FIXED_GRID lets you override the default grid size with a specific number
     #   0 = override disabled (default)
+    # TENSILE_STREAMK_FULL_TILES sets the number of full tiles to be included in stream-k work
+    #   -1 = use prediction model for best performance (default)
+    #   0 = only remainder tiles run in stream-k
+    #   1+ = remainder + 1 (or more) full grids of tiles run in stream-k
     # TENSILE_STREAMK_DYNAMIC_GRID enables dynamic grid mode, which automatically limits the number of CUs used:
     #   0 = Off, use all CUs (default)
     #   1 = Only reduce CUs for small problems to number of output tiles when num_tiles < CU count.
