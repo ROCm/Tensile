@@ -344,7 +344,7 @@ def supportedCompiler(compiler: str) -> bool:
   else:
     isSupported = (isSupported or compiler == "amdclang++")
   
-  printWarning(f"{compiler} is unsupported for os {os.name}")
+  if not isSupported: printWarning(f"{compiler} is unsupported for os {os.name}")
   
   return isSupported
 
@@ -2273,10 +2273,13 @@ def printCapTable(parameters):
   printTable([headerRow] + asmCapRows + archCapRows)
 
 def which(p):
-    exes = [p+x for x in ['', '.exe', '.bat']]
-    system_path = os.environ['PATH'].split(os.pathsep)
     if supportedCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
         return os.environ['CMAKE_CXX_COMPILER']
+    if os.name == "nt":
+        exes = [p+x for x in ['.bat', '', '.exe']]  # bat may be front end for file with no extension
+    else:
+        exes = [p+x for x in ['', '.exe', '.bat']]
+    system_path = os.environ['PATH'].split(os.pathsep)
     for dirname in system_path+[globalParameters["ROCmBinPath"]]:
         for exe in exes:
             candidate = os.path.join(os.path.expanduser(dirname), exe)
@@ -2386,22 +2389,24 @@ def assignGlobalParameters( config ):
   # The alternative would be to install the `distro` package.
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
   
-  # This may not be sufficient for amdclang
-  try:
-    compiler = "hipcc"
-    if os.name == "nt":
-      compileArgs = ['perl'] + [which(compiler)] + ['--version']
-      output = subprocess.run(compileArgs, check=True, stdout=subprocess.PIPE).stdout.decode()
-    else:
-      output = subprocess.run([compiler, "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
+  def getHipccVersion():
+    try:
+      compiler = "hipcc"
+      if os.name == "nt":
+        compileArgs = ['perl'] + [which(compiler)] + ['--version']
+        output = subprocess.run(compileArgs, check=True, stdout=subprocess.PIPE).stdout.decode()
+      else:
+        output = subprocess.run([compiler, "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
 
-    for line in output.split('\n'):
-      if 'HIP version' in line:
-        globalParameters['HipClangVersion'] = line.split()[2]
-        print1("# Found  hipcc version " + globalParameters['HipClangVersion'])
+      for line in output.split('\n'):
+        if 'HIP version' in line:
+          result = line.split()[2]
+          print1("# Found  hipcc version " + result)
 
-  except (subprocess.CalledProcessError, OSError) as e:
-      printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))
+    except (subprocess.CalledProcessError, OSError) as e:
+        printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))
+  
+  globalParameters['HipClangVersion'] = getHipccVersion()
 
   if "IgnoreAsmCapCache" in config:
     globalParameters["IgnoreAsmCapCache"] = config["IgnoreAsmCapCache"]

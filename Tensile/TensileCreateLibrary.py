@@ -35,7 +35,7 @@ from . import LibraryIO
 from . import Utils
 from .Common import getArchitectureName, globalParameters, HR, print1, print2, printExit, ensurePath, \
                     CHeader, CMakeHeader, assignGlobalParameters, gfxName, architectureMap, printWarning, \
-                    supportedCompiler
+                    supportedCompiler, which
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
@@ -156,23 +156,6 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
         coFiles += newCOFiles
 
     return coFiles
-
-def which(p):
-    """Need to add documentation and likely testing
-    """
-    if os.name == "nt":
-        exes = [p+x for x in ['.bat', '', '.exe']]  # bat may be front end for file with no extension
-    else:
-        exes = [p+x for x in ['', '.exe', '.bat']]
-    system_path = os.environ['PATH'].split(os.pathsep)
-    if supportedCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
-        return os.environ['CMAKE_CXX_COMPILER']
-    for dirname in system_path+[globalParameters["ROCmBinPath"]]:
-        for exe in exes:
-            candidate = os.path.join(os.path.expanduser(dirname), exe)
-            if os.path.isfile(candidate):
-                return candidate
-    return None
 
 def splitArchs():
   # Helper for architecture
@@ -1159,7 +1142,7 @@ def TensileCreateLibrary():
   compilerChoices = ['amdclang++', "hipcc"] if os.name != "nt" else ["clang++", "hipcc"]
   argParser.add_argument("--cxx-compiler", dest="CxxCompiler", choices=compilerChoices, action="store", default=compilerChoices[0],
                          help="C++ compiler used when generating binaries."
-                         " On linux, amdclang++ or hipcc. On Windows clang++ or hipcc.")
+                         " On linux, amdclang++ (default) or hipcc. On Windows clang++ (default) or hipcc.")
   
   argParser.add_argument("--cmake-cxx-compiler",     dest="CmakeCxxCompiler",  action="store")
   argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["default", "V4", "V5"], action="store")
