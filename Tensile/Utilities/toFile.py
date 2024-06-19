@@ -38,8 +38,8 @@ def toFile(outputFile: Path, contents: List[str], delimiter: str = "\n") -> None
     Raises:
         AssertionError: If contents is not a List[str]
     """
-    assert isinstance(contents, list), f"contents must be a list."
-    assert isinstance(contents[0], str), f"contents elements must be a str."
+    assert isinstance(contents, list), "contents must be a list."
+    assert isinstance(contents[0], str), "contents elements must be a str."
 
     with open(outputFile, "w") as generatedFile:  
       for filePath in contents:
