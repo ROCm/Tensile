@@ -1,8 +1,8 @@
 
 .. embeddeddata-api-reference:
 
-======
-Common
-======
+============
+EmbeddedData
+============
 
 .. autofunction:: Tensile.EmbeddedData::generateLibrary
