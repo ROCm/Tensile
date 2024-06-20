@@ -41,6 +41,8 @@ from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
 from .SolutionStructs import Solution
 from .Utilities.String import splitDelimitedString
+from .Utilities.Profile import profile
+from .Utilities.toFile import toFile
 
 import argparse
 import collections
@@ -1100,6 +1102,33 @@ def findLogicFiles(path: Path, logicArchs: Set[str], lazyLoading: bool, experime
 
     return list(str(l) for l in logicFiles)
 
+def sanityCheck(srcLibPaths: List[str], asmLibPaths: List[str], codeObjectPaths: List[str], genSourcesAndExit: bool):
+    """Verifies that generated code object paths match associated library paths.
+
+    Args:
+        srcLibPaths: Source library paths (.hsaco).
+        asmLibPaths: Assembly library paths (.co).
+        coPaths: Code object paths containing generated kernels; should contain all assembly
+            and source library paths.
+        genSourcesAndExit: Flag identifying whether only source file should be generated.
+
+    Raises:
+        ValueError: If code object paths do not match library paths.
+    """
+    libPaths = set([Path(p).resolve() for p in srcLibPaths + asmLibPaths])
+    coPaths = set([Path(p).resolve() for p in codeObjectPaths])
+
+    extraCodeObjects = coPaths - libPaths
+    if extraCodeObjects:
+        raise ValueError(f"Sanity check failed; unexpected code object files: "\
+                f"{[p.name for p in extraCodeObjects]}")
+
+    if not genSourcesAndExit:
+        extraLibs = libPaths - coPaths
+        if extraLibs:
+            raise ValueError(f"Sanity check failed; missing expected code object files: "\
+                    f"{[p.name for p  in extraLibs]}")
+
 def createClientConfig(outputPath: Path, masterFile: Path, codeObjectFiles: List[str], configFile: str = "best-solution.ini") -> None:
     """Generates a client config file.
     
@@ -1135,6 +1164,7 @@ def createClientConfig(outputPath: Path, masterFile: Path, codeObjectFiles: List
 ################################################################################
 # Tensile Create Library
 ################################################################################
+@profile
 def TensileCreateLibrary():
 
   ##############################################################################
@@ -1324,13 +1354,8 @@ def TensileCreateLibrary():
    libMetadataPaths) = buildObjectFilePaths(outputPath, solutionFiles, sourceKernelFiles, \
     asmKernelFiles, sourceLibFiles, asmLibFiles, masterLibraries)
 
-  # Manifest file contains YAML file, output library paths and cpp source for embedding.
-  with open(manifestFile, "w") as generatedFile:  
-    for filePath in libMetadataPaths + sourceLibPaths + asmLibPaths:
-      generatedFile.write("%s\n" %(filePath) )
-
-  if globalParameters["GenerateManifestAndExit"] == True:
-    return
+  toFile(Path(manifestFile), libMetadataPaths + sourceLibPaths + asmLibPaths)
+  if globalParameters["GenerateManifestAndExit"]: return
 
   # generate cmake for the source kernels,
   if not arguments["GenerateSourcesAndExit"]:
@@ -1345,20 +1370,12 @@ def TensileCreateLibrary():
   codeObjectFiles = writeKernels(outputPath, CxxCompiler, None, solutions,
                                              kernels, kernelHelperObjs, kernelWriterSource, kernelWriterAssembly)
 
-  bothLibSet = set(sourceLibPaths + asmLibPaths)
-  setA = set( map( os.path.normcase, set(codeObjectFiles) ) )
-  setB = set( map( os.path.normcase, bothLibSet ) )
-
-  sanityCheck0 = setA - setB
-  sanityCheck1 = setB - setA
+    
+  sanityCheck(sourceLibPaths, asmLibPaths, codeObjectFiles, globalParameters["GenerateSourcesAndExit"])
 
   if globalParameters["PrintCodeCommands"]:
-    print1("codeObjectFiles:", codeObjectFiles)
-    print1("sourceLibPaths + asmLibPaths:", sourceLibPaths + asmLibPaths)
-
-  assert len(sanityCheck0) == 0, "Unexpected code object files: {}".format(sanityCheck0)
-  if not globalParameters["GenerateSourcesAndExit"]:
-    assert len(sanityCheck1) == 0, "Missing expected code object files: {}".format(sanityCheck1)
+      print1(f"codeObjectFiles: {codeObjectFiles}")
+      print1(f"sourceLibPaths + asmLibPaths: {sourceLibPaths + asmLibPaths}")
 
   archs = [gfxName(arch) for arch in globalParameters['SupportedISA'] \
              if globalParameters["AsmCaps"][arch]["SupportedISA"]]

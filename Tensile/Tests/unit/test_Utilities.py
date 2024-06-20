@@ -23,6 +23,10 @@
 ################################################################################
 
 from Tensile.Utilities.String import splitDelimitedString
+from Tensile.Utilities.toFile import toFile
+from pathlib import Path
+import pytest
+import os
 
 def test_splitDelimitedString():
     archs = "all"
@@ -64,3 +68,30 @@ def test_splitDelimitedString():
     expected = {"abc", "gfx90Z", "all"}
     result = splitDelimitedString(archs, {";", "_"})
     assert result == expected, f"arch `{archs}` should map to {expected} but instead maps to {result}"
+
+def test_toFile():
+    
+    manifest: Path = Path.cwd() / "my-manifest.txt"
+    metaData = ["mylib.yaml"]
+    codeObjectFiles = ["library/foo.co", "library/bar.co"]
+    sourceCodeObjectFiles = ["library/foo.hsaco", "library/bar.hsaco"]
+    
+    if manifest.is_file():
+        os.remove(manifest)
+
+    with pytest.raises(AssertionError, match="contents must be a list."):     
+        toFile(manifest, (1,2,3))        
+
+    with pytest.raises(AssertionError, match="contents elements must be a str."):     
+        toFile(manifest, [1,2,3])        
+
+    toFile(manifest, metaData + codeObjectFiles + sourceCodeObjectFiles)
+
+    assert manifest.is_file(), "{manifest} was not generated"
+    with open(manifest, "r") as f:
+        result = f.readlines()
+        
+    assert len(result) == 5, "Expected five entries in manifest file."
+        
+    if manifest.is_file():
+        os.remove(manifest)        
