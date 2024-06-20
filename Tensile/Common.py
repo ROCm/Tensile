@@ -2389,24 +2389,21 @@ def assignGlobalParameters( config ):
   # The alternative would be to install the `distro` package.
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
   
-  def getHipccVersion():
-    try:
-      compiler = "hipcc"
-      if os.name == "nt":
-        compileArgs = ['perl'] + [which(compiler)] + ['--version']
-        output = subprocess.run(compileArgs, check=True, stdout=subprocess.PIPE).stdout.decode()
-      else:
-        output = subprocess.run([compiler, "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
+def getHipccVersion():
+  try:
+    compiler = "hipcc"
+    if os.name == "nt":
+      compileArgs = ['perl'] + [which(compiler)] + ['--version']
+      output = subprocess.run(compileArgs, check=True, stdout=subprocess.PIPE).stdout.decode()
+    else:
+      output = subprocess.run([compiler, "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
+    result = next((line.split()[2] for line in output.split('\n') if 'HIP version' in line))
+    if result: print1("# Found  hipcc version " + result)
 
-      for line in output.split('\n'):
-        if 'HIP version' in line:
-          result = line.split()[2]
-          print1("# Found  hipcc version " + result)
-
-    except (subprocess.CalledProcessError, OSError) as e:
-        printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))
-        
     return result
+  
+  except (subprocess.CalledProcessError, OSError) as e:
+      print("Error: {} running {} {} ".format('hipcc', '--version',  e))
 
   globalParameters['HipClangVersion'] = getHipccVersion()
 
