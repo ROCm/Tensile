@@ -261,8 +261,8 @@ else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
 globalParameters["CodeObjectVersion"] = "default"
-globalParameters["CxxCompiler"] = "amdclang++"
-globalParameters["CCompiler"] = "amdclang"
+globalParameters["CxxCompiler"] = "amdclang++" if os.name != "nt" else "clang++"
+globalParameters["CCompiler"] = "amdclang" if os.name != "nt" else "clang"
 globalParameters["Architecture"] = "all"
 
 # might be deprecated
@@ -329,17 +329,24 @@ def getArchitectureName(gfxName: str) -> Optional[str]:
         return architectureMap[archKey]
     return None
 
-def supportedLinuxCompiler(compiler: str) -> bool:
-  """ Determines if compiler is supported by Tensile
+def supportedCompiler(compiler: str) -> bool:
+  """ Determines if compiler is supported by Tensile.
+
       Args:
           The name of a compiler to test for support.
       
       Return:
           If supported True; otherwise, False.
   """
-  if (compiler == "hipcc" or compiler == "amdclang++"): return True
-
-  return False
+  isSupported = (compiler == "hipcc")
+  if os.name == "nt": 
+    isSupported = (isSupported or compiler == "clang++")
+  else:
+    isSupported = (isSupported or compiler == "amdclang++")
+  
+  if not isSupported: printWarning(f"{compiler} is unsupported for os {os.name}")
+  
+  return isSupported
 
 ################################################################################
 # Enumerate Valid Solution Parameters
@@ -2266,10 +2273,13 @@ def printCapTable(parameters):
   printTable([headerRow] + asmCapRows + archCapRows)
 
 def which(p):
-    exes = [p+x for x in ['', '.exe', '.bat']]
-    system_path = os.environ['PATH'].split(os.pathsep)
-    if supportedLinuxCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
+    if supportedCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
         return os.environ['CMAKE_CXX_COMPILER']
+    if os.name == "nt":
+        exes = [p+x for x in ['.bat', '', '.exe']]  # bat may be front end for file with no extension
+    else:
+        exes = [p+x for x in ['', '.exe', '.bat']]
+    system_path = os.environ['PATH'].split(os.pathsep)
     for dirname in system_path+[globalParameters["ROCmBinPath"]]:
         for exe in exes:
             candidate = os.path.join(os.path.expanduser(dirname), exe)
@@ -2317,8 +2327,8 @@ def assignGlobalParameters( config ):
   globalParameters["CmakeCxxCompiler"] = None
   if "CMAKE_CXX_COMPILER" in os.environ:
     globalParameters["CmakeCxxCompiler"] = os.environ.get("CMAKE_CXX_COMPILER")
-  if "CC" in os.environ:
-    globalParameters["CmakeCCompiler"] = os.environ.get("CC")    
+  if "CMAKE_C_COMPILER" in os.environ:
+    globalParameters["CmakeCCompiler"] = os.environ.get("CMAKE_C_COMPILER")
 
   globalParameters["ROCmBinPath"] = os.path.join(globalParameters["ROCmPath"], "bin")
 
@@ -2330,12 +2340,21 @@ def assignGlobalParameters( config ):
 
   if "CxxCompiler" in config:
     globalParameters["CxxCompiler"] = config["CxxCompiler"]
+    # Pair the CCompiler with CxxCompiler
+    if globalParameters["CxxCompiler"] == "hipcc":
+       globalParameters["CCompiler"] = "hipcc"
+    else:
+        if supportedCompiler(globalParameters["CxxCompiler"]):
+          globalParameters["CCompiler"] = "clang" if os.name == "nt" else "amdclang"
+        else: # unkown c++ compiler so set c compile rto be the same
+          globalParameters["CCompiler"] = globalParameters["CxxCompiler"]
+
   if "CCompiler" in config:
     globalParameters["CCompiler"] = config["CCompiler"]    
 
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
-  elif globalParameters["AssemblerPath"] is None and supportedLinuxCompiler(globalParameters["CxxCompiler"]):
+  elif globalParameters["AssemblerPath"] is None and supportedCompiler(globalParameters["CxxCompiler"]):
     if os.name == "nt":
       globalParameters["AssemblerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang++.exe")
     else:
@@ -2379,7 +2398,7 @@ def assignGlobalParameters( config ):
   # The alternative would be to install the `distro` package.
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
   
-  # This may not be sufficient for amdclang
+  # The following try except block computes the hipcc version
   try:
     if os.name == "nt":
       compileArgs = ['perl'] + [which('hipcc')] + ['--version']
