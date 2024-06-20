@@ -1308,11 +1308,6 @@ def TensileCreateLibrary():
   for logicFile in logicFiles:
     print1("#   %s" % logicFile)
 
-  ##############################################################################
-  # Parse config files
-  ##############################################################################
-
-  # Parse logicData, solutions, and masterLibraries from logic files
   solutions, masterLibraries, fullMasterLibrary = generateLogicDataAndSolutions(logicFiles, args)
 
   if globalParameters["LazyLibraryLoading"] and arguments["WriteMasterSolutionIndex"]:
@@ -1326,7 +1321,6 @@ def TensileCreateLibrary():
 
   staticFiles = copyStaticFiles(outputPath)
 
-  # Build a list of files to be expected
   (solutionFiles,
    sourceKernelFiles,
    asmKernelFiles,
@@ -1345,7 +1339,6 @@ def TensileCreateLibrary():
   toFile(Path(manifestFile), libMetadataPaths + sourceLibPaths + asmLibPaths)
   if globalParameters["GenerateManifestAndExit"]: return
 
-  # generate cmake for the source kernels,
   if not arguments["GenerateSourcesAndExit"]:
     writeCMake(outputPath, solutionFiles, sourceKernelFiles, staticFiles, masterLibraries)
 
@@ -1354,10 +1347,8 @@ def TensileCreateLibrary():
     shutil.copy( os.path.join(globalParameters["SourcePath"], fileName), \
       outputPath )
 
-  # write solutions and kernels
   codeObjectFiles = writeKernels(outputPath, CxxCompiler, None, solutions,
                                              kernels, kernelHelperObjs, kernelWriterSource, kernelWriterAssembly)
-
     
   sanityCheck(sourceLibPaths, asmLibPaths, codeObjectFiles, globalParameters["GenerateSourcesAndExit"])
 
@@ -1400,27 +1391,17 @@ def TensileCreateLibrary():
   theMasterLibrary = fullMasterLibrary
   if globalParameters["PackageLibrary"] or globalParameters["SeparateArchitectures"]:
     theMasterLibrary = list(masterLibraries.values())[0]
-
-  if args.EmbedLibrary is not None:
-      embedFileNameTemp = os.path.join(outputPath, "library/{}.temp".format(args.EmbedLibrary))
-      with EmbeddedData.EmbeddedDataFile(embedFileNameTemp) as embedFile:
-
-          ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
-          embedFile.embed_file(theMasterLibrary.cpp_base_class, masterFile + ext, nullTerminated=True,
-                               key=args.EmbedLibraryKey)
-
-          for co in codeObjectFiles if globalParameters["PrintLevel"] == 0 else Utils.tqdm(codeObjectFiles):
-              embedFile.embed_file("SolutionAdapter", co, nullTerminated=False,
-                                   key=args.EmbedLibraryKey)
-      embedFileNameCpp = os.path.join(outputPath, "library/{}.cpp".format(args.EmbedLibrary))
-      os.rename(embedFileNameTemp, embedFileNameCpp)
+  
+  ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
+  if args.EmbedLibrary:
+    embedFileName = Path(outputPath) / "library" / args.EmbedLibrary
+    EmbeddedData.generateLibrary(embedFileName, args.EmbedLibraryKey, Path(masterFile).with_suffix(ext), theMasterLibrary.cpp_base_class, codeObjectFiles)
 
   if args.BuildClient:
     print1("# Building Tensile Client")
     ClientExecutable.getClientExecutable(outputPath)
 
   if args.ClientConfig:
-    ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
     createClientConfig(Path(outputPath), Path(masterFile).with_suffix(ext), codeObjectFiles)
 
   print1("# Tensile Library Writer DONE")
