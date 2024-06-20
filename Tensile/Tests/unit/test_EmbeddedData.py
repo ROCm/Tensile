@@ -22,7 +22,6 @@
 #
 ################################################################################
 
-import pytest
 from pathlib import Path
 from Tensile.EmbeddedData import generateLibrary
 

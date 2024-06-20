@@ -1413,8 +1413,10 @@ def TensileCreateLibrary():
   if globalParameters["PackageLibrary"] or globalParameters["SeparateArchitectures"]:
     theMasterLibrary = list(masterLibraries.values())[0]
   
+  ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
   if args.EmbedLibrary:
     embedFileName = outputPath / f"library/{args.EmbedLibrary}"
+    ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
     EmbeddedData.generateLibrary(embedFileName, args.EmbedLibraryKey, Path(masterFile).with_suffix(ext), theMasterLibrary.cpp_base_class, codeObjectFiles)
 
   if args.BuildClient:
@@ -1422,7 +1424,6 @@ def TensileCreateLibrary():
     ClientExecutable.getClientExecutable(outputPath)
 
   if args.ClientConfig:
-    ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
     createClientConfig(Path(outputPath), Path(masterFile).with_suffix(ext), codeObjectFiles)
 
   print1("# Tensile Library Writer DONE")
