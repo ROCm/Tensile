@@ -1131,6 +1131,7 @@ def createClientConfig(outputPath: Path, masterFile: Path, codeObjectFiles: List
       
       param("best-solution", True)
 
+
 ################################################################################
 # Tensile Create Library
 ################################################################################
@@ -1394,20 +1395,10 @@ def TensileCreateLibrary():
   theMasterLibrary = fullMasterLibrary
   if globalParameters["PackageLibrary"] or globalParameters["SeparateArchitectures"]:
     theMasterLibrary = list(masterLibraries.values())[0]
-
-  if args.EmbedLibrary is not None:
-      embedFileNameTemp = os.path.join(outputPath, "library/{}.temp".format(args.EmbedLibrary))
-      with EmbeddedData.EmbeddedDataFile(embedFileNameTemp) as embedFile:
-
-          ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
-          embedFile.embed_file(theMasterLibrary.cpp_base_class, masterFile + ext, nullTerminated=True,
-                               key=args.EmbedLibraryKey)
-
-          for co in codeObjectFiles if globalParameters["PrintLevel"] == 0 else Utils.tqdm(codeObjectFiles):
-              embedFile.embed_file("SolutionAdapter", co, nullTerminated=False,
-                                   key=args.EmbedLibraryKey)
-      embedFileNameCpp = os.path.join(outputPath, "library/{}.cpp".format(args.EmbedLibrary))
-      os.rename(embedFileNameTemp, embedFileNameCpp)
+  
+  if args.EmbedLibrary:
+    embedFileName = outputPath / f"library/{args.EmbedLibrary}"
+    EmbeddedData.generateLibrary(embedFileName, args.EmbedLibraryKey, Path(masterFile).with_suffix(ext), theMasterLibrary.cpp_base_class, codeObjectFiles)
 
   if args.BuildClient:
     print1("# Building Tensile Client")
