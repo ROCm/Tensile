@@ -42,6 +42,7 @@ from .SolutionLibrary import MasterSolutionLibrary
 from .SolutionStructs import Solution
 from .Utilities.String import splitDelimitedString
 from .Utilities.Profile import profile
+from .Utilities.toFile import toFile
 
 import argparse
 import collections
@@ -1142,6 +1143,7 @@ def createClientConfig(outputPath: Path, masterFile: Path, codeObjectFiles: List
       
       param("best-solution", True)
 
+
 ################################################################################
 # Tensile Create Library
 ################################################################################
@@ -1340,13 +1342,8 @@ def TensileCreateLibrary():
    libMetadataPaths) = buildObjectFilePaths(outputPath, solutionFiles, sourceKernelFiles, \
     asmKernelFiles, sourceLibFiles, asmLibFiles, masterLibraries)
 
-  # Manifest file contains YAML file, output library paths and cpp source for embedding.
-  with open(manifestFile, "w") as generatedFile:  
-    for filePath in libMetadataPaths + sourceLibPaths + asmLibPaths:
-      generatedFile.write("%s\n" %(filePath) )
-
-  if globalParameters["GenerateManifestAndExit"] == True:
-    return
+  toFile(Path(manifestFile), libMetadataPaths + sourceLibPaths + asmLibPaths)
+  if globalParameters["GenerateManifestAndExit"]: return
 
   # generate cmake for the source kernels,
   if not arguments["GenerateSourcesAndExit"]:
