@@ -2327,8 +2327,8 @@ def assignGlobalParameters( config ):
   globalParameters["CmakeCxxCompiler"] = None
   if "CMAKE_CXX_COMPILER" in os.environ:
     globalParameters["CmakeCxxCompiler"] = os.environ.get("CMAKE_CXX_COMPILER")
-  if "CC" in os.environ:
-    globalParameters["CmakeCCompiler"] = os.environ.get("CC")    
+  if "CMAKE_C_COMPILER" in os.environ:
+    globalParameters["CmakeCCompiler"] = os.environ.get("CMAKE_C_COMPILER")
 
   globalParameters["ROCmBinPath"] = os.path.join(globalParameters["ROCmPath"], "bin")
 
@@ -2340,6 +2340,15 @@ def assignGlobalParameters( config ):
 
   if "CxxCompiler" in config:
     globalParameters["CxxCompiler"] = config["CxxCompiler"]
+    # Pair the CCompiler with CxxCompiler
+    if globalParameters["CxxCompiler"] == "hipcc":
+       globalParameters["CCompiler"] = "hipcc"
+    else:
+        if supportedCompiler(globalParameters["CxxCompiler"]):
+          globalParameters["CCompiler"] = "clang" if os.name == "nt" else "amdclang"
+        else: # unkown c++ compiler so set c compile rto be the same
+          globalParameters["CCompiler"] = globalParameters["CxxCompiler"]
+
   if "CCompiler" in config:
     globalParameters["CCompiler"] = config["CCompiler"]    
 
