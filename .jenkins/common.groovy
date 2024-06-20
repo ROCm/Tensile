@@ -50,7 +50,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             hostname
             cd ${project.paths.project_build_prefix}
 
-            export PATH=/opt/rocm/bin:\${PATH}
+            export PATH=/opt/rocm/bin:\$PATH
             export HOME=/home/jenkins
             export TENSILE_COMPILER=${compiler}
             export HIPCC_COMPILE_FLAGS_APPEND='-O3 -Wno-format-nonliteral -parallel-jobs=4'
@@ -62,7 +62,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
                 -DCMAKE_CXX_COMPILER=${compiler} \
                 -DCMAKE_CXX_FLAGS="-D__HIP_HCC_COMPAT_MODE__=1" \
                 -DTensile_CPU_THREADS=${buildThreads} \
-                -DTensile_ROOT=\$(pwd)/../Tensile
+                -DTensile_ROOT=`pwd`/../Tensile
             
             make -j\$((`nproc`<16 ? `nproc` : 16))
 
@@ -92,17 +92,17 @@ def runTestCommand(platform, project, jobName, testMark, boolean runHostTest=tru
             cd ${project.paths.project_build_prefix}
 
             export HOME=/home/jenkins
-            export PATH=/opt/rocm/bin:\${PATH}
+            export PATH=/opt/rocm/bin:\$PATH
             export TENSILE_COMPILER=${compiler}
             export GPU_ARCH=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
-            export TIMING_FILE=`pwd`/timing-\${GPU_ARCH}.csv
+            export TIMING_FILE=`pwd`/timing-\$GPU_ARCH.csv
 
             tox --version
-            tox run -e ci -- -m ${testMark} --timing-file=\${TIMING_FILE} --numprocesses=4
+            tox run -e ci -- -m ${testMark} --timing-file=\$TIMING_FILE
             check_err
 
             if ${runUnitTest}; then 
-              tox run -e unittest -- --cov-report=xml:cobertura.xml --numprocesses=auto
+              tox run -e unittest -- --cov-report=xml:cobertura.xml
               check_err
             fi
 
