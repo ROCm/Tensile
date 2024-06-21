@@ -62,9 +62,10 @@ def runCI =
     {
         platform, project->
 
-        def test_marks = "extended"
-        boolean skipHostTest = false
-        commonGroovy.runTestCommand(platform, project, jobName, test_marks, skipHostTest)
+        def testMark = "extended"
+        boolean runHostTest = true
+        boolean runUnitTest = false
+        commonGroovy.runTestCommand(platform, project, jobName, testMark, runHostTest, runUnitTest)
     }
 
     buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, testCommand, null)
