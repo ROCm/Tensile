@@ -307,7 +307,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
     for (src, dst) in zip(extractedCOs, destCOsList):
       shutil.copyfile(src, dst)
 
-    return destCosList
+    return destCOsList
   
 def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath):  
     args    = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), kernelFiles)
