@@ -303,8 +303,8 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
     coFilenames = [name for name in coFilenames]
     extractedCOs = [os.path.join(buildPath, name) for name in coFilenames]
-    destCosList = [os.path.join(destDir, name) for name in coFilenames]
-    for (src, dst) in zip(extractedCOs, destCosList):
+    destCOsList = [os.path.join(destDir, name) for name in coFilenames]
+    for (src, dst) in zip(extractedCOs, destCOsList):
       shutil.copyfile(src, dst)
 
     return destCosList
