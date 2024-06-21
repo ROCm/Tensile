@@ -13,6 +13,7 @@ subtrees:
     - file: src/api-reference
       entries:
         - file: src/api-reference/Common
+        - file: src/api-reference/EmbeddedData        
         - file: src/api-reference/TensileCreateLibrary
         - file: src/api-reference/Utilities        
     - file: src/cli-reference

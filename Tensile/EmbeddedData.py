@@ -27,6 +27,9 @@ from . import Common
 import itertools
 import os
 
+from pathlib import Path
+from typing import List
+
 class Namespace:
     def __init__(self, parent, name=None):
         self.parent = parent
@@ -210,3 +213,23 @@ class EmbeddedDataFile:
           byteArray = bytearray(f.read())
         self.embed_data(assocType, byteArray, nullTerminated, os.path.basename(filename), key)
 
+
+def generateLibrary(embedFileName: Path, embedLibraryKey: str, masterFile: Path, cppBaseClass: str, codeObjectFiles: List[str]) -> None:
+    """Creates embed library source files.
+ 
+       The goal of an embed library is to convert the master file and code object files
+       into a byte array and inject the byte arrays into a C++ source file. This precludes
+       the need to load data from the master file and code object files at runtime.
+       
+       Args:
+           embedFileName: Name of the generated C++ embed source file without a file extension.
+           embedLibraryKey: Name or key associated with the embed library.           
+           masterFile: Path to the master library file (.dat or .yaml).
+           cppBaseClass: Name of type used when specializing the C++ EmbeddedData class template. 
+           codeObjectFiles: List of code object files created by TensileCreateLibrary.           
+    """
+    with EmbeddedDataFile(embedFileName.with_suffix(".temp")) as embedFile:
+        embedFile.embed_file(cppBaseClass, masterFile, nullTerminated=True, key=embedLibraryKey)
+        for co in codeObjectFiles:
+            embedFile.embed_file("SolutionAdapter", co, nullTerminated=False, key=embedLibraryKey)
+    os.rename(embedFileName.with_suffix(".temp"), embedFileName.with_suffix(".cpp"))
