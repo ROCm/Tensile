@@ -40,7 +40,7 @@ def test_FindCustomKernel(objs):
     except:
         assert False
 
-configResult = yaml.safe_load(
+configResult = yaml.load(
 """
 ProblemType:
     OperationType: GEMM
@@ -56,7 +56,7 @@ WorkGroup: [  8, 16,  1 ]
 DepthU: 8
 VectorWidth: 4
 AssertSizeEqual: {3: 512}
-AssertSizeMultiple: {0: 128, 1: 128}"""
+AssertSizeMultiple: {0: 128, 1: 128}""", yaml.CSafeLoader
 )
 
 # TODO when more custom kernels have been added - expand these lists
