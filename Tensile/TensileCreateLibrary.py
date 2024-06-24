@@ -223,12 +223,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       else:
         compileArgs = launcher + [which(CxxCompiler)] + hipFlags + archFlags + [kernelFile, '-c', '-o', os.path.join(buildPath, objectFilename)]
 
-<<<<<<< HEAD
       tPrint(2, 'hipcc:', ' '.join(compileArgs))
-=======
-      if globalParameters["PrintCodeCommands"]:
-        print1(CxxCompiler + ':' + ' '.join(compileArgs))
->>>>>>> origin-s/develop
       # change to use  check_output to force windows cmd block util command finish
       try:
         out = subprocess.check_output(compileArgs, stderr=subprocess.STDOUT)
@@ -279,12 +274,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
               #bundlerArgs = [bundler, "-type=o", "-targets=%s" % target, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
               bundlerArgs = [bundler, "-type=o", "-targets=%s" % target,
                            "%s=%s" % (inflag, infile), "%s=%s" % (outflag, outfile), "-unbundle"]
-<<<<<<< HEAD
               tPrint(2, ' '.join(bundlerArgs))
-=======
-              if globalParameters["PrintCodeCommands"]:
-                print1(' '.join(bundlerArgs))
->>>>>>> origin-s/develop
               # change to use  check_output to force windows cmd block util command finish
               out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
               tPrint(3, out)
@@ -297,12 +287,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
           #bundlerArgs = [bundler, "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
           bundlerArgs = [bundler, "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i],
                          "%s=%s" % (inflag, infile), "%s=%s" % (outflag, outfile), "-unbundle"]
-<<<<<<< HEAD
           tPrint(2, ' '.join(bundlerArgs))
-=======
-          if globalParameters["PrintCodeCommands"]:
-            print1(' '.join(bundlerArgs))
->>>>>>> origin-s/develop
           # change to use  check_output to force windows cmd block util command finish
           try:
             out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
@@ -313,29 +298,6 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
     else:
       raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
 
-<<<<<<< HEAD
-    destCosList = []
-    if "PackageLibrary" in globalParameters and globalParameters["PackageLibrary"]:
-      for arch in archs:
-        ensurePath(os.path.join(destDir, arch))
-        archCoFilenames = [name for name in coFilenames if arch in name]
-        extractedCOs = [os.path.join(buildPath, name) for name in archCoFilenames]
-        destCOs = [os.path.join(destDir, arch, name) for name in archCoFilenames]
-        destCosList += destCOs
-        tPrint(2, "# copy source code objects    : ", extractedCOs)
-        tPrint(2, "# to dest source code objects : ", destCOs)
-        for (src, dst) in zip(extractedCOs, destCOs):
-          shutil.copyfile(src, dst)
-    else:
-      coFilenames = [name for name in coFilenames]
-      extractedCOs = [os.path.join(buildPath, name) for name in coFilenames]
-      destCOs = [os.path.join(destDir, name) for name in coFilenames]
-      destCosList += destCOs
-      for (src, dst) in zip(extractedCOs, destCOs):
-        shutil.copyfile(src, dst)
-
-    return destCosList
-=======
     coFilenames = [name for name in coFilenames]
     extractedCOs = [os.path.join(buildPath, name) for name in coFilenames]
     destCOsList = [os.path.join(destDir, name) for name in coFilenames]
@@ -343,7 +305,6 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       shutil.copyfile(src, dst)
 
     return destCOsList
->>>>>>> origin-s/develop
   
 def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath):  
     args    = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), kernelFiles)

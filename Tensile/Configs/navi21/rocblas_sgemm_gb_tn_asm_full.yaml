@@ -1,7 +1,7 @@
 # headers
 GlobalParameters:
   MinimumRequiredVersion: 4.9.0
-  PrintLevel: 2
+  PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
   ForceRedoLibraryClient: True
