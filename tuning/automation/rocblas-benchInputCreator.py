@@ -180,7 +180,7 @@ def dumpYaml(outDir, outputfile,postfix, content):
     name = outputfile+postfix
     benchPath = os.path.join(outDir, name)
     with open(benchPath, "w") as f:
-        yaml.safe_dump(content, f, default_flow_style=None, sort_keys=False, width=5000)
+        yaml.dump(content, f, yaml.CSafeDumper, default_flow_style=None, sort_keys=False, width=5000)
         f.write(f"# End of {name} \n")
 
 def createYaml(args, outputfile, problem, sizeMappings, verify):
@@ -327,7 +327,7 @@ def main():
         print(f" working on {output}")
         yamlName = os.path.join(args.libLogic,libname)
         with open(yamlName) as f:
-            logicData = yaml.safe_load(f)
+            logicData = yaml.load(f, yaml.CSafeLoader)
 
         try:
             os.makedirs(args.outDir)

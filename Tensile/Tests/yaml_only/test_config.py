@@ -100,7 +100,7 @@ def configMarks(filepath, rootDir, availableArchs):
 
     try:
         with open(filepath) as f:
-            doc = yaml.load(f, yaml.SafeLoader)
+            doc = yaml.load(f, yaml.CSafeLoader)
     except yaml.parser.ParserError:
         marks.append(pytest.mark.syntax_error)
         return marks
