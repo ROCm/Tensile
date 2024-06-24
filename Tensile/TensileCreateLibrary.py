@@ -1139,7 +1139,7 @@ def generateMasterFileList(masterLibraries: dict, archs: List[str], lazy: bool) 
     result = [(baseName + arch, masterLibrary) for arch, masterLibrary in masterLibraries.items() if arch in archs]
     return generateLazyMasterFileList(result) if lazy else result
 
-def writeMasterFile(libraryPath: Path, name: str, lib: MasterSolutionLibrary, format: str, naming: dict):
+def writeMasterFile(libraryPath: Path, format: str, naming: dict, name: str, lib: MasterSolutionLibrary):
     """ Writes a master file to disk as a .yaml or .dat file.
 
     Args:
@@ -1367,10 +1367,12 @@ def TensileCreateLibrary():
              if globalParameters["AsmCaps"][arch]["SupportedISA"]]
 
   newLibraryDir = Path(outputPath) / "library"
+  newLibraryDir.mkdir(exist_ok=True)
 
   masterFileList = generateMasterFileList(masterLibraries, archs, args.LazyLibraryLoading) if args.SeparateArchitectures \
     else [("TensileLibrary", fullMasterLibrary)]
-  map(partial(writeMasterFile, outputPath=newLibraryDir, format=args.LibraryFormat, naming=kernelMinNaming), masterFileList)
+  for name, lib in masterFileList:
+    writeMasterFile(newLibraryDir, args.LibraryFormat, kernelMinNaming, name, lib)
   masterFile, fullMasterLibrary = masterFileList[0]
   
   ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
