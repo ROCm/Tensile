@@ -57,8 +57,9 @@ import time
 import warnings
 
 from copy import deepcopy
-from typing import Set, List
+from typing import Set, List, Tuple
 from pathlib import Path
+from functools import partial
 
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
 TENSILE_LIBRARY_DIR = "library"
@@ -1078,7 +1079,7 @@ def sanityCheck(srcLibPaths: List[str], asmLibPaths: List[str], codeObjectPaths:
             raise ValueError(f"Sanity check failed; missing expected code object files: "\
                     f"{[p.name for p  in extraLibs]}")
 
-def createClientConfig(outputPath: Path, masterFile: Path, codeObjectFiles: List[str], configFile: str = "best-solution.ini") -> None:
+def generateClientConfig(outputPath: Path, masterFile: Path, codeObjectFiles: List[str], configFile: str = "best-solution.ini") -> None:
     """Generates a client config file.
     
     Generates a client config file corresponding to a master library file and code-object parameters
@@ -1109,6 +1110,47 @@ def createClientConfig(outputPath: Path, masterFile: Path, codeObjectFiles: List
       
       param("best-solution", True)
 
+def generateLazyMasterFileList(masterFileList: List[Tuple[str, MasterSolutionLibrary]]) -> List[Tuple[str, MasterSolutionLibrary]]:
+    """ Generates a list of tuples that represent the name and the state associated the lazy master libraries.
+
+    This function takes a list of MasterSolutionLibraries and traverses its lazy libraries.
+    It collects the items (i.e. the name and corresponding master file) and adds them to list
+    of master files to be written to disk.
+
+    Args:
+        masterLibraries: A list of name / master solution library pairs.
+    """
+    return masterFileList + list(itertools.chain.from_iterable((t for t in lib.lazyLibraries.items()) for _, lib in masterFileList))
+
+def generateMasterFileList(masterLibraries: dict, archs: List[str], lazy: bool) -> List[Tuple[str, MasterSolutionLibrary]]:
+    """ Generates a list of tuples that represent the name and the state associated the architecture
+        specific master libraries.
+
+    This function takes a dictionary with keys corresponding to a target architecture and values 
+    corresponding to the master solution library for that architecture. The fucntion generates
+    tuple consisting of a MasterSolutionLibrary and the associated name.
+
+    Args:
+        masterLibraries: A dictionary of architecture name / master solution library pairs.
+        archs: A list of supported architectures.
+        lazy: If True, add lazy library masterFiles.
+    """
+    baseName = "TensileLibrary_lazy_" if lazy else "TensileLibrary_"
+    result = [(baseName + arch, masterLibrary) for arch, masterLibrary in masterLibraries.items() if arch in archs]
+    return generateLazyMasterFileList(result) if lazy else result
+
+def writeMasterFile(libraryPath: Path, name: str, lib: MasterSolutionLibrary, format: str, naming: dict):
+    """ Writes a master file to disk as a .yaml or .dat file.
+
+    Args:
+        libraryPath: Path to library subdirectory located in the tensile output directory.
+        name: Name of the masterfile.
+        lib: Master solution library data.
+        format: Output format of written file (.dat or .yaml).
+        naming: Kernel minimum naming.
+    """
+    lib.applyNaming(naming)
+    LibraryIO.write(str(libraryPath / name), Utils.state(lib), format)
 
 ################################################################################
 # Tensile Create Library
@@ -1320,46 +1362,28 @@ def TensileCreateLibrary():
       print1(f"codeObjectFiles: {codeObjectFiles}")
       print1(f"sourceLibPaths + asmLibPaths: {sourceLibPaths + asmLibPaths}")
 
+  # do we need this or have we already done this?
   archs = [gfxName(arch) for arch in globalParameters['SupportedISA'] \
              if globalParameters["AsmCaps"][arch]["SupportedISA"]]
-  newLibraryDir = ensurePath(os.path.join(outputPath, 'library'))
 
-  if globalParameters["SeparateArchitectures"] or globalParameters["LazyLibraryLoading"]:
-    for archName, newMasterLibrary in masterLibraries.items():
-      if archName in archs:
-        if globalParameters["LazyLibraryLoading"]:
-          masterFile = os.path.join(newLibraryDir, "TensileLibrary_lazy_"+archName)
-        else:
-          masterFile = os.path.join(newLibraryDir, "TensileLibrary_"+archName)
-        newMasterLibrary.applyNaming(kernelMinNaming)
-        LibraryIO.write(masterFile, Utils.state(newMasterLibrary), args.LibraryFormat)
+  newLibraryDir = Path(outputPath) / "library"
 
-        #Write placeholder libraries
-        for name, lib in newMasterLibrary.lazyLibraries.items():
-          filename = os.path.join(newLibraryDir, name)
-          lib.applyNaming(kernelMinNaming) #@TODO Check to see if kernelMinNaming is correct
-          LibraryIO.write(filename, Utils.state(lib), args.LibraryFormat)
-
-  else:
-    masterFile = os.path.join(newLibraryDir, "TensileLibrary")
-    fullMasterLibrary.applyNaming(kernelMinNaming)
-    LibraryIO.write(masterFile, Utils.state(fullMasterLibrary), args.LibraryFormat)
-
-  theMasterLibrary = fullMasterLibrary
-  if globalParameters["SeparateArchitectures"]:
-    theMasterLibrary = list(masterLibraries.values())[0]
+  masterFileList = generateMasterFileList(masterLibraries, archs, args.LazyLibraryLoading) if args.SeparateArchitectures \
+    else [("TensileLibrary", fullMasterLibrary)]
+  map(partial(writeMasterFile, outputPath=newLibraryDir, format=args.LibraryFormat, naming=kernelMinNaming), masterFileList)
+  masterFile, fullMasterLibrary = masterFileList[0]
   
   ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
   if args.EmbedLibrary:
     embedFileName = Path(outputPath) / "library" / args.EmbedLibrary
-    EmbeddedData.generateLibrary(embedFileName, args.EmbedLibraryKey, Path(masterFile).with_suffix(ext), theMasterLibrary.cpp_base_class, codeObjectFiles)
+    EmbeddedData.generateLibrary(embedFileName, args.EmbedLibraryKey, (newLibraryDir / masterFile).with_suffix(ext), fullMasterLibrary.cpp_base_class, codeObjectFiles)
 
   if args.BuildClient:
     print1("# Building Tensile Client")
     ClientExecutable.getClientExecutable(outputPath)
 
   if args.ClientConfig:
-    createClientConfig(Path(outputPath), Path(masterFile).with_suffix(ext), codeObjectFiles)
+    generateClientConfig(Path(outputPath), Path(masterFile).with_suffix(ext), codeObjectFiles)
 
   print1("# Tensile Library Writer DONE")
   print1(HR)
