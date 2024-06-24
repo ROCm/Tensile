@@ -5437,7 +5437,7 @@ for codeObjectFileName in codeObjectFileNames:
     objectFileName = base + '.o'
 
     args = self.getCompileArgs(assemblyFileName, objectFileName)
-    tPrint(2, ' '.join(args), " && ")
+    tPrint(2, ' '.join(args) + " && ")
 
     # change to use  check_output to force windows cmd block util command finish
     try:

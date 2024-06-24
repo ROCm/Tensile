@@ -223,7 +223,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       else:
         compileArgs = launcher + [which(CxxCompiler)] + hipFlags + archFlags + [kernelFile, '-c', '-o', os.path.join(buildPath, objectFilename)]
 
-      tPrint(2, 'hipcc:', ' '.join(compileArgs))
+      tPrint(2, 'hipcc:' + ' '.join(compileArgs))
       # change to use  check_output to force windows cmd block util command finish
       try:
         out = subprocess.check_output(compileArgs, stderr=subprocess.STDOUT)
