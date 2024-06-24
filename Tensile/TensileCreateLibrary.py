@@ -280,7 +280,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
               tPrint(3, out)
 
       except subprocess.CalledProcessError as err:
-        print1(err.output)
+        tPrint(1, err.output)
         for i in range(len(archs)):
           outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
           coFilenames.append(os.path.split(outfile)[1])
@@ -293,7 +293,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
             out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
             tPrint(3, out)
           except subprocess.CalledProcessError as err:
-            print1(err.output)
+            tPrint(1, err.output)
             raise
     else:
       raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
