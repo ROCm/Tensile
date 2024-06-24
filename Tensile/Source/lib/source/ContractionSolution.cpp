@@ -439,9 +439,10 @@ namespace Tensile
 
         rv.numWorkGroups.y *= sizeMapping.globalSplitU;
 
-        size_t cuCount = 0;
-        size_t skGrid  = 0;
-        auto   tiles   = problem.getNumTiles(sizeMapping);
+        size_t cuCount   = 0;
+        size_t skGrid    = 0;
+        auto   tiles     = problem.getNumTiles(sizeMapping);
+        int    fullTiles = 0;
         if(sizeMapping.streamK != 0 || sizeMapping.persistentKernel != 0)
         {
             AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
@@ -453,6 +454,11 @@ namespace Tensile
                 rv.numWorkGroups.x = skGrid;
                 rv.numWorkGroups.y = 1;
                 rv.numWorkGroups.z = 1;
+                fullTiles          = pAMDGPU->skFullTiles;
+                if(fullTiles == -1)
+                {
+                    fullTiles = predictNumFullTiles(problem, hardware, tiles, skGrid);
+                }
             }
         }
 
@@ -808,7 +814,6 @@ namespace Tensile
                 }
                 else if(sizeMapping.streamK >= 2) // Two-tile SK
                 {
-                    bool bigEnough = tiles > skGrid;
                     // skTiles is number of Stream-K tiles to complete
                     // Two-tile algorithm causes each WG to run an even number of Stream-K iterations,
                     // followed by an even number of data-parllel tiles.
@@ -817,9 +822,10 @@ namespace Tensile
                     uint32_t skTiles = skGrid;
                     if(tiles % skGrid != 0)
                     {
-                        // Number of data-parallel tiles on each workgroup would be:
-                        // dpTilesPerWG = bigEnough ? (tiles - skTiles) / skGrid : 0;
-                        skTiles = bigEnough ? skGrid + tiles % skGrid : tiles;
+                        // Number of SK tiles determined by performance prediction
+                        // Either runs remainder tiles, or remainder + 1 full grid of tiles
+                        // Can be overridden by setting TENSILE_STREAMK_FULL_TILES
+                        skTiles = std::min(skGrid * fullTiles + tiles % skGrid, tiles);
                     }
 
                     uint32_t skItersPerWG = skTiles * itersPerTile / skGrid;
@@ -1724,6 +1730,64 @@ namespace Tensile
             size += problem.d().totalLogicalElements() * sizeMapping.workspaceSizePerElemC;
 
         return size;
+    }
+
+    float lerp(float x, float x0, float x1, float y0, float y1)
+    {
+        return y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+    }
+
+    int ContractionSolution::predictNumFullTiles(Problem const&  problem,
+                                                 Hardware const& hardware,
+                                                 size_t          tiles,
+                                                 size_t          skGrid) const
+    {
+        int itersPerTile = problem.getItersPerTile(sizeMapping);
+        int k            = itersPerTile * sizeMapping.depthU;
+        // TODO Test if prediction should be normalized to iterations (DepthU) or full size
+
+        auto remainder = tiles % skGrid;
+        if(remainder == 0)
+            return 0;
+
+        // Temporary check for correct hardware until prediction curves are made for additional devices
+        AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
+        assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
+        size_t cuCount = pAMDGPU->computeUnitCount;
+        if(cuCount != 304)
+            return 0;
+
+        // TODO Generalize code to allow prediction models for additional architectures
+        const std::vector<std::tuple<size_t, size_t>> predictionCurve = {{512, 304},
+                                                                         {768, 201},
+                                                                         {1024, 75},
+                                                                         {1536, 40},
+                                                                         {2048, 30},
+                                                                         {3072, 21},
+                                                                         {4096, 14},
+                                                                         {5120, 11},
+                                                                         {6144, 9},
+                                                                         {7168, 8},
+                                                                         {8192, 5},
+                                                                         {16384, 4}};
+
+        if(k < std::get<0>(predictionCurve[0]))
+            return 1;
+
+        for(int i = 1; i < predictionCurve.size(); ++i)
+        {
+            if(k < std::get<0>(predictionCurve[i]))
+            {
+                float threshold = lerp(k,
+                                       std::get<0>(predictionCurve[i - 1]),
+                                       std::get<0>(predictionCurve[i]),
+                                       std::get<1>(predictionCurve[i - 1]),
+                                       std::get<1>(predictionCurve[i]));
+                return remainder >= threshold ? 0 : 1;
+            }
+        }
+
+        return remainder >= get<1>(predictionCurve.back()) ? 0 : 1;
     }
 
     size_t ContractionSolution::getSKGrid(Problem const&  problem,

@@ -61,6 +61,9 @@ tags
 # tox virtual environments
 .tox
 
+# Profiling files
+*.prof
+
 # Uncompressed HostLibraryTest libraries
 HostLibraryTests/configs/SolutionLibraries/*.dat
 HostLibraryTests/configs/SolutionLibraries/*.yaml

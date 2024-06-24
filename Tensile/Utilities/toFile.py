@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2021-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,12 +22,25 @@
 #
 ################################################################################
 
-add_library(TensileOcl STATIC
-            OclHardware.cpp
-            OclSolutionAdapter.cpp
-            OclUtils.cpp)
+from pathlib import Path
+from typing import List
 
-message( TensileOcl SYSTEM ${HIP_INCLUDE_DIRS} ${HCC_INCLUDE_DIRS} )
+def toFile(outputFile: Path, contents: List[str], delimiter: str = "\n") -> None:
+    """Generates a user specified delimited file. 
 
-include_directories(${HIP_INCLUDE_DIRS} ${HCC_INCLUDE_DIRS})
+    Writes the elements of a List of strings with a given delimiter.
+    
+    Args: 
+        outputFile: Path to file for writing manifest.
+        contents: List of items to write manifest.
+        delimiter: Symbol used to delimit elements when writing file.
+    
+    Raises:
+        AssertionError: If contents is not a List[str]
+    """
+    assert isinstance(contents, list), "contents must be a list."
+    assert isinstance(contents[0], str), "contents elements must be a str."
 
+    with open(outputFile, "w") as generatedFile:  
+      for filePath in contents:
+        generatedFile.write(f"{filePath}{delimiter}")

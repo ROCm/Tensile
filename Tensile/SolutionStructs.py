@@ -1895,7 +1895,7 @@ class Solution(collections.abc.Mapping):
     elif globalParameters["AsmCaps"][isa]['HasWMMA']:
       outputVectorWidth, RegsPerOut = 1, 1
     else:
-      print("WARNING: unexpect code flow")
+      print("WARNING: unexpected code flow")
 
     return outputVectorWidth, RegsPerOut
 

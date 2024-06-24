@@ -122,8 +122,8 @@ def addCommonArguments(argParser):
         help="use serial kernel and solution names")
     argParser.add_argument("--no-merge-files", dest="noMergeFiles", action="store_true", \
         help="kernels and solutions written to individual files")
-    argParser.add_argument("--cxx-compiler", dest="CxxCompiler", choices=["hipcc"], \
-        action="store", default="hipcc", help="select which compiler to use")
+    argParser.add_argument("--cxx-compiler", dest="CxxCompiler", choices=["hipcc", 'amdclang++'], \
+        action="store", default="amdclang++", help="select which compiler to use")
     argParser.add_argument("--library-format", dest="LibraryFormat", choices=["yaml", "msgpack"], \
         action="store", help="select which library format to use")
     argParser.add_argument("--client-build-path", default=None)

@@ -44,7 +44,7 @@ When invoking *TensileCreateLibrary*, one can provide zero or more options.
     Creates best-solution.ini in the output directory for the library and code object files created (default).
 \-\-code-object-version={default,V4,V5}
     HSA code-object version.
-\-\-cxx-compiler={hipcc}
+\-\-cxx-compiler={amdclang++, hipcc} or on Windows {clang++, hipcc}
     C++ compiler used when generating binaries.
 \-\-embed-library=EMBEDLIBRARY
     Embed (new) library files into static variables. Specify the name of the library.

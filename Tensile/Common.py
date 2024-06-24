@@ -246,7 +246,7 @@ globalParameters["DictLibraryLogic"] = False
 globalParameters["CurrentISA"] = (0,0,0)
 globalParameters["ROCmAgentEnumeratorPath"] = None      # /opt/rocm/bin/rocm_agent_enumerator
 globalParameters["ROCmSMIPath"] = None                  # /opt/rocm/bin/rocm-smi
-globalParameters["AssemblerPath"] = None                # /opt/rocm/hip/bin/hipcc
+globalParameters["AssemblerPath"] = None                # /opt/rocm/llvm/bin/clang++
 globalParameters["WorkingPath"] = os.getcwd()           # path where tensile called from
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
@@ -260,12 +260,12 @@ else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
 globalParameters["CodeObjectVersion"] = "default"
-globalParameters["CxxCompiler"] = "hipcc"
+globalParameters["CxxCompiler"] = "amdclang++" if os.name != "nt" else "clang++"
+globalParameters["CCompiler"] = "amdclang" if os.name != "nt" else "clang"
 globalParameters["Architecture"] = "all"
 
 # might be deprecated
 globalParameters["ClientArgs"] = ""
-globalParameters["PackageLibrary"] = False
 
 # perf model
 globalParameters["PerfModelL2ReadHits"] = 0.0
@@ -326,6 +326,25 @@ def getArchitectureName(gfxName: str) -> Optional[str]:
       if gfxName in archKey:
         return architectureMap[archKey]
     return None
+
+def supportedCompiler(compiler: str) -> bool:
+  """ Determines if compiler is supported by Tensile.
+
+      Args:
+          The name of a compiler to test for support.
+      
+      Return:
+          If supported True; otherwise, False.
+  """
+  isSupported = (compiler == "hipcc")
+  if os.name == "nt": 
+    isSupported = (isSupported or compiler == "clang++")
+  else:
+    isSupported = (isSupported or compiler == "amdclang++")
+  
+  if not isSupported: printWarning(f"{compiler} is unsupported for os {os.name}")
+  
+  return isSupported
 
 ################################################################################
 # Enumerate Valid Solution Parameters
@@ -1137,6 +1156,10 @@ validParameters = {
     # StreamK grid is controlled by setting these enviornment variables:
     # TENSILE_STREAMK_FIXED_GRID lets you override the default grid size with a specific number
     #   0 = override disabled (default)
+    # TENSILE_STREAMK_FULL_TILES sets the number of full tiles to be included in stream-k work
+    #   -1 = use prediction model for best performance (default)
+    #   0 = only remainder tiles run in stream-k
+    #   1+ = remainder + 1 (or more) full grids of tiles run in stream-k
     # TENSILE_STREAMK_DYNAMIC_GRID enables dynamic grid mode, which automatically limits the number of CUs used:
     #   0 = Off, use all CUs (default)
     #   1 = Only reduce CUs for small problems to number of output tiles when num_tiles < CU count.
@@ -2244,10 +2267,13 @@ def printCapTable(parameters):
   printTable([headerRow] + asmCapRows + archCapRows)
 
 def which(p):
-    exes = [p+x for x in ['', '.exe', '.bat']]
-    system_path = os.environ['PATH'].split(os.pathsep)
-    if p == 'hipcc' and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
+    if supportedCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
         return os.environ['CMAKE_CXX_COMPILER']
+    if os.name == "nt":
+        exes = [p+x for x in ['.bat', '', '.exe']]  # bat may be front end for file with no extension
+    else:
+        exes = [p+x for x in ['', '.exe', '.bat']]
+    system_path = os.environ['PATH'].split(os.pathsep)
     for dirname in system_path+[globalParameters["ROCmBinPath"]]:
         for exe in exes:
             candidate = os.path.join(os.path.expanduser(dirname), exe)
@@ -2295,6 +2321,8 @@ def assignGlobalParameters( config ):
   globalParameters["CmakeCxxCompiler"] = None
   if "CMAKE_CXX_COMPILER" in os.environ:
     globalParameters["CmakeCxxCompiler"] = os.environ.get("CMAKE_CXX_COMPILER")
+  if "CMAKE_C_COMPILER" in os.environ:
+    globalParameters["CmakeCCompiler"] = os.environ.get("CMAKE_C_COMPILER")
 
   globalParameters["ROCmBinPath"] = os.path.join(globalParameters["ROCmPath"], "bin")
 
@@ -2306,14 +2334,27 @@ def assignGlobalParameters( config ):
 
   if "CxxCompiler" in config:
     globalParameters["CxxCompiler"] = config["CxxCompiler"]
+    # Pair the CCompiler with CxxCompiler
+    if globalParameters["CxxCompiler"] == "hipcc":
+       globalParameters["CCompiler"] = "hipcc"
+    else:
+        if supportedCompiler(globalParameters["CxxCompiler"]):
+          globalParameters["CCompiler"] = "clang" if os.name == "nt" else "amdclang"
+        else: # unkown c++ compiler so set c compile rto be the same
+          globalParameters["CCompiler"] = globalParameters["CxxCompiler"]
+
+  if "CCompiler" in config:
+    globalParameters["CCompiler"] = config["CCompiler"]    
 
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
-  elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hipcc":
+  elif globalParameters["AssemblerPath"] is None and supportedCompiler(globalParameters["CxxCompiler"]):
     if os.name == "nt":
       globalParameters["AssemblerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang++.exe")
     else:
-      globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang++")
+      bin_path = "llvm/bin" if globalParameters["CxxCompiler"] == "hipcc" else "bin"
+      compiler = "clang++" if globalParameters["CxxCompiler"] == "hipcc" else "amdclang++"
+      globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], bin_path), compiler)
 
   globalParameters["ROCmSMIPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm-smi")
 
@@ -2350,6 +2391,8 @@ def assignGlobalParameters( config ):
   # Due to platform.linux_distribution() being deprecated, just try to run dpkg regardless.
   # The alternative would be to install the `distro` package.
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
+  
+  # The following try except block computes the hipcc version
   try:
     if os.name == "nt":
       compileArgs = ['perl'] + [which('hipcc')] + ['--version']
