@@ -68,7 +68,7 @@ if("Client" IN_LIST Tensile_FIND_COMPONENTS)
         set(TENSILE_BUILD_CLIENT ON CACHE BOOL "Build Client")
     elseif(Tensile_FIND_REQUIRED_Client)
         message("Tensile client requires both Hip and LLVM.")
-        set(Tensile_FOUND false)
+        #set(Tensile_FOUND false)
     else()
         set(TENSILE_BUILD_CLIENT OFF CACHE BOOL "Build Client")
     endif()
@@ -278,4 +278,3 @@ function(TensileCreateLibraryFiles
   endif()
 
 endfunction()
-
