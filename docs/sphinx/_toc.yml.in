@@ -6,6 +6,10 @@ subtrees:
     - file: src/getting-started
       entries:
         - file: src/getting-started/examples
+          entries:
+            - file: src/getting-started/examples/TensileCreateLibrary
+              entries:
+                - file: src/getting-started/examples/TensileCreateLibrary/01-Basic_Usage
     - file: src/concepts
       entries:
         - file: src/concepts/benchmarking
