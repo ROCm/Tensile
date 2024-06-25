@@ -1110,11 +1110,11 @@ def generateClientConfig(outputPath: Path, masterFile: Path, codeObjectFiles: Li
       param("best-solution", True)
 
 def generateLazyMasterFileList(masterFileList: List[Tuple[str, MasterSolutionLibrary]]) -> List[Tuple[str, MasterSolutionLibrary]]:
-    """ Generates a list of tuples that represent the name and the state associated the lazy master libraries.
+    """ Generates a list of tuples that represent the name and the state associated with the lazy master libraries.
 
-    This function takes a list of MasterSolutionLibraries and traverses its lazy libraries.
+    This function takes a list of MasterSolutionLibraries and traverses each lazy libraries.
     It collects the items (i.e. the name and corresponding master file) and adds them to list
-    of master files to be written to disk.
+    of master files.
 
     Args:
         masterLibraries: A list of name / master solution library pairs.
@@ -1122,17 +1122,17 @@ def generateLazyMasterFileList(masterFileList: List[Tuple[str, MasterSolutionLib
     return masterFileList + list(itertools.chain.from_iterable((t for t in lib.lazyLibraries.items()) for _, lib in masterFileList))
 
 def generateMasterFileList(masterLibraries: dict, archs: List[str], lazy: bool) -> List[Tuple[str, MasterSolutionLibrary]]:
-    """ Generates a list of tuples that represent the name and the state associated the architecture
+    """ Generates a list of tuples that represent the name and the state associated with the architecture
         specific master libraries.
 
     This function takes a dictionary with keys corresponding to a target architecture and values 
-    corresponding to the master solution library for that architecture. The fucntion generates
+    corresponding to the master solution library for that architecture. The function generates a
     tuple consisting of a MasterSolutionLibrary and the associated name.
 
     Args:
         masterLibraries: A dictionary of architecture name / master solution library pairs.
         archs: A list of supported architectures.
-        lazy: If True, add lazy library masterFiles.
+        lazy: If True, add lazy library master files.
     """
     baseName = "TensileLibrary_lazy_" if lazy else "TensileLibrary_"
     result = [(baseName + arch, masterLibrary) for arch, masterLibrary in masterLibraries.items() if arch in archs]
@@ -1143,10 +1143,10 @@ def writeMasterFile(libraryPath: Path, format: str, naming: dict, name: str, lib
 
     Args:
         libraryPath: Path to library subdirectory located in the tensile output directory.
-        name: Name of the masterfile.
-        lib: Master solution library data.
         format: Output format of written file (.dat or .yaml).
         naming: Kernel minimum naming.
+        name: Name of the masterfile.
+        lib: Master solution library data.
     """
     lib.applyNaming(naming)
     LibraryIO.write(str(libraryPath / name), Utils.state(lib), format)
