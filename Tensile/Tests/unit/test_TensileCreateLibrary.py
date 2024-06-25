@@ -310,7 +310,7 @@ def test_generateClientConfig():
 
     setupClientConfigTest(outputPath, masterLibrary, codeObjectFiles)
 
-    TensileCreateLibrary.generateClientConfigClientConfig(outputPath, masterLibrary, codeObjectFiles)
+    TensileCreateLibrary.generateClientConfig(outputPath, masterLibrary, codeObjectFiles)
 
     assert configFile.is_file(), "{configFile} was not generated"
     
@@ -322,9 +322,6 @@ def test_generateClientConfig():
         assert "best-solution" in result[3], "missing best-solution entry"                
 
     cleanClientConfigTest(outputPath, masterLibrary, codeObjectFiles, configFile)
-
-# masterLibraryListSA = ((baseName + arch, masterLibrary) for arch, masterLibrary in masterLibraries.items() if arch in archs)
-# masterLibraryListLazy = ((t for t in lib.lazyLibraries.items()) for lib in masterLibraryListSA)
 
 class MasterLibraryMock:
     def __init__(self, libraries, data):
