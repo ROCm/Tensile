@@ -33,7 +33,7 @@ from . import ClientExecutable
 from . import EmbeddedData
 from . import LibraryIO
 from . import Utils
-from .Common import getArchitectureName, globalParameters, HR, print1, print2, printExit, ensurePath, \
+from .Common import getArchitectureName, globalParameters, HR, tPrint, printExit, ensurePath, \
                     CHeader, CMakeHeader, assignGlobalParameters, gfxName, architectureMap, printWarning, \
                     supportedCompiler, which
 from .KernelWriterAssembly import KernelWriterAssembly
@@ -135,7 +135,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
           # change to use  check_output to force windows cmd block util command finish
           try:
             out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)
-            print2(out)
+            tPrint(3, out)
           except subprocess.CalledProcessError as err:
             print(err.output)
             raise
@@ -223,12 +223,11 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       else:
         compileArgs = launcher + [which(CxxCompiler)] + hipFlags + archFlags + [kernelFile, '-c', '-o', os.path.join(buildPath, objectFilename)]
 
-      if globalParameters["PrintCodeCommands"]:
-        print1(CxxCompiler + ':' + ' '.join(compileArgs))
+      tPrint(2, 'hipcc:' + ' '.join(compileArgs))
       # change to use  check_output to force windows cmd block util command finish
       try:
         out = subprocess.check_output(compileArgs, stderr=subprocess.STDOUT)
-        print2(out)
+        tPrint(3, out)
       except subprocess.CalledProcessError as err:
         print(err.output)
         raise
@@ -275,28 +274,26 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
               #bundlerArgs = [bundler, "-type=o", "-targets=%s" % target, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
               bundlerArgs = [bundler, "-type=o", "-targets=%s" % target,
                            "%s=%s" % (inflag, infile), "%s=%s" % (outflag, outfile), "-unbundle"]
-              if globalParameters["PrintCodeCommands"]:
-                print1(' '.join(bundlerArgs))
+              tPrint(2, ' '.join(bundlerArgs))
               # change to use  check_output to force windows cmd block util command finish
               out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
-              print2(out)
+              tPrint(3, out)
 
       except subprocess.CalledProcessError as err:
-        print1(err.output)
+        tPrint(1, err.output)
         for i in range(len(archs)):
           outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
           coFilenames.append(os.path.split(outfile)[1])
           #bundlerArgs = [bundler, "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
           bundlerArgs = [bundler, "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i],
                          "%s=%s" % (inflag, infile), "%s=%s" % (outflag, outfile), "-unbundle"]
-          if globalParameters["PrintCodeCommands"]:
-            print1(' '.join(bundlerArgs))
+          tPrint(2, ' '.join(bundlerArgs))
           # change to use  check_output to force windows cmd block util command finish
           try:
             out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
-            print2(out)
+            tPrint(3, out)
           except subprocess.CalledProcessError as err:
-            print1(err.output)
+            tPrint(1, err.output)
             raise
     else:
       raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
@@ -343,7 +340,7 @@ def prepAsm(kernelWriterAssembly):
     assemblerFile.write(f"{lArgs}\n")
     assemblerFile.write( "copy %f%.co ..\..\..\library\%f%_%h%.co\n")
   else:
-    assemblerFile.write("#!/bin/sh {log}\n".format(log = "-x" if globalParameters["PrintLevel"] >=2  else ""))
+    assemblerFile.write("#!/bin/sh {log}\n".format(log = "-x" if globalParameters["PrintLevel"] >=3  else ""))
     assemblerFile.write("# usage: asm-new.sh kernelName(no extension) [--wave32]\n")
 
     assemblerFile.write("f=$1\n")
@@ -474,7 +471,7 @@ def writeKernels(outputPath, CxxCompiler, problemTypes, solutions, kernels, kern
   Common.pushWorkingPath('build_tmp')
   Common.pushWorkingPath(os.path.basename(outputPath).upper())
 
-  print1("# Writing Kernels...")
+  tPrint(1, "# Writing Kernels...")
   kernelFiles = []
   kernelSourceFile = None
   kernelHeaderFile = None
@@ -591,7 +588,7 @@ def writeKernels(outputPath, CxxCompiler, problemTypes, solutions, kernels, kern
     codeObjectFiles += getAssemblyCodeObjectFiles(kernelsToBuild, kernelWriterAssembly, outputPath)
 
   stop = time.time()
-  print1("# Kernel Building elapsed time = %.1f secs" % (stop-start))
+  tPrint(1, "# Kernel Building elapsed time = %.1f secs" % (stop-start))
 
   Common.popWorkingPath() # outputPath.upper()
 
@@ -823,7 +820,7 @@ def buildObjectFilePaths(prefixDir, solutionFiles, sourceKernelFiles, asmKernelF
 # Write CMake
 ################################################################################
 def writeCMake(outputPath, solutionFiles, kernelFiles, libraryStaticFiles, masterLibraries):
-  print1("# Writing Custom CMake")
+  tPrint(1, "# Writing Custom CMake")
 
   # Build output file paths, using relative CMake symbol
   cmakeSrcDir = "${CMAKE_SOURCE_DIR}"
@@ -918,7 +915,7 @@ def generateLogicDataAndSolutions(logicFiles, args):
       for archName in archs:
         archName = archName.split('-', 1)[0]
         if archName not in masterLibraries:
-          print1("Using fallback for arch: " + archName)
+          tPrint(1, "Using fallback for arch: " + archName)
           masterLibraries[archName] = deepcopy(masterLibraries["fallback"])
           masterLibraries[archName].version = args.version
 
@@ -1008,7 +1005,7 @@ def writeMasterSolutionIndexCSV(outputPath, masterLibraries):
             line = ",".join(str(x) for x in [arch, lazylibname, solidx, solution.index, solution.name])
             indexFile.write("%s\n" %(line))
   except IOError as err:
-    print1("Error writing MasterSolutionIndex %s" % err)
+    tPrint(1, "Error writing MasterSolutionIndex %s" % err)
 
 
 def verifyManifest(manifest: Path) -> bool:
@@ -1128,7 +1125,7 @@ def TensileCreateLibrary():
     value = eval(value)
     return (key, value)
 
-  print2("Arguments: %s" % sys.argv)
+  tPrint(3, "Arguments: %s" % sys.argv)
   argParser = argparse.ArgumentParser()
   argParser.add_argument("LogicPath",       help="Path to LibraryLogic.yaml files.")
   argParser.add_argument("OutputPath",      help="Where to write library files?")
@@ -1190,7 +1187,7 @@ def TensileCreateLibrary():
   outputPath = args.OutputPath
   CxxCompiler = args.CxxCompiler
   libraryFormat = args.LibraryFormat
-  print2("OutputPath: %s" % outputPath)
+  tPrint(3, "OutputPath: %s" % outputPath)
   ensurePath(outputPath)
   outputPath = os.path.abspath(outputPath)
   arguments = {}
@@ -1230,11 +1227,11 @@ def TensileCreateLibrary():
   
   globalParameters["PrintLevel"] = arguments["PrintLevel"] 
 
-  print1("")
-  print1(HR)
-  print1("# Tensile Create Library")
-  print2(HR)
-  print2("")
+  tPrint(1, "")
+  tPrint(1, HR)
+  tPrint(1, "# Tensile Create Library")
+  tPrint(3, HR)
+  tPrint(3, "")
 
   assignGlobalParameters(arguments)
 
@@ -1243,15 +1240,15 @@ def TensileCreateLibrary():
 
   if globalParameters["VerifyManifest"]: 
     if verifyManifest(manifestFile):
-      print1("Successfully verified all files in manifest were generated")
+      tPrint(1, "Successfully verified all files in manifest were generated")
       return
     else:
       printExit("Failed to verify all files in manifest")  
     
-  print1("# CodeObjectVersion from TensileCreateLibrary: %s" % arguments["CodeObjectVersion"])
-  print1("# CxxCompiler       from TensileCreateLibrary: %s" % CxxCompiler)
-  print1("# Architecture      from TensileCreateLibrary: %s" % arguments["Architecture"])
-  print1("# LibraryFormat     from TensileCreateLibrary: %s" % libraryFormat)
+  tPrint(1, "# CodeObjectVersion from TensileCreateLibrary: %s" % arguments["CodeObjectVersion"])
+  tPrint(1, "# CxxCompiler       from TensileCreateLibrary: %s" % CxxCompiler)
+  tPrint(1, "# Architecture      from TensileCreateLibrary: %s" % arguments["Architecture"])
+  tPrint(1, "# LibraryFormat     from TensileCreateLibrary: %s" % libraryFormat)
 
   if not os.path.exists(logicPath):
     printExit("LogicPath %s doesn't exist" % logicPath)
@@ -1268,9 +1265,9 @@ def TensileCreateLibrary():
                               lazyLoading=globalParameters["LazyLibraryLoading"],
                               experimentalDir=globalParameters["ExperimentalLogicDir"])
   
-  print1("# LibraryLogicFiles:" % logicFiles)
+  tPrint(1, "# LibraryLogicFiles:" % logicFiles)
   for logicFile in logicFiles:
-    print1("#   %s" % logicFile)
+    tPrint(1, "#   %s" % logicFile)
 
   solutions, masterLibraries, fullMasterLibrary = generateLogicDataAndSolutions(logicFiles, args)
 
@@ -1316,9 +1313,8 @@ def TensileCreateLibrary():
     
   sanityCheck(sourceLibPaths, asmLibPaths, codeObjectFiles, globalParameters["GenerateSourcesAndExit"])
 
-  if globalParameters["PrintCodeCommands"]:
-      print1(f"codeObjectFiles: {codeObjectFiles}")
-      print1(f"sourceLibPaths + asmLibPaths: {sourceLibPaths + asmLibPaths}")
+  tPrint(2, f"codeObjectFiles: {codeObjectFiles}")
+  tPrint(2, f"sourceLibPaths + asmLibPaths: {sourceLibPaths + asmLibPaths}")
 
   archs = [gfxName(arch) for arch in globalParameters['SupportedISA'] \
              if globalParameters["AsmCaps"][arch]["SupportedISA"]]
@@ -1355,12 +1351,12 @@ def TensileCreateLibrary():
     EmbeddedData.generateLibrary(embedFileName, args.EmbedLibraryKey, Path(masterFile).with_suffix(ext), theMasterLibrary.cpp_base_class, codeObjectFiles)
 
   if args.BuildClient:
-    print1("# Building Tensile Client")
+    tPrint(1, "# Building Tensile Client")
     ClientExecutable.getClientExecutable(outputPath)
 
   if args.ClientConfig:
     createClientConfig(Path(outputPath), Path(masterFile).with_suffix(ext), codeObjectFiles)
 
-  print1("# Tensile Library Writer DONE")
-  print1(HR)
-  print1("")
+  tPrint(1, "# Tensile Library Writer DONE")
+  tPrint(1, HR)
+  tPrint(1, "")

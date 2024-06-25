@@ -19,7 +19,6 @@ GlobalParameters:
   SleepPercent: 500
   DataInitTypeAlpha: 1
   DataInitTypeBeta: 0
-#  PrintCodeCommands: True
   PrintSolutionRejectionReason: True
   PrintWinnersOnly: True
 #  PinClocks: True
