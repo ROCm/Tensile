@@ -1956,10 +1956,19 @@ def getParamValues( name, structure ):
 ################################################################################
 # Print Debug
 ################################################################################
-def tPrint(verbosity: int, arg):
-  if globalParameters["PrintLevel"] >= verbosity:
-    print(arg)
-    sys.stdout.flush()
+def tPrint(verbosity: int, arg) -> None:
+    """Conditionally prints input to stdout.
+
+    If the global print level is greater than or equal to the verbosity,
+    the argument is printed to stdout.
+
+    Args:
+        verbosity: Level to use for printing arg.
+        arg: Item to print to stdout.
+    """
+    if globalParameters["PrintLevel"] >= verbosity:
+        print(arg)
+        sys.stdout.flush()
 
 def printWarning(message):
   print("Tensile::WARNING: %s" % message)
