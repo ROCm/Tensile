@@ -58,6 +58,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             mkdir build && pushd build
 
             cmake ../HostLibraryTests \
+                -DTENSILE_USE_LLVM=OFF \
                 -DCMAKE_BUILD_TYPE=${buildType} \
                 -DCMAKE_CXX_COMPILER=${compiler} \
                 -DCMAKE_CXX_FLAGS="-D__HIP_HCC_COMPAT_MODE__=1" \
