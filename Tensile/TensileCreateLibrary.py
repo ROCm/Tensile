@@ -59,7 +59,6 @@ import warnings
 from copy import deepcopy
 from typing import Set, List, Tuple
 from pathlib import Path
-from functools import partial
 
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
 TENSILE_LIBRARY_DIR = "library"
