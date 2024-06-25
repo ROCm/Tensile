@@ -39,7 +39,7 @@ class BenchmarkSplitter(object):
     @staticmethod
     def __readConfigFile(benchmarkConfigFile):
         with open(benchmarkConfigFile) as f:
-            data = yaml.safe_load(f)
+            data = yaml.load(f, yaml.CSafeLoader)
         return data
 
     # data: a loaded .yaml file
@@ -120,8 +120,8 @@ class BenchmarkSplitter(object):
                 benchmarkIdx = i
 
         assert len(benchmarkProblems) == 2 \
-            and problemIdx is not -1 \
-            and benchmarkIdx is not -1, \
+            and problemIdx != -1 \
+            and benchmarkIdx != -1, \
             "Config file must have one ProblemType group and one Benchmark group"
 
         # Grab the problem sizes from the Benchmark group
@@ -191,4 +191,4 @@ class BenchmarkSplitter(object):
         for i in range(len(benchmarksBySize)):
             outFileName = BenchmarkSplitter.__appendFileNameSuffix(outputFileBase, i, separator, suffixFormat)
             with open(outFileName, "w") as f:
-                yaml.safe_dump(benchmarksBySize[i], f)
+                yaml.dump(benchmarksBySize[i], f, yaml.CSafeDumper)

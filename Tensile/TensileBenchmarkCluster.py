@@ -28,7 +28,7 @@ import os
 import argparse
 
 from .BenchmarkSplitter import BenchmarkSplitter
-from .Common import print2
+from .Common import tPrint
 from .Configuration import ProjectConfig
 from .TensileBenchmarkClusterScripts import ScriptWriter
 from Tensile.Utilities.merge import mergePartialLogics
@@ -77,7 +77,7 @@ class BenchmarkImplSLURM(object):
             # change to use  check_output to force windows cmd block util command finish
             try:
                 out = subprocess.check_output(shlex.split(buildCmd), stdout=logFile, stderr=logFile)
-                print2(out)
+                tPrint(3, out)
             except subprocess.CalledProcessError as err:
                 print(err.output)
                 raise
@@ -229,7 +229,7 @@ class BenchmarkImplSLURM(object):
             # change to use  check_output to force windows cmd block util command finish
             try:
                 out = subprocess.check_output(shlex.split(invokeCmd), stdout=logFile, stderr=logFile)
-                print2(out)
+                tPrint(3, out)
             except subprocess.CalledProcessError as err:
                 print(err.output)
                 raise

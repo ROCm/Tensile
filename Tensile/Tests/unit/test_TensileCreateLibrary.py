@@ -109,7 +109,7 @@ def test_WriteClientLibraryFromSolutions(tmpdir):
         stream = open(tensileYamlFilePath, "r")
     except IOError:
         mylogger.error("Cannot open file: %s" % tensileYamlFilePath)
-    config = yaml.load(stream, yaml.SafeLoader)
+    config = yaml.load(stream, yaml.CSafeLoader)
     stream.close()
     actualSolutions = config["solutions"]
 
@@ -123,7 +123,7 @@ def test_WriteClientLibraryFromSolutions(tmpdir):
         stream = open(metadataYamlFilePath, "r")
     except IOError:
         mylogger.error("Cannot open file: %s" % metadataYamlFilePath)
-    metadata = yaml.load(stream, yaml.SafeLoader)
+    metadata = yaml.load(stream, yaml.CSafeLoader)
     stream.close()
     actualProblemType = metadata["ProblemType"]
 
@@ -266,9 +266,86 @@ def test_findLogicFiles():
     assert verifyYamlAndYml(), "Output should have twice as many files as old logic (which only parses .yaml)"
 
 
+def test_sanityCheck():
+    # setup some dummy lists with files
+    srcPaths = ["foo.hsaco", "bar.hsaco"]
+    asmPaths = ["baz.co", "gru.co"]
+    coPathsMatch = ["foo.hsaco", "bar.hsaco", "baz.co", "gru.co"]
+    coPathsExtra = ["foo.hsaco", "bar.hsaco", "baz.co", "gru.co", "tux.hsaco"]
+    coPathsMissing = ["foo.hsaco", "bar.hsaco", "baz.co"]
+
+    TensileCreateLibrary.sanityCheck(srcPaths, asmPaths, coPathsMatch, False)
+    # Ensure that old logic also succeeds
+    sanityCheck_oldLogic(srcPaths, asmPaths, coPathsMatch, False)
+
+    with pytest.raises(ValueError, match=r"(.*) unexpected code object files: \['tux.hsaco'\]"):
+        TensileCreateLibrary.sanityCheck(srcPaths, asmPaths, coPathsExtra, False)
+    # Ensure that old logic also fails
+    with pytest.raises(Exception):
+        try:
+            sanityCheck_oldLogic(srcPaths, asmPaths, coPathsExtra, False)
+        except:
+            raise Exception
+
+    with pytest.raises(ValueError, match=r"(.*) missing expected code object files: \['gru.co'\]"):
+        TensileCreateLibrary.sanityCheck(srcPaths, asmPaths, coPathsMissing, False)
+    # Ensure that old logic also fails
+    with pytest.raises(Exception):
+        try:
+            sanityCheck_oldLogic(srcPaths, asmPaths, coPathsMissing, False)
+        except:
+            raise Exception
+
+def test_createClientConfig():
+    
+    outputPath: Path = Path.cwd() / "my-output"
+    masterLibrary: Path = outputPath / "masterlib.data" 
+    codeObjectFiles = ["library/foo.hsaco", "library/bar.co"]
+    configFile = outputPath / "best-solution.ini"
+    
+    cleanClientConfigTest(outputPath, masterLibrary, codeObjectFiles, configFile)
+
+    with pytest.raises(FileNotFoundError, match=r"(.*) No such file or directory: '(.*)/my-output/best-solution.ini'"): 
+        TensileCreateLibrary.createClientConfig(outputPath, masterLibrary, codeObjectFiles)        
+
+    setupClientConfigTest(outputPath, masterLibrary, codeObjectFiles)
+
+    TensileCreateLibrary.createClientConfig(outputPath, masterLibrary, codeObjectFiles)
+
+    assert configFile.is_file(), "{configFile} was not generated"
+    
+    with open(configFile, "r") as f:
+        result = f.readlines()
+        assert "library-file" in result[0], "missing library-file entry"
+        assert "code-object" in result[1], "missing code-object entry"
+        assert "code-object" in result[2], "missing code-object entry"        
+        assert "best-solution" in result[3], "missing best-solution entry"                
+
+    cleanClientConfigTest(outputPath, masterLibrary, codeObjectFiles, configFile)
+
 # ----------------
 # Helper functions
 # ----------------
+def setupClientConfigTest(outputPath, masterLibrary, codeObjectFiles):
+    outputPath.mkdir()
+    with open(masterLibrary, "w") as testFile:
+        testFile.write("foo")
+    (outputPath / "library").mkdir()
+    for f in codeObjectFiles:
+        with open(outputPath / f, "w") as testFile:
+            testFile.write("foo")
+
+
+def cleanClientConfigTest(outputPath: Path, masterLibrary, codeObjectFiles, configFile):
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(configFile)
+        os.remove(masterLibrary)        
+        for f in codeObjectFiles:
+            os.remove(outputPath / f)
+        next(outputPath.iterdir()).rmdir()
+        outputPath.rmdir()
+
+
 def createDirectoryWithYamls(currentDir, prefix, ext, depth=3, nChildren=3):
     def recurse(currentDir, depth, nChildren):
         if depth == 0:
@@ -296,3 +373,15 @@ def findLogicFiles_oldLogic(logicPath, logicArchs, lazyLoading, experimentalDir)
     if not lazyLoading:
         logicFiles = [f for f in logicFiles if not experimentalDir in f]
     return logicFiles
+
+def sanityCheck_oldLogic(sourceLibPaths, asmLibPaths, codeObjectFiles, genSourcesAndExit):
+    bothLibSet = set(sourceLibPaths + asmLibPaths)
+    setA = set( map( os.path.normcase, set(codeObjectFiles) ) )
+    setB = set( map( os.path.normcase, bothLibSet ) )
+
+    sanityCheck0 = setA - setB
+    sanityCheck1 = setB - setA
+
+    assert len(sanityCheck0) == 0, "Unexpected code object files: {}".format(sanityCheck0)
+    if not genSourcesAndExit:
+        assert len(sanityCheck1) == 0, "Missing expected code object files: {}".format(sanityCheck1)

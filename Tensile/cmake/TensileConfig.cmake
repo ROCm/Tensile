@@ -113,6 +113,7 @@ function(TensileCreateLibraryFiles
        TENSILE_ROOT
        VAR_PREFIX
        CPU_THREADS
+       VERBOSE
        )
 
   # Multi value settings

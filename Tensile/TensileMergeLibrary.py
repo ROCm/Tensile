@@ -402,7 +402,7 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSi
         updateSizesAndSols(origData, mergedLogic)
 
         with open(os.path.join(outputPath, basename), "w") as outFile:
-            yaml.safe_dump(origData, outFile, default_flow_style=None)
+            yaml.dump(origData, outFile, yaml.CSafeDumper, default_flow_style=None)
         msg("File written to", os.path.join(outputPath, basename))
         msg("------------------------------")
 

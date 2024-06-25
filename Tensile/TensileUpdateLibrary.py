@@ -24,7 +24,7 @@
 
 from . import Common
 from . import LibraryIO
-from .Common import assignGlobalParameters, print1, restoreDefaultGlobalParameters, HR
+from .Common import assignGlobalParameters, tPrint, restoreDefaultGlobalParameters, HR
 from .Tensile import addCommonArguments, argUpdatedGlobalParameters
 from . import __version__
 
@@ -35,10 +35,10 @@ import sys
 
 
 def TensileUpdateLibrary(userArgs):
-    print1("")
-    print1(HR)
-    print1("#")
-    print1("#  Tensile Update Library v{}".format(__version__))
+    tPrint(1, "")
+    tPrint(1, HR)
+    tPrint(1, "#")
+    tPrint(1, "#  Tensile Update Library v{}".format(__version__))
 
     # argument parsing and related setup
     argParser = argparse.ArgumentParser()
@@ -51,17 +51,17 @@ def TensileUpdateLibrary(userArgs):
     args = argParser.parse_args(userArgs)
 
     libPath = args.LogicFile
-    print1("#  Library Logic: {}".format(libPath))
-    print1("#")
-    print1(HR)
-    print1("")
+    tPrint(1, "#  Library Logic: {}".format(libPath))
+    tPrint(1, "#")
+    tPrint(1, HR)
+    tPrint(1, "")
 
     # setup global parameters
     restoreDefaultGlobalParameters()
     assignGlobalParameters({})
     overrideParameters = argUpdatedGlobalParameters(args)
     for key, value in overrideParameters.items():
-        print1("Overriding {0}={1}".format(key, value))
+        tPrint(1, "Overriding {0}={1}".format(key, value))
         Common.globalParameters[key] = value
 
     # update logic file

@@ -25,7 +25,7 @@
 from .Common import assignParameterRequired, assignParameterWithDefault, \
                     defaultProblemType, defaultSolution, \
                     globalParameters, \
-                    print2, printExit, printWarning, \
+                    tPrint, printExit, printWarning, \
                     validActivationFormats, validConvolutionConfig, \
                     validMFMA, validWMMA, validParameters, validWeightFormats, \
                     validGEMMTypes, HPATypes
@@ -1062,8 +1062,8 @@ class ProblemType(Mapping):
       if state["IndexAssignmentsB"][i] == state["IndexUnroll"]:
         state["IndexUnrollB"] = i
         break
-    #print2("IndexUnrollA: %u" % state["IndexUnrollA"])
-    #print2("IndexUnrollB: %u" % state["IndexUnrollB"])
+    #tPrint(3, "IndexUnrollA: %u" % state["IndexUnrollA"])
+    #tPrint(3, "IndexUnrollB: %u" % state["IndexUnrollB"])
 
     # assign d0, d1
     if state["AllowNoFreeDims"]:
@@ -1072,8 +1072,8 @@ class ProblemType(Mapping):
       dimList = state["IndicesFree"]
     state["Index01A"] = [i for i in state["IndexAssignmentsA"] if i in dimList][0]
     state["Index01B"] = [i for i in state["IndexAssignmentsB"] if i in dimList][0]
-    #print2("Index01A: %u" % state["Index01A"])
-    #print2("Index01B: %u" % state["Index01B"])
+    #tPrint(3, "Index01A: %u" % state["Index01A"])
+    #tPrint(3, "Index01B: %u" % state["Index01B"])
     # Store code is optimized for 0 as the fastest-moving in memory
     # whichever has lower stride in C (lower value), is 0, other is 1
     if state["Index01A"] < state["Index01B"]:
@@ -1895,7 +1895,7 @@ class Solution(collections.abc.Mapping):
     elif globalParameters["AsmCaps"][isa]['HasWMMA']:
       outputVectorWidth, RegsPerOut = 1, 1
     else:
-      print("WARNING: unexpect code flow")
+      print("WARNING: unexpected code flow")
 
     return outputVectorWidth, RegsPerOut
 
@@ -3055,7 +3055,7 @@ class Solution(collections.abc.Mapping):
 
     ProblemType.assignDerivedParameters(state["ProblemType"])
     if not state["Valid"]:
-      print2("in assignDerivedParameters, state['Valid'] = False")
+      tPrint(3, "in assignDerivedParameters, state['Valid'] = False")
       return
 
     atomic = ((state["GlobalSplitU"] > 1) and (state["_GlobalAccumulation"] != 'MultipleBuffer')) or state["AtomicAddC"] or (state["StreamK"] > 0 and state["StreamKAtomic"] == 1)
@@ -3075,7 +3075,7 @@ class Solution(collections.abc.Mapping):
       state["PrefetchLocalRead"] = 1
       state["ExpandPointerSwap"] = 1
       state["1LDSBuffer"] = 1
-      print2("\nSet SIA=2, force PrefetchLocalRead=1, ExpandPointerSwap=1, 1LDSBuffer=1")
+      tPrint(3, "\nSet SIA=2, force PrefetchLocalRead=1, ExpandPointerSwap=1, 1LDSBuffer=1")
 
     if "MemoryModifierFormat" not in state or state["MemoryModifierFormat"] not in validParameters["MemoryModifierFormat"]:
       if globalParameters["AsmCaps"][isa]["HasGLCModifier"]:
@@ -3198,8 +3198,8 @@ class Solution(collections.abc.Mapping):
     if state["PersistentKernelAlongBatch"] and (\
             (state["PersistentKernel"] == 0) or \
             (state["KernelLanguage"] == "Source" and state["GlobalSplitU"] != 1)):
-      print2("PersistentKernelAlongBatch requires PersistentKernel != 0, forcing PersistentKernelAlongBatch = False")
-      print2("PersistentKernelAlongBatch not support GSU on HIP, forcing PersistentKernelAlongBatch = False")
+      tPrint(3, "PersistentKernelAlongBatch requires PersistentKernel != 0, forcing PersistentKernelAlongBatch = False")
+      tPrint(3, "PersistentKernelAlongBatch not support GSU on HIP, forcing PersistentKernelAlongBatch = False")
       state["PersistentKernelAlongBatch"] = False
 
     if state["PrefetchAcrossPersistent"]:
@@ -3207,7 +3207,7 @@ class Solution(collections.abc.Mapping):
          state["PersistentKernel"] == 0 or \
          state["PrefetchGlobalRead"] == 0 or \
          state["SuppressNoLoadLoop"]:
-        print2("PAP requires Assembly, PK!=0, PGR!=0, SuppressNoLoadLoop=True, forcing PAP=False")
+        tPrint(3, "PAP requires Assembly, PK!=0, PGR!=0, SuppressNoLoadLoop=True, forcing PAP=False")
         state["PrefetchAcrossPersistent"] = False
         state["PrefetchAcrossPersistentMode"] = False # PAPM should be 0 here to avoid getting rejected later with a logic file
       if state["PrefetchAcrossPersistentMode"] == 0 and state["PrefetchGlobalRead"] == 2:

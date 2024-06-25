@@ -24,7 +24,7 @@
 
 from . import Code
 from . import Common
-from .Common import globalParameters, CHeader, roundUp, Backup, print2
+from .Common import globalParameters, CHeader, roundUp, Backup, tPrint
 from .ReplacementKernels import ReplacementKernels
 from .CustomKernels import isCustomKernelConfig
 from .SolutionStructs import Solution
@@ -400,7 +400,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           valueFromParam = roundUp(kernel["LocalWritePerMfma"]*PRECISION)
           # parameter check (to avoid mismatch due to overwrapping)
           if (valueFromParam < self.numLocalWriteModPerMfma):
-            print2("LocalWritePerMfma (%f) is too small. Auto-adjusted." % kernel["LocalWritePerMfma"])
+            tPrint(3, "LocalWritePerMfma (%f) is too small. Auto-adjusted." % kernel["LocalWritePerMfma"])
             valueFromParam = self.numLocalWriteModPerMfma
           self.numLocalWriteModPerMfma = valueFromParam
         elif (kernel["DirectToVgprA"] or kernel["DirectToVgprB"]):
@@ -4293,7 +4293,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if not self.noTailLoop:
         minDUnum += 1
       if not (asgt3 >= kernel["DepthU"] * gsu * minDUnum):
-        print2("InitAccVgprOpt is disabled because AssertSizeGreaterThan for K is not greater than DepthU * GSU * %u"%minDUnum)
+        tPrint(3, "InitAccVgprOpt is disabled because AssertSizeGreaterThan for K is not greater than DepthU * GSU * %u"%minDUnum)
         self.useInitAccVgprOpt = False
 
     # condition(s) to enable singleNLL opt
@@ -5422,7 +5422,7 @@ for codeObjectFileName in codeObjectFileNames:
     else:
       kernelSource = self.getKernelSource(kernel)
 
-      if globalParameters["PrintLevel"] >= 2:
+      if globalParameters["PrintLevel"] >= 3:
         print("write_assemblyFilename %s" % assemblyFileName)
 
       with open(assemblyFileName, 'w') as assemblyFile:
@@ -5437,13 +5437,12 @@ for codeObjectFileName in codeObjectFileNames:
     objectFileName = base + '.o'
 
     args = self.getCompileArgs(assemblyFileName, objectFileName)
-    if globalParameters["PrintCodeCommands"]:
-      print (' '.join(args), " && ")
+    tPrint(2, ' '.join(args) + " && ")
 
     # change to use  check_output to force windows cmd block util command finish
     try:
       out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=self.getAssemblyDirectory())
-      print2(out)
+      tPrint(3, out)
     except subprocess.CalledProcessError as err:
       print(err.output)
       raise
@@ -5457,13 +5456,12 @@ for codeObjectFileName in codeObjectFileNames:
     coFileName = base + '.co'
 
     args = self.getLinkCodeObjectArgs([objectFileName], coFileName)
-    if globalParameters["PrintCodeCommands"]:
-      print (' '.join(args))
+    tPrint (2, ' '.join(args))
 
     # change to use  check_output to force windows cmd block util command finish
     try:
       out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=self.getAssemblyDirectory())
-      print2(out)
+      tPrint(3, out)
     except subprocess.CalledProcessError as err:
       print(err.output)
       raise

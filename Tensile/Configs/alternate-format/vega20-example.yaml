@@ -1,7 +1,7 @@
 GlobalParameters: {CSVExportWinner: 1, CSVMergeSameProblemID: 1, DataInitTypeAlpha: 1,
   DataInitTypeBeta: 0, EnqueuesPerSync: 1, KernelTime: true, LegacyComponents: 0,
   LibraryFormat: yaml, MaxWorkspaceSize: 8388608, MinimumRequiredVersion: 4.14.0,
-  NumBenchmarks: 1, NumElementsToValidate: 0, PrintLevel: 2, ShortNames: 1,
+  NumBenchmarks: 1, NumElementsToValidate: 0, PrintLevel: 3, ShortNames: 1,
   SleepPercent: 50, SyncsPerBenchmark: 1, WavefrontWidth: 64, numWarmups: 1}
 ProblemType: {Batched: true, DataType: s, OperationType: GEMM, TransposeA: false,
   TransposeB: false, UseBeta: true}

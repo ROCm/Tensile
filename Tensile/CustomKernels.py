@@ -60,6 +60,6 @@ def getCustomKernelConfigAndAssembly(name, directory=globalParameters["CustomKer
 def getCustomKernelConfig(name, directory=globalParameters["CustomKernelDirectory"]):
     rawConfig, _ = getCustomKernelConfigAndAssembly(name, directory)
     try:
-        return yaml.safe_load(rawConfig)["custom.config"]
+        return yaml.load(rawConfig, yaml.CSafeLoader)["custom.config"]
     except yaml.scanner.ScannerError as e:
         raise RuntimeError("Failed to read configuration for custom kernel: {0}\nDetails:\n{1}".format(name, e))

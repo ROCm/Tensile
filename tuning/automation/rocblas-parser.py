@@ -355,7 +355,7 @@ def create_rocBLAS_bench(benchFile, matrices,verify,initialization):
         # write output
         with open(benchFile, "w") as f:
             if len(bench) > 0:
-                yaml.safe_dump(bench, f, default_flow_style=None, sort_keys=False, width=5000)
+                yaml.dump(bench, f, yaml.CSafeDumper, default_flow_style=None, sort_keys=False, width=5000)
 
 def main():
     args = parseBenchCofnig()    
