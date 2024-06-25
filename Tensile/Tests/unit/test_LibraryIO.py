@@ -161,18 +161,18 @@ def createLibraryLogicList(arch_str, suffix_str, fp16AltImpl, fp16AltImplRound):
     sol0["ProblemType"] = problemType
 
     # other components
-    prefixData = yaml.load(version_l + arch_str, yaml.SafeLoader)
-    sizeData = yaml.load(sizes, yaml.SafeLoader)
-    suffixData = yaml.load(suffix_str, yaml.SafeLoader)
+    prefixData = yaml.load(version_l + arch_str, yaml.CSafeLoader)
+    sizeData = yaml.load(sizes, yaml.CSafeLoader)
+    suffixData = yaml.load(suffix_str, yaml.CSafeLoader)
 
     # handle fp16AltImpl and combine
     rv = prefixData + [problemType] + [[sol0, sol1]] + sizeData + suffixData
     if fp16AltImpl:
-        fp16AltData = yaml.load(fp16AltImpl_l, yaml.SafeLoader)
+        fp16AltData = yaml.load(fp16AltImpl_l, yaml.CSafeLoader)
         rv += fp16AltData
 
     if fp16AltImplRound:
-        fp16AltRoundData = yaml.load(fp16AltImplRound_l, yaml.SafeLoader)
+        fp16AltRoundData = yaml.load(fp16AltImplRound_l, yaml.CSafeLoader)
         rv += fp16AltRoundData
 
     return rv
@@ -203,18 +203,18 @@ def createLibraryLogicDict(arch_str, suffix_str, lib_str, fp16AltImpl_str, fp16A
     sol0["ProblemType"] = problemType
 
     # other components
-    prefixData = yaml.load(version_d + arch_str, yaml.SafeLoader)
-    libData = yaml.load(lib_str, yaml.SafeLoader)
-    suffixData = yaml.load(suffix_str, yaml.SafeLoader)
+    prefixData = yaml.load(version_d + arch_str, yaml.CSafeLoader)
+    libData = yaml.load(lib_str, yaml.CSafeLoader)
+    suffixData = yaml.load(suffix_str, yaml.CSafeLoader)
 
     # handle fp16AltImpl and combine
     fp16Data = {}
     if fp16AltImpl_str is not None:
-        fp16Data = yaml.load(fp16AltImpl_str, yaml.SafeLoader)
+        fp16Data = yaml.load(fp16AltImpl_str, yaml.CSafeLoader)
 
     fp16RoundData = {}
     if fp16AltImplRound_str is not None:
-        fp16RoundData = yaml.load(fp16AltImplRound_str, yaml.SafeLoader)
+        fp16RoundData = yaml.load(fp16AltImplRound_str, yaml.CSafeLoader)
 
     data = {**prefixData, **libData, **suffixData, **fp16Data, **fp16RoundData}
     data["ProblemType"] = problemType

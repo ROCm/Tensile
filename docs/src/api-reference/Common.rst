@@ -6,3 +6,4 @@ Common
 ======
 
 .. autofunction:: Tensile.Common::getArchitectureName
+.. autofunction:: Tensile.Common::tPrint    

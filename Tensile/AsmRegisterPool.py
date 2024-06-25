@@ -22,7 +22,7 @@
 #
 ################################################################################
 
-from .Common import print2, printExit, printWarning
+from .Common import tPrint, printExit, printWarning
 from .Utils import roundUpToNearestMultiple
 from .AsmUtils import inst, vgpr, sgpr
 import traceback
@@ -358,7 +358,7 @@ class RegisterPool:
           print(self.state())
         raise RuntimeError("RegisterPool::checkFinalState: temp (%s, '%s') was never checked in." \
             %(si, self.pool[si].tag))
-    print2("total vgpr count: %u\n"%self.size())
+    tPrint(3, "total vgpr count: %u\n"%self.size())
 
   ########################################
   # State

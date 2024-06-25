@@ -65,7 +65,7 @@ class LibraryLogic:
         stream = open(filename, "r")
       except IOError:
         printExit("Cannot open file: %s" % filename )
-      data = yaml.load(stream, yaml.SafeLoader)
+      data = yaml.load(stream, yaml.CSafeLoader)
 
       if isinstance(data, list):
 
@@ -243,7 +243,7 @@ class LibraryLogic:
     else:
       try:
         stream = open(filename, "w")
-        yaml.safe_dump(data, stream, default_flow_style=None)
+        yaml.dump(data, stream, yaml.CSafeDumper, default_flow_style=None)
         stream.close()
       except IOError:
         printExit("Cannot open file: %s" % filename)
