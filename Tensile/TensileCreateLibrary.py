@@ -1118,8 +1118,11 @@ def generateLazyMasterFileList(masterFileList: List[Tuple[str, MasterSolutionLib
 
     Args:
         masterLibraries: A list of name / master solution library pairs.
+
+    Returns:
+        List of pairs of master solutions libraries and the corresponding name.
     """
-    return masterFileList + list(itertools.chain.from_iterable((t for t in lib.lazyLibraries.items()) for _, lib in masterFileList))
+    return list(itertools.chain.from_iterable((t for t in lib.lazyLibraries.items()) for _, lib in masterFileList))
 
 def generateMasterFileList(masterLibraries: dict, archs: List[str], lazy: bool) -> List[Tuple[str, MasterSolutionLibrary]]:
     """ Generates a list of tuples that represent the name and the state associated with the architecture
@@ -1133,12 +1136,15 @@ def generateMasterFileList(masterLibraries: dict, archs: List[str], lazy: bool) 
         masterLibraries: A dictionary of architecture name / master solution library pairs.
         archs: A list of supported architectures.
         lazy: If True, add lazy library master files.
+
+    Returns:
+        List of pairs of master solutions libraries and the corresponding name.        
     """
     baseName = "TensileLibrary_lazy_" if lazy else "TensileLibrary_"
     result = [(baseName + arch, masterLibrary) for arch, masterLibrary in masterLibraries.items() if arch in archs]
-    return generateLazyMasterFileList(result) if lazy else result
+    return result + generateLazyMasterFileList(result) if lazy else result
 
-def writeMasterFile(libraryPath: Path, format: str, naming: dict, name: str, lib: MasterSolutionLibrary):
+def writeMasterFile(libraryPath: Path, format: str, naming: dict, name: str, lib: MasterSolutionLibrary) -> None:
     """ Writes a master file to disk as a .yaml or .dat file.
 
     Args:
