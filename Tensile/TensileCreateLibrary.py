@@ -1122,7 +1122,7 @@ def generateLazyMasterFileList(masterFileList: List[Tuple[str, MasterSolutionLib
     Returns:
         List of pairs of master solutions libraries and the corresponding name.
     """
-    return list(itertools.chain.from_iterable((t for t in lib.lazyLibraries.items()) for _, lib in masterFileList))
+    return [t for _, lib in masterFileList for t in lib.lazyLibraries.items()]
 
 def generateMasterFileList(masterLibraries: dict, archs: List[str], lazy: bool) -> List[Tuple[str, MasterSolutionLibrary]]:
     """ Generates a list of tuples that represent the name and the state associated with the architecture
