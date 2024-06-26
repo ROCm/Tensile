@@ -296,7 +296,7 @@ def test_sanityCheck():
         except:
             raise Exception
 
-def test_createClientConfig():
+def test_generateClientConfig():
     
     outputPath: Path = Path.cwd() / "my-output"
     masterLibrary: Path = outputPath / "masterlib.data" 
@@ -306,11 +306,11 @@ def test_createClientConfig():
     cleanClientConfigTest(outputPath, masterLibrary, codeObjectFiles, configFile)
 
     with pytest.raises(FileNotFoundError, match=r"(.*) No such file or directory: '(.*)/my-output/best-solution.ini'"): 
-        TensileCreateLibrary.createClientConfig(outputPath, masterLibrary, codeObjectFiles)        
+        TensileCreateLibrary.generateClientConfig(outputPath, masterLibrary, codeObjectFiles)        
 
     setupClientConfigTest(outputPath, masterLibrary, codeObjectFiles)
 
-    TensileCreateLibrary.createClientConfig(outputPath, masterLibrary, codeObjectFiles)
+    TensileCreateLibrary.generateClientConfig(outputPath, masterLibrary, codeObjectFiles)
 
     assert configFile.is_file(), "{configFile} was not generated"
     
@@ -322,6 +322,35 @@ def test_createClientConfig():
         assert "best-solution" in result[3], "missing best-solution entry"                
 
     cleanClientConfigTest(outputPath, masterLibrary, codeObjectFiles, configFile)
+
+class MasterLibraryMock:
+    def __init__(self, libraries, data):
+        self.lazyLibraries = libraries
+        self.data = data
+
+def test_generateMasterFileList():
+  
+  archs = ["arch0", "arch1"]  
+  libraries = {"arch0" : MasterLibraryMock({"mylib0" : MasterLibraryMock(None, 2)}, 0),
+               "arch1" : MasterLibraryMock({"mylib1" : MasterLibraryMock(None, 3)}, 1)}
+
+  result = TensileCreateLibrary.generateMasterFileList(libraries, archs, lazy=False)
+  for idx, t in enumerate(result):
+    assert t[0] == "TensileLibrary_arch" + str(idx), "Incorrect naming for key."
+    assert isinstance(t[1], MasterLibraryMock), "Incorrect type for value."
+    assert t[1].data == idx, "Incorrect data."    
+  
+  result = TensileCreateLibrary.generateMasterFileList(libraries, archs, lazy=True)
+
+  for idx, t in enumerate(result[0:2]):
+    assert t[0] == "TensileLibrary_lazy_arch" + str(idx), "Incorrect naming for key."
+    assert isinstance(t[1], MasterLibraryMock), "Incorrect type for value."
+    assert t[1].data == idx, "Incorrect data."    
+
+  for idx, t in enumerate(result[2:4]):
+    assert t[0] == "mylib" + str(idx), "Incorrect naming for key."
+    assert isinstance(t[1], MasterLibraryMock), "Incorrect type for value."
+    assert t[1].data == (idx+2), "Incorrect data."        
 
 # ----------------
 # Helper functions
