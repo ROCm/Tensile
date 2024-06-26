@@ -41,6 +41,7 @@ from .Common import (
     HR,
     tPrint,
     printExit,
+    architectureMap,
     ensurePath,
     CHeader,
     CMakeHeader,
@@ -52,6 +53,7 @@ from .Common import (
 )
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
+from .KernelWriterBase import KernelWriterBase
 from .SolutionLibrary import MasterSolutionLibrary
 from .SolutionStructs import Solution
 from .Utilities.String import splitDelimitedString
@@ -71,7 +73,7 @@ import time
 import warnings
 
 from copy import deepcopy
-from typing import Set, List, Tuple
+from typing import Dict, Any, Set, List, Tuple
 from pathlib import Path
 
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
@@ -396,69 +398,78 @@ def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath):
 
 
 ################################################################################
-def prepAsm(kernelWriterAssembly):
+def prepAsm(kernelWriterAssembly: KernelWriterAssembly, buildPath: Path):
+    """Create and prepare the assembly directory. - called ONCE per output directory.
+
+    This function is called once per output directory. It creates a directory
+    "assembly" under the provided **buildPath**, and generates a bash script for
+    compiling object files into code object files.
+
+    Args:
+        kernelWriterAssembly: Assembly writer object.
+        buildPath: Path to directory where assembly files will be written.
     """
-    Create and prepare the assembly directory  - called ONCE per output dir:
-    """
-    asmPath = ensurePath(os.path.join(globalParameters["WorkingPath"], "assembly"))
+    asmPath = buildPath / "assembly"
+    asmPath.mkdir(exist_ok=True)
+
     isa = globalParameters["CurrentISA"]
-    assemblerFileName = os.path.join(asmPath, "asm-new.%s" % ("bat" if os.name == "nt" else "sh"))
-    assemblerFile = open(assemblerFileName, "w")
-    if os.name == "nt":
-        assemblerFile.write("@echo off\n")
-        assemblerFile.write("set f=%1\n\n")
-        assemblerFile.write("set arg2=--wave64\n")
-        assemblerFile.write("if [%2] NEQ [] set arg2=%2\n\n")
-        assemblerFile.write("set /A wave=64\n")
-        assemblerFile.write("if %arg2% EQU --wave32 set /A wave=32\n\n")
+    assemblerFileName = asmPath / f"asm-new.{"bat" if os.name == "nt" else "sh"}"
 
-        assemblerFile.write("set h={gfxName}\n".format(gfxName=Common.gfxName(isa)))
+    with open(assemblerFileName, "w") as assemblerFile:
+        if os.name == "nt":
+            assemblerFile.write("@echo off\n")
+            assemblerFile.write("set f=%1\n\n")
+            assemblerFile.write("set arg2=--wave64\n")
+            assemblerFile.write("if [%2] NEQ [] set arg2=%2\n\n")
+            assemblerFile.write("set /A wave=64\n")
+            assemblerFile.write("if %arg2% EQU --wave32 set /A wave=32\n\n")
 
-        cArgs32 = " ".join(
-            kernelWriterAssembly.getCompileArgs("%f%.s", "%f%.o", isa=isa, wavefrontSize=32)
-        )
-        cArgs64 = " ".join(
-            kernelWriterAssembly.getCompileArgs("%f%.s", "%f%.o", isa=isa, wavefrontSize=64)
-        )
-        lArgs = " ".join(kernelWriterAssembly.getLinkCodeObjectArgs(["%f%.o"], "%f%.co"))
+            assemblerFile.write("set h={gfxName}\n".format(gfxName=Common.gfxName(isa)))
 
-        assemblerFile.write(f"if %wave% == 32 ({cArgs32}) else ({cArgs64})\n")
-        assemblerFile.write(f"{lArgs}\n")
-        assemblerFile.write("copy %f%.co ..\..\..\library\%f%_%h%.co\n")
-    else:
-        assemblerFile.write(
-            "#!/bin/sh {log}\n".format(log="-x" if globalParameters["PrintLevel"] >= 3 else "")
-        )
-        assemblerFile.write("# usage: asm-new.sh kernelName(no extension) [--wave32]\n")
+            cArgs32 = " ".join(
+                kernelWriterAssembly.getCompileArgs("%f%.s", "%f%.o", isa=isa, wavefrontSize=32)
+            )
+            cArgs64 = " ".join(
+                kernelWriterAssembly.getCompileArgs("%f%.s", "%f%.o", isa=isa, wavefrontSize=64)
+            )
+            lArgs = " ".join(kernelWriterAssembly.getLinkCodeObjectArgs(["%f%.o"], "%f%.co"))
 
-        assemblerFile.write("f=$1\n")
-        assemblerFile.write("shift\n")
-        assemblerFile.write('if [ ! -z "$1" ] && [ "$1" = "--wave32" ]; then\n')
-        assemblerFile.write("    wave=32\n")
-        assemblerFile.write("    shift\n")
-        assemblerFile.write("else\n")
-        assemblerFile.write("    wave=64\n")
-        assemblerFile.write("fi\n")
+            assemblerFile.write(f"if %wave% == 32 ({cArgs32}) else ({cArgs64})\n")
+            assemblerFile.write(f"{lArgs}\n")
+            assemblerFile.write("copy %f%.co ..\..\..\library\%f%_%h%.co\n")
+        else:
+            assemblerFile.write(
+                "#!/bin/sh {log}\n".format(log="-x" if globalParameters["PrintLevel"] >= 3 else "")
+            )
+            assemblerFile.write("# usage: asm-new.sh kernelName(no extension) [--wave32]\n")
 
-        assemblerFile.write("h={gfxName}\n".format(gfxName=Common.gfxName(isa)))
+            assemblerFile.write("f=$1\n")
+            assemblerFile.write("shift\n")
+            assemblerFile.write('if [ ! -z "$1" ] && [ "$1" = "--wave32" ]; then\n')
+            assemblerFile.write("    wave=32\n")
+            assemblerFile.write("    shift\n")
+            assemblerFile.write("else\n")
+            assemblerFile.write("    wave=64\n")
+            assemblerFile.write("fi\n")
 
-        cArgs32 = kernelWriterAssembly.getCompileArgs("$f.s", "$f.o", isa=isa, wavefrontSize=32)
-        cArgs64 = kernelWriterAssembly.getCompileArgs("$f.s", "$f.o", isa=isa, wavefrontSize=64)
-        lArgs = kernelWriterAssembly.getLinkCodeObjectArgs(["$f.o"], "$f.co")
+            assemblerFile.write("h={gfxName}\n".format(gfxName=Common.gfxName(isa)))
 
-        assemblerFile.write("if [ $wave -eq 32 ]; then\n")
-        assemblerFile.write(" ".join(cArgs32) + "\n")
-        assemblerFile.write("else\n")
-        assemblerFile.write(" ".join(cArgs64) + "\n")
-        assemblerFile.write("fi\n")
+            cArgs32 = kernelWriterAssembly.getCompileArgs("$f.s", "$f.o", isa=isa, wavefrontSize=32)
+            cArgs64 = kernelWriterAssembly.getCompileArgs("$f.s", "$f.o", isa=isa, wavefrontSize=64)
+            lArgs = kernelWriterAssembly.getLinkCodeObjectArgs(["$f.o"], "$f.co")
 
-        assemblerFile.write(" ".join(lArgs) + "\n")
+            assemblerFile.write("if [ $wave -eq 32 ]; then\n")
+            assemblerFile.write(" ".join(cArgs32) + "\n")
+            assemblerFile.write("else\n")
+            assemblerFile.write(" ".join(cArgs64) + "\n")
+            assemblerFile.write("fi\n")
 
-        assemblerFile.write("cp $f.co ../../../library/${f}_$h.co\n")
-        assemblerFile.write("mkdir -p ../../../asm_backup && ")
-        assemblerFile.write("cp $f.s ../../../asm_backup/$f.s\n")
+            assemblerFile.write(" ".join(lArgs) + "\n")
 
-    assemblerFile.close()
+            assemblerFile.write("cp $f.co ../../../library/${f}_$h.co\n")
+            assemblerFile.write("mkdir -p ../../../asm_backup && ")
+            assemblerFile.write("cp $f.s ../../../asm_backup/$f.s\n")
+
     os.chmod(assemblerFileName, 0o777)
 
 
@@ -553,15 +564,15 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
 def writeKernels(
-    outputPath,
-    CxxCompiler,
-    problemTypes,
-    solutions,
-    kernels,
-    kernelHelperObjs,
-    kernelWriterSource,
-    kernelWriterAssembly,
-    errorTolerant=False,
+    outputPath: str,
+    cxxCompiler: str,
+    params: Dict[str, Any],
+    solutions: List[Solution],
+    kernels: List[Solution],
+    kernelHelperObjs: List[KernelWriterBase],  # TODO(bstefanuk): Verify this type is correct
+    kernelWriterSource: KernelWriterSource,
+    kernelWriterAssembly: KernelWriterAssembly,
+    errorTolerant: bool = False,
 ):
     start = time.time()
 
@@ -572,6 +583,8 @@ def writeKernels(
     # NOTE: file paths must not contain the lower case word 'kernel' or the
     # /opt/rocm/bin/extractkernel will fail.
     # See buildSourceCodeObjectFile:167 for the call to this binary.
+
+    ## TODO(bstefanuk): Is there a way to get this to work without change global state?
     Common.pushWorkingPath("build_tmp")
     Common.pushWorkingPath(os.path.basename(outputPath).upper())
 
@@ -580,11 +593,8 @@ def writeKernels(
     kernelSourceFile = None
     kernelHeaderFile = None
 
-    if (
-        not globalParameters["MergeFiles"]
-        or globalParameters["NumMergedFiles"] > 1
-        or globalParameters["LazyLibraryLoading"]
-    ):
+    ## TODO(bstefanuk): Is this even used? My shows nothing popluated in this file?
+    if not params["MergeFiles"] or params["NumMergedFiles"] > 1 or params["LazyLibraryLoading"]:
         ensurePath(os.path.join(outputPath, "Kernels"))
 
     ##############################################################################
@@ -592,7 +602,9 @@ def writeKernels(
     ##############################################################################
     kernelsWithBuildErrs = {}
 
-    prepAsm(kernelWriterAssembly)
+    ## TODO(bstef): This uses global state from "WorkingPath", perhaps replace with the params
+    ## variable... but may there are side effects.
+    prepAsm(kernelWriterAssembly, Path(globalParameters["WorkingPath"]))
 
     # Kernels may be intended for different co files, but generate the same .o file
     # Mark duplicate kernels to avoid race condition
@@ -715,7 +727,7 @@ def writeKernels(
             kernelHeaderFile.close()
 
     if not globalParameters["GenerateSourcesAndExit"]:
-        codeObjectFiles += buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath)
+        codeObjectFiles += buildSourceCodeObjectFiles(cxxCompiler, kernelFiles, outputPath)
         codeObjectFiles += getAssemblyCodeObjectFiles(
             kernelsToBuild, kernelWriterAssembly, outputPath
         )
@@ -1112,11 +1124,6 @@ def generateLogicDataAndSolutions(logicFiles, version: str):
             else:
                 fullMasterLibrary.merge(deepcopy(newLibrary))
 
-        # if problemType not in logicData:
-        #   logicData[problemType] = []
-        # logicData[problemType].append((scheduleName, deviceNames, \
-        #     solutionsForSchedule, indexOrder, exactLogic, rangeLogic ))
-
     (archs, _) = splitArchs()
     if globalParameters["SeparateArchitectures"] or globalParameters["LazyLibraryLoading"]:
         if "fallback" in masterLibraries.keys():
@@ -1162,11 +1169,10 @@ def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, 
     )
 
     # write solution, kernels and CMake
-    problemType = solutions[0]["ProblemType"]
     codeObjectFiles = writeKernels(
         libraryWorkingPath,
         cxxCompiler,
-        [problemType],
+        globalParameters,  #  TODO(bstefanuk): This may be a bad idea since it will be a ref and can be mutated
         solutions,
         kernels,
         kernelsBetaOnly,
@@ -1480,6 +1486,11 @@ def TensileCreateLibrary():
         "# CodeObjectVersion from TensileCreateLibrary: %s" % args["CodeObjectVersion"],
     )
     tPrint(1, "# CxxCompiler       from TensileCreateLibrary: %s" % cxxCompiler)
+    tPrint(
+        1,
+        "# Architecture      from TensileCreateLibrary: %s" % args["Architecture"],
+    )
+    tPrint(1, "# CxxCompiler       from TensileCreateLibrary: %s" % cxxCompiler)
     tPrint(1, "# Architecture      from TensileCreateLibrary: %s" % args["Architecture"])
     tPrint(1, "# LibraryFormat     from TensileCreateLibrary: %s" % libraryFormat)
 
@@ -1556,7 +1567,7 @@ def TensileCreateLibrary():
     codeObjectFiles = writeKernels(
         outputPath,
         cxxCompiler,
-        None,
+        args,
         solutions,
         kernels,
         kernelHelperObjs,
