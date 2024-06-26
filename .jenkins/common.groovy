@@ -102,7 +102,7 @@ def runTestCommand(platform, project, jobName, testMark, boolean runHostTest=tru
               check_err
             fi
             echo The operating system is ${platform.os}
-            if [ ${platform.os} != "rhel9" ]
+            if [ ${platform.os} != "rhel9" ]; then
               tox --version
               tox run -e ci -- -m ${testMark} --timing-file=\$TIMING_FILE
               check_err
