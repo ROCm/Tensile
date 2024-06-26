@@ -150,7 +150,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
     problemType = solutions[0]["ProblemType"]
     codeObjectFiles = writeKernels( \
             globalParameters["WorkingPath"], globalParameters["CxxCompiler"], \
-            [problemType], solutions, kernels, kernelHelperOjbs, \
+            globalParameters, solutions, kernels, kernelHelperOjbs, \
             kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
     # ^ this is where solutions is mutated
 
