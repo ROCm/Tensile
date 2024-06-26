@@ -47,9 +47,6 @@ if(NOT WIN32)
     )
 endif()
 
-add_definitions(-U_GLIBCXX_ASSERTIONS)
-add_definitions(-U_LIBCPP_ENABLE_ASSERTIONS)
-
 add_library(TensileClient STATIC ${client_sources})
 
 set_target_properties(TensileClient

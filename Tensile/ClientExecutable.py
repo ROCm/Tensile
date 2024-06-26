@@ -83,7 +83,7 @@ def clientExecutableEnvironment(builddir=None):
     CCompiler   = "clang.exe"   if ((os.name == "nt") and supportedCompiler(globalParameters['CxxCompiler'])) else globalParameters['CCompiler']
 
     options = {'CMAKE_BUILD_TYPE': globalParameters["CMakeBuildType"],
-               'TENSILE_USE_MSGPACK': 'ON',
+               'TENSILE_USE_MSGPACK': 'OFF',
                'TENSILE_USE_LLVM': 'OFF',
                'Tensile_LIBRARY_FORMAT': globalParameters["LibraryFormat"],
                'CMAKE_CXX_COMPILER': os.path.join(globalParameters["ROCmBinPath"], CxxCompiler),
