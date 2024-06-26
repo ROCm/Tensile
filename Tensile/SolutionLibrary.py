@@ -252,11 +252,21 @@ class MasterSolutionLibrary:
     ArchitectureSet = set()
 
     @classmethod
-    def ArchitectureIndexMap(cls, architectureName):
-        # 'fallback', 'gfx803', 'gfx900', 'gfx906', 'gfx908', 'gfx90a',
-        # 'gfx940', 'gfx941', 'gfx942', 'gfx1010', 'gfx1011', 'gfx1012',
-        # 'gfx1030', 'gfx1031', 'gfx1032', 'gfx1034', 'gfx1035', 'gfx1100',
-        # 'gfx1101', 'gfx1102'
+    def ArchitectureIndexMap(cls, architectureName: str) -> int:
+        """Maps hex characters from gfx name to an index.
+
+        Given a gfx name of the form gfx[0-9a-f]*, map the characters following
+        gfx from hex to int and left shift the integer by 18.   
+
+        Args:
+            architectureName: The gfx name (or fallback).
+        
+        Returns:
+            An integer representing the index for the given gfx architecture.
+
+        Raises:
+            RunTimeError: The provided architecture was already mapped to an index or umappable.
+        """
         archval = -1
         if architectureName == "fallback":
             archval = 0
