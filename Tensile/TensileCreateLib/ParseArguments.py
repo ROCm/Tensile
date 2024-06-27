@@ -286,6 +286,7 @@ def parseArguments() -> Dict[str, Any]:
         "LibraryPrintDebug": args.LibraryPrintDebug,
         "CodeFromFiles": False,
         "EmbedLibrary": args.EmbedLibrary,
+        "EmbedLibraryKey": args.EmbedLibraryKey,
         "Version": args.Version,
         "LibraryFormat": args.LibraryFormat,
         "GenerateManifestAndExit": args.GenerateManifestAndExit,
