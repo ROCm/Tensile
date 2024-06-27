@@ -24,6 +24,7 @@
 
 import itertools
 import re
+from typing import Dict
 
 from . import Properties
 from . import Hardware
@@ -31,7 +32,6 @@ from . import Common
 from . import Contractions
 from .SolutionStructs import Solution as OriginalSolution
 from .Utils import state
-
 
 class SingleSolutionLibrary:
     Tag = "Single"
@@ -510,34 +510,38 @@ class MasterSolutionLibrary:
         for s in list(self.solutions.values()):
             s.name = OriginalSolution.getNameMin(s.originalSolution.getKernels()[0], naming)
 
-    def remapSolutionIndicesStartingFrom(self, curIndex):
+    @staticmethod
+    def remapSolutionIndicesStartingFromImpl(library, solutions: dict, curIndex: int) -> None:
+        reIndexMap = newSolutions = {}
+        for _, soln in solutions.items():
+            reIndexMap[soln.index] = curIndex
+            soln.index = curIndex
+            newSolutions[curIndex] = soln
+            curIndex += 1
+            solutions = newSolutions
+            library.remapSolutionIndices(reIndexMap)            
+
+    def remapSolutionIndicesStartingFrom(self, startingIndex) -> None:
+        """Remap all the solution indexes for a given library.
+
+        Given a starting index, remap all indexes for a given library
+        including the lazy libraries if enabled. If a library has five 
+        solutions and the starting index is 222. The solution.index fields
+        would be 222, 223, 224, 225 and 226 respectively. If there are two
+        lazy libraries and each have two solutions, the solution.index
+        fields would be 222, 223, 224 and 225 respectively.
+
+        Args:
+            startingIndex: The index to start remapping from.
+        """
         if self.lazyLibraries:
             lazyLibrary = {}
             for name, lib in self.lazyLibraries.items():
-                reIndexMap = {}
-                newSolutions = {}
-
-                for k, s in lib.solutions.items():
-                    reIndexMap[s.index] = curIndex
-                    s.index = curIndex
-                    newSolutions[curIndex] = s
-                    curIndex += 1
-
-                lib.solutions = newSolutions
-                lib.library.remapSolutionIndices(reIndexMap)
-
+                self.remapSolutionIndicesStartingFromImpl(lib.library, lib.solutions, startingIndex)
                 lazyLibrary[name] = lib
             self.lazyLibraries = lazyLibrary
 
-        reIndexMap = {}
-        newSolutions = {}
-        for k, s in self.solutions.items():
-            reIndexMap[s.index] = curIndex
-            s.index = curIndex
-            newSolutions[curIndex] = s
-            curIndex += 1
-        self.solutions = newSolutions
-        self.library.remapSolutionIndices(reIndexMap)
+        self.remapSolutionIndicesStartingFromImpl(self.library, self.solutions, startingIndex)
 
     def insert(self, other):
         assert self.__class__ == other.__class__
