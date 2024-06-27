@@ -55,6 +55,8 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             export TENSILE_COMPILER=${compiler}
             export HIPCC_COMPILE_FLAGS_APPEND='-O3 -Wno-format-nonliteral -parallel-jobs=4'
 
+            pip3 install -r requirements.txt
+
             mkdir build && pushd build
 
             cmake ../HostLibraryTests \

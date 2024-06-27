@@ -1617,8 +1617,8 @@ def TensileCreateLibrary():
     )
 
     tPrint(1, f"# LibraryLogicFiles: found {len(logicFiles)} files")
-    tPrint(1, f"#      set `--verbose 2` to view all files")
-    tPrint(2, "\n#   ".join(logicFiles))
+    tPrint(1, f"#      set --verbose=2 to view all files")
+    tPrint(2, "#   " + "\n#   ".join(logicFiles))
 
     solutions, masterLibraries, fullMasterLibrary = generateLogicDataAndSolutions(
         logicFiles, args["Version"]
