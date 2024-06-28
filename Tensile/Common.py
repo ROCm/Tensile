@@ -227,7 +227,8 @@ globalParameters["SupportedISA"] = [(8,0,3),
                                     (9,0,0), (9,0,6), (9,0,8), (9,0,10),
                                     (9,4,0), (9,4,1), (9,4,2),
                                     (10,1,0), (10,1,1), (10,1,2), (10,3,0), (10,3,1),
-                                    (11,0,0), (11,0,1), (11,0,2)] # assembly kernels writer supports these architectures
+                                    (11,0,0), (11,0,1), (11,0,2),
+                                    (12,0,0), (12,0,1)] # assembly kernels writer supports these architectures
 
 globalParameters["CleanupBuildFiles"] = False                     # cleanup build files (e.g. kernel assembly) once no longer needed
 globalParameters["GenerateManifestAndExit"] = False               # Output manifest file with list of expected library objects and exit
@@ -306,7 +307,9 @@ architectureMap = {
   'gfx942':'aquavanjaram942', 'gfx942:xnack+':'aquavanjaram942', 'gfx942:xnack-':'aquavanjaram942',
   'gfx1010':'navi10', 'gfx1011':'navi12', 'gfx1012':'navi14',
   'gfx1030':'navi21', 'gfx1031':'navi22', 'gfx1032':'navi23', 'gfx1034':'navi24', 'gfx1035':'rembrandt',
-  'gfx1100':'navi31', 'gfx1101':'navi32', 'gfx1102':'navi33'
+  'gfx1100':'navi31', 'gfx1101':'navi32', 'gfx1102':'navi33',
+  'gfx1200':'gfx1200',
+  'gfx1201':'gfx1201'
 }
 
 def getArchitectureName(gfxName: str) -> Optional[str]:
@@ -385,7 +388,7 @@ validMFMA["B1k"] = validMFMA["H"]
 validMFMA["C"] = validMFMA["S"]
 validMFMA["Z"] = validMFMA["D"]
 validMFMA["X"] = [[32,32,4,1], [16,16,8,1]]
-validMFMA["F8"] = [[32,32,16,1], [16,16,32,1]]      
+validMFMA["F8"] = [[32,32,16,1], [16,16,32,1]]
 validMFMA["B8"] = validMFMA["F8"]
 validMFMA["F8B8"] = validMFMA["F8"]
 validMFMA["B8F8"] = validMFMA["F8"]
@@ -2132,12 +2135,12 @@ def GetArchCaps(isaVersion):
   rv["Waitcnt0Disabled"]   = (isaVersion==(9,0,8) or isaVersion==(9,0,10) or \
                               isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
   rv["SeparateVscnt"]      = isaVersion[0] in (10, 11)
-  rv["CMPXWritesSGPR"]     = isaVersion[0] not in (10, 11)
-  rv["HasWave32"]          = isaVersion[0] in (10, 11)
+  rv["CMPXWritesSGPR"]     = isaVersion[0] not in (10, 11, 12)
+  rv["HasWave32"]          = isaVersion[0] in (10, 11, 12)
   rv["HasAccCD"]           = (isaVersion==(9,0,10) or isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
   rv["ArchAccUnifiedRegs"] = (isaVersion==(9,0,10) or isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
-  rv["VgprBank"]           = isaVersion[0] in (10, 11)
-  rv["InstRename"]         = isaVersion[0]==11
+  rv["VgprBank"]           = isaVersion[0] in (10, 11, 12)
+  rv["InstRename"]         = isaVersion[0]>=11
   rv["CrosslaneWait"]      = (isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
   rv["ForceStoreSC1"]      = (isaVersion==(9,4,0) or isaVersion==(9,4,1))
 
@@ -2388,9 +2391,10 @@ def assignGlobalParameters( config ):
     if os.name == "nt":
       globalParameters["CurrentISA"] = (9,0,6)
       printWarning("Failed to detect ISA so forcing (gfx906) on windows")
-  if globalParameters["CurrentISA"] == (9,4,1) or globalParameters["CurrentISA"] == (9,4,2) or globalParameters["CurrentISA"] == (11,0,0) or \
-     globalParameters["CurrentISA"] == (11,0,1) or globalParameters["CurrentISA"] == (11,0,2):
-    printWarning("HardwareMonitor currently disabled for gfx941/942 or gfx1100/gfx1101/gfx1102")
+  isasWithDisabledHWMonitor = ((9,4,1), (9,4,2), (11,0,0), (11,0,1), (11,0,2), (12,0,0), (12,0,1))
+  if globalParameters["CurrentISA"] in isasWithDisabledHWMonitor:
+    isaString = ', '.join(map(gfxName, isasWithDisabledHWMonitor))
+    printWarning(f"HardwareMonitor currently disabled for {isaString}")
     globalParameters["HardwareMonitor"] = False
 
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future

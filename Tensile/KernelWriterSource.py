@@ -339,10 +339,10 @@ class KernelWriterSource(KernelWriter):
     for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
       kStr += ", IDX%s" % self.indexChars[i]
     indexChar = self.indexChars[0]
-    kStr += ") (( (IDX%s)*strideD%s" % (indexChar, indexChar)
+    kStr += ") (( ((int64_t)IDX%s)*strideD%s" % (indexChar, indexChar)
     for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
       indexChar = self.indexChars[i]
-      kStr += " + (IDX%s)*strideD%s" % (indexChar, indexChar)
+      kStr += " + ((int64_t)IDX%s)*strideD%s" % (indexChar, indexChar)
     if kernel["_GlobalAccumulation"] == 'MultipleBuffer':
       kStr += " + (gsuSumIdx)*strideW"
     kStr += " ))" + self.endLine
@@ -351,10 +351,10 @@ class KernelWriterSource(KernelWriter):
     for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
       kStr += ", IDX%s" % self.indexChars[i]
     indexChar = self.indexChars[0]
-    kStr += ") (( (IDX%s)*strideC%s" % (indexChar, indexChar)
+    kStr += ") (( ((int64_t)IDX%s)*strideC%s" % (indexChar, indexChar)
     for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
       indexChar = self.indexChars[i]
-      kStr += " + (IDX%s)*strideC%s" % (indexChar, indexChar)
+      kStr += " + ((int64_t)IDX%s)*strideC%s" % (indexChar, indexChar)
     kStr += " ))" + self.endLine
     # A non-vector
     kStr += "#define GLOBAL_OFFSET_A(IDX%s" \
@@ -363,10 +363,10 @@ class KernelWriterSource(KernelWriter):
       kStr += ", IDX%s" \
           % self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]]
     indexChar = self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][0]]
-    kStr += ") (( (IDX%s)*strideA%s" % (indexChar, indexChar)
+    kStr += ") (( ((int64_t)IDX%s)*strideA%s" % (indexChar, indexChar)
     for i in range(1, len(kernel["ProblemType"]["IndexAssignmentsA"])):
       indexChar = self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]]
-      kStr += " + (IDX%s)*strideA%s" % (indexChar, indexChar)
+      kStr += " + ((int64_t)IDX%s)*strideA%s" % (indexChar, indexChar)
     kStr += " ))%s" % self.endLine
     # B non-vector
     kStr += "#define GLOBAL_OFFSET_B(IDX%s" \
@@ -375,10 +375,10 @@ class KernelWriterSource(KernelWriter):
       kStr += ", IDX%s" \
           % self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]]
     indexChar = self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][0]]
-    kStr += ") (( (IDX%s)*strideB%s" % (indexChar, indexChar)
+    kStr += ") (( ((int64_t)IDX%s)*strideB%s" % (indexChar, indexChar)
     for i in range(1, len(kernel["ProblemType"]["IndexAssignmentsB"])):
       indexChar = self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]]
-      kStr += " + (IDX%s)*strideB%s" % (indexChar, indexChar)
+      kStr += " + ((int64_t)IDX%s)*strideB%s" % (indexChar, indexChar)
     kStr += " ))" + self.endLine
     kStr += self.endLine
 
