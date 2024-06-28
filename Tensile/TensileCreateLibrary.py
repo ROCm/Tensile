@@ -561,6 +561,42 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
     return sourceFilenames
 
 
+def markDuplicateKernels(
+    kernels: List[Solution], kernelWriterAssembly: KernelWriterAssembly
+) -> List[Solution]:
+    """Marks duplicate assembly kernels based on their generated base file names.
+
+    Kernels written in Assembly language may generate duplicate output file names,
+    leading to potential race conditions. This function identifies such duplicates within
+    the provided list of Solution objects and marks them to prevent issues.
+
+    Args:
+        kernels: A list of Solution objects representing kernels to be processed.
+
+    Returns:
+        A modified list of Solution objects where kernels identified as duplicates
+        are marked with a `duplicate` attribute indicating their duplication status.
+
+    Notes:
+        - This function sets the "duplicate" attribute on Solution objects, and thereby prepares
+        kernels for **processKernelSource**, which requires "duplicate" to be set.
+    """
+    # Kernels may be intended for different .co files, but generate the same .o file
+    # Mark duplicate kernels to avoid race condition
+    # @TODO improve organization so this problem doesn't appear
+    visited = set()
+    count = 0
+    for kernel in kernels:
+        if kernel["KernelLanguage"] == "Assembly":
+            curr = kernelWriterAssembly.getKernelFileBase(kernel)
+            kernel.duplicate = curr in visited
+            count += curr in visited
+            visited.add(curr)
+    if count:
+        printWarning(f"Found {count} duplicate kernels, these will be ignored")
+    return kernels
+
+
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
@@ -612,18 +648,7 @@ def writeKernels(
         params["PrintLevel"],
     )
 
-    # Kernels may be intended for different co files, but generate the same .o file
-    # Mark duplicate kernels to avoid race condition
-    # @TODO improve organization so this problem doesn't appear
-    objFilenames = set()
-    for kernel in kernels:
-        if kernel["KernelLanguage"] == "Assembly":
-            base = kernelWriterAssembly.getKernelFileBase(kernel)
-            if base in objFilenames:
-                kernel.duplicate = True
-            else:
-                objFilenames.add(base)
-                kernel.duplicate = False
+    kernels = markDuplicateKernels(kernels, kernelWriterAssembly)
 
     kIter = zip(
         kernels,
@@ -754,7 +779,7 @@ def writeKernels(
 ##############################################################################
 # Min Naming / Solution and Kernel Writers
 ##############################################################################
-def getKernelWriters(solutions, kernels):
+def getKernelWriters(solutions: List[Solution], kernels: List[Solution]):
 
     # if any kernels are assembly, append every ISA supported
     kernelSerialNaming = Solution.getSerialNaming(kernels)
@@ -1070,7 +1095,9 @@ def writeCMake(outputPath, solutionFiles, kernelFiles, libraryStaticFiles, maste
 ################################################################################
 # Generate Kernel Objects From Solutions
 ################################################################################
-def generateKernelObjectsFromSolutions(solutions):
+def generateKernelObjectsFromSolutions(
+    solutions: List[Solution],
+) -> Tuple[List[Solution], List[KernelWriterBase], List[str]]:
     # create solution writer and kernel writer
     kernels = []
     kernelHelperObjs = []
