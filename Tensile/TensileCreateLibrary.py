@@ -72,7 +72,7 @@ import time
 import warnings
 
 from copy import deepcopy
-from typing import Dict, Any, Set, List, Tuple
+from typing import  Dict, Any, Set, List, Tuple, Callable
 from pathlib import Path
 
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
@@ -474,7 +474,7 @@ def prepAsm(
 
 
 ################################################################################
-def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
+def buildKernelSourceAndHeaderFiles(results, outputPath):
     """
     Logs errors and writes appropriate info to kernelSourceFile and kernelHeaderFile.
 
@@ -491,6 +491,7 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
 
     # Find kernels to write
     kernelsToWrite = []
+    kernelsWithBuildErrs = {}
     filesToWrite = collections.defaultdict(list)
     validKernelCount = 0
     for err, src, header, kernelName, filename in results:
@@ -642,6 +643,40 @@ def filterProcessingErrors(
     return keepKernels, keepSolutions, keepResults
 
 
+def filterBuildErrors(
+    kernels: List[Solution],
+    kernelsWithBuildErrors: List[Solution],
+    writerSelectionFn: Callable[[str], KernelWriterSource | KernelWriterAssembly],
+    errorTolerant: bool,
+):
+    """
+    Filters a list of kernels based on build errors and error tolerance.
+
+    Args:
+        kernels: A list of `Solution` objects representing kernels to filter.
+        kernelsWithBuildErrors: A list of `Solution` objects that have build errors.
+        errorTolerant: A boolean indicating whether to tolerate build errors.
+
+    Returns:
+        A filtered list of kernels (**Solution** objects) that are eligible for building.
+
+    Raises:
+        SystemExit: If **error_tolerant** is False and any kernels have build errors.
+    """
+    if not errorTolerant and len(kernelsWithBuildErrors) > 0:
+        printExit(
+            "** Kernel compilation failure **"
+            "Kernel compilation failed in one or more subprocesses. "
+            "Consider setting CpuThreads=0 and re-run to debug."
+        )
+
+    def noBuildError(kernel):
+        kernelName = writerSelectionFn(kernel["KernelLanguage"]).getKernelName(kernel)
+        return kernelName not in kernelsWithBuildErrors
+
+    return list(filter(noBuildError, kernels))
+
+
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
@@ -671,7 +706,6 @@ def writeKernels(
     Common.pushWorkingPath(os.path.basename(outputPath).upper())
 
     tPrint(1, "# Writing Kernels...")
-    kernelFiles = []
     kernelSourceFile = None
     kernelHeaderFile = None
 
@@ -682,7 +716,6 @@ def writeKernels(
     ##############################################################################
     # Write Kernels
     ##############################################################################
-    kernelsWithBuildErrs = {}
 
     ## This uses global state from "WorkingPath"
     prepAsm(
@@ -705,26 +738,14 @@ def writeKernels(
         kernels, solutions, results, params["PrintLevel"], errorTolerant
     )
 
-    kernelFiles += buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs)
+    kernelFiles, kernelsWithBuildErrors = buildKernelSourceAndHeaderFiles(results, outputPath)
 
-    kernelsToBuild = list(kernels)
-    if errorTolerant:
-
-        def success(kernel):
-            writer = (
-                kernelWriterAssembly
-                if kernel["KernelLanguage"] == "Assembly"
-                else kernelWriterSource
-            )
-            kernelName = writer.getKernelName(kernel)
-            return kernelName not in kernelsWithBuildErrs
-
-        kernelsToBuild = list(filter(success, kernelsToBuild))
-    elif len(kernelsWithBuildErrs) > 0:
-        print(
-            "\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier"
-        )
-        printExit("** kernel compilation failure **")
+    ## TODO(bstefanuk): I'm not convinced this is returning distinct output above just calling the base class function
+    ## KernelWriter.getKernelName(...)
+    writerSelector = lambda lang: kernelWriterAssembly if lang == "Assembly" else kernelWriterSource
+    kernelsToBuild = filterBuildErrors(
+        kernels, kernelsWithBuildErrors, writerSelector, errorTolerant
+    )
 
     # Put all kernel helper objects into the first merged kernel file
     if globalParameters["NumMergedFiles"] > 1 and len(kernelFiles) > 0:
@@ -751,7 +772,7 @@ def writeKernels(
         (err, src) = ko.getSourceFileString()
         kernelSourceFile.write(src)
         if err:
-            print("*** warning: invalid kernel#%u" % kernelName)
+            printWarning("*** warning: invalid kernel#%u" % kernelName)
 
         if not globalParameters["MergeFiles"]:
             kernelSourceFile.close()

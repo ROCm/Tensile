@@ -1991,7 +1991,7 @@ def printWarning(message: str, category: type[Warning]=DeveloperWarning):
   sys.stdout.flush()
 
 def printExit(message):
-  print("Tensile::FATAL: %s" % message)
+  rich.print(f"[bold red]Fatal: {message}[/bold red]")
   sys.stdout.flush()
   sys.exit(-1)
 

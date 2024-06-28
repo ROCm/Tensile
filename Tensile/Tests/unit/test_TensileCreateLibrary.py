@@ -23,6 +23,7 @@
 ################################################################################
 
 from copy import deepcopy
+import functools
 import logging
 import pytest
 import os
@@ -40,6 +41,8 @@ import shutil
 
 from pathlib import Path
 from typing import List
+
+import TensileCreateLibrary as tcl
 
 mylogger = logging.getLogger()
 
@@ -631,9 +634,48 @@ def test_filterProcessingErrors(setupSolutionsAndKernels):
         )
 
 
+
+def test_filterProcessingErrors(setupSolutionsAndKernels):
+    solutions, kernels, kernelWriterAssembly, kernelWriterSource = setupSolutionsAndKernels
+    kernels = TensileCreateLibrary.markDuplicateKernels(kernels, kernelWriterAssembly)
+
+    results = [(-2, 0, 0, 0, 0)] * len(kernels)
+
+    kernelsOut, solutionsOut, resultsOut = TensileCreateLibrary.filterProcessingErrors(
+        kernels, solutions, results, printLevel=1, errorTolerant=True
+    )
+    assert len(kernelsOut) == 0, "Kernels should be of length zero"
+    assert len(solutionsOut) == 0, "Solutions should be of length zero"
+    assert len(resultsOut) == 0, "Results should be of length zero"
+
+    results = [(-2, 0, 0, 0, 0)] + [(0, 0, 0, 0, 0)] * (len(kernels) - 1)
+    with pytest.raises(ValueError, match=r"Found 1 error\(s\) (.*)"):
+        TensileCreateLibrary.filterProcessingErrors(
+            kernels, solutions, results, printLevel=1, errorTolerant=False
+        )
+
+
+
+def test_filterBuildErrors(setupSolutionsAndKernels):
+    solutions, kernels, kernelWriterAssembly, kernelWriterSource = setupSolutionsAndKernels
+    
+    fn = functools.partial(
+        tcl.processKernelSource,
+        kernelWriterSource,
+        kernelWriterAssembly,
+    )
+    results = map(fn, kernels)
+    print("RESULT", results)
+    outputPath = Path("no-commit-kernel-build-files")
+    kernelFiles, kernelsWithBuildErrors = tcl.buildKernelSourceAndHeaderFiles(results, outputPath)
+
+    result = tcl.filterBuildErrors(kernels, kernelsWithBuildErrors)
+
+    
+
 # ----------------
 # Helper functions
-# ----------------
+# --------------
 def setupClientConfigTest(outputPath, masterLibrary, codeObjectFiles):
     outputPath.mkdir()
     with open(masterLibrary, "w") as testFile:
