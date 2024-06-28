@@ -82,8 +82,7 @@ TENSILE_LIBRARY_DIR = "library"
 
 ################################################################################
 def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
-    """
-    Generate source for a single kernel.
+    """Generate source for a single kernel.
     Returns (error, source, header, kernelName).
     """
     try:
@@ -560,6 +559,65 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
     return sourceFilenames
 
 
+def filterProcessingErrors(
+    kernels: List[Solution],
+    solutions: List[Solution],
+    results: List[Any],
+    printLevel: int,
+    errorTolerant: bool,
+) -> Tuple[List[Solution], List[Solution], List[Any]]:
+    """Filters out processing errors from lists of kernels, solutions, and results.
+
+    This function iterates through the results of **processKernelSource** and identifies
+    any errors encountered during processing. If an error is found (-2 error code),
+    the corresponding kernel, solution, and result are appended to separate lists
+    for removal. After processing, items identified for removal are deleted from the
+    original lists of kernels, solutions, and results.
+
+    Args:
+        kernels: List of Solution objects representing kernels.
+        solutions: List of Solution objects associated with kernels.
+        results: List of tuples representing processing results.
+        printLevel: Print level indicator.
+
+    Returns:
+        Tuple[List[Solution], List[Solution], List[Any]]: Tuple containing filtered lists
+        of kernels, solutions, and results after removing items with processing errors.
+
+    Raises:
+        KeyError: If 'PrintLevel' key is not found in the params dictionary.
+    """
+    ## TODO(bstefanuk): Create ticket to refactor and test this function... there's lots of room for optimization
+    ## For each kernel we check if there was an error while processing it
+    ## If there is an error, then we append to three lists
+    ## afterwards, we loop over those lists and remove items from the list of kernels
+    removeKernels = []
+    removeSolutions = []
+    removeResults = []
+    for kernIdx, res in enumerate(results) if printLevel == 0 else Utils.tqdm(enumerate(results)):
+        (err, src, header, kernelName, filename) = res
+        if err == -2:
+            if not errorTolerant:
+                print(
+                    "\nKernel generation failed for kernel: {}".format(
+                        kernels[kernIdx]["SolutionIndex"]
+                    )
+                )
+                print(kernels[kernIdx]["SolutionNameMin"])
+            removeKernels.append(kernels[kernIdx])
+            removeSolutions.append(solutions[kernIdx])
+            removeResults.append(results[kernIdx])
+    if len(removeKernels) > 0 and not errorTolerant:
+        printExit("** kernel generation failure **")
+    for kern in removeKernels:
+        kernels.remove(kern)
+    for solut in removeSolutions:
+        solutions.remove(solut)
+    for rel in removeResults:
+        results.remove(rel)
+    return kernels, solutions, results
+
+
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
@@ -625,35 +683,9 @@ def writeKernels(
         itertools.repeat(kernelWriterAssembly),
     )
     results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels")
-
-    removeKernels = []
-    removeSolutions = []
-    removeResults = []
-    for kernIdx, res in (
-        enumerate(results)
-        if globalParameters["PrintLevel"] == 0
-        else Utils.tqdm(enumerate(results))
-    ):
-        (err, src, header, kernelName, filename) = res
-        if err == -2:
-            if not errorTolerant:
-                print(
-                    "\nKernel generation failed for kernel: {}".format(
-                        kernels[kernIdx]["SolutionIndex"]
-                    )
-                )
-                print(kernels[kernIdx]["SolutionNameMin"])
-            removeKernels.append(kernels[kernIdx])
-            removeSolutions.append(solutions[kernIdx])
-            removeResults.append(results[kernIdx])
-    if len(removeKernels) > 0 and not errorTolerant:
-        printExit("** kernel generation failure **")
-    for kern in removeKernels:
-        kernels.remove(kern)
-    for solut in removeSolutions:
-        solutions.remove(solut)
-    for rel in removeResults:
-        results.remove(rel)
+    kernels, solutions, results = filterProcessingErrors(
+        kernels, solutions, results, params["PrintLevel"], errorTolerant
+    )
 
     kernelFiles += buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs)
 
