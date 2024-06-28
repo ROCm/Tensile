@@ -24,7 +24,6 @@
 
 import itertools
 import re
-from typing import Dict
 
 from . import Properties
 from . import Hardware
@@ -526,7 +525,7 @@ class MasterSolutionLibrary:
 
         Given a starting index, remap all indexes for a given library
         including the lazy libraries if enabled. If a library has five 
-        solutions and the starting index is 222. The solution.index fields
+        solutions and the starting index is 222, the solution.index fields
         would be 222, 223, 224, 225 and 226 respectively. If there are two
         lazy libraries and each have two solutions, the solution.index
         fields would be 222, 223, 224 and 225 respectively.
@@ -540,7 +539,7 @@ class MasterSolutionLibrary:
                 self.remapSolutionIndicesStartingFromImpl(lib.library, lib.solutions, startingIndex)
                 lazyLibrary[name] = lib
             self.lazyLibraries = lazyLibrary
-
+            
         self.remapSolutionIndicesStartingFromImpl(self.library, self.solutions, startingIndex)
 
     def insert(self, other):

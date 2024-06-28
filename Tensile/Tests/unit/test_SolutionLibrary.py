@@ -23,7 +23,7 @@
 ################################################################################
 
 import Tensile.SolutionLibrary as SolutionLibrary
-import re
+
 from pytest import raises
 
 def test_ArchitectureMap():
@@ -52,7 +52,7 @@ class MockLibrary:
 
 def test_remapSolutionIndexStartingFrom():
     mockSolutions = { 0 : MockSolution("foo"), 1 : MockSolution("bar")}
-    msl = SolutionLibrary.MasterSolutionLibrary(mockSolutions, MockLibrary()).remapSolutionIndicesStartingFrom(10)
+    SolutionLibrary.MasterSolutionLibrary(mockSolutions, MockLibrary()).remapSolutionIndicesStartingFrom(10)
     assert mockSolutions[0].index == 10, "Zeroith entry should have a remapped index of 10"
     assert mockSolutions[1].index == 11, "First entry should have a remapped index of 11"
     

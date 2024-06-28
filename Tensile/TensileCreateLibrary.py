@@ -72,7 +72,7 @@ import time
 import warnings
 
 from copy import deepcopy
-from typing import Set, List, Tuple, Generator, Dict
+from typing import Set, List, Tuple, Dict
 from pathlib import Path
 
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
