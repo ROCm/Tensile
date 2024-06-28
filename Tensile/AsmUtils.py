@@ -186,7 +186,7 @@ def vectorStaticRemainder(rReg, dReg, divisor, tmpSgpr, comment=""):
 # doRemainder==1 : compute quotient and remainder
 # doRemainder==2 : only compute remainder (not quotient unless required for remainder)
 # dreg == dividend
-# tmpSgpr must be 3 SPGRs (can be None if divisor is power of 2)
+# tmpSgpr must be 2 SPGRs (can be None if divisor is power of 2)
 # qReg and dReg can be "sgpr[..]" or names of sgpr (will call sgpr)
 def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
         doRemainder=1):
@@ -205,7 +205,9 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
             kStr += inst("s_and_b32", sgpr(rReg), (divisor-1), dRegSgpr, \
                     "%s = %s %% %u"%(sgpr(rReg), dRegSgpr, divisor) )
     else:
-        assert (qReg != tmpSgpr)
+        # Temp register required if divisor is not power of 2
+        assert qReg != tmpSgpr
+        assert tmpSgpr != None
         """
         if divisor == 30:
             shift = 32+2
