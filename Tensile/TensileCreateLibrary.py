@@ -670,6 +670,58 @@ def filterBuildErrors(
     return list(filter(noBuildError, kernels))
 
 
+def generateKernelSourcesAndHeaders(
+    kernelObj: KernelWriterBase,
+    srcFile: TextIOWrapper | None,
+    hdrFile: TextIOWrapper | None,
+    outputPath: Path,
+    mergeFiles: bool,
+):
+    """Writes a source and header file to disk for a kernel object and writes them to specified files or merges them.
+
+    Args:
+        kernelObj: The kernel object implementing `KernelWriterBase` interface, providing source and header strings.
+        srcFile: The text file object to write the kernel's C++ source code. If `mergeFiles` is False, should be initially None.
+        hdrFile: The text file object to write the kernel's C++ header code. If `mergeFiles` is False, should be initially None.
+        outputPath: The directory path where generated files should be saved.
+        mergeFiles: Flag indicating whether to merge source and header into existing files (`srcFile` and `hdrFile` must be pre-initialized).
+
+    Raises:
+        ValueError: If `srcFile` or `hdrFile` is None and `mergeFiles` is True, indicating file operations cannot proceed.
+
+    Notes:
+        - If `mergeFiles` is False, new `.cpp` and `.h` files are created in the `outputPath/Kernels` directory named after the kernel.
+        - Closes `srcFile` and `hdrFile` after writing if `mergeFiles` is False. Otherwise it is the user's responsibility.
+    """
+    if (srcFile is None or hdrFile is None) and mergeFiles:
+        raise ValueError(
+            "Cannot conduct file operations on NoneType, `srcFile` and `hdrFile` must be pre-initialized if `mergeFiles == true`"
+        )
+
+    kernelName = kernelObj.getKernelName()
+
+    if not mergeFiles:
+        srcFilename = outputPath / "Kernels" / f"{kernelName}.cpp"
+        srcFile = open(srcFilename, "w")
+        srcFile.write(CHeader)
+
+        hdrFilename = outputPath / "Kernels" / f"{kernelName}.h"
+        hdrFile = open(hdrFilename, "w")
+        hdrFile.write(CHeader)
+
+    err, src = kernelObj.getSourceFileString()
+    srcFile.write(src)
+    if err:
+        printWarning(f"*** Invalid kernel {kernelName}")
+
+    hdr = kernelObj.getHeaderFileString()
+    hdrFile.write(hdr)
+
+    if not mergeFiles:
+        srcFile.close()
+        hdrFile.close()
+
+
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
@@ -741,6 +793,10 @@ def writeKernels(
     # Put all kernel helper objects into the first merged kernel file
     if globalParameters["NumMergedFiles"] > 1 and len(kernelFiles) > 0:
         kernelFilename = kernelFiles[0].replace(".cpp", "")
+        ## TODO(bstefanuk): There's a potential bug here if we use NumMergeFiles=2 we open a file
+        ## then on line 767 if we also specify NoMergeFiles we open another file, bind it to the same
+        ## handle, but don't actually close the original file we opened. Same thing for the header
+        ## file on line 785
         kernelSourceFile = open(kernelFilename + ".cpp", "a", encoding="utf-8")
         kernelHeaderFile = open(kernelFilename + ".h", "a", encoding="utf-8")
     elif globalParameters["MergeFiles"] or globalParameters["LazyLibraryLoading"]:
@@ -749,37 +805,11 @@ def writeKernels(
         kernelSourceFile = open(kernelSourceFilename, "a", encoding="utf-8")
         kernelHeaderFile = open(kernelHeaderFilename, "a", encoding="utf-8")
 
-    # handle helper kernel function
     for ko in kernelHelperObjs:
-        kernelName = ko.getKernelName()
-
-        # write kernel.cpp
-        if not globalParameters["MergeFiles"]:
-            kernelSourceFilename = os.path.join(outputPath, "Kernels", kernelName + ".cpp")
-            kernelSourceFile = open(kernelSourceFilename, "w")
-            kernelSourceFile.write(CHeader)
-            kernelFiles.append(kernelSourceFilename)
-
-        (err, src) = ko.getSourceFileString()
-        kernelSourceFile.write(src)
-        if err:
-            printWarning("Invalid kernel#%u" % kernelName)
-
-        if not globalParameters["MergeFiles"]:
-            kernelSourceFile.close()
-
-        # write kernel.h
-        if not globalParameters["MergeFiles"]:
-            kernelHeaderFile = open(
-                os.path.join(os.path.normcase(outputPath), "Kernels", kernelName + ".h"),
-                "w",
-            )
-            kernelHeaderFile.write(CHeader)
-
-        kernelHeaderFile.write(ko.getHeaderFileString())
-
-        if not globalParameters["MergeFiles"]:
-            kernelHeaderFile.close()
+        newKernelFile = generateKernelSourcesAndHeaders(
+            ko, kernelSourceFile, kernelHeaderFile, outputPath, params["MergeFiles"]
+        )
+        kernelFiles.append(newKernelFile)
 
     # close merged
     if globalParameters["MergeFiles"]:
