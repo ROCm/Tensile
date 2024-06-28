@@ -72,7 +72,7 @@ import time
 import warnings
 
 from copy import deepcopy
-from typing import Set, List, Tuple, Generator
+from typing import Set, List, Tuple, Generator, Dict
 from pathlib import Path
 
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
@@ -984,13 +984,14 @@ def buildObjectFilePaths(
 
     # Use set because of duplicate fallback libraries
     newMetadataPaths = set()
-    for arch, lib in masterLibraries.items():
-        if globalParameters["LazyLibraryLoading"]:
-            newMetadataPaths.add(os.path.join(libDir, "TensileLibrary_lazy_" + arch + libraryExt))
-        else:
-            newMetadataPaths.add(os.path.join(libDir, "TensileLibrary_" + arch + libraryExt))
-        for name, placeholder in lib.lazyLibraries.items():
-            newMetadataPaths.add(os.path.join(libDir, name + libraryExt))
+    if "full" not in masterLibraries.keys():
+        for arch, lib in masterLibraries.items():
+            if globalParameters["LazyLibraryLoading"]:
+                newMetadataPaths.add(os.path.join(libDir, "TensileLibrary_lazy_" + arch + libraryExt))
+            else:
+                newMetadataPaths.add(os.path.join(libDir, "TensileLibrary_" + arch + libraryExt))
+            for name, placeholder in lib.lazyLibraries.items():
+                newMetadataPaths.add(os.path.join(libDir, name + libraryExt))
 
     libMetadataPaths += list(newMetadataPaths)
 
@@ -1096,7 +1097,7 @@ def addNewLibrary(masterLibraries, newLibrary, architectureName, version):
     return archIndex
 
 
-def makeMasterLibraries(logicList, separate, version):
+def makeMasterLibraries(logicList, separate, version) -> Dict[str, MasterSolutionLibrary]:
     """Creates a dictionary of master solution libraries.
 
     Iterates through a list of LibraryLogic objects creating
@@ -1109,8 +1110,8 @@ def makeMasterLibraries(logicList, separate, version):
         version: User provided version for the libraries.
 
     Returns:
-        A tuple of architecture separated master solution libraries
-        and a single master solution library for all architectures.
+        An architecture separated master solution libraries
+        or a single master solution library for all architectures.
     """
     masterLibraries = {}
     nextSolIndex = {}
@@ -1133,7 +1134,7 @@ def makeMasterLibraries(logicList, separate, version):
                 fullMasterLibrary.version = version
             else:
                 fullMasterLibrary.merge(deepcopy(newLibrary))
-    return (masterLibraries, fullMasterLibrary)
+    return {"full" : fullMasterLibrary} if fullMasterLibrary is not None else masterLibraries
 
 
 def addFallbacks(masterLibraries, version: str) -> None:
@@ -1186,27 +1187,23 @@ def makeSolutions(masterLibraries: dict, separate: bool): # -> Generator[Solutio
 
     Args:
         masterLibraries: A dictionary containing the master solution libraries.
-        separate: If True, separate libraries by architecture.
 
     Returns:
         List of library logic tuples.
     """
-    if separate:
-        gen1 = (
-            sol.originalSolution 
-            for masterLibrary in masterLibraries.values()
-            for sol in masterLibrary.solutions.values()
-        )
-        gen2 = (
-            sol.originalSolution
-            for masterLibrary in masterLibraries.values()
-            for lib in masterLibrary.lazyLibraries.values()
-            for sol in lib.solutions.values()
-        )
-        return itertools.chain(gen1, gen2)
-    else:
-        return (sol.originalSolution for sol in masterLibraries.solutions.values())
-
+    gen1 = (
+        sol.originalSolution 
+        for masterLibrary in masterLibraries.values()
+        for sol in masterLibrary.solutions.values()
+    )
+    gen2 = (
+        sol.originalSolution
+        for masterLibrary in masterLibraries.values()
+        for lib in masterLibrary.lazyLibraries.values()
+        for sol in lib.solutions.values()
+    )
+    return itertools.chain(gen1, gen2)
+    
 
 def parseLibraryLogicFiles(logicFiles: List[str]) -> List[LibraryIO.LibraryLogic]:
     """Load and parse logic files.
@@ -1242,25 +1239,24 @@ def generateLogicDataAndSolutions(
     
     Returns:
         A tuple of a solution list, a dictionary of architecture separated 
-        master solution libraries and a single master solution library for 
+        master solution libraries or a single master solution library for 
         all architectures.        
     """
     libraries = parseLibraryLogicFiles(logicFiles)
     # conditionally add progress bar
     logicList = libraries if not printLevel else Utils.tqdm(libraries, "Processing logic data")
-    masterLibraries, fullMasterLibrary = makeMasterLibraries(logicList, separate, version)
+    masterLibraries = makeMasterLibraries(logicList, separate, version)
     if separate:
         addFallbacks(masterLibraries, version)
 
     # Note: No reason to have masterLibrary and fullMasterLibrary
-    input = fullMasterLibrary if fullMasterLibrary else masterLibraries
     if separate: # should be if lazy
-        applyNaming(input)
-    solutions = makeSolutions(input, separate)
+        applyNaming(masterLibraries)
+    solutions = makeSolutions(masterLibraries, masterLibraries)
 
     # remove duplicates while preserving order
     solutions = list(dict.fromkeys(solutions))
-    return solutions, masterLibraries, fullMasterLibrary
+    return solutions, masterLibraries
 
 
 ################################################################################
@@ -1508,12 +1504,13 @@ def generateLazyMasterFileList(
 def generateMasterFileList(
     masterLibraries: dict, archs: List[str], lazy: bool
 ) -> List[Tuple[str, MasterSolutionLibrary]]:
-    """Generates a list of tuples that represent the name and the state associated with the architecture
-        specific master libraries.
+    """Generates a list of tuples that represent the name and the state associated with the master libraries.
 
     This function takes a dictionary with keys corresponding to a target architecture and values
     corresponding to the master solution library for that architecture. The function generates a
-    tuple consisting of a MasterSolutionLibrary and the associated name.
+    tuple consisting of a MasterSolutionLibrary and the associated name. When not separating architectures,
+    the key full will appear in masterLibraries indicating that all libraries are combinded into a
+    single master library.
 
     Args:
         masterLibraries: A dictionary of architecture name / master solution library pairs.
@@ -1523,12 +1520,16 @@ def generateMasterFileList(
     Returns:
         List of pairs of master solutions libraries and the corresponding name.
     """
+    if "full" in masterLibraries.keys():
+        return [("TensileLibrary", masterLibraries["full"])]
+
     baseName = "TensileLibrary_lazy_" if lazy else "TensileLibrary_"
     result = [
         (baseName + arch, masterLibrary)
         for arch, masterLibrary in masterLibraries.items()
         if arch in archs
     ]
+
     return result + generateLazyMasterFileList(result) if lazy else result
 
 
@@ -1824,7 +1825,7 @@ def TensileCreateLibrary():
     for logicFile in logicFiles:
         tPrint(1, "#   %s" % logicFile)
 
-    solutions, masterLibraries, fullMasterLibrary = generateLogicDataAndSolutions(
+    solutions, masterLibraries = generateLogicDataAndSolutions(
         logicFiles, args.version, args.PrintLevel, args.SeparateArchitectures
     )
 
@@ -1892,7 +1893,6 @@ def TensileCreateLibrary():
     tPrint(2, f"codeObjectFiles: {codeObjectFiles}")
     tPrint(2, f"sourceLibPaths + asmLibPaths: {sourceLibPaths + asmLibPaths}")
 
-    # do we need this or have we already done this?
     archs = [
         gfxName(arch)
         for arch in globalParameters["SupportedISA"]
@@ -1902,16 +1902,15 @@ def TensileCreateLibrary():
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)
 
-    masterFileList = (
-        generateMasterFileList(masterLibraries, archs, args.LazyLibraryLoading)
-        if args.SeparateArchitectures
-        else [("TensileLibrary", fullMasterLibrary)]
-    )
+    masterFileList = generateMasterFileList(masterLibraries, archs, args.LazyLibraryLoading)
+    
     for name, lib in masterFileList:
         writeMasterFile(newLibraryDir, args.LibraryFormat, kernelMinNaming, name, lib)
-    masterFile, fullMasterLibrary = masterFileList[0]
 
-    ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
+    if args.EmbedLibrary or args.ClientConfig:
+        masterFile, fullMasterLibrary = masterFileList[0]
+        ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
+
     if args.EmbedLibrary:
         embedFileName = Path(outputPath) / "library" / args.EmbedLibrary
         EmbeddedData.generateLibrary(
