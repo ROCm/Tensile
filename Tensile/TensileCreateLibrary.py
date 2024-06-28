@@ -618,6 +618,33 @@ def filterProcessingErrors(
     return kernels, solutions, results
 
 
+def markDuplicateKernels(kernels: List[Solution], kernelWriterAssembly: KernelWriterAssembly) -> List[Solution]:
+    """Marks duplicate kernels based on their generated file base names.
+
+    Kernels written in Assembly language may generate duplicate output file names,
+    leading to potential race conditions. This function identifies such duplicates within
+    the provided list of Solution objects and marks them to prevent issues.
+
+    Args:
+        kernels: A list of Solution objects representing kernels to be processed.
+
+    Returns:
+        A modified list of Solution objects where kernels identified as duplicates
+        are marked with a `duplicate` attribute indicating their duplication status.
+    """
+    # Kernels may be intended for different .co files, but generate the same .o file
+    # Mark duplicate kernels to avoid race condition
+    # @TODO improve organization so this problem doesn't appear
+    ## TODO(bstefanuk): Create ticket to "improve organization so this problem doesn't appear"
+    visited = set()
+    for kernel in kernels:
+        if kernel["KernelLanguage"] == "Assembly":
+            curr = kernelWriterAssembly.getKernelFileBase(kernel)
+            kernel.duplicate = curr in visited
+            visited.add(curr)
+    return kernels
+
+
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
@@ -664,18 +691,7 @@ def writeKernels(
     ## variable... but may there are side effects.
     prepAsm(kernelWriterAssembly, Path(globalParameters["WorkingPath"]))
 
-    # Kernels may be intended for different co files, but generate the same .o file
-    # Mark duplicate kernels to avoid race condition
-    # @TODO improve organization so this problem doesn't appear
-    objFilenames = set()
-    for kernel in kernels:
-        if kernel["KernelLanguage"] == "Assembly":
-            base = kernelWriterAssembly.getKernelFileBase(kernel)
-            if base in objFilenames:
-                kernel.duplicate = True
-            else:
-                objFilenames.add(base)
-                kernel.duplicate = False
+    kernels = markDuplicateKernels(kernels, kernelWriterAssembly)
 
     kIter = zip(
         kernels,
