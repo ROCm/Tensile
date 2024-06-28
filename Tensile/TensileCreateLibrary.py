@@ -72,7 +72,7 @@ import time
 import warnings
 
 from copy import deepcopy
-from typing import Set, List, Tuple
+from typing import Set, List, Tuple, Generator
 from pathlib import Path
 
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
@@ -87,9 +87,7 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
     """
     try:
         kernelWriter = (
-            kernelWriterSource
-            if kernel["KernelLanguage"] == "Source"
-            else kernelWriterAssembly
+            kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
         )
         # get kernel name
         kernelName = kernelWriter.getKernelFileBase(kernel)
@@ -125,9 +123,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
             ]
         )
 
-        numObjectFiles = len(
-            [1 for k in archKernels if k["KernelLanguage"] == "Assembly"]
-        )
+        numObjectFiles = len([1 for k in archKernels if k["KernelLanguage"] == "Assembly"])
 
         if numObjectFiles == 0:
             continue
@@ -141,9 +137,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
             coFileMap = collections.defaultdict(list)
 
             if len(objectFiles):
-                coFileMap[
-                    os.path.join(destDir, "TensileLibrary_" + archName + ".co")
-                ] = objectFiles
+                coFileMap[os.path.join(destDir, "TensileLibrary_" + archName + ".co")] = objectFiles
 
             for kernel in archKernels:
                 coName = kernel.get("codeObjectFile", None)
@@ -164,19 +158,13 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
                         file.write(" ".join(responseArgs))
                         file.flush()
 
-                    args = kernelWriterAssembly.getLinkCodeObjectArgs(
-                        ["@clangArgs.txt"], coFile
-                    )
+                    args = kernelWriterAssembly.getLinkCodeObjectArgs(["@clangArgs.txt"], coFile)
                 else:
-                    args = kernelWriterAssembly.getLinkCodeObjectArgs(
-                        objectFiles, coFile
-                    )
+                    args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
 
                 # change to use  check_output to force windows cmd block util command finish
                 try:
-                    out = subprocess.check_output(
-                        args, stderr=subprocess.STDOUT, cwd=asmDir
-                    )
+                    out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)
                     tPrint(3, out)
                 except subprocess.CalledProcessError as err:
                     print(err.output)
@@ -186,13 +174,10 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
         else:
             # no mergefiles
 
-            assemblyKernelNames = [
-                kernelWriterAssembly.getKernelFileBase(k) for k in archKernels
-            ]
+            assemblyKernelNames = [kernelWriterAssembly.getKernelFileBase(k) for k in archKernels]
             origCOFiles = [os.path.join(asmDir, k + ".co") for k in assemblyKernelNames]
             newCOFiles = [
-                os.path.join(destDir, k + "_" + archName + ".co")
-                for k in assemblyKernelNames
+                os.path.join(destDir, k + "_" + archName + ".co") for k in assemblyKernelNames
             ]
 
             for src, dst in (
@@ -240,17 +225,12 @@ def splitArchs():
 
 
 def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
-    buildPath = ensurePath(
-        os.path.join(globalParameters["WorkingPath"], "code_object_tmp")
-    )
+    buildPath = ensurePath(os.path.join(globalParameters["WorkingPath"], "code_object_tmp"))
     destDir = ensurePath(os.path.join(outputPath, "library"))
     (_, filename) = os.path.split(kernelFile)
     (base, _) = os.path.splitext(filename)
 
-    if (
-        "CmakeCxxCompiler" in globalParameters
-        and globalParameters["CmakeCxxCompiler"] is not None
-    ):
+    if "CmakeCxxCompiler" in globalParameters and globalParameters["CmakeCxxCompiler"] is not None:
         os.environ["CMAKE_CXX_COMPILER"] = globalParameters["CmakeCxxCompiler"]
 
     objectFilename = base + ".o"
@@ -267,9 +247,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
             "-D__HIP_HCC_COMPAT_MODE__=1"
         ]  # needs to be fixed when Maneesh's change is made available
         hipFlags += (
-            ["--genco"]
-            if CxxCompiler == "hipcc"
-            else ["--cuda-device-only", "-x", "hip", "-O3"]
+            ["--genco"] if CxxCompiler == "hipcc" else ["--cuda-device-only", "-x", "hip", "-O3"]
         )
         # if CxxCompiler == "amdclang++":
         # hipFlags += ["-mllvm", "-amdgpu-early-inline-all=true", "-mllvm", "-amdgpu-function-calls=false"]
@@ -340,22 +318,16 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         try:
             bundlerArgs = [bundler, "-type=o", "%s=%s" % (inflag, infile), "-list"]
             listing = (
-                subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
-                .decode()
-                .split("\n")
+                subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT).decode().split("\n")
             )
             for target in listing:
                 matched = re.search("gfx.*$", target)
                 if matched:
                     arch = re.sub(":", "-", matched.group())
                     if "TensileLibrary" in base and "fallback" in base:
-                        outfile = os.path.join(
-                            buildPath, "{0}_{1}.hsaco".format(base, arch)
-                        )
+                        outfile = os.path.join(buildPath, "{0}_{1}.hsaco".format(base, arch))
                     elif "TensileLibrary" in base:
-                        variant = [t for t in ["", "xnack-", "xnack+"] if t in target][
-                            -1
-                        ]
+                        variant = [t for t in ["", "xnack-", "xnack+"] if t in target][-1]
                         baseVariant = base + "-" + variant if variant else base
                         if arch in baseVariant:
                             outfile = os.path.join(buildPath, baseVariant + ".hsaco")
@@ -380,17 +352,13 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
                         ]
                         tPrint(2, " ".join(bundlerArgs))
                         # change to use  check_output to force windows cmd block util command finish
-                        out = subprocess.check_output(
-                            bundlerArgs, stderr=subprocess.STDOUT
-                        )
+                        out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
                         tPrint(3, out)
 
         except subprocess.CalledProcessError as err:
             tPrint(1, err.output)
             for i in range(len(archs)):
-                outfile = os.path.join(
-                    buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i])
-                )
+                outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
                 coFilenames.append(os.path.split(outfile)[1])
                 # bundlerArgs = [bundler, "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
                 bundlerArgs = [
@@ -423,9 +391,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
 def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath):
     args = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), kernelFiles)
-    coFiles = Common.ParallelMap(
-        buildSourceCodeObjectFile, args, "Compiling source kernels"
-    )
+    coFiles = Common.ParallelMap(buildSourceCodeObjectFile, args, "Compiling source kernels")
 
     return itertools.chain.from_iterable(coFiles)
 
@@ -437,9 +403,7 @@ def prepAsm(kernelWriterAssembly):
     """
     asmPath = ensurePath(os.path.join(globalParameters["WorkingPath"], "assembly"))
     isa = globalParameters["CurrentISA"]
-    assemblerFileName = os.path.join(
-        asmPath, "asm-new.%s" % ("bat" if os.name == "nt" else "sh")
-    )
+    assemblerFileName = os.path.join(asmPath, "asm-new.%s" % ("bat" if os.name == "nt" else "sh"))
     assemblerFile = open(assemblerFileName, "w")
     if os.name == "nt":
         assemblerFile.write("@echo off\n")
@@ -452,27 +416,19 @@ def prepAsm(kernelWriterAssembly):
         assemblerFile.write("set h={gfxName}\n".format(gfxName=Common.gfxName(isa)))
 
         cArgs32 = " ".join(
-            kernelWriterAssembly.getCompileArgs(
-                "%f%.s", "%f%.o", isa=isa, wavefrontSize=32
-            )
+            kernelWriterAssembly.getCompileArgs("%f%.s", "%f%.o", isa=isa, wavefrontSize=32)
         )
         cArgs64 = " ".join(
-            kernelWriterAssembly.getCompileArgs(
-                "%f%.s", "%f%.o", isa=isa, wavefrontSize=64
-            )
+            kernelWriterAssembly.getCompileArgs("%f%.s", "%f%.o", isa=isa, wavefrontSize=64)
         )
-        lArgs = " ".join(
-            kernelWriterAssembly.getLinkCodeObjectArgs(["%f%.o"], "%f%.co")
-        )
+        lArgs = " ".join(kernelWriterAssembly.getLinkCodeObjectArgs(["%f%.o"], "%f%.co"))
 
         assemblerFile.write(f"if %wave% == 32 ({cArgs32}) else ({cArgs64})\n")
         assemblerFile.write(f"{lArgs}\n")
         assemblerFile.write("copy %f%.co ..\..\..\library\%f%_%h%.co\n")
     else:
         assemblerFile.write(
-            "#!/bin/sh {log}\n".format(
-                log="-x" if globalParameters["PrintLevel"] >= 3 else ""
-            )
+            "#!/bin/sh {log}\n".format(log="-x" if globalParameters["PrintLevel"] >= 3 else "")
         )
         assemblerFile.write("# usage: asm-new.sh kernelName(no extension) [--wave32]\n")
 
@@ -487,12 +443,8 @@ def prepAsm(kernelWriterAssembly):
 
         assemblerFile.write("h={gfxName}\n".format(gfxName=Common.gfxName(isa)))
 
-        cArgs32 = kernelWriterAssembly.getCompileArgs(
-            "$f.s", "$f.o", isa=isa, wavefrontSize=32
-        )
-        cArgs64 = kernelWriterAssembly.getCompileArgs(
-            "$f.s", "$f.o", isa=isa, wavefrontSize=64
-        )
+        cArgs32 = kernelWriterAssembly.getCompileArgs("$f.s", "$f.o", isa=isa, wavefrontSize=32)
+        cArgs64 = kernelWriterAssembly.getCompileArgs("$f.s", "$f.o", isa=isa, wavefrontSize=64)
         lArgs = kernelWriterAssembly.getLinkCodeObjectArgs(["$f.o"], "$f.co")
 
         assemblerFile.write("if [ $wave -eq 32 ]; then\n")
@@ -571,9 +523,7 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
         if globalParameters["NumMergedFiles"] > 1:
             kernelSuffix = "0"
 
-        filesToWrite[
-            os.path.join(os.path.normcase(outputPath), "Kernels" + kernelSuffix)
-        ] = []
+        filesToWrite[os.path.join(os.path.normcase(outputPath), "Kernels" + kernelSuffix)] = []
 
     # Write kernel data to files
     # Parse list of files and write kernels
@@ -694,9 +644,7 @@ def writeKernels(
     for rel in removeResults:
         results.remove(rel)
 
-    kernelFiles += buildKernelSourceAndHeaderFiles(
-        results, outputPath, kernelsWithBuildErrs
-    )
+    kernelFiles += buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs)
 
     kernelsToBuild = list(kernels)
     if errorTolerant:
@@ -734,9 +682,7 @@ def writeKernels(
 
         # write kernel.cpp
         if not globalParameters["MergeFiles"]:
-            kernelSourceFilename = os.path.join(
-                outputPath, "Kernels", kernelName + ".cpp"
-            )
+            kernelSourceFilename = os.path.join(outputPath, "Kernels", kernelName + ".cpp")
             kernelSourceFile = open(kernelSourceFilename, "w")
             kernelSourceFile.write(CHeader)
             kernelFiles.append(kernelSourceFilename)
@@ -752,9 +698,7 @@ def writeKernels(
         # write kernel.h
         if not globalParameters["MergeFiles"]:
             kernelHeaderFile = open(
-                os.path.join(
-                    os.path.normcase(outputPath), "Kernels", kernelName + ".h"
-                ),
+                os.path.join(os.path.normcase(outputPath), "Kernels", kernelName + ".h"),
                 "w",
             )
             kernelHeaderFile.write(CHeader)
@@ -772,9 +716,7 @@ def writeKernels(
             kernelHeaderFile.close()
 
     if not globalParameters["GenerateSourcesAndExit"]:
-        codeObjectFiles += buildSourceCodeObjectFiles(
-            CxxCompiler, kernelFiles, outputPath
-        )
+        codeObjectFiles += buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath)
         codeObjectFiles += getAssemblyCodeObjectFiles(
             kernelsToBuild, kernelWriterAssembly, outputPath
         )
@@ -913,8 +855,7 @@ def buildObjectFileNames(
         if supportedCompiler(cxxCompiler):
             for kernelIndex in range(0, globalParameters["NumMergedFiles"]):
                 sourceLibFiles += [
-                    "Kernels%d.so-000-%s.hsaco" % (kernelIndex, arch)
-                    for arch in sourceArchs
+                    "Kernels%d.so-000-%s.hsaco" % (kernelIndex, arch) for arch in sourceArchs
                 ]
         else:
             raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
@@ -933,14 +874,10 @@ def buildObjectFileNames(
             for name, arch in itertools.product(fallbackLibs, sourceArchs)
         ]
         if supportedCompiler(cxxCompiler):
-            sourceLibFiles += [
-                "Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs
-            ]
+            sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
     else:  # Merge
         if supportedCompiler(cxxCompiler):
-            sourceLibFiles += [
-                "Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs
-            ]
+            sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
         else:
             raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
 
@@ -950,11 +887,7 @@ def buildObjectFileNames(
         if arch in sourceArchs:
             return [name + ext]
         else:
-            return [
-                name + xnack[len(arch) :] + ext
-                for xnack in sourceArchs
-                if arch in xnack
-            ]
+            return [name + xnack[len(arch) :] + ext for xnack in sourceArchs if arch in xnack]
 
     # Build a list of asm lib names
     if globalParameters["LazyLibraryLoading"]:
@@ -967,13 +900,7 @@ def buildObjectFileNames(
         )
 
         asmLibFiles += list(
-            set(
-                [
-                    kernel._state["codeObjectFile"] + ".co"
-                    for kernel in kernels
-                    if cond(kernel)
-                ]
-            )
+            set([kernel._state["codeObjectFile"] + ".co" for kernel in kernels if cond(kernel)])
         )
 
         # If architecture specific source kernel with codeObjectFile specified
@@ -1049,10 +976,7 @@ def buildObjectFilePaths(
     libDir = os.path.join(prefixDir, "library")
 
     libraryExt = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
-    if (
-        not globalParameters["SeparateArchitectures"]
-        and not globalParameters["LazyLibraryLoading"]
-    ):
+    if not globalParameters["SeparateArchitectures"] and not globalParameters["LazyLibraryLoading"]:
         libMetadataPaths = [os.path.join(libDir, "TensileLibrary" + libraryExt)]
 
     for sourceLibFile in sourceLibFiles:
@@ -1062,13 +986,9 @@ def buildObjectFilePaths(
     newMetadataPaths = set()
     for arch, lib in masterLibraries.items():
         if globalParameters["LazyLibraryLoading"]:
-            newMetadataPaths.add(
-                os.path.join(libDir, "TensileLibrary_lazy_" + arch + libraryExt)
-            )
+            newMetadataPaths.add(os.path.join(libDir, "TensileLibrary_lazy_" + arch + libraryExt))
         else:
-            newMetadataPaths.add(
-                os.path.join(libDir, "TensileLibrary_" + arch + libraryExt)
-            )
+            newMetadataPaths.add(os.path.join(libDir, "TensileLibrary_" + arch + libraryExt))
         for name, placeholder in lib.lazyLibraries.items():
             newMetadataPaths.add(os.path.join(libDir, name + libraryExt))
 
@@ -1092,9 +1012,7 @@ def buildObjectFilePaths(
 ################################################################################
 # Write CMake
 ################################################################################
-def writeCMake(
-    outputPath, solutionFiles, kernelFiles, libraryStaticFiles, masterLibraries
-):
+def writeCMake(outputPath, solutionFiles, kernelFiles, libraryStaticFiles, masterLibraries):
     tPrint(1, "# Writing Custom CMake")
 
     # Build output file paths, using relative CMake symbol
@@ -1106,9 +1024,7 @@ def writeCMake(
         sourceLibPaths,
         asmLibPaths,
         _,
-    ) = buildObjectFilePaths(
-        cmakeSrcDir, solutionFiles, kernelFiles, [], [], [], masterLibraries
-    )
+    ) = buildObjectFilePaths(cmakeSrcDir, solutionFiles, kernelFiles, [], [], [], masterLibraries)
 
     # Build full paths the static library files
     staticFilePaths = []
@@ -1116,9 +1032,7 @@ def writeCMake(
         staticFilePaths += [os.path.join(cmakeSrcDir, staticFile)]
 
     # Proceed to generate cmake file
-    generatedFile = open(
-        os.path.join(os.path.normcase(outputPath), "Generated.cmake"), "w"
-    )
+    generatedFile = open(os.path.join(os.path.normcase(outputPath), "Generated.cmake"), "w")
     generatedFile.write(CMakeHeader)
 
     # write TensileClient_KERNELS symbol
@@ -1158,87 +1072,191 @@ def generateKernelObjectsFromSolutions(solutions):
     return (kernels, kernelHelperObjs, kernelHelperNames)
 
 
-################################################################################
-# Generate Logic Data and Solutions
-################################################################################
-def generateLogicDataAndSolutions(logicFiles, args):
-    libraries = Common.ParallelMap(
-        LibraryIO.parseLibraryLogicFile,
-        logicFiles,
-        "Reading logic files",
-        multiArg=False,
-    )
-    solutions = []
+def addNewLibrary(masterLibraries, newLibrary, architectureName, version):
+    """Adds master solution library to a master solution libraries dict.
+
+    For a given architecture, add the new library to a dictionary containing
+    libraries for all architectures, compute the starting index for the new
+    library, then remap the indexes for all of the solutions associated with
+    the library.
+
+    Args:
+        masterLibraries: A dictionary containing all master solution libraries for all architectures.
+        newLibrary: A master solution library to add to the dictionary.
+        architectureName: The name of the architecture (or key) associated with the library.
+        version: User provided version for the library.
+
+    Returns:
+        A tuple of
+    """
+    masterLibraries[architectureName] = deepcopy(newLibrary)
+    archIndex = MasterSolutionLibrary.ArchitectureIndexMap(architectureName)
+    masterLibraries[architectureName].remapSolutionIndicesStartingFrom(archIndex)
+    masterLibraries[architectureName].version = version
+    return archIndex
+
+
+def makeMasterLibraries(logicList, separate, version):
+    """Creates a dictionary of master solution libraries.
+
+    Iterates through a list of LibraryLogic objects creating
+    master solution libraries and modifying the indexing as
+    rereuiqred.
+
+    Args:
+        logicFiles: List of LibraryLogic objects.
+        separate: Separate libraries by architecture.        
+        version: User provided version for the libraries.
+
+    Returns:
+        A tuple of architecture separated master solution libraries
+        and a single master solution library for all architectures.
+    """
     masterLibraries = {}
+    nextSolIndex = {}
     fullMasterLibrary = None
 
-    nextSolIndex = {}
-    for logic in (
-        libraries
-        if globalParameters["PrintLevel"] == 0
-        else Utils.tqdm(libraries, "Processing logic data")
-    ):
+    for logic in logicList:
         (_, architectureName, _, solutionsForSchedule, _, newLibrary) = logic
-
-        if (
-            globalParameters["SeparateArchitectures"]
-            or globalParameters["LazyLibraryLoading"]
-        ):
-
+        if separate:
             if architectureName in masterLibraries:
-                nextSolIndex[architectureName] = masterLibraries[
-                    architectureName
-                ].merge(deepcopy(newLibrary), nextSolIndex[architectureName])
+                nextSolIndex[architectureName] = masterLibraries[architectureName].merge(
+                    deepcopy(newLibrary), nextSolIndex[architectureName]
+                )
             else:
-                masterLibraries[architectureName] = deepcopy(newLibrary)
-                archIndexMap = MasterSolutionLibrary.ArchitectureIndexMap(
-                    architectureName
+                nextSolIndex[architectureName] = addNewLibrary(
+                    masterLibraries, newLibrary, architectureName, version
                 )
-                masterLibraries[architectureName].remapSolutionIndicesStartingFrom(
-                    archIndexMap
-                )
-                nextSolIndex[architectureName] = archIndexMap
-                masterLibraries[architectureName].version = args.version
         else:
             if fullMasterLibrary is None:
                 fullMasterLibrary = deepcopy(newLibrary)
-                fullMasterLibrary.version = args.version
+                fullMasterLibrary.version = version
             else:
                 fullMasterLibrary.merge(deepcopy(newLibrary))
+    return (masterLibraries, fullMasterLibrary)
 
-        # if problemType not in logicData:
-        #   logicData[problemType] = []
-        # logicData[problemType].append((scheduleName, deviceNames, \
-        #     solutionsForSchedule, indexOrder, exactLogic, rangeLogic ))
 
-    (archs, _) = splitArchs()
-    if (
-        globalParameters["SeparateArchitectures"]
-        or globalParameters["LazyLibraryLoading"]
-    ):
-        if "fallback" in masterLibraries.keys():
-            for key, value in masterLibraries.items():
-                if key != "fallback":
-                    value.insert(deepcopy(masterLibraries["fallback"]))
-            for archName in archs:
-                archName = archName.split("-", 1)[0]
-                if archName not in masterLibraries:
-                    tPrint(1, "Using fallback for arch: " + archName)
-                    masterLibraries[archName] = deepcopy(masterLibraries["fallback"])
-                    masterLibraries[archName].version = args.version
+def addFallbacks(masterLibraries, version: str) -> None:
+    """Adds fallback librarys.
 
-            masterLibraries.pop("fallback")
+    Given a master solution library, add a fallback and if the corresponding 
+    architecture is unsupported, replace the library altogether with a fallback.   
 
-        for _, masterLibrary in masterLibraries.items():
-            for _, sol in masterLibrary.solutions.items():
-                solutions.append(sol.originalSolution)
-            for name, lib in masterLibrary.lazyLibraries.items():
-                for _, sol in lib.solutions.items():
-                    sol.originalSolution._state["codeObjectFile"] = name
-                    solutions.append(sol.originalSolution)
+    Args:
+        masterLibraries: A dictionary containing the master solution libraries.
+        version: User provided version for the library. 
+    """
+    archs, _ = splitArchs()
+    for key, value in masterLibraries.items(): 
+        if key != "fallback": # why?
+            value.insert(deepcopy(masterLibraries["fallback"])) # why?
+    for archName in archs:
+        archName = archName.split("-", 1)[0]
+        if archName not in masterLibraries:
+            tPrint(1, "Using fallback for arch: " + archName)
+            masterLibraries[archName] = deepcopy(masterLibraries["fallback"])
+            # I don't think this is the right place for this        
+            masterLibraries[archName].version = version
+    masterLibraries.pop("fallback")
+
+
+def applyNaming(masterLibraries) -> None:
+    """Assigns the solution code object file name for lazy libraries.
+
+    Given a master solution library with lazy libraries, assigns the
+    key associated with the lazy library (or name) as the value 
+    assiciated with the corresponding solution's code object file.  
+
+    Args:
+        masterLibraries: A dictionary containing the master solution libraries.
+    """
+    for masterLibrary in masterLibraries.values():  # belongs elsewhere
+        for name, lib in masterLibrary.lazyLibraries.items():  # belongs elsewhere
+            for sol in lib.solutions.values():  # belongs elsewhere
+                sol.originalSolution._state["codeObjectFile"] = name  # belongs elsewhere
+
+
+def makeSolutions(masterLibraries: dict, separate: bool): # -> Generator[Solution]:# is breaking tensile
+    """Extracts the solutions from the master solution library.
+
+    Given a master solution library, forms a flattened generator that 
+    yields solutions by iterating over all of the solutions contained
+    in the master solution libraries. If using separate architectures,
+    but not using lazy loading lazyLibraries should be an empty dict.
+
+    Args:
+        masterLibraries: A dictionary containing the master solution libraries.
+        separate: If True, separate libraries by architecture.
+
+    Returns:
+        List of library logic tuples.
+    """
+    if separate:
+        gen1 = (
+            sol.originalSolution 
+            for masterLibrary in masterLibraries.values()
+            for sol in masterLibrary.solutions.values()
+        )
+        gen2 = (
+            sol.originalSolution
+            for masterLibrary in masterLibraries.values()
+            for lib in masterLibrary.lazyLibraries.values()
+            for sol in lib.solutions.values()
+        )
+        return itertools.chain(gen1, gen2)
     else:
-        for _, sol in fullMasterLibrary.solutions.items():
-            solutions.append(sol.originalSolution)
+        return (sol.originalSolution for sol in masterLibraries.solutions.values())
+
+
+def parseLibraryLogicFiles(logicFiles: List[str]) -> List[LibraryIO.LibraryLogic]:
+    """Load and parse logic files.
+
+    Given a list of paths to yaml files containing library logic, load the files
+    into memory and parse the data into a named tuple or LibraryLogic. This operation
+    is parallelized over N processes.
+
+    Args:
+        logicFiles: List of paths to logic files.
+    
+    Returns:
+        List of library logic tuples.
+    """
+    return Common.ParallelMap(
+        LibraryIO.parseLibraryLogicFile, logicFiles, "Reading logic files", multiArg=False
+    )
+
+
+################################################################################
+# Generate Logic Data and Solutions
+################################################################################
+def generateLogicDataAndSolutions(
+    logicFiles: List[str], version: str, printLevel: int, separate: bool
+) -> Tuple[List[Solution], MasterSolutionLibrary, dict]:
+    """ Generates a dictionary of master solution libraries and a list of solutions.
+
+    Args:
+        logicFiles: List of paths to logic files.
+        version: User provided version for the library.
+        printLevel: Level of debug printing requested.
+        separate: Separate libraries by architecture.
+    
+    Returns:
+        A tuple of a solution list, a dictionary of architecture separated 
+        master solution libraries and a single master solution library for 
+        all architectures.        
+    """
+    libraries = parseLibraryLogicFiles(logicFiles)
+    # conditionally add progress bar
+    logicList = libraries if not printLevel else Utils.tqdm(libraries, "Processing logic data")
+    masterLibraries, fullMasterLibrary = makeMasterLibraries(logicList, separate, version)
+    if separate:
+        addFallbacks(masterLibraries, version)
+
+    # Note: No reason to have masterLibrary and fullMasterLibrary
+    input = fullMasterLibrary if fullMasterLibrary else masterLibraries
+    if separate: # should be if lazy
+        applyNaming(input)
+    solutions = makeSolutions(input, separate)
 
     # remove duplicates while preserving order
     solutions = list(dict.fromkeys(solutions))
@@ -1248,9 +1266,7 @@ def generateLogicDataAndSolutions(logicFiles, args):
 ################################################################################
 # Write Benchmark Client Files
 ################################################################################
-def writeBenchmarkClientFiles(
-    libraryWorkingPath, tensileSourcePath, solutions, cxxCompiler
-):
+def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, cxxCompiler):
 
     if not globalParameters["GenerateSourcesAndExit"]:
         copyStaticFiles(libraryWorkingPath)
@@ -1284,9 +1300,7 @@ def writeBenchmarkClientFiles(
     return (codeObjectFiles, newLibrary)
 
 
-def WriteClientLibraryFromSolutions(
-    solutionList, libraryWorkingPath, tensileSourcePath=None
-):
+def WriteClientLibraryFromSolutions(solutionList, libraryWorkingPath, tensileSourcePath=None):
 
     if tensileSourcePath == None:
         tensileSourcePath = os.path.dirname(os.path.realpath(__file__))
@@ -1323,9 +1337,7 @@ def writeMasterSolutionIndexCSV(outputPath, masterLibraries):
     libraryPath = os.path.join(outputPath, "library")
     ensurePath(libraryPath)
     try:
-        with open(
-            os.path.join(libraryPath, "TensileMasterSolutionIndex.csv"), "w"
-        ) as indexFile:
+        with open(os.path.join(libraryPath, "TensileMasterSolutionIndex.csv"), "w") as indexFile:
             indexFile.write(
                 "architectureName,libraryName,libraryIndex,solutionIndex,solutionName\n"
             )
@@ -1381,15 +1393,11 @@ def findLogicFiles(
     Returns:
         A list of Path objects representing the found YAML files.
     """
-    isMatch = lambda file: any(
-        (arch in file.stem for arch in logicArchs.union(extraMatchers))
-    )
+    isMatch = lambda file: any((arch in file.stem for arch in logicArchs.union(extraMatchers)))
     isExperimental = lambda path: not experimentalDir in str(path)
 
     extensions = ["*.yaml", "*.yml"]
-    logicFiles = filter(
-        isMatch, (file for ext in extensions for file in path.rglob(ext))
-    )
+    logicFiles = filter(isMatch, (file for ext in extensions for file in path.rglob(ext)))
     if not lazyLoading:
         if not experimentalDir:
             printWarning(
@@ -1463,9 +1471,7 @@ def generateClientConfig(
     with open(iniFile, "w") as f:
         if not masterFile.is_file():
             warnings.warn(
-                UserWarning(
-                    f"{masterFile} does not exist. best-solution.ini may be invalid."
-                )
+                UserWarning(f"{masterFile} does not exist. best-solution.ini may be invalid.")
             )
 
         param("library-file", masterFile)
@@ -1473,9 +1479,7 @@ def generateClientConfig(
             codeObject: Path = outputPath / coFile
             if not codeObject.is_file():
                 warnings.warn(
-                    UserWarning(
-                        f"{codeObject} does not exist. best-solution.ini may be invalid."
-                    )
+                    UserWarning(f"{codeObject} does not exist. best-solution.ini may be invalid.")
                 )
 
             param("code-object", outputPath / coFile)
@@ -1570,9 +1574,7 @@ def TensileCreateLibrary():
         "RuntimeLanguage", help="Which runtime language?", choices=["OCL", "HIP", "HSA"]
     )
 
-    compilerChoices = (
-        ["amdclang++", "hipcc"] if os.name != "nt" else ["clang++", "hipcc"]
-    )
+    compilerChoices = ["amdclang++", "hipcc"] if os.name != "nt" else ["clang++", "hipcc"]
     argParser.add_argument(
         "--cxx-compiler",
         dest="CxxCompiler",
@@ -1583,9 +1585,7 @@ def TensileCreateLibrary():
         " On linux, amdclang++ (default) or hipcc. On Windows clang++ (default) or hipcc.",
     )
 
-    argParser.add_argument(
-        "--cmake-cxx-compiler", dest="CmakeCxxCompiler", action="store"
-    )
+    argParser.add_argument("--cmake-cxx-compiler", dest="CmakeCxxCompiler", action="store")
     argParser.add_argument(
         "--code-object-version",
         dest="CodeObjectVersion",
@@ -1612,9 +1612,7 @@ def TensileCreateLibrary():
         help="Number of files the kernels should be written into.",
     )
     argParser.add_argument("--short-file-names", dest="ShortNames", action="store_true")
-    argParser.add_argument(
-        "--no-short-file-names", dest="ShortNames", action="store_false"
-    )
+    argParser.add_argument("--no-short-file-names", dest="ShortNames", action="store_false")
     argParser.add_argument(
         "--library-print-debug",
         dest="LibraryPrintDebug",
@@ -1639,9 +1637,7 @@ def TensileCreateLibrary():
         default=None,
         help="Access key for embedding library files.",
     )
-    argParser.add_argument(
-        "--version", help="Version string to embed into library file."
-    )
+    argParser.add_argument("--version", help="Version string to embed into library file.")
     argParser.add_argument(
         "--generate-manifest-and-exit",
         dest="GenerateManifestAndExit",
@@ -1713,9 +1709,7 @@ def TensileCreateLibrary():
         action="store_true",
         help="Create client config for setting the library and code object files",
     )
-    argParser.add_argument(
-        "--global-parameters", nargs="+", type=splitExtraParameters, default=[]
-    )
+    argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
     argParser.add_argument(
         "--ignore-asm-cap-cache",
         dest="IgnoreAsmCapCache",
@@ -1796,8 +1790,7 @@ def TensileCreateLibrary():
 
     tPrint(
         1,
-        "# CodeObjectVersion from TensileCreateLibrary: %s"
-        % arguments["CodeObjectVersion"],
+        "# CodeObjectVersion from TensileCreateLibrary: %s" % arguments["CodeObjectVersion"],
     )
     tPrint(1, "# CxxCompiler       from TensileCreateLibrary: %s" % CxxCompiler)
     tPrint(
@@ -1811,11 +1804,7 @@ def TensileCreateLibrary():
 
     # CLI uses `;` delimiters, CMake uses `_` delimiters
     logicArchs = splitDelimitedString(arguments["Architecture"], {";", "_"})
-    logicArchs = {
-        name
-        for name in (getArchitectureName(gfxName) for gfxName in logicArchs)
-        if name
-    }
+    logicArchs = {name for name in (getArchitectureName(gfxName) for gfxName in logicArchs) if name}
 
     if globalParameters["LazyLibraryLoading"] and not (
         globalParameters["MergeFiles"] and globalParameters["SeparateArchitectures"]
@@ -1836,7 +1825,7 @@ def TensileCreateLibrary():
         tPrint(1, "#   %s" % logicFile)
 
     solutions, masterLibraries, fullMasterLibrary = generateLogicDataAndSolutions(
-        logicFiles, args
+        logicFiles, args.version, args.PrintLevel, args.SeparateArchitectures
     )
 
     if globalParameters["LazyLibraryLoading"] and arguments["WriteMasterSolutionIndex"]:
@@ -1876,9 +1865,7 @@ def TensileCreateLibrary():
         return
 
     if not arguments["GenerateSourcesAndExit"]:
-        writeCMake(
-            outputPath, solutionFiles, sourceKernelFiles, staticFiles, masterLibraries
-        )
+        writeCMake(outputPath, solutionFiles, sourceKernelFiles, staticFiles, masterLibraries)
 
     # Make sure to copy the library static files.
     for fileName in staticFiles:
@@ -1940,9 +1927,7 @@ def TensileCreateLibrary():
         ClientExecutable.getClientExecutable(outputPath)
 
     if args.ClientConfig:
-        generateClientConfig(
-            Path(outputPath), Path(masterFile).with_suffix(ext), codeObjectFiles
-        )
+        generateClientConfig(Path(outputPath), Path(masterFile).with_suffix(ext), codeObjectFiles)
 
     tPrint(1, "# Tensile Library Writer DONE")
     tPrint(1, HR)
