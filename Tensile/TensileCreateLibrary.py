@@ -738,8 +738,6 @@ def writeKernels(
 ):
     start = time.time()
 
-    codeObjectFiles = []
-
     # Push working path into build_tmp folder because there may be more than
     # one process running this script. This is to avoid build directory clashing.
     # NOTE: file paths must not contain the lower case word 'kernel' or the
@@ -757,10 +755,6 @@ def writeKernels(
     ## TODO: This may be unused
     if not params["MergeFiles"] or params["NumMergedFiles"] > 1 or params["LazyLibraryLoading"]:
         ensurePath(os.path.join(outputPath, "Kernels"))
-
-    ##############################################################################
-    # Write Kernels
-    ##############################################################################
 
     ## This uses global state from "WorkingPath"
     prepAsm(
@@ -818,6 +812,7 @@ def writeKernels(
         if kernelHeaderFile:
             kernelHeaderFile.close()
 
+    codeObjectFiles = []
     if not globalParameters["GenerateSourcesAndExit"]:
         codeObjectFiles += buildSourceCodeObjectFiles(cxxCompiler, kernelFiles, outputPath)
         codeObjectFiles += getAssemblyCodeObjectFiles(
