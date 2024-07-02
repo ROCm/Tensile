@@ -751,14 +751,11 @@ def writeKernels(
 ):
     start = time.time()
 
-    codeObjectFiles = []
-
     # Push working path into build_tmp folder because there may be more than
     # one process running this script. This is to avoid build directory clashing.
     # NOTE: file paths must not contain the lower case word 'kernel' or the
     # /opt/rocm/bin/extractkernel will fail.
     # See buildSourceCodeObjectFile:167 for the call to this binary.
-
     ## TODO(bstefanuk): Is there a way to get this to work without change global state?
     Common.pushWorkingPath("build_tmp")
     Common.pushWorkingPath(os.path.basename(outputPath).upper())
@@ -770,10 +767,6 @@ def writeKernels(
     ## TODO(bstefanuk): Is this even used? My shows nothing popluated in this file?
     if not params["MergeFiles"] or params["NumMergedFiles"] > 1 or params["LazyLibraryLoading"]:
         ensurePath(os.path.join(outputPath, "Kernels"))
-
-    ##############################################################################
-    # Write Kernels
-    ##############################################################################
 
     ## TODO(bstef): This uses global state from "WorkingPath", perhaps replace with the params
     ## variable... but may there are side effects.
@@ -828,6 +821,7 @@ def writeKernels(
         if kernelHeaderFile:
             kernelHeaderFile.close()
 
+    codeObjectFiles = []
     if not globalParameters["GenerateSourcesAndExit"]:
         codeObjectFiles += buildSourceCodeObjectFiles(cxxCompiler, kernelFiles, outputPath)
         codeObjectFiles += getAssemblyCodeObjectFiles(
