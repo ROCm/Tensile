@@ -1,3 +1,5 @@
 pyyaml
 msgpack
 joblib
+rich
+
