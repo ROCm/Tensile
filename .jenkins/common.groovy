@@ -45,6 +45,12 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     
     String buildThreads = maxThreads.toString() // if hipcc is used may be multiplied by parallel-jobs
 
+    String sclCommand = ""
+    if (platform.os.contains("rhel"))
+    {
+        sclCommand = "scl enable gcc-toolset-12 bash"
+    }
+
     def command = """#!/usr/bin/env bash
             set -ex
             hostname
@@ -55,7 +61,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             export TENSILE_COMPILER=${compiler}
             export HIPCC_COMPILE_FLAGS_APPEND='-O3 -Wno-format-nonliteral -parallel-jobs=4'
 
-            scl enable gcc-toolset-12 bash
+            ${sclCommand}
 
             mkdir build && pushd build
 
