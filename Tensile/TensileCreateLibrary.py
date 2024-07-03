@@ -1451,6 +1451,8 @@ def TensileCreateLibrary():
     logicPath = args["LogicPath"]
     outputPath = args["OutputPath"]
 
+    globalParameters["PrintLevel"] = args["PrintLevel"]
+
     tPrint(3, "OutputPath: %s" % outputPath)
     ensurePath(outputPath)
     outputPath = os.path.abspath(outputPath)

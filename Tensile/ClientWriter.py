@@ -188,11 +188,6 @@ def getBuildClientLibraryScript(buildPath, libraryLogicPath):
   else:
     callCreateLibraryCmd += ["--no-short-file-names"]
 
-  if globalParameters["LibraryPrintDebug"]:
-    callCreateLibraryCmd += ["--library-print-debug"]
-  else:
-    callCreateLibraryCmd += ["--no-library-print-debug"]
-
   if globalParameters["GenerateManifestAndExit"]:
     callCreateLibraryCmd += ["--generate-manifest-and-exit"]
 

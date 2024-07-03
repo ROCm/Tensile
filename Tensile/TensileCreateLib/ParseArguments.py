@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,6 @@ import warnings
 
 from typing import Dict, Any
 from argparse import ArgumentParser, Action
-from rich import print
 
 from ..Common import architectureMap
 
@@ -37,10 +36,6 @@ class DeprecatedOption(Action):
         warnings.warn(
             f"[DEPRECATED] The option {option_string} will be removed in future versions."
         )
-
-
-def showwarning(message, category, filename, lineno, file=None, line=None):
-    print(f"[yellow]{category.__name__}: {message}[/yellow]")
 
 
 def splitExtraParameters(par):
@@ -53,7 +48,6 @@ def splitExtraParameters(par):
 
 def parseArguments() -> Dict[str, Any]:
     """Parse command line arguments for TensileCreateLibrary."""
-    warnings.showwarning = showwarning
 
     parser = ArgumentParser(
         description="TensileCreateLibrary generates libraries and code object files "
@@ -70,9 +64,7 @@ def parseArguments() -> Dict[str, Any]:
     )
 
     # Optional arguments
-    compilerChoices = (
-        ["amdclang++", "hipcc"] if os.name != "nt" else ["clang++", "hipcc"]
-    )
+    compilerChoices = ["amdclang++", "hipcc"] if os.name != "nt" else ["clang++", "hipcc"]
     parser.add_argument(
         "--cxx-compiler",
         dest="CxxCompiler",
@@ -136,17 +128,6 @@ def parseArguments() -> Dict[str, Any]:
         dest="ShortNames",
         action="store_false",
         help="Disables short files names.",
-    )
-    parser.add_argument(
-        "--library-print-debug",
-        dest="LibraryPrintDebug",
-        type=bool,
-        default=True,
-        action=DeprecatedOption,
-        help="(Deprecated)",
-    )
-    parser.add_argument(
-        "--no-library-print-debug", dest="LibraryPrintDebug", action="store_false"
     )
     parser.add_argument(
         "--no-enumerate",
@@ -283,7 +264,6 @@ def parseArguments() -> Dict[str, Any]:
         "MergeFiles": args.MergeFiles,
         "NumMergedFiles": args.NumMergedFiles,
         "ShortNames": args.ShortNames,
-        "LibraryPrintDebug": args.LibraryPrintDebug,
         "CodeFromFiles": False,
         "EmbedLibrary": args.EmbedLibrary,
         "EmbedLibraryKey": args.EmbedLibraryKey,
