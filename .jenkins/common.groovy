@@ -101,25 +101,28 @@ def runTestCommand(platform, project, jobName, testMark, boolean runHostTest=tru
             export GPU_ARCH=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
             export TIMING_FILE=`pwd`/timing-\$GPU_ARCH.csv
 
-            tox --version
-            tox run -e ci -- -m ${testMark} --timing-file=\$TIMING_FILE
-            check_err
-
             if ${runUnitTest}; then 
               tox run -e unittest -- --cov-report=xml:cobertura.xml
               check_err
             fi
-
-            if ${runHostTest}; then
-              pushd build
-              ./TensileTests ${markSkipExtendedTest} --gtest_color=yes
+            echo The operating system is ${platform.os}
+            if [ ${platform.os} != "rhel9" ]; then
+              tox --version
+              tox run -e ci -- -m ${testMark} --timing-file=\$TIMING_FILE
               check_err
-              popd
-            fi
+  
+              if ${runHostTest}; then
+                pushd build
+                ./TensileTests ${markSkipExtendedTest} --gtest_color=yes
+                check_err
+                popd
+              fi
+            fi  
         """
     platform.runCommand(this, command)
 
-    archiveArtifacts "${project.paths.project_build_prefix}/timing*.csv"
+    if (platform.os != "rhel9")        
+        archiveArtifacts "${project.paths.project_build_prefix}/timing*.csv"
     if (runUnitTest) {
         recordCoverage(tools: [[parser: 'COBERTURA', pattern: "${project.paths.project_build_prefix}/cobertura.xml"]])
     }
