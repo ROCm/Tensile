@@ -2983,7 +2983,7 @@ class Solution(collections.abc.Mapping):
       if not state["ProblemType"]["StridedBatched"]:
         reject(state, "General batch not supported with Stream-K")
       if state["StreamKXCCMapping"] > 0:
-        if isa != [9,4,2]:
+        if isa != (9,4,2):
           reject(state, "XCC mapping currently only on gfx942")
       if state["StreamKAtomic"] == 1:
         if not state["ProblemType"]["DataType"].isSingle():
