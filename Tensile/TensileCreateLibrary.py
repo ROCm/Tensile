@@ -413,7 +413,7 @@ def prepAsm(kernelWriterAssembly: KernelWriterAssembly, buildPath: Path):
     asmPath.mkdir(exist_ok=True)
 
     isa = globalParameters["CurrentISA"]
-    assemblerFileName = asmPath / f"asm-new.{"bat" if os.name == "nt" else "sh"}"
+    assemblerFileName = asmPath / f"asm-new.{'bat' if os.name == 'nt' else 'sh'}"
 
     with open(assemblerFileName, "w") as assemblerFile:
         if os.name == "nt":
@@ -558,7 +558,7 @@ def buildKernelSourceAndHeaderFiles(results, outputPath):
 
     sourceFilenames = [filePrefix + ".cpp" for filePrefix in filesToWrite]
 
-    return sourceFilenames
+    return sourceFilenames, kernelsWithBuildErrs
 
 
 def filterProcessingErrors(
@@ -626,8 +626,7 @@ def filterBuildErrors(
     writerSelectionFn: Callable[[str], KernelWriterSource | KernelWriterAssembly],
     errorTolerant: bool,
 ):
-    """
-    Filters a list of kernels based on build errors and error tolerance.
+    """Filters a list of kernels based on build errors and error tolerance.
 
     Args:
         kernels: A list of `Solution` objects representing kernels to filter.
@@ -638,7 +637,7 @@ def filterBuildErrors(
         A filtered list of kernels (**Solution** objects) that are eligible for building.
 
     Raises:
-        SystemExit: If **error_tolerant** is False and any kernels have build errors.
+        SystemExit: If **errorTolerant** is False and any kernels have build errors.
     """
     if not errorTolerant and len(kernelsWithBuildErrors) > 0:
         printExit(
@@ -689,7 +688,7 @@ def generateKernelSourcesAndHeaders(
     hdrFile: TextIOWrapper | None,
     outputPath: Path,
     mergeFiles: bool,
-):
+) -> str | None:
     """Writes a source and header file to disk for a kernel object and writes them to specified files or merges them.
 
     Args:
@@ -734,21 +733,84 @@ def generateKernelSourcesAndHeaders(
         srcFile.close()
         hdrFile.close()
 
+    return srcFilename if not mergeFiles else None
 
-################################################################################
-# Write Solutions and Kernels for BenchmarkClient or LibraryClient
-################################################################################
+
+def openKernelFiles(
+    outputPath: Path,
+    kernelFiles: List[str],
+    mergeFiles: bool,
+    numMergedFiles: int,
+    lazyLoading: bool,
+) -> tuple[TextIOWrapper | None, TextIOWrapper | None]:
+    """Opens kernel source and header files based on the given parameters.
+
+    Args:
+        outputPath: Output path for the kernel files.
+        kernelFiles: List of kernel file names.
+        mergeFiles: Whether to merge kernels into one or more file.
+        numMergedFiles: Number of files to merge kernels into. If **mergeFiles** is False, does nothing.
+        lazyLoading: Whether to load libraries when needed, instead of eagerly.
+
+    Returns:
+        Tuple containing opened kernel source and header files, or (None, None) if files couldn't be opened.
+
+    Notes:
+        - There's a potential bug here if we use NumMergeFiles=2 we open a file
+          then on line 767 if we also specify NoMergeFiles we open another file, bind it to the same
+          handle, but don't actually close the original file we opened. Same thing for the header
+          file on line 785
+    """
+    kernelSrcFile = None
+    kernelHdrFile = None
+
+    if numMergedFiles > 1 and len(kernelFiles) > 0:
+        kernelFilename = kernelFiles[0].replace(".cpp", "")
+        kernelSrcFile = open(f"{kernelFilename}.cpp", "a", encoding="utf-8")
+        kernelHdrFile = open(f"{kernelFilename}.h", "a", encoding="utf-8")
+    elif mergeFiles or lazyLoading:
+        kernelSrcFilename = outputPath.resolve() / "Kernels.cpp"
+        kernelHdrFilename = outputPath.resolve() / "Kernels.h"
+        kernelSrcFile = open(kernelSrcFilename, "a", encoding="utf-8")
+        kernelHdrFile = open(kernelHdrFilename, "a", encoding="utf-8")
+
+    return kernelSrcFile, kernelHdrFile
+
+
 def writeKernels(
     outputPath: str,
     cxxCompiler: str,
     params: Dict[str, Any],
     solutions: List[Solution],
     kernels: List[Solution],
-    kernelHelperObjs: List[KernelWriterBase],  # TODO(bstefanuk): Verify this type is correct
+    kernelHelperObjs: List[KernelWriterBase],
     kernelWriterSource: KernelWriterSource,
     kernelWriterAssembly: KernelWriterAssembly,
     errorTolerant: bool = False,
 ):
+    """Write kernel sources, process them, and generate code object files.
+
+    This function writes kernel sources, processes them in parallel,
+    filters out processing errors, builds kernel source and header files,
+    generates additional kernel sources if necessary, compiles code object
+    files, and returns a list of paths to generated code object files.
+    It uses multiprocessing to handle kernel source generation and is designed
+    to optimize writing and compiling kernels for efficiency and correctness.
+
+    Args:
+        outputPath: The path where output files will be generated.
+        cxxCompiler: The C++ compiler executable path.
+        params: Dictionary of parameters controlling kernel writing and compilation.
+        solutions: List of solution objects.
+        kernels: List of kernel solution objects.
+        kernelHelperObjs: List of kernel writer helper objects.
+        kernelWriterSource: Object responsible for writing kernel sources.
+        kernelWriterAssembly: Object responsible for writing kernel assembly code.
+        errorTolerant: If True, continue processing despite errors. Defaults to False.
+
+    Returns:
+        List of paths to generated code object files.
+    """
     start = time.time()
 
     # Push working path into build_tmp folder because there may be more than
@@ -756,20 +818,14 @@ def writeKernels(
     # NOTE: file paths must not contain the lower case word 'kernel' or the
     # /opt/rocm/bin/extractkernel will fail.
     # See buildSourceCodeObjectFile:167 for the call to this binary.
-    ## TODO(bstefanuk): Is there a way to get this to work without change global state?
     Common.pushWorkingPath("build_tmp")
     Common.pushWorkingPath(os.path.basename(outputPath).upper())
 
     tPrint(1, "# Writing Kernels...")
-    kernelSourceFile = None
-    kernelHeaderFile = None
 
-    ## TODO(bstefanuk): Is this even used? My shows nothing popluated in this file?
     if not params["MergeFiles"] or params["NumMergedFiles"] > 1 or params["LazyLibraryLoading"]:
         ensurePath(os.path.join(outputPath, "Kernels"))
 
-    ## TODO(bstef): This uses global state from "WorkingPath", perhaps replace with the params
-    ## variable... but may there are side effects.
     prepAsm(kernelWriterAssembly, Path(globalParameters["WorkingPath"]))
 
     kernels = markDuplicateKernels(kernels, kernelWriterAssembly)
@@ -786,40 +842,31 @@ def writeKernels(
 
     kernelFiles, kernelsWithBuildErrors = buildKernelSourceAndHeaderFiles(results, outputPath)
 
-    ## TODO(bstefanuk): I'm not convinced this is returning distinct output above just calling the base class function
-    ## KernelWriter.getKernelName(...)
     writerSelector = lambda lang: kernelWriterAssembly if lang == "Assembly" else kernelWriterSource
     kernelsToBuild = filterBuildErrors(
         kernels, kernelsWithBuildErrors, writerSelector, errorTolerant
     )
 
-    # Put all kernel helper objects into the first merged kernel file
-    if globalParameters["NumMergedFiles"] > 1 and len(kernelFiles) > 0:
-        kernelFilename = kernelFiles[0].replace(".cpp", "")
-        ## TODO(bstefanuk): There's a potential bug here if we use NumMergeFiles=2 we open a file
-        ## then on line 767 if we also specify NoMergeFiles we open another file, bind it to the same
-        ## handle, but don't actually close the original file we opened. Same thing for the header
-        ## file on line 785
-        kernelSourceFile = open(kernelFilename + ".cpp", "a", encoding="utf-8")
-        kernelHeaderFile = open(kernelFilename + ".h", "a", encoding="utf-8")
-    elif globalParameters["MergeFiles"] or globalParameters["LazyLibraryLoading"]:
-        kernelSourceFilename = os.path.join(os.path.normcase(outputPath), "Kernels.cpp")
-        kernelHeaderFilename = os.path.join(os.path.normcase(outputPath), "Kernels.h")
-        kernelSourceFile = open(kernelSourceFilename, "a", encoding="utf-8")
-        kernelHeaderFile = open(kernelHeaderFilename, "a", encoding="utf-8")
+    kernelSrcFile, kernelHdrFile = openKernelFiles(
+        Path(outputPath),
+        kernelFiles,
+        params["MergeFiles"],
+        params["NumMergedFiles"],
+        params["LazyLibraryLoading"],
+    )
 
     for ko in kernelHelperObjs:
-        newKernelFile = generateKernelSourcesAndHeaders(
-            ko, kernelSourceFile, kernelHeaderFile, outputPath, params["MergeFiles"]
+        kernelSrcFilename = generateKernelSourcesAndHeaders(
+            ko, kernelSrcFile, kernelHdrFile, Path(outputPath), params["MergeFiles"]
         )
-        kernelFiles.append(newKernelFile)
+        if kernelSrcFilename:
+            kernelFiles.append(kernelSrcFilename)
 
-    # close merged
-    if globalParameters["MergeFiles"]:
-        if kernelSourceFile:
-            kernelSourceFile.close()
-        if kernelHeaderFile:
-            kernelHeaderFile.close()
+    if params["MergeFiles"]:
+        if kernelSrcFile:
+            kernelSrcFile.close()
+        if kernelHdrFile:
+            kernelHdrFile.close()
 
     codeObjectFiles = []
     if not globalParameters["GenerateSourcesAndExit"]:
