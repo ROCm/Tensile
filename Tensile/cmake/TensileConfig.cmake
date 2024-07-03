@@ -168,12 +168,6 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--no-short-file-names")
   endif()
 
-  if(Tensile_PRINT_DEBUG)
-    set(Options ${Options} "--library-print-debug")
-  else()
-    set(Options ${Options} "--no-library-print-debug")
-  endif()
-
   if(Tensile_VERBOSE)
     set(Options ${Options} "--verbose=${Tensile_VERBOSE}")
   else()
