@@ -70,9 +70,7 @@ def parseArguments() -> Dict[str, Any]:
     )
 
     # Optional arguments
-    compilerChoices = (
-        ["amdclang++", "hipcc"] if os.name != "nt" else ["clang++", "hipcc"]
-    )
+    compilerChoices = ["amdclang++", "hipcc"] if os.name != "nt" else ["clang++", "hipcc"]
     parser.add_argument(
         "--cxx-compiler",
         dest="CxxCompiler",
@@ -145,9 +143,7 @@ def parseArguments() -> Dict[str, Any]:
         action=DeprecatedOption,
         help="(Deprecated)",
     )
-    parser.add_argument(
-        "--no-library-print-debug", dest="LibraryPrintDebug", action="store_false"
-    )
+    parser.add_argument("--no-library-print-debug", dest="LibraryPrintDebug", action="store_false")
     parser.add_argument(
         "--no-enumerate",
         dest="NoEnumerate",
