@@ -2307,6 +2307,9 @@ def assignGlobalParameters( config ):
       printExit("Config file requires version=%s is not compatible with current Tensile version=%s" \
           % (config["MinimumRequiredVersion"], __version__) )
 
+  if "PrintLevel" in config:
+        globalParameters["PrintLevel"] = config["PrintLevel"]
+
   # User-specified global parameters
   tPrint(3, "GlobalParameters:")
   for key in globalParameters:

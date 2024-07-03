@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -136,15 +136,6 @@ def parseArguments() -> Dict[str, Any]:
         help="Disables short files names.",
     )
     parser.add_argument(
-        "--library-print-debug",
-        dest="LibraryPrintDebug",
-        type=bool,
-        default=True,
-        action=DeprecatedOption,
-        help="(Deprecated)",
-    )
-    parser.add_argument("--no-library-print-debug", dest="LibraryPrintDebug", action="store_false")
-    parser.add_argument(
         "--no-enumerate",
         dest="NoEnumerate",
         action="store_true",
@@ -279,7 +270,6 @@ def parseArguments() -> Dict[str, Any]:
         "MergeFiles": args.MergeFiles,
         "NumMergedFiles": args.NumMergedFiles,
         "ShortNames": args.ShortNames,
-        "LibraryPrintDebug": args.LibraryPrintDebug,
         "CodeFromFiles": False,
         "EmbedLibrary": args.EmbedLibrary,
         "EmbedLibraryKey": args.EmbedLibraryKey,
