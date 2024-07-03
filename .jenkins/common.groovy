@@ -55,6 +55,8 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             export TENSILE_COMPILER=${compiler}
             export HIPCC_COMPILE_FLAGS_APPEND='-O3 -Wno-format-nonliteral -parallel-jobs=4'
 
+            scl enable gcc-toolset-12 bash
+
             mkdir build && pushd build
 
             cmake ../HostLibraryTests \
