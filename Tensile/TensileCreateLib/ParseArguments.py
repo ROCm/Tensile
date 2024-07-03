@@ -27,7 +27,6 @@ import warnings
 
 from typing import Dict, Any
 from argparse import ArgumentParser, Action
-from rich import print
 
 from ..Common import architectureMap
 
@@ -37,10 +36,6 @@ class DeprecatedOption(Action):
         warnings.warn(
             f"[DEPRECATED] The option {option_string} will be removed in future versions."
         )
-
-
-def showwarning(message, category, filename, lineno, file=None, line=None):
-    print(f"[yellow]{category.__name__}: {message}[/yellow]")
 
 
 def splitExtraParameters(par):
@@ -53,7 +48,6 @@ def splitExtraParameters(par):
 
 def parseArguments() -> Dict[str, Any]:
     """Parse command line arguments for TensileCreateLibrary."""
-    warnings.showwarning = showwarning
 
     parser = ArgumentParser(
         description="TensileCreateLibrary generates libraries and code object files "
