@@ -46,7 +46,6 @@ from .Common import (
     CMakeHeader,
     assignGlobalParameters,
     gfxName,
-    architectureMap,
     printWarning,
     supportedCompiler,
     which,
@@ -58,8 +57,8 @@ from .SolutionStructs import Solution
 from .Utilities.String import splitDelimitedString
 from .Utilities.Profile import profile
 from .Utilities.toFile import toFile
+from .TensileCreateLib.ParseArguments import parseArguments
 
-import argparse
 import collections
 import itertools
 import os
@@ -1075,7 +1074,7 @@ def generateKernelObjectsFromSolutions(solutions):
 ################################################################################
 # Generate Logic Data and Solutions
 ################################################################################
-def generateLogicDataAndSolutions(logicFiles, args):
+def generateLogicDataAndSolutions(logicFiles, version: str):
     libraries = Common.ParallelMap(
         LibraryIO.parseLibraryLogicFile,
         logicFiles,
@@ -1105,11 +1104,11 @@ def generateLogicDataAndSolutions(logicFiles, args):
                 archIndexMap = MasterSolutionLibrary.ArchitectureIndexMap(architectureName)
                 masterLibraries[architectureName].remapSolutionIndicesStartingFrom(archIndexMap)
                 nextSolIndex[architectureName] = archIndexMap
-                masterLibraries[architectureName].version = args.version
+                masterLibraries[architectureName].version = version
         else:
             if fullMasterLibrary is None:
                 fullMasterLibrary = deepcopy(newLibrary)
-                fullMasterLibrary.version = args.version
+                fullMasterLibrary.version = version
             else:
                 fullMasterLibrary.merge(deepcopy(newLibrary))
 
@@ -1129,7 +1128,7 @@ def generateLogicDataAndSolutions(logicFiles, args):
                 if archName not in masterLibraries:
                     tPrint(1, "Using fallback for arch: " + archName)
                     masterLibraries[archName] = deepcopy(masterLibraries["fallback"])
-                    masterLibraries[archName].version = args.version
+                    masterLibraries[archName].version = version
 
             masterLibraries.pop("fallback")
 
@@ -1440,221 +1439,25 @@ def writeMasterFile(
 @profile
 def TensileCreateLibrary():
 
-    ##############################################################################
-    # Parse Command Line Arguments
-    ##############################################################################
-    def splitExtraParameters(par):
-        """
-        Allows the --global-parameters option to specify any parameters from the command line.
-        """
-
-        (key, value) = par.split("=")
-        value = eval(value)
-        return (key, value)
-
     tPrint(3, "Arguments: %s" % sys.argv)
-    argParser = argparse.ArgumentParser()
-    argParser.add_argument("LogicPath", help="Path to LibraryLogic.yaml files.")
-    argParser.add_argument("OutputPath", help="Where to write library files?")
-    argParser.add_argument(
-        "RuntimeLanguage", help="Which runtime language?", choices=["OCL", "HIP", "HSA"]
-    )
+    args = parseArguments()
 
-    compilerChoices = ["amdclang++", "hipcc"] if os.name != "nt" else ["clang++", "hipcc"]
-    argParser.add_argument(
-        "--cxx-compiler",
-        dest="CxxCompiler",
-        choices=compilerChoices,
-        action="store",
-        default=compilerChoices[0],
-        help="C++ compiler used when generating binaries."
-        " On linux, amdclang++ (default) or hipcc. On Windows clang++ (default) or hipcc.",
-    )
+    lazyLoading = args["LazyLibraryLoading"]
+    separateArchs = args["SeparateArchitectures"]
+    mergeFiles = args["MergeFiles"]
+    embedLibrary = args["EmbedLibrary"]
+    cxxCompiler = args["CxxCompiler"]
+    libraryFormat = args["LibraryFormat"]
+    logicPath = args["LogicPath"]
+    outputPath = args["OutputPath"]
 
-    argParser.add_argument("--cmake-cxx-compiler", dest="CmakeCxxCompiler", action="store")
-    argParser.add_argument(
-        "--code-object-version",
-        dest="CodeObjectVersion",
-        choices=["default", "V4", "V5"],
-        action="store",
-    )
-    argParser.add_argument(
-        "--architecture",
-        dest="Architecture",
-        type=str,
-        action="store",
-        default="all",
-        help="Architectures to generate a library for. When specifying multiple options, "
-        "use quoted, semicolon delimited architectures, e.g., --architecture='gfx908;gfx1012'. "
-        "Supported archiectures include: " + " ".join(architectureMap.keys()),
-    )
-    argParser.add_argument("--merge-files", dest="MergeFiles", action="store_true")
-    argParser.add_argument("--no-merge-files", dest="MergeFiles", action="store_false")
-    argParser.add_argument(
-        "--num-merged-files",
-        dest="NumMergedFiles",
-        type=int,
-        default=1,
-        help="Number of files the kernels should be written into.",
-    )
-    argParser.add_argument("--short-file-names", dest="ShortNames", action="store_true")
-    argParser.add_argument("--no-short-file-names", dest="ShortNames", action="store_false")
-    argParser.add_argument(
-        "--library-print-debug",
-        dest="LibraryPrintDebug",
-        action="store_true",
-        help="Deprecated",
-    )
-    argParser.add_argument(
-        "--no-library-print-debug", dest="LibraryPrintDebug", action="store_false"
-    )
-    argParser.add_argument(
-        "--no-enumerate", action="store_true", help="Do not run rocm_agent_enumerator."
-    )
-    argParser.add_argument(
-        "--embed-library",
-        dest="EmbedLibrary",
-        help="Embed (new) library files into static variables.  Specify the name of the library.",
-    )
+    globalParameters["PrintLevel"] = args["PrintLevel"]
 
-    argParser.add_argument(
-        "--embed-library-key",
-        dest="EmbedLibraryKey",
-        default=None,
-        help="Access key for embedding library files.",
-    )
-    argParser.add_argument("--version", help="Version string to embed into library file.")
-    argParser.add_argument(
-        "--generate-manifest-and-exit",
-        dest="GenerateManifestAndExit",
-        action="store_true",
-        default=False,
-        help="Output manifest file with list of expected library objects and exit.",
-    )
-    argParser.add_argument(
-        "--verify-manifest",
-        dest="VerifyManifest",
-        action="store_true",
-        default=False,
-        help="Verify manifest file against generated library files and exit.",
-    )
-    argParser.add_argument(
-        "--library-format",
-        dest="LibraryFormat",
-        choices=["yaml", "msgpack"],
-        action="store",
-        default="msgpack",
-        help="select which library format to use",
-    )
-    argParser.add_argument(
-        "--generate-sources-and-exit",
-        dest="GenerateSourcesAndExit",
-        action="store_true",
-        default=False,
-        help="Output source files only and exit.",
-    )
-    argParser.add_argument(
-        "--jobs",
-        "-j",
-        dest="CpuThreads",
-        type=int,
-        default=-1,
-        help="Number of parallel jobs to launch.",
-    )
-    argParser.add_argument(
-        "--verbose",
-        "-v",
-        dest="PrintLevel",
-        type=int,
-        default=1,
-        help="Set printout verbosity level.",
-    )
-    argParser.add_argument(
-        "--separate-architectures",
-        dest="SeparateArchitectures",
-        action="store_true",
-        default=False,
-        help="Separates TensileLibrary file by architecture",
-    )
-    argParser.add_argument(
-        "--lazy-library-loading",
-        dest="LazyLibraryLoading",
-        action="store_true",
-        default=False,
-        help="Loads Tensile libraries when needed instead of upfront.",
-    )
-    argParser.add_argument(
-        "--build-client",
-        dest="BuildClient",
-        action="store_true",
-        help="Build Tensile client",
-    )
-    argParser.add_argument(
-        "--client-config",
-        dest="ClientConfig",
-        action="store_true",
-        help="Create client config for setting the library and code object files",
-    )
-    argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
-    argParser.add_argument(
-        "--ignore-asm-cap-cache",
-        dest="IgnoreAsmCapCache",
-        action="store_true",
-        default=False,
-        help="Ignore asm cap cache and derive the asm caps at runtime",
-    )
-    argParser.add_argument(
-        "--write-master-solution-index",
-        dest="WriteMasterSolutionIndex",
-        action="store_true",
-        default=False,
-        help="Output master solution index in csv format.",
-    )
-    args = argParser.parse_args()
-
-    logicPath = args.LogicPath
-    outputPath = args.OutputPath
-    CxxCompiler = args.CxxCompiler
-    libraryFormat = args.LibraryFormat
     tPrint(3, "OutputPath: %s" % outputPath)
     ensurePath(outputPath)
     outputPath = os.path.abspath(outputPath)
-    arguments = {}
-    arguments["RuntimeLanguage"] = args.RuntimeLanguage
-    arguments["CodeObjectVersion"] = args.CodeObjectVersion
-    arguments["Architecture"] = args.Architecture
-    arguments["SeparateArchitectures"] = args.SeparateArchitectures
-    arguments["LazyLibraryLoading"] = args.LazyLibraryLoading
-    arguments["CxxCompiler"] = args.CxxCompiler
-    if args.CmakeCxxCompiler:
-        os.environ["CMAKE_CXX_COMPILER"] = args.CmakeCxxCompiler
-    arguments["MergeFiles"] = args.MergeFiles
-    arguments["NumMergedFiles"] = args.NumMergedFiles
-    arguments["ShortNames"] = args.ShortNames
-    arguments["LibraryPrintDebug"] = args.LibraryPrintDebug
-    arguments["CodeFromFiles"] = False
-    arguments["EmbedLibrary"] = args.EmbedLibrary
-    arguments["LibraryFormat"] = args.LibraryFormat
-    if args.no_enumerate:
-        arguments["ROCmAgentEnumeratorPath"] = False
 
-    arguments["GenerateManifestAndExit"] = args.GenerateManifestAndExit
-    arguments["VerifyManifest"] = args.VerifyManifest
-
-    arguments["GenerateSourcesAndExit"] = args.GenerateSourcesAndExit
-    if arguments["GenerateSourcesAndExit"]:
-        # Generated sources are preserved and go into output dir
-        arguments["WorkingPath"] = outputPath
-
-    arguments["CpuThreads"] = args.CpuThreads
-    arguments["PrintLevel"] = args.PrintLevel
-    arguments["IgnoreAsmCapCache"] = args.IgnoreAsmCapCache
-    arguments["WriteMasterSolutionIndex"] = args.WriteMasterSolutionIndex
-
-    for key, value in args.global_parameters:
-        arguments[key] = value
-
-    globalParameters["PrintLevel"] = arguments["PrintLevel"]
+    assignGlobalParameters(args)
 
     tPrint(1, "")
     tPrint(1, HR)
@@ -1662,12 +1465,10 @@ def TensileCreateLibrary():
     tPrint(3, HR)
     tPrint(3, "")
 
-    assignGlobalParameters(arguments)
-
     manifestFile = Path(outputPath) / TENSILE_LIBRARY_DIR / TENSILE_MANIFEST_FILENAME
     manifestFile.parent.mkdir(exist_ok=True)
 
-    if globalParameters["VerifyManifest"]:
+    if args["VerifyManifest"]:
         if verifyManifest(manifestFile):
             tPrint(1, "Successfully verified all files in manifest were generated")
             return
@@ -1676,25 +1477,20 @@ def TensileCreateLibrary():
 
     tPrint(
         1,
-        "# CodeObjectVersion from TensileCreateLibrary: %s" % arguments["CodeObjectVersion"],
+        "# CodeObjectVersion from TensileCreateLibrary: %s" % args["CodeObjectVersion"],
     )
-    tPrint(1, "# CxxCompiler       from TensileCreateLibrary: %s" % CxxCompiler)
-    tPrint(
-        1,
-        "# Architecture      from TensileCreateLibrary: %s" % arguments["Architecture"],
-    )
+    tPrint(1, "# CxxCompiler       from TensileCreateLibrary: %s" % cxxCompiler)
+    tPrint(1, "# Architecture      from TensileCreateLibrary: %s" % args["Architecture"])
     tPrint(1, "# LibraryFormat     from TensileCreateLibrary: %s" % libraryFormat)
 
     if not os.path.exists(logicPath):
         printExit("LogicPath %s doesn't exist" % logicPath)
 
     # CLI uses `;` delimiters, CMake uses `_` delimiters
-    logicArchs = splitDelimitedString(arguments["Architecture"], {";", "_"})
+    logicArchs = splitDelimitedString(args["Architecture"], {";", "_"})
     logicArchs = {name for name in (getArchitectureName(gfxName) for gfxName in logicArchs) if name}
 
-    if globalParameters["LazyLibraryLoading"] and not (
-        globalParameters["MergeFiles"] and globalParameters["SeparateArchitectures"]
-    ):
+    if lazyLoading and not (mergeFiles and separateArchs):
         printExit(
             "--lazy-library-loading requires --merge-files and --separate-architectures enabled"
         )
@@ -1702,17 +1498,19 @@ def TensileCreateLibrary():
     logicFiles = findLogicFiles(
         Path(logicPath),
         logicArchs,
-        lazyLoading=globalParameters["LazyLibraryLoading"],
+        lazyLoading=lazyLoading,
         experimentalDir=globalParameters["ExperimentalLogicDir"],
     )
 
-    tPrint(1, "# LibraryLogicFiles:" % logicFiles)
-    for logicFile in logicFiles:
-        tPrint(1, "#   %s" % logicFile)
+    tPrint(1, f"# LibraryLogicFiles: found {len(logicFiles)} files")
+    tPrint(1, "#      set --verbose=2 to view all files")
+    tPrint(2, "#   " + "\n#   ".join(logicFiles))
 
-    solutions, masterLibraries, fullMasterLibrary = generateLogicDataAndSolutions(logicFiles, args)
+    solutions, masterLibraries, fullMasterLibrary = generateLogicDataAndSolutions(
+        logicFiles, args["Version"]
+    )
 
-    if globalParameters["LazyLibraryLoading"] and arguments["WriteMasterSolutionIndex"]:
+    if lazyLoading and args["WriteMasterSolutionIndex"]:
         writeMasterSolutionIndexCSV(outputPath, masterLibraries)
 
     kernels, kernelHelperObjs, _ = generateKernelObjectsFromSolutions(solutions)
@@ -1745,10 +1543,10 @@ def TensileCreateLibrary():
     )
 
     toFile(Path(manifestFile), libMetadataPaths + sourceLibPaths + asmLibPaths)
-    if globalParameters["GenerateManifestAndExit"]:
+    if args["GenerateManifestAndExit"]:
         return
 
-    if not arguments["GenerateSourcesAndExit"]:
+    if not args["GenerateSourcesAndExit"]:
         writeCMake(outputPath, solutionFiles, sourceKernelFiles, staticFiles, masterLibraries)
 
     # Make sure to copy the library static files.
@@ -1757,7 +1555,7 @@ def TensileCreateLibrary():
 
     codeObjectFiles = writeKernels(
         outputPath,
-        CxxCompiler,
+        cxxCompiler,
         None,
         solutions,
         kernels,
@@ -1787,30 +1585,30 @@ def TensileCreateLibrary():
     newLibraryDir.mkdir(exist_ok=True)
 
     masterFileList = (
-        generateMasterFileList(masterLibraries, archs, args.LazyLibraryLoading)
-        if args.SeparateArchitectures
+        generateMasterFileList(masterLibraries, archs, lazyLoading)
+        if separateArchs
         else [("TensileLibrary", fullMasterLibrary)]
     )
     for name, lib in masterFileList:
-        writeMasterFile(newLibraryDir, args.LibraryFormat, kernelMinNaming, name, lib)
+        writeMasterFile(newLibraryDir, libraryFormat, kernelMinNaming, name, lib)
     masterFile, fullMasterLibrary = masterFileList[0]
 
-    ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
-    if args.EmbedLibrary:
-        embedFileName = Path(outputPath) / "library" / args.EmbedLibrary
+    ext = ".yaml" if libraryFormat == "yaml" else ".dat"
+    if embedLibrary:
+        embedFileName = Path(outputPath) / "library" / embedLibrary
         EmbeddedData.generateLibrary(
             embedFileName,
-            args.EmbedLibraryKey,
+            args["EmbedLibraryKey"],
             (newLibraryDir / masterFile).with_suffix(ext),
             fullMasterLibrary.cpp_base_class,
             codeObjectFiles,
         )
 
-    if args.BuildClient:
+    if args["BuildClient"]:
         tPrint(1, "# Building Tensile Client")
         ClientExecutable.getClientExecutable(outputPath)
 
-    if args.ClientConfig:
+    if args["ClientConfig"]:
         generateClientConfig(Path(outputPath), Path(masterFile).with_suffix(ext), codeObjectFiles)
 
     tPrint(1, "# Tensile Library Writer DONE")

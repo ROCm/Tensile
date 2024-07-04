@@ -34,10 +34,23 @@ import os.path
 import subprocess
 import sys
 import time
+import warnings
+import rich
 
 startTime = time.time()
 
 ParallelMap = Parallel.ParallelMap
+
+class DeveloperWarning(Warning):
+    """Custom warning for Tensile developers.
+
+    This warning can be safely ignored when running any Tensile applications as a user.
+    """
+
+def showwarning(message, category, filename, lineno, file=None, line=None):
+    rich.print(f"[yellow]{category.__name__}: {message}[/yellow]")
+
+warnings.showwarning = showwarning
 
 # print level
 # 0 - user wants no printing
@@ -1973,9 +1986,10 @@ def tPrint(verbosity: int, arg) -> None:
         print(arg)
         sys.stdout.flush()
 
-def printWarning(message):
-  print("Tensile::WARNING: %s" % message)
+def printWarning(message: str, category: type[Warning]=DeveloperWarning):
+  warnings.warn(message, category)
   sys.stdout.flush()
+
 def printExit(message):
   print("Tensile::FATAL: %s" % message)
   sys.stdout.flush()
