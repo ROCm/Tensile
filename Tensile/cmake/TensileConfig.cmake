@@ -96,7 +96,6 @@ function(TensileCreateLibraryFiles
        MERGE_FILES
        NO_MERGE_FILES
        SHORT_FILE_NAMES
-       PRINT_DEBUG
        GENERATE_PACKAGE
        SEPARATE_ARCHITECTURES
        LAZY_LIBRARY_LOADING
