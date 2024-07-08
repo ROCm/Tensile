@@ -1717,7 +1717,7 @@ def TensileCreateLibrary():
         ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
 
     if embedLibrary:
-        embedFileName = Path(outputPath) / "library" / args.EmbedLibrary
+        embedFileName = Path(outputPath) / "library" / args["EmbedLibrary"]
         EmbeddedData.generateLibrary(
             embedFileName,
             args["EmbedLibraryKey"],
