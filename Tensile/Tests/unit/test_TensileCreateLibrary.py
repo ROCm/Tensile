@@ -35,7 +35,6 @@ import yaml
 import contextlib
 import uuid
 import shutil
-import itertools
 
 from pathlib import Path
 from typing import List
@@ -365,7 +364,7 @@ def test_componentsOfLogicDataAndSolutionsConstruction(initGlobalParametersForTC
             yamlFiles = [rootPath/f for f in["vega10_Cijk_Ailk_Bjlk_CB_GB.yaml", "hip_Cijk_Ailk_Bjlk_CB_GB.yaml"]]
             
             logicFiles = TensileCreateLibrary.parseLibraryLogicFiles(yamlFiles)
-            assert len(logicFiles) == 3, "The length of the logic files list is incorrect."
+            assert len(logicFiles) == 2, "The length of the logic files list is incorrect."
 
             masterLibraries = TensileCreateLibrary.makeMasterLibraries(logicFiles, separate=separateArch)    
             arch = "gfx900" if separateArch else "full"
