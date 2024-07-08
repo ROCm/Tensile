@@ -204,6 +204,7 @@ def splitArchs():
         wantedArchs = globalParameters["Architecture"].split("_")
     archs = []
     cmdlineArchs = []
+
     if "all" in wantedArchs:
         for arch in globalParameters["SupportedISA"]:
             if isSupported(arch):
@@ -242,9 +243,8 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
         archFlags = ["--offload-arch=" + arch for arch in cmdlineArchs]
 
-        hipFlags = [
-            "-D__HIP_HCC_COMPAT_MODE__=1"
-        ]  # needs to be fixed when Maneesh's change is made available
+        # needs to be fixed when Maneesh's change is made available
+        hipFlags = ["-D__HIP_HCC_COMPAT_MODE__=1"]
         hipFlags += (
             ["--genco"] if CxxCompiler == "hipcc" else ["--cuda-device-only", "-x", "hip", "-O3"]
         )
@@ -1074,7 +1074,7 @@ def generateKernelObjectsFromSolutions(solutions):
     return (kernels, kernelHelperObjs, kernelHelperNames)
 
 
-def addNewLibrary(masterLibraries, newLibrary, architectureName, version):
+def addNewLibrary(masterLibraries, newLibrary, architectureName) -> int:
     """Adds master solution library to a master solution libraries dict.
 
     For a given architecture, add the new library to a dictionary containing
@@ -1086,19 +1086,17 @@ def addNewLibrary(masterLibraries, newLibrary, architectureName, version):
         masterLibraries: A dictionary containing all master solution libraries for all architectures.
         newLibrary: A master solution library to add to the dictionary.
         architectureName: The name of the architecture (or key) associated with the library.
-        version: User provided version for the library.
 
     Returns:
-        A tuple of
+        Index to the last solution of the library associated with current architecture.
     """
     masterLibraries[architectureName] = deepcopy(newLibrary)
     archIndex = MasterSolutionLibrary.ArchitectureIndexMap(architectureName)
     masterLibraries[architectureName].remapSolutionIndicesStartingFrom(archIndex)
-    masterLibraries[architectureName].version = version
     return archIndex
 
 
-def makeMasterLibraries(logicList, separate, version) -> Dict[str, MasterSolutionLibrary]:
+def makeMasterLibraries(logicList, separate) -> Dict[str, MasterSolutionLibrary]:
     """Creates a dictionary of master solution libraries.
 
     Iterates through a list of LibraryLogic objects creating
@@ -1108,7 +1106,6 @@ def makeMasterLibraries(logicList, separate, version) -> Dict[str, MasterSolutio
     Args:
         logicFiles: List of LibraryLogic objects.
         separate: Separate libraries by architecture.
-        version: User provided version for the libraries.
 
     Returns:
         An architecture separated master solution libraries
@@ -1127,42 +1124,42 @@ def makeMasterLibraries(logicList, separate, version) -> Dict[str, MasterSolutio
                 )
             else:
                 nextSolIndex[architectureName] = addNewLibrary(
-                    masterLibraries, newLibrary, architectureName, version
+                    masterLibraries, newLibrary, architectureName
                 )
         else:
-            if fullMasterLibrary is None:
-                fullMasterLibrary = deepcopy(newLibrary)
-                fullMasterLibrary.version = version
-            else:
+            if fullMasterLibrary:
                 fullMasterLibrary.merge(deepcopy(newLibrary))
+            else:
+                fullMasterLibrary = deepcopy(newLibrary)
+
     return {"full": fullMasterLibrary} if fullMasterLibrary is not None else masterLibraries
 
 
-def addFallbacks(masterLibraries, version: str) -> None:
-    """Adds fallback librarys.
+def addFallback(masterLibraries) -> None:
+    """Adds fallback library.
 
     Given a master solution library, add a fallback and if the corresponding
     architecture is unsupported, replace the library altogether with a fallback.
 
     Args:
         masterLibraries: A dictionary containing the master solution libraries.
-        version: User provided version for the library.
     """
     archs, _ = splitArchs()
+
     for key, value in masterLibraries.items():
-        if key != "fallback":  # why?
-            value.insert(deepcopy(masterLibraries["fallback"]))  # why?
+        if key != "fallback":
+            value.insert(deepcopy(masterLibraries["fallback"]))
+
     for archName in archs:
         archName = archName.split("-", 1)[0]
         if archName not in masterLibraries:
             tPrint(1, "Using fallback for arch: " + archName)
             masterLibraries[archName] = deepcopy(masterLibraries["fallback"])
-            # I don't think this is the right place for this
-            masterLibraries[archName].version = version
+
     masterLibraries.pop("fallback")
 
 
-def applyNaming(masterLibraries) -> None:
+def applyNaming(masterLibraries: Dict[str, MasterSolutionLibrary]) -> None:
     """Assigns the solution code object file name for lazy libraries.
 
     Given a master solution library with lazy libraries, assigns the
@@ -1172,10 +1169,10 @@ def applyNaming(masterLibraries) -> None:
     Args:
         masterLibraries: A dictionary containing the master solution libraries.
     """
-    for masterLibrary in masterLibraries.values():  # belongs elsewhere
-        for name, lib in masterLibrary.lazyLibraries.items():  # belongs elsewhere
-            for sol in lib.solutions.values():  # belongs elsewhere
-                sol.originalSolution._state["codeObjectFile"] = name  # belongs elsewhere
+    for masterLibrary in masterLibraries.values():
+        for name, lib in masterLibrary.lazyLibraries.items():
+            for sol in lib.solutions.values():
+                sol.originalSolution._state["codeObjectFile"] = name
 
 
 def makeSolutions(
@@ -1228,7 +1225,7 @@ def parseLibraryLogicFiles(logicFiles: List[str]) -> List[LibraryIO.LibraryLogic
 
 def generateLogicData(
     logicFiles: List[str], version: str, printLevel: int, separate: bool
-) -> MasterSolutionLibrary:
+) -> Dict[str, MasterSolutionLibrary]:
     """Generates a dictionary of master solution libraries.
 
     Args:
@@ -1242,11 +1239,13 @@ def generateLogicData(
         a single master solution library for all architectures.
     """
     libraries = parseLibraryLogicFiles(logicFiles)
-    # conditionally add progress bar
     logicList = libraries if not printLevel else Utils.tqdm(libraries, "Processing logic data")
-    masterLibraries = makeMasterLibraries(logicList, separate, version)
+    masterLibraries = makeMasterLibraries(logicList, separate)
     if separate:
-        addFallbacks(masterLibraries, version)
+        addFallback(masterLibraries)
+    applyNaming(masterLibraries)
+    for lib in masterLibraries.values():
+        lib.version = version
 
     return masterLibraries
 
@@ -1631,10 +1630,10 @@ def TensileCreateLibrary():
     tPrint(2, "#   " + "\n#   ".join(logicFiles))
 
     masterLibraries = generateLogicData(
-        logicFiles, args.version, args.PrintLevel, args.SeparateArchitectures
+        logicFiles, args["Version"], args["PrintLevel"], args["SeparateArchitectures"]
     )
-    solutions = generateSolutions(masterLibraries, args.SeparateArchitectures)
 
+    solutions = generateSolutions(masterLibraries, args["SeparateArchitectures"])
     if lazyLoading and args["WriteMasterSolutionIndex"]:
         writeMasterSolutionIndexCSV(outputPath, masterLibraries)
 
@@ -1713,7 +1712,7 @@ def TensileCreateLibrary():
     for name, lib in masterFileList:
         writeMasterFile(newLibraryDir, libraryFormat, kernelMinNaming, name, lib)
 
-    if embedLibrary or args.ClientConfig:
+    if embedLibrary or args["ClientConfig"]:
         masterFile, fullMasterLibrary = masterFileList[0]
         ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
 

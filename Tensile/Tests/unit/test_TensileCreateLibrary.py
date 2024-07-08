@@ -35,8 +35,10 @@ import yaml
 import contextlib
 import uuid
 import shutil
+import itertools
 
 from pathlib import Path
+from typing import List
 
 mylogger = logging.getLogger()
 
@@ -328,6 +330,7 @@ class MasterLibraryMock:
         self.lazyLibraries = libraries
         self.data = data
 
+
 def test_generateMasterFileList():
   
   archs = ["arch0", "arch1"]  
@@ -352,9 +355,52 @@ def test_generateMasterFileList():
     assert isinstance(t[1], MasterLibraryMock), "Incorrect type for value."
     assert t[1].data == (idx+2), "Incorrect data."        
 
+
+def test_componentsOfLogicDataAndSolutionsConstruction(initGlobalParametersForTCL):
+    
+    requiredArgs = ["--jobs=2", "/unused/logic/path", "/unused/output/path", "HIP"]
+    
+    with initGlobalParametersForTCL(["--architecture=gfx900"]+requiredArgs):
+        for separateArch in [False, True]:    
+            yamlFiles = makeLibraryLogicList(["vega10_Cijk_Ailk_Bjlk_CB_GB.yaml", "hip_Cijk_Ailk_BjlkC_CB.yaml", "hip_Cijk_Ailk_Bjlk_CB_GB.yaml"], repeat=1)
+            
+            logicFiles = TensileCreateLibrary.parseLibraryLogicFiles(yamlFiles)
+            assert len(logicFiles) == 3, "The length of the logic files list is incorrect."
+
+            masterLibraries = TensileCreateLibrary.makeMasterLibraries(logicFiles, separate=separateArch)    
+            arch = "gfx900" if separateArch else "full"
+            
+            if separateArch:        
+                assert len(masterLibraries[arch].solutions.values()) == 17, f"There should be 17 solutions prior to adding the fallback for {arch}."
+            
+                TensileCreateLibrary.addFallback(masterLibraries)
+            
+                assert len(masterLibraries[arch].solutions.values()) == 21, f"There should be 21 solutions after adding the fallback for {arch}."
+            else:
+                assert len(masterLibraries[arch].solutions.values()) == 21, f"There should be 21 solutions for {arch}."
+            
+            solutions = TensileCreateLibrary.generateSolutions(masterLibraries, separate=separateArch)
+            assert isinstance(solutions, list), "generateSolutions should return a list."
+            assert len(solutions) == 21, "There should be 21 solutions after adding the fallback."
+
+
 # ----------------
 # Helper functions
 # ----------------
+class Given:
+     def __init__(self, description: str):
+         self.description = description
+     def __enter__(self):
+         return self.desc
+     def __exit__(self, exc_type, exc_value, exc_tb):
+         print(exc_type, exc_value, exc_tb)
+         
+def makeLibraryLogicList(logicFiles: List[str], repeat: int) -> List[LibraryIO.LibraryLogic]:
+    rootPath = Path(__file__).parent/"../test_data"/"unit"/"solutions"
+    logicFiles = [rootPath/f for f in logicFiles] * repeat
+    return logicFiles
+
+
 def setupClientConfigTest(outputPath, masterLibrary, codeObjectFiles):
     outputPath.mkdir()
     with open(masterLibrary, "w") as testFile:
