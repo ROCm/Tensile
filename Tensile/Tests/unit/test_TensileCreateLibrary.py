@@ -22,9 +22,8 @@
 #
 ################################################################################
 
-from copy import deepcopy
-import functools
 import contextlib
+import functools
 import glob
 import logging
 import os
@@ -40,10 +39,10 @@ import contextlib
 import uuid
 import shutil
 import uuid
+from copy import deepcopy
 from pathlib import Path
 from typing import List
 
-import TensileCreateLibrary as tcl
 import pytest
 import yaml
 
@@ -51,6 +50,7 @@ import Tensile.ClientWriter as ClientWriter
 import Tensile.Common as Common
 import Tensile.LibraryIO as LibraryIO
 import Tensile.SolutionStructs as SolutionStructs
+import Tensile.TensileCreateLibrary as tcl
 import Tensile.TensileCreateLibrary as TensileCreateLibrary
 
 mylogger = logging.getLogger()
@@ -664,23 +664,75 @@ def test_filterProcessingErrors(setupSolutionsAndKernels):
         )
 
 
+def test_processKernelSource(setupSolutionsAndKernels):
+    _, kernels, kernelWriterAssembly, kernelWriterSource = setupSolutionsAndKernels
 
-def test_filterBuildErrors(setupSolutionsAndKernels):
-    solutions, kernels, kernelWriterAssembly, kernelWriterSource = setupSolutionsAndKernels
-    
+    kernels = TensileCreateLibrary.markDuplicateKernels(kernels, kernelWriterAssembly)
+
     fn = functools.partial(
         tcl.processKernelSource,
-        kernelWriterSource,
-        kernelWriterAssembly,
+        kernelWriterSource=kernelWriterSource,
+        kernelWriterAssembly=kernelWriterAssembly,
     )
-    results = map(fn, kernels)
-    print("RESULT", results)
+
+    results = list(map(fn, kernels))
+    expected = [
+        (
+            0,
+            "",
+            "",
+            "Cijk_AlikC_Bljk_ZB_GB_MT16x16x16_MI16x16x4x1_SN_w7sFP__lQopabvLxzkL9V_rkJczrhhWwRy4dGREBaJY=",
+            None,
+        ),
+        (
+            0,
+            "",
+            "",
+            "Cijk_AlikC_Bljk_ZB_GB_MT64x96x8_MI16x16x4x1_SN_BT-2Hl1ATHdIekMN_ygeV-CN0NYIERWlaWZvB-9FqxI0=",
+            None,
+        ),
+        (
+            0,
+            "",
+            "",
+            "Cijk_AlikC_Bljk_ZB_GB_MT128x64x8_MI16x16x4x1_SN_jLNBWWn_GYkesnvb5x6jwDhR80VmCUqMaBE6X8-iojw=",
+            None,
+        ),
+    ]
+
+    assert results == expected, "Assembly files shouldn't have any header or source content"
+
+
+def test_buildKernelSourceAndHeaderFiles(setupSolutionsAndKernels):
+    solutions, kernels, kernelWriterAssembly, kernelWriterSource = setupSolutionsAndKernels
     outputPath = Path("no-commit-kernel-build-files")
+    outputPath.mkdir(exist_ok=True)
+
+    results = [
+        (-2, "", "", "asm1", None),
+        (0, "", "", "asm2", None),
+        (0, "", "", "asm3", None),
+        (-2, '#include "Kernels1.h"', "#pragma once", "src1", None),
+        (0, '#include "Kernels2.h"', "#pragma twice", "src2", None),
+        (0, '#include "Kernels3.h"', "#pragma thrice", "src3", None),
+    ]
+    expectedWithBuildErrors = {
+        "asm1": -2,
+        "src1": -2,
+    }
+
     kernelFiles, kernelsWithBuildErrors = tcl.buildKernelSourceAndHeaderFiles(results, outputPath)
 
-    result = tcl.filterBuildErrors(kernels, kernelsWithBuildErrors)
+    assert len(kernelFiles) == 1, "Only one file should be created for Assembly only kernels"
+    assert (
+        kernelFiles[0] == "no-commit-kernel-build-files/Kernels.cpp"
+    ), "Cpp source file doesn't match"
+    assert (
+        kernelsWithBuildErrors == expectedWithBuildErrors
+    ), "Kernels will build don't match expectation"
 
-    
+    # result = tcl.filterBuildErrors(kernels, kernelsWithBuildErrors)
+
 
 # ----------------
 # Helper functions

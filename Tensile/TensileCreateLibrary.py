@@ -69,7 +69,7 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
     Returns (error, source, header, kernelName).
     """
     try:
-        kernelWriter = (
+        kernelWriter: KernelWriterAssembly | KernelWriterSource = (
             kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
         )
         # get kernel name
@@ -542,7 +542,7 @@ def buildKernelSourceAndHeaderFiles(results, outputPath):
 
     sourceFilenames = [filePrefix + ".cpp" for filePrefix in filesToWrite]
 
-    return sourceFilenames
+    return sourceFilenames, kernelsWithBuildErrs
 
 
 def markDuplicateKernels(
