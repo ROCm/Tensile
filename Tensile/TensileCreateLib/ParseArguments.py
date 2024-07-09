@@ -24,9 +24,8 @@
 
 import os
 import warnings
-
-from typing import Dict, Any, List
-from argparse import ArgumentParser, Action
+from argparse import Action, ArgumentParser
+from typing import Any, Dict
 
 from ..Common import architectureMap
 

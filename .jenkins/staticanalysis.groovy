@@ -55,6 +55,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             tox --version
             tox run -v --workdir /tmp/.tensile-tox -e lint
             tox run -v -e format -- --check
+            tox run -v -e isort -- --check
 
             doxygen docs/doxygen/Doxyfile
             """

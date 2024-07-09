@@ -30,36 +30,6 @@ if __name__ == "__main__":
     )
     exit(1)
 
-from . import Common
-from . import ClientExecutable
-from . import EmbeddedData
-from . import LibraryIO
-from . import Utils
-from .Common import (
-    getArchitectureName,
-    globalParameters,
-    HR,
-    tPrint,
-    printExit,
-    ensurePath,
-    CHeader,
-    CMakeHeader,
-    assignGlobalParameters,
-    gfxName,
-    printWarning,
-    supportedCompiler,
-    which,
-)
-from .KernelWriterAssembly import KernelWriterAssembly
-from .KernelWriterSource import KernelWriterSource
-from .KernelWriterBase import KernelWriterBase
-from .SolutionLibrary import MasterSolutionLibrary
-from .SolutionStructs import Solution
-from .Utilities.String import splitDelimitedString
-from .Utilities.Profile import profile
-from .Utilities.toFile import toFile
-from .TensileCreateLib.ParseArguments import parseArguments
-
 import collections
 import itertools
 import os
@@ -70,10 +40,24 @@ import subprocess
 import sys
 import time
 import warnings
-
 from copy import deepcopy
-from typing import  Dict, Any, Set, List, Tuple, Callable
 from pathlib import Path
+from typing import Any, Callable, Dict, List, Set, Tuple
+
+from . import ClientExecutable, Common, EmbeddedData, LibraryIO, Utils
+from .Common import (HR, CHeader, CMakeHeader, assignGlobalParameters,
+                     ensurePath, getArchitectureName, gfxName,
+                     globalParameters, printExit, printWarning,
+                     supportedCompiler, tPrint, which)
+from .KernelWriterAssembly import KernelWriterAssembly
+from .KernelWriterBase import KernelWriterBase
+from .KernelWriterSource import KernelWriterSource
+from .SolutionLibrary import MasterSolutionLibrary
+from .SolutionStructs import Solution
+from .TensileCreateLib.ParseArguments import parseArguments
+from .Utilities.Profile import profile
+from .Utilities.String import splitDelimitedString
+from .Utilities.toFile import toFile
 
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
 TENSILE_LIBRARY_DIR = "library"
