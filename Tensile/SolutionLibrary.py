@@ -509,7 +509,7 @@ class MasterSolutionLibrary:
         for s in list(self.solutions.values()):
             s.name = OriginalSolution.getNameMin(s.originalSolution.getKernels()[0], naming)
 
-    def remapSolutionIndicesStartingFromImpl(self, library, solutions: dict, curIndex: int) -> tuple:
+    def _remapSolutionIndicesStartingFrom(self, library, solutions: dict, curIndex: int) -> tuple:
         reIndexMap = {}
         newSolutions = {}
         for _, soln in solutions.items():
@@ -535,18 +535,19 @@ class MasterSolutionLibrary:
         if self.lazyLibraries:
             lazyLibrary = {}
             for name, lib in self.lazyLibraries.items():
-                lib.solutions, reIndexMap = self.remapSolutionIndicesStartingFromImpl(lib.library, lib.solutions, startingIndex)
+                lib.solutions, reIndexMap = self._remapSolutionIndicesStartingFrom(lib.library, lib.solutions, startingIndex)
                 lib.library.remapSolutionIndices(reIndexMap)
                 lazyLibrary[name] = lib
             self.lazyLibraries = lazyLibrary
             
-        self.solutions, reIndexMap =  self.remapSolutionIndicesStartingFromImpl(self.library, self.solutions, startingIndex)
+        self.solutions, reIndexMap =  self._remapSolutionIndicesStartingFrom(self.library, self.solutions, startingIndex)
         self.library.remapSolutionIndices(reIndexMap)
 
     def insert(self, other):
         assert self.__class__ == other.__class__
 
         for name, lib in other.lazyLibraries.items():
+            print("test: ", name)
             self.lazyLibraries[name] = lib
 
         for _, s in other.solutions.items():

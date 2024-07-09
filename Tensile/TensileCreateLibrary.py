@@ -1074,7 +1074,11 @@ def generateKernelObjectsFromSolutions(solutions):
     return (kernels, kernelHelperObjs, kernelHelperNames)
 
 
-def addNewLibrary(masterLibraries: Dict[str, MasterSolutionLibrary], newLibrary: MasterSolutionLibrary, architectureName: str) -> int:
+def addNewLibrary(
+    masterLibraries: Dict[str, MasterSolutionLibrary],
+    newLibrary: MasterSolutionLibrary,
+    architectureName: str,
+) -> int:
     """Adds new master solution library to a master solution libraries dict.
 
     For a given architecture, add the new library to a dictionary containing
@@ -1096,11 +1100,13 @@ def addNewLibrary(masterLibraries: Dict[str, MasterSolutionLibrary], newLibrary:
     return archIndex
 
 
-def makeMasterLibraries(logicList: List[LibraryIO.LibraryLogic], separate: bool) -> Dict[str, MasterSolutionLibrary]:
+def makeMasterLibraries(
+    logicList: List[LibraryIO.LibraryLogic], separate: bool
+) -> Dict[str, MasterSolutionLibrary]:
     """Creates a dictionary of master solution libraries.
 
     Iterates through a list of LibraryLogic objects creating
-    master solution libraries and modifying the solution 
+    master solution libraries and modifying the solution
     indexing as required.
 
     Args:
@@ -1235,8 +1241,8 @@ def generateLogicData(
         separate: Separate libraries by architecture.
 
     Returns:
-        For separate architectures, a dictionary of architecture 
-        separated master solution libraries; otherwise, a single 
+        For separate architectures, a dictionary of architecture
+        separated master solution libraries; otherwise, a single
         master solution library for all architectures.
     """
     libraries = parseLibraryLogicFiles(logicFiles)

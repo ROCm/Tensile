@@ -378,8 +378,6 @@ def test_logicDataAndSolutionsConstruction(initGlobalParametersForTCL):
         solutions = TensileCreateLibrary.generateSolutions(masterLibraries, separate=separateArch)
         assert isinstance(solutions, list), "generateSolutions should return a list."
         assert len(solutions) == 19, "There should be 19 solutions after adding the fallback."
-        
-        SolutionLibrary.MasterSolutionLibrary.ArchitectureSet.clear()
 
     def testCase2(yamlFiles: List[str], separateArch: bool):
         # clear the set to prevent testing errors caused
@@ -396,11 +394,38 @@ def test_logicDataAndSolutionsConstruction(initGlobalParametersForTCL):
         assert isinstance(solutions, list), "generateSolutions should return a list."
         assert len(solutions) == 19, "There should be 19 solutions after adding the fallback."
 
-    requiredArgs = ["--jobs=2", "/unused/logic/path", "/unused/output/path", "HIP"]
+    def testCase3(logicFiles: List[LibraryIO.LibraryLogic]):
+        # clear the set to prevent testing errors caused
+        # by the fact that ArchitectureSet is shared across
+        # instances of MasterSolutionLibrary.
+        SolutionLibrary.MasterSolutionLibrary.ArchitectureSet.clear()    
 
+        masterLibraries = TensileCreateLibrary.makeMasterLibraries(logicFiles, separate=True)
+        arch = "gfx900"
+        
+        assert len(masterLibraries[arch].lazyLibraries.keys()) == 1, f"There should be 1 key prior to adding the fallback for {arch}."        
+        assert len(next(iter(masterLibraries[arch].lazyLibraries.values())).solutions.values()) == 17, f"There should be 17 solutions prior to adding the fallback for {arch}."
+       
+        TensileCreateLibrary.addFallback(masterLibraries)
+       
+        assert len(masterLibraries[arch].lazyLibraries.keys()) == 2, f"There should be 2 keys after adding the fallback for {arch}."
+
+        for name, lib in masterLibraries[arch].lazyLibraries.items():
+            if "fallback" in name:
+                assert len(lib.solutions.values()) == 2, "There should be 2 fallback solutions."
+            else:
+                assert len(lib.solutions.values()) == 17, "There should be 17 gfx900 solutions."
+ 
+        solutions = TensileCreateLibrary.generateSolutions(masterLibraries, separate=True)
+        assert isinstance(solutions, list), "generateSolutions should return a list."
+        assert len(solutions) == 19, "There should be 19 solutions after adding the fallback."
+
+
+    requiredArgs = ["--jobs=2", "/unused/logic/path", "/unused/output/path", "HIP"]
+    rootPath = Path(__file__).parent.parent/"test_data"/"unit"/"solutions"
+    yamlFiles = [rootPath/f for f in ["vega10_Cijk_Ailk_Bjlk_CB_GB.yaml", "hip_Cijk_Ailk_Bjlk_CB_GB.yaml"]]
+    
     with initGlobalParametersForTCL(["--architecture=gfx900"]+requiredArgs):
-        rootPath = Path(__file__).parent.parent/"test_data"/"unit"/"solutions"
-        yamlFiles = [rootPath/f for f in ["vega10_Cijk_Ailk_Bjlk_CB_GB.yaml", "hip_Cijk_Ailk_Bjlk_CB_GB.yaml"]]
         logicFiles = TensileCreateLibrary.parseLibraryLogicFiles(yamlFiles)
         assert len(logicFiles) == 2, "The length of the logic files list is incorrect."        
      
@@ -408,7 +433,10 @@ def test_logicDataAndSolutionsConstruction(initGlobalParametersForTCL):
             testCase1(logicFiles, separateArch=s)
             testCase2(yamlFiles, separateArch=s)
 
-
+    with initGlobalParametersForTCL(["--architecture=gfx900", "--lazy-library-loading"]+requiredArgs):
+        logicFiles = TensileCreateLibrary.parseLibraryLogicFiles(yamlFiles)
+        assert len(logicFiles) == 2, "The length of the logic files list is incorrect."
+        testCase3(logicFiles)
 
 
 # ----------------
