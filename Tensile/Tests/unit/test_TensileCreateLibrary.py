@@ -388,16 +388,20 @@ def test_generateMasterFileList():
         assert isinstance(t[1], MasterLibraryMock), "Incorrect type for value."
         assert t[1].data == (idx + 2), "Incorrect data."
 
+
 @pytest.fixture
 def unittestPath(request):
     """Returns the path to the directory containing the current test file"""
     return request.path.parent
 
+
 @pytest.fixture
 def setupSolutionsAndKernels(unittestPath):
     """Reusable logic for setting up testable solutions and kernels"""
     Common.assignGlobalParameters({})
-    _, _, _, _, _, lib = LibraryIO.parseLibraryLogicFile(unittestPath.parent / "test_data" / "unit" / "aldebaran_Cijk_AlikC_Bljk_ZB_GB.yaml")
+    _, _, _, _, _, lib = LibraryIO.parseLibraryLogicFile(
+        unittestPath.parent / "test_data" / "unit" / "aldebaran_Cijk_AlikC_Bljk_ZB_GB.yaml"
+    )
     solutions = [sol.originalSolution for sol in lib.solutions.values()]
     kernels, _, _ = TensileCreateLibrary.generateKernelObjectsFromSolutions(solutions)
     kernelWriterSource, kernelWriterAssembly, _, _ = TensileCreateLibrary.getKernelWriters(
@@ -405,13 +409,16 @@ def setupSolutionsAndKernels(unittestPath):
     )
     return solutions, kernels, kernelWriterAssembly, kernelWriterSource
 
+
 def test_prepAsm(setupSolutionsAndKernels):
     solutions, kernels, kernelWriterAssembly, kernelWriterSource = setupSolutionsAndKernels
     buildPath = Path("no-commit-prep-asm")
     buildPath.mkdir(exist_ok=True)
 
     def testLinux():
-        TensileCreateLibrary.prepAsm(kernelWriterAssembly, True, Path("no-commit-prep-asm"), (9, 0, 10), 1)
+        TensileCreateLibrary.prepAsm(
+            kernelWriterAssembly, True, Path("no-commit-prep-asm"), (9, 0, 10), 1
+        )
 
         expected = """#!/bin/sh 
 # usage: asm-new.sh kernelName(no extension) [--wave32]
@@ -434,12 +441,14 @@ cp $f.co ../../../library/${f}_$h.co
 mkdir -p ../../../asm_backup && cp $f.s ../../../asm_backup/$f.s
 """
 
-        with open(buildPath/"assembly"/"asm-new.sh", "r") as f:
+        with open(buildPath / "assembly" / "asm-new.sh", "r") as f:
             contents = f.read()
             assert contents == expected, "Assembler script doesn't match expectation"
 
     def testWindows():
-        TensileCreateLibrary.prepAsm(kernelWriterAssembly, False, Path("no-commit-prep-asm"), (9, 0, 10), 1)
+        TensileCreateLibrary.prepAsm(
+            kernelWriterAssembly, False, Path("no-commit-prep-asm"), (9, 0, 10), 1
+        )
 
         expected = """@echo off
 set f=%1
@@ -456,12 +465,13 @@ if %wave% == 32 (/opt/rocm/bin/amdclang++ -x assembler -target amdgcn-amd-amdhsa
 copy %f%.co ..\..\..\library\%f%_%h%.co
 """
 
-        with open(buildPath/"assembly"/"asm-new.bat", "r") as f:
+        with open(buildPath / "assembly" / "asm-new.bat", "r") as f:
             contents = f.read()
             assert contents == expected, "Assembler script doesn't match expectation"
-    
+
     testLinux()
     testWindows()
+
 
 def test_markDuplicateKernels(setupSolutionsAndKernels):
     _, kernels, kernelWriterAssembly, _ = setupSolutionsAndKernels
@@ -480,11 +490,16 @@ def test_markDuplicateKernels(setupSolutionsAndKernels):
 
     for i, k in enumerate(kernels_out):
         if i == custom_idx2:
-            assert k.duplicate == True, f"CustomKernelName: 'DUPLICATE' wasn't located, instead found {kernelWriterAssembly.getKernelFileBase(k)}"
+            assert (
+                k.duplicate == True
+            ), f"CustomKernelName: 'DUPLICATE' wasn't located, instead found {kernelWriterAssembly.getKernelFileBase(k)}"
         elif i == len(kernels) - 1:
-            assert k.duplicate == True, f"Shortened name {kernelWriterAssembly.getKernelFileBase(k)} wasn't located"
+            assert (
+                k.duplicate == True
+            ), f"Shortened name {kernelWriterAssembly.getKernelFileBase(k)} wasn't located"
         elif k["KernelLanguage"] == "Assembly":
             assert k.duplicate == False
+
 
 # ----------------
 # Helper functions
