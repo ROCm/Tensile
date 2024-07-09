@@ -480,25 +480,28 @@ def test_markDuplicateKernels(setupSolutionsAndKernels):
     custom_idx1 = 1
     custom_idx2 = 2
 
-    # Use deepcopy here, otherwise when the entry is updated laster, both entries will be
+    # Use deepcopy here, otherwise when the entry is updated later, both entries will be
     # marked as duplicates.
     kernels.append(deepcopy(kernels[shortname_idx]))
     kernels[custom_idx1]["CustomKernelName"] = "DUPLICATE"
     kernels[custom_idx2]["CustomKernelName"] = "DUPLICATE"
 
-    kernels_out = TensileCreateLibrary.markDuplicateKernels(kernels, kernelWriterAssembly)
+    kernelsOut = TensileCreateLibrary.markDuplicateKernels(kernels, kernelWriterAssembly)
 
-    for i, k in enumerate(kernels_out):
+    assert len(kernelsOut) == len(kernels), "Lengths of input and output should match"
+    for i, k in enumerate(kernelsOut):
         if i == custom_idx2:
             assert (
                 k.duplicate == True
-            ), f"CustomKernelName: 'DUPLICATE' wasn't located, instead found {kernelWriterAssembly.getKernelFileBase(k)}"
+            ), f"Kernel with custom name {kernels[i]['CustomKernelName']} should be a duplicate, but isn't, found {kernelWriterAssembly.getKernelFileBase(k)} instead"
         elif i == len(kernels) - 1:
             assert (
                 k.duplicate == True
             ), f"Shortened name {kernelWriterAssembly.getKernelFileBase(k)} wasn't located"
         elif k["KernelLanguage"] == "Assembly":
-            assert k.duplicate == False
+            assert (
+                k.duplicate == False
+            ), f"Kernel with name {kernels[i]['CustomKernelName']} should not be marked as a duplicate, but is"
 
 
 # ----------------

@@ -590,7 +590,7 @@ def markDuplicateKernels(
         if kernel["KernelLanguage"] == "Assembly":
             curr = kernelWriterAssembly.getKernelFileBase(kernel)
             kernel.duplicate = curr in visited
-            count += curr in visited
+            count += kernel.duplicate
             visited.add(curr)
     if count:
         printWarning(f"Found {count} duplicate kernels, these will be ignored")
