@@ -438,6 +438,80 @@ def test_logicDataAndSolutionsConstruction(initGlobalParametersForTCL):
         assert len(logicFiles) == 2, "The length of the logic files list is incorrect."
         testCase3(logicFiles)
 
+@pytest.fixture
+def testPath(request):
+    """Returns the path to the directory containing the current test file"""
+    return request.path.parent
+
+@pytest.fixture
+def setupSolutionsAndKernels(testPath):
+    """Reusable logic for setting up testable solutions and kernels"""
+    Common.assignGlobalParameters({})
+    _, _, _, _, _, lib = LibraryIO.parseLibraryLogicFile(testPath.parent / "test_data" / "unit" / "aldebaran_Cijk_AlikC_Bljk_ZB_GB.yaml")
+    solutions = [sol.originalSolution for sol in lib.solutions.values()]
+    kernels, _, _ = TensileCreateLibrary.generateKernelObjectsFromSolutions(solutions)
+    kernelWriterSource, kernelWriterAssembly, _, _ = TensileCreateLibrary.getKernelWriters(
+        solutions, kernels
+    )
+    return solutions, kernels, kernelWriterAssembly, kernelWriterSource
+
+def test_prepAsm(setupSolutionsAndKernels):
+    solutions, kernels, kernelWriterAssembly, kernelWriterSource = setupSolutionsAndKernels
+    buildPath = Path("no-commit-prep-asm")
+    buildPath.mkdir(exist_ok=True)
+
+    def testLinux():
+        TensileCreateLibrary.prepAsm(kernelWriterAssembly, True, Path("no-commit-prep-asm"), (9, 0, 10), 1)
+
+        expected = """#!/bin/sh 
+# usage: asm-new.sh kernelName(no extension) [--wave32]
+f=$1
+shift
+if [ ! -z "$1" ] && [ "$1" = "--wave32" ]; then
+    wave=32
+    shift
+else
+    wave=64
+fi
+h=gfx90a
+if [ $wave -eq 32 ]; then
+/opt/rocm/bin/amdclang++ -x assembler -target amdgcn-amd-amdhsa -mcode-object-version=4 -mcpu=gfx90a -mno-wavefrontsize64 -c -o $f.o $f.s
+else
+/opt/rocm/bin/amdclang++ -x assembler -target amdgcn-amd-amdhsa -mcode-object-version=4 -mcpu=gfx90a -mwavefrontsize64 -c -o $f.o $f.s
+fi
+/opt/rocm/bin/amdclang++ -target amdgcn-amd-amdhsa -Xlinker --build-id -o $f.co $f.o
+cp $f.co ../../../library/${f}_$h.co
+mkdir -p ../../../asm_backup && cp $f.s ../../../asm_backup/$f.s
+"""
+
+        with open(buildPath/"assembly"/"asm-new.sh", "r") as f:
+            contents = f.read()
+            assert contents == expected, "Assembler script doesn't match expectation"
+
+    def testWindows():
+        TensileCreateLibrary.prepAsm(kernelWriterAssembly, False, Path("no-commit-prep-asm"), (9, 0, 10), 1)
+
+        expected = """@echo off
+set f=%1
+
+set arg2=--wave64
+if [%2] NEQ [] set arg2=%2
+
+set /A wave=64
+if %arg2% EQU --wave32 set /A wave=32
+
+set h=gfx90a
+if %wave% == 32 (/opt/rocm/bin/amdclang++ -x assembler -target amdgcn-amd-amdhsa -mcode-object-version=4 -mcpu=gfx90a -mno-wavefrontsize64 -c -o %f%.o %f%.s) else (/opt/rocm/bin/amdclang++ -x assembler -target amdgcn-amd-amdhsa -mcode-object-version=4 -mcpu=gfx90a -mwavefrontsize64 -c -o %f%.o %f%.s)
+/opt/rocm/bin/amdclang++ -target amdgcn-amd-amdhsa -Xlinker --build-id -o %f%.co %f%.o
+copy %f%.co ..\..\..\library\%f%_%h%.co
+"""
+
+        with open(buildPath/"assembly"/"asm-new.bat", "r") as f:
+            contents = f.read()
+            assert contents == expected, "Assembler script doesn't match expectation"
+    
+    testLinux()
+    testWindows()
 
 # ----------------
 # Helper functions

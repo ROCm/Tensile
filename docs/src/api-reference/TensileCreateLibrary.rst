@@ -15,7 +15,8 @@ TensileCreateLibrary
 .. autofunction:: Tensile.TensileCreateLibrary::generateMasterFileList
 .. autofunction:: Tensile.TensileCreateLibrary::makeMasterLibraries    
 .. autofunction:: Tensile.TensileCreateLibrary::makeSolutions
-.. autofunction:: Tensile.TensileCreateLibrary::parseLibraryLogicFiles        
+.. autofunction:: Tensile.TensileCreateLibrary::parseLibraryLogicFiles  
+.. autofunction:: Tensile.TensileCreateLibrary::prepAsm          
 .. autofunction:: Tensile.TensileCreateLibrary::sanityCheck
 .. autofunction:: Tensile.TensileCreateLibrary::verifyManifest
 .. autofunction:: Tensile.TensileCreateLibrary::writeMasterFile
