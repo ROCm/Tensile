@@ -31,6 +31,7 @@ import Tensile.LibraryIO as LibraryIO
 import Tensile.Common as Common
 import Tensile.ClientWriter as ClientWriter
 import Tensile.SolutionStructs as SolutionStructs
+import Tensile.SolutionLibrary as SolutionLibrary
 import yaml
 import contextlib
 import uuid
@@ -354,33 +355,60 @@ def test_generateMasterFileList():
     assert t[1].data == (idx+2), "Incorrect data."        
 
 
-def test_componentsOfLogicDataAndSolutionsConstruction(initGlobalParametersForTCL):
-    
-    requiredArgs = ["--jobs=2", "/unused/logic/path", "/unused/output/path", "HIP"]
-    
-    with initGlobalParametersForTCL(["--architecture=gfx900"]+requiredArgs):
-        for separateArch in [False, True]:
-            rootPath = Path(__file__).parent/"../test_data"/"unit"/"solutions"
-            yamlFiles = [rootPath/f for f in["vega10_Cijk_Ailk_Bjlk_CB_GB.yaml", "hip_Cijk_Ailk_Bjlk_CB_GB.yaml"]]
-            
-            logicFiles = TensileCreateLibrary.parseLibraryLogicFiles(yamlFiles)
-            assert len(logicFiles) == 2, "The length of the logic files list is incorrect."
+def test_logicDataAndSolutionsConstruction(initGlobalParametersForTCL):
 
-            masterLibraries = TensileCreateLibrary.makeMasterLibraries(logicFiles, separate=separateArch)    
-            arch = "gfx900" if separateArch else "full"
-            
-            if separateArch:        
-                assert len(masterLibraries[arch].solutions.values()) == 17, f"There should be 17 solutions prior to adding the fallback for {arch}."
-            
-                TensileCreateLibrary.addFallback(masterLibraries)
-            
-                assert len(masterLibraries[arch].solutions.values()) == 19, f"There should be 19 solutions after adding the fallback for {arch}."
-            else:
-                assert len(masterLibraries[arch].solutions.values()) == 19, f"There should be 19 solutions for {arch}."
-            
-            solutions = TensileCreateLibrary.generateSolutions(masterLibraries, separate=separateArch)
-            assert isinstance(solutions, list), "generateSolutions should return a list."
-            assert len(solutions) == 19, "There should be 19 solutions after adding the fallback."
+    def testCase1(logicFiles: List[LibraryIO.LibraryLogic], separateArch: bool):
+        # clear the set to prevent testing errors caused
+        # by the fact that ArchitectureSet is shared across
+        # instances of MasterSolutionLibrary.
+        SolutionLibrary.MasterSolutionLibrary.ArchitectureSet.clear()    
+
+        masterLibraries = TensileCreateLibrary.makeMasterLibraries(logicFiles, separate=separateArch)
+        arch = "gfx900" if separateArch else "full"
+        
+        if separateArch:        
+            assert len(masterLibraries[arch].solutions.values()) == 17, f"There should be 17 solutions prior to adding the fallback for {arch}."
+        
+            TensileCreateLibrary.addFallback(masterLibraries)
+        
+            assert len(masterLibraries[arch].solutions.values()) == 19, f"There should be 19 solutions after adding the fallback for {arch}."
+        else:
+            assert len(masterLibraries[arch].solutions.values()) == 19, f"There should be 19 solutions for {arch}."
+        
+        solutions = TensileCreateLibrary.generateSolutions(masterLibraries, separate=separateArch)
+        assert isinstance(solutions, list), "generateSolutions should return a list."
+        assert len(solutions) == 19, "There should be 19 solutions after adding the fallback."
+        
+        SolutionLibrary.MasterSolutionLibrary.ArchitectureSet.clear()
+
+    def testCase2(yamlFiles: List[str], separateArch: bool):
+        # clear the set to prevent testing errors caused
+        # by the fact that ArchitectureSet is shared across
+        # instances of MasterSolutionLibrary.
+        SolutionLibrary.MasterSolutionLibrary.ArchitectureSet.clear()    
+
+        masterLibraries = TensileCreateLibrary.generateLogicData(yamlFiles,version="foo", printLevel=0, separate=separateArch)
+        arch = "gfx900" if separateArch else "full"
+        
+        assert len(masterLibraries[arch].solutions.values()) == 19, f"There should be 19 solutions for {arch}."
+        
+        solutions = TensileCreateLibrary.generateSolutions(masterLibraries, separate=separateArch)
+        assert isinstance(solutions, list), "generateSolutions should return a list."
+        assert len(solutions) == 19, "There should be 19 solutions after adding the fallback."
+
+    requiredArgs = ["--jobs=2", "/unused/logic/path", "/unused/output/path", "HIP"]
+
+    with initGlobalParametersForTCL(["--architecture=gfx900"]+requiredArgs):
+        rootPath = Path(__file__).parent.parent/"test_data"/"unit"/"solutions"
+        yamlFiles = [rootPath/f for f in ["vega10_Cijk_Ailk_Bjlk_CB_GB.yaml", "hip_Cijk_Ailk_Bjlk_CB_GB.yaml"]]
+        logicFiles = TensileCreateLibrary.parseLibraryLogicFiles(yamlFiles)
+        assert len(logicFiles) == 2, "The length of the logic files list is incorrect."        
+     
+        for s in [True, False]:
+            testCase1(logicFiles, separateArch=s)
+            testCase2(yamlFiles, separateArch=s)
+
+
 
 
 # ----------------

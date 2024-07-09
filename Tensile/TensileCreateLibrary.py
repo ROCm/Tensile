@@ -1074,8 +1074,8 @@ def generateKernelObjectsFromSolutions(solutions):
     return (kernels, kernelHelperObjs, kernelHelperNames)
 
 
-def addNewLibrary(masterLibraries, newLibrary, architectureName) -> int:
-    """Adds master solution library to a master solution libraries dict.
+def addNewLibrary(masterLibraries: Dict[str, MasterSolutionLibrary], newLibrary: MasterSolutionLibrary, architectureName: str) -> int:
+    """Adds new master solution library to a master solution libraries dict.
 
     For a given architecture, add the new library to a dictionary containing
     libraries for all architectures, compute the starting index for the new
@@ -1096,12 +1096,12 @@ def addNewLibrary(masterLibraries, newLibrary, architectureName) -> int:
     return archIndex
 
 
-def makeMasterLibraries(logicList, separate) -> Dict[str, MasterSolutionLibrary]:
+def makeMasterLibraries(logicList: List[LibraryIO.LibraryLogic], separate: bool) -> Dict[str, MasterSolutionLibrary]:
     """Creates a dictionary of master solution libraries.
 
     Iterates through a list of LibraryLogic objects creating
-    master solution libraries and modifying the indexing as
-    rereuiqred.
+    master solution libraries and modifying the solution 
+    indexing as required.
 
     Args:
         logicFiles: List of LibraryLogic objects.
@@ -1135,7 +1135,7 @@ def makeMasterLibraries(logicList, separate) -> Dict[str, MasterSolutionLibrary]
     return {"full": fullMasterLibrary} if fullMasterLibrary is not None else masterLibraries
 
 
-def addFallback(masterLibraries) -> None:
+def addFallback(masterLibraries: Dict[str, MasterSolutionLibrary]) -> None:
     """Adds fallback library.
 
     Given a master solution library, add a fallback and if the corresponding
@@ -1182,14 +1182,14 @@ def makeSolutions(
 
     Given a master solution library, forms a flattened generator that
     yields solutions by iterating over all of the solutions contained
-    in the master solution libraries. If using separate architectures,
-    but not using lazy loading lazyLibraries should be an empty dict.
+    in the master solution libraries. If using separate architectures
+    but not using lazy loading, lazyLibraries should be an empty dict.
 
     Args:
         masterLibraries: A dictionary containing the master solution libraries.
 
     Returns:
-        List of library logic tuples.
+        Generator representing a sequence of library logic tuples.
     """
     gen1 = (
         sol.originalSolution
@@ -1206,11 +1206,11 @@ def makeSolutions(
 
 
 def parseLibraryLogicFiles(logicFiles: List[str]) -> List[LibraryIO.LibraryLogic]:
-    """Load and parse logic files.
+    """Load and parse logic (yaml) files.
 
     Given a list of paths to yaml files containing library logic, load the files
-    into memory and parse the data into a named tuple or LibraryLogic. This operation
-    is parallelized over N processes.
+    into memory and parse the data into a named tuple (i.e. LibraryLogic). This
+    operation is parallelized over N processes.
 
     Args:
         logicFiles: List of paths to logic files.
@@ -1235,8 +1235,9 @@ def generateLogicData(
         separate: Separate libraries by architecture.
 
     Returns:
-        A dictionary of architecture separated master solution libraries or
-        a single master solution library for all architectures.
+        For separate architectures, a dictionary of architecture 
+        separated master solution libraries; otherwise, a single 
+        master solution library for all architectures.
     """
     libraries = parseLibraryLogicFiles(logicFiles)
     logicList = libraries if not printLevel else Utils.tqdm(libraries, "Processing logic data")
