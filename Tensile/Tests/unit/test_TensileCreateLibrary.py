@@ -32,12 +32,14 @@ import Tensile.LibraryIO as LibraryIO
 import Tensile.Common as Common
 import Tensile.ClientWriter as ClientWriter
 import Tensile.SolutionStructs as SolutionStructs
+import Tensile.SolutionLibrary as SolutionLibrary
 import yaml
 import contextlib
 import uuid
 import shutil
 
 from pathlib import Path
+from typing import List
 
 mylogger = logging.getLogger()
 
@@ -389,6 +391,111 @@ def test_generateMasterFileList():
         assert t[1].data == (idx + 2), "Incorrect data."
 
 
+def test_logicDataAndSolutionsConstruction(initGlobalParametersForTCL):
+
+    def testCase1(logicFiles: List[LibraryIO.LibraryLogic], separateArch: bool):
+        # clear the set to prevent testing errors caused
+        # by the fact that ArchitectureSet is shared across
+        # instances of MasterSolutionLibrary.
+        SolutionLibrary.MasterSolutionLibrary.ArchitectureSet.clear()
+
+        masterLibraries = TensileCreateLibrary.makeMasterLibraries(
+            logicFiles, separate=separateArch
+        )
+        arch = "gfx900" if separateArch else "full"
+
+        if separateArch:
+            assert (
+                len(masterLibraries[arch].solutions.values()) == 17
+            ), f"There should be 17 solutions prior to adding the fallback for {arch}."
+
+            TensileCreateLibrary.addFallback(masterLibraries)
+
+            assert (
+                len(masterLibraries[arch].solutions.values()) == 19
+            ), f"There should be 19 solutions after adding the fallback for {arch}."
+        else:
+            assert (
+                len(masterLibraries[arch].solutions.values()) == 19
+            ), f"There should be 19 solutions for {arch}."
+
+        solutions = TensileCreateLibrary.generateSolutions(masterLibraries, separate=separateArch)
+        assert isinstance(solutions, list), "generateSolutions should return a list."
+        assert len(solutions) == 19, "There should be 19 solutions after adding the fallback."
+
+    def testCase2(yamlFiles: List[str], separateArch: bool):
+        # clear the set to prevent testing errors caused
+        # by the fact that ArchitectureSet is shared across
+        # instances of MasterSolutionLibrary.
+        SolutionLibrary.MasterSolutionLibrary.ArchitectureSet.clear()
+
+        masterLibraries = TensileCreateLibrary.generateLogicData(
+            yamlFiles, version="foo", printLevel=0, separate=separateArch
+        )
+        arch = "gfx900" if separateArch else "full"
+
+        assert (
+            len(masterLibraries[arch].solutions.values()) == 19
+        ), f"There should be 19 solutions for {arch}."
+
+        solutions = TensileCreateLibrary.generateSolutions(masterLibraries, separate=separateArch)
+        assert isinstance(solutions, list), "generateSolutions should return a list."
+        assert len(solutions) == 19, "There should be 19 solutions after adding the fallback."
+
+    def testCase3(logicFiles: List[LibraryIO.LibraryLogic]):
+        # clear the set to prevent testing errors caused
+        # by the fact that ArchitectureSet is shared across
+        # instances of MasterSolutionLibrary.
+        SolutionLibrary.MasterSolutionLibrary.ArchitectureSet.clear()
+
+        masterLibraries = TensileCreateLibrary.makeMasterLibraries(logicFiles, separate=True)
+        arch = "gfx900"
+
+        assert (
+            len(masterLibraries[arch].lazyLibraries.keys()) == 1
+        ), f"There should be 1 key prior to adding the fallback for {arch}."
+        assert (
+            len(next(iter(masterLibraries[arch].lazyLibraries.values())).solutions.values()) == 17
+        ), f"There should be 17 solutions prior to adding the fallback for {arch}."
+
+        TensileCreateLibrary.addFallback(masterLibraries)
+
+        assert (
+            len(masterLibraries[arch].lazyLibraries.keys()) == 2
+        ), f"There should be 2 keys after adding the fallback for {arch}."
+
+        for name, lib in masterLibraries[arch].lazyLibraries.items():
+            if "fallback" in name:
+                assert len(lib.solutions.values()) == 2, "There should be 2 fallback solutions."
+            else:
+                assert len(lib.solutions.values()) == 17, "There should be 17 gfx900 solutions."
+
+        solutions = TensileCreateLibrary.generateSolutions(masterLibraries, separate=True)
+        assert isinstance(solutions, list), "generateSolutions should return a list."
+        assert len(solutions) == 19, "There should be 19 solutions after adding the fallback."
+
+    requiredArgs = ["--jobs=2", "/unused/logic/path", "/unused/output/path", "HIP"]
+    rootPath = Path(__file__).parent.parent / "test_data" / "unit" / "solutions"
+    yamlFiles = [
+        rootPath / f for f in ["vega10_Cijk_Ailk_Bjlk_CB_GB.yaml", "hip_Cijk_Ailk_Bjlk_CB_GB.yaml"]
+    ]
+
+    with initGlobalParametersForTCL(["--architecture=gfx900"] + requiredArgs):
+        logicFiles = TensileCreateLibrary.parseLibraryLogicFiles(yamlFiles)
+        assert len(logicFiles) == 2, "The length of the logic files list is incorrect."
+
+        for s in [True, False]:
+            testCase1(logicFiles, separateArch=s)
+            testCase2(yamlFiles, separateArch=s)
+
+    with initGlobalParametersForTCL(
+        ["--architecture=gfx900", "--lazy-library-loading"] + requiredArgs
+    ):
+        logicFiles = TensileCreateLibrary.parseLibraryLogicFiles(yamlFiles)
+        assert len(logicFiles) == 2, "The length of the logic files list is incorrect."
+        testCase3(logicFiles)
+
+
 @pytest.fixture
 def unittestPath(request):
     """Returns the path to the directory containing the current test file"""
@@ -480,25 +587,28 @@ def test_markDuplicateKernels(setupSolutionsAndKernels):
     custom_idx1 = 1
     custom_idx2 = 2
 
-    # Use deepcopy here, otherwise when the entry is updated laster, both entries will be
+    # Use deepcopy here, otherwise when the entry is updated later, both entries will be
     # marked as duplicates.
     kernels.append(deepcopy(kernels[shortname_idx]))
     kernels[custom_idx1]["CustomKernelName"] = "DUPLICATE"
     kernels[custom_idx2]["CustomKernelName"] = "DUPLICATE"
 
-    kernels_out = TensileCreateLibrary.markDuplicateKernels(kernels, kernelWriterAssembly)
+    kernelsOut = TensileCreateLibrary.markDuplicateKernels(kernels, kernelWriterAssembly)
 
-    for i, k in enumerate(kernels_out):
+    assert len(kernelsOut) == len(kernels), "Lengths of input and output should match"
+    for i, k in enumerate(kernelsOut):
         if i == custom_idx2:
             assert (
                 k.duplicate == True
-            ), f"CustomKernelName: 'DUPLICATE' wasn't located, instead found {kernelWriterAssembly.getKernelFileBase(k)}"
+            ), f"Kernel with custom name {kernels[i]['CustomKernelName']} should be a duplicate, but isn't, found {kernelWriterAssembly.getKernelFileBase(k)} instead"
         elif i == len(kernels) - 1:
             assert (
                 k.duplicate == True
             ), f"Shortened name {kernelWriterAssembly.getKernelFileBase(k)} wasn't located"
         elif k["KernelLanguage"] == "Assembly":
-            assert k.duplicate == False
+            assert (
+                k.duplicate == False
+            ), f"Kernel with name {kernels[i]['CustomKernelName']} should not be marked as a duplicate, but is"
 
 
 def test_filterProcessingErrors(setupSolutionsAndKernels):
@@ -523,7 +633,7 @@ def test_filterProcessingErrors(setupSolutionsAndKernels):
 
 # ----------------
 # Helper functions
-# --------------
+# ----------------
 def setupClientConfigTest(outputPath, masterLibrary, codeObjectFiles):
     outputPath.mkdir()
     with open(masterLibrary, "w") as testFile:

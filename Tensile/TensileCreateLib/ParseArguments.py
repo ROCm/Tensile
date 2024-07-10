@@ -25,7 +25,7 @@
 import os
 import warnings
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 from argparse import ArgumentParser, Action
 
 from ..Common import architectureMap
@@ -46,8 +46,16 @@ def splitExtraParameters(par):
     return (key, value)
 
 
-def parseArguments() -> Dict[str, Any]:
-    """Parse command line arguments for TensileCreateLibrary."""
+def parseArguments(input: List[str] | None = None) -> Dict[str, Any]:
+    """Parse command line arguments for TensileCreateLibrary.
+
+    Args:
+        input: List of strings representing command line arguments used when
+               calling parseArguments prgrammatically e.g. in testing.
+
+    Returns:
+        A dictionary containing the keys representing options and their values.
+    """
 
     parser = ArgumentParser(
         description="TensileCreateLibrary generates libraries and code object files "
@@ -251,7 +259,7 @@ def parseArguments() -> Dict[str, Any]:
         action=DeprecatedOption,
         help="(Deprecated) Additional global parameters.",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(input)
 
     arguments = {
         "LogicPath": args.LogicPath,
