@@ -618,7 +618,7 @@ def test_filterProcessingErrors(setupSolutionsAndKernels):
     results = [(-2, 0, 0, 0, 0)] * len(kernels)
 
     kernelsOut, solutionsOut, resultsOut = TensileCreateLibrary.filterProcessingErrors(
-        kernels, solutions, results, printLevel=1, errorTolerant=True
+        kernels, solutions, results, printLevel=1, ignoreErr=True
     )
     assert len(kernelsOut) == 0, "Kernels should be of length zero"
     assert len(solutionsOut) == 0, "Solutions should be of length zero"
@@ -627,7 +627,7 @@ def test_filterProcessingErrors(setupSolutionsAndKernels):
     results = [(-2, 0, 0, 0, 0)] + [(0, 0, 0, 0, 0)] * (len(kernels) - 1)
     with pytest.raises(ValueError, match=r"Found 1 error\(s\) (.*)"):
         TensileCreateLibrary.filterProcessingErrors(
-            kernels, solutions, results, printLevel=1, errorTolerant=False
+            kernels, solutions, results, printLevel=1, ignoreErr=False
         )
 
 

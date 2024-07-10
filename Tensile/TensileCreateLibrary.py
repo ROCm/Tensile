@@ -601,7 +601,7 @@ def filterProcessingErrors(
     solutions: List[Solution],
     results: List[Any],
     printLevel: int,
-    errorTolerant: bool,
+    ignoreErr: bool,
 ) -> Tuple[List[Solution], List[Solution], List[Any]]:
     """Filters out processing errors from lists of kernels, solutions, and results.
 
@@ -627,22 +627,18 @@ def filterProcessingErrors(
     keepKernels = []
     keepSolutions = []
     keepResults = []
-    for kernIdx, res in enumerate(results) if printLevel == 0 else Utils.tqdm(enumerate(results)):
+    for i, res in enumerate(results) if printLevel == 0 else Utils.tqdm(enumerate(results)):
         err, _, _, _, _ = res
         if err != -2:
-            keepKernels.append(kernels[kernIdx])
-            keepSolutions.append(solutions[kernIdx])
-            keepResults.append(results[kernIdx])
-        else:
-            if not errorTolerant:
-                tPrint(
-                    1,
-                    f"Kernel generation failed for kernel {kernels[kernIdx]['SolutionIndex']}: {kernels[kernIdx]['SolutionNameMin']}",
-                )
-    if len(kernels) != len(keepKernels) and not errorTolerant:
-        raise ValueError(
-            f"Found {len(kernels)-len(keepKernels)} error(s) while processing kernels. Set 'errorTolerant=True' to ignore."
-        )
+            keepKernels.append(kernels[i])
+            keepSolutions.append(solutions[i])
+            keepResults.append(results[i])
+        elif not ignoreErr:
+            k = kernels[i]
+            tPrint(1, f"Kernel generation failed for {k['SolutionIndex']}: {k['SolutionNameMin']}")
+    diff = len(kernels) - len(keepKernels)
+    if diff and not ignoreErr:
+        raise ValueError(f"Found {diff} error(s) while processing kernels; use ignoreErr to bypass")
     return keepKernels, keepSolutions, keepResults
 
 
