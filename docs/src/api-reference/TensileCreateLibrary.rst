@@ -5,6 +5,8 @@
 TensileCreateLibrary
 ====================
 
+.. autofunction:: Tensile.TensileCreateLibrary::prepAsm
+.. autofunction:: Tensile.TensileCreateLibrary::markDuplicateKernels
 .. autofunction:: Tensile.TensileCreateLibrary::addFallBacks
 .. autofunction:: Tensile.TensileCreateLibrary::addNewLibrary
 .. autofunction:: Tensile.TensileCreateLibrary::applyNaming    
