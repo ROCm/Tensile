@@ -547,7 +547,6 @@ class MasterSolutionLibrary:
         assert self.__class__ == other.__class__
 
         for name, lib in other.lazyLibraries.items():
-            print("test: ", name)
             self.lazyLibraries[name] = lib
 
         for _, s in other.solutions.items():

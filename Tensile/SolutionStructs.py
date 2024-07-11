@@ -1720,6 +1720,7 @@ class Solution(collections.abc.Mapping):
   ########################################
   def __init__(self, config):
     self._name = None
+    self.codeObjectFile = None
     config = deepcopy(config)
 
     self._state = {}
@@ -4972,7 +4973,8 @@ class Solution(collections.abc.Mapping):
     return deepcopy(self._state)
 
   def __hash__(self):
-    return hash(str(self) + self._state.get("codeObjectFile", ""))
+    #return hash(str(self) + self._state.get("codeObjectFile", ""))
+    return hash(str(self) + "" if self.codeObjectFile is None else self.codeObjectFile)
     #return hash(self.getAttributes())
 
   def __eq__(self, other):

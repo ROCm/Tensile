@@ -93,7 +93,8 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
         (err, src) = kernelWriter.getSourceFileString(kernel)
         header = kernelWriter.getHeaderFileString(kernel)
         # will be put in Kernels.h/cpp if None
-        filename = kernel._state.get("codeObjectFile", None)
+        # filename = kernel._state.get("codeObjectFile", None)
+        filename = kernel.codeObjectFile
 
     except RuntimeError:
         return (1, "", "", kernelName, None)
@@ -118,7 +119,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
             [
                 kernelWriterAssembly.getKernelFileBase(k) + ".o"
                 for k in archKernels
-                if "codeObjectFile" not in k
+                if not k.codeObjectFile
             ]
         )
 
@@ -139,7 +140,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
                 coFileMap[os.path.join(destDir, "TensileLibrary_" + archName + ".co")] = objectFiles
 
             for kernel in archKernels:
-                coName = kernel.get("codeObjectFile", None)
+                coName = kernel.codeObjectFile
                 if coName:
                     coFileMap[os.path.join(destDir, coName + ".co")] += [
                         kernelWriterAssembly.getKernelFileBase(kernel) + ".o"
@@ -923,11 +924,7 @@ def buildObjectFileNames(
     elif globalParameters["LazyLibraryLoading"]:
         fallbackLibs = list(
             set(
-                [
-                    kernel._state["codeObjectFile"]
-                    for kernel in kernels
-                    if "fallback" in kernel._state.get("codeObjectFile", "")
-                ]
+                [kernel.codeObjectFile for kernel in kernels if "fallback" in kernel.codeObjectFile]
             )
         )
         sourceLibFiles += [
@@ -955,19 +952,19 @@ def buildObjectFileNames(
 
         # If assembly kernel with codeObjectFile specified
         cond = (
-            lambda k: "codeObjectFile" in k._state
-            and "fallback" not in k._state["codeObjectFile"]
+            lambda k: k.codeObjectFile is not None
+            and "fallback" not in k.codeObjectFile
             and k._state["KernelLanguage"] == "Assembly"
         )
 
         asmLibFiles += list(
-            set([kernel._state["codeObjectFile"] + ".co" for kernel in kernels if cond(kernel)])
+            set([kernel.codeObjectFile + ".co" for kernel in kernels if cond(kernel)])
         )
 
         # If architecture specific source kernel with codeObjectFile specified
         cond = (
-            lambda k: "codeObjectFile" in k._state
-            and "fallback" not in k._state["codeObjectFile"]
+            lambda k: k.codeObjectFile is not None
+            and "fallback" not in k.codeObjectFile
             and k._state["KernelLanguage"] == "Source"
         )
 
@@ -975,7 +972,7 @@ def buildObjectFileNames(
             set(
                 itertools.chain.from_iterable(
                     [
-                        addxnack(kernel._state["codeObjectFile"], ".hsaco")
+                        addxnack(kernel.codeObjectFile, ".hsaco")
                         for kernel in kernels
                         if cond(kernel)
                     ]
@@ -1242,7 +1239,7 @@ def applyNaming(masterLibraries: Dict[str, MasterSolutionLibrary]) -> None:
     for masterLibrary in masterLibraries.values():
         for name, lib in masterLibrary.lazyLibraries.items():
             for sol in lib.solutions.values():
-                sol.originalSolution._state["codeObjectFile"] = name
+                sol.originalSolution.codeObjectFile = name
 
 
 def makeSolutions(
