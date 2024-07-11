@@ -27,18 +27,9 @@ import functools
 import glob
 import logging
 import os
-import glob
-import Tensile.TensileCreateLibrary as TensileCreateLibrary
-import Tensile.LibraryIO as LibraryIO
-import Tensile.Common as Common
-import Tensile.ClientWriter as ClientWriter
-import Tensile.SolutionStructs as SolutionStructs
-import Tensile.SolutionLibrary as SolutionLibrary
-import yaml
-import contextlib
-import uuid
 import shutil
 import uuid
+from ast import Tuple
 from copy import deepcopy
 from pathlib import Path
 from typing import List
@@ -49,9 +40,10 @@ import yaml
 import Tensile.ClientWriter as ClientWriter
 import Tensile.Common as Common
 import Tensile.LibraryIO as LibraryIO
-import Tensile.SolutionStructs as SolutionStructs
+import Tensile.SolutionLibrary as SolutionLibrary
 import Tensile.TensileCreateLibrary as tcl
-import Tensile.TensileCreateLibrary as TensileCreateLibrary
+from Tensile.SolutionStructs import ProblemSizes, Solution
+from Tensile.Tensile import KernelWriterAssembly, KernelWriterSource
 
 mylogger = logging.getLogger()
 
@@ -66,11 +58,11 @@ def test_loadSolutions(caplog, useGlobalParameters):
 
         fileSolutions = LibraryIO.parseSolutionsFile(solutionsFilePath)
         solutions = fileSolutions[1]
-        kernels, _, _ = TensileCreateLibrary.generateKernelObjectsFromSolutions(solutions)
+        kernels, _, _ = tcl.generateKernelObjectsFromSolutions(solutions)
         assert len(solutions) == 3
         assert len(kernels) == 3
 
-        _, kernelWriterAssembly, _, _ = TensileCreateLibrary.getKernelWriters(solutions, kernels)
+        _, kernelWriterAssembly, _, _ = tcl.getKernelWriters(solutions, kernels)
 
         expectedKernelName0 = "Cijk_Ailk_Bljk_SB_MT128x128x2_SE_K1_TT8_8_WG16_16_1"
         expectedKernelName1 = "Cijk_Ailk_Bljk_SB_MT64x64x2_SE_K1_TT4_4_WG16_16_1"
@@ -104,7 +96,7 @@ def test_WriteClientLibraryFromSolutions(tmpdir):
     solutions = fileSolutions[1]
 
     Common.setWorkingPath(buildWorkingPath)
-    TensileCreateLibrary.WriteClientLibraryFromSolutions(solutions, libraryWorkingPath)
+    tcl.WriteClientLibraryFromSolutions(solutions, libraryWorkingPath)
     Common.popWorkingPath()
 
     tensileLibraryPath = os.path.join(libraryWorkingPath, "library")
@@ -158,7 +150,7 @@ def test_CreateBenchmarkClientParametersForSizes(tmpdir):
     metadataFile = LibraryIO.readYAML(metadataFilepath)
     problemTypeDict = metadataFile["ProblemType"]
     sizes = [{"Exact": [196, 256, 64, 1024]}]
-    problemSizes = SolutionStructs.ProblemSizes(problemTypeDict, sizes)
+    problemSizes = ProblemSizes(problemTypeDict, sizes)
 
     dataFilePath = os.path.join(dataWorkingPath, "results.csv")
     configFile = os.path.join(configWorkingPath, "ClientParameters.ini")
@@ -185,45 +177,35 @@ def test_verifyManifest():
     with pytest.raises(
         FileNotFoundError, match=r"(.*) No such file or directory: 'test_manifest.txt'"
     ):
-        TensileCreateLibrary.verifyManifest(manifestFile)
+        tcl.verifyManifest(manifestFile)
 
     # Create an empty manifest
     with open(manifestFile, mode="x") as manifest:
 
-        assert TensileCreateLibrary.verifyManifest(
-            manifestFile
-        ), "an empty manifest should always succeed"
+        assert tcl.verifyManifest(manifestFile), "an empty manifest should always succeed"
 
         # add to file manifest that is not on disk
         manifest.write("foo.asm\n")
         manifest.flush()
-        assert not TensileCreateLibrary.verifyManifest(
+        assert not tcl.verifyManifest(
             manifestFile
         ), "file in manifest are on disk, but shouldn't be"
 
         with open(testFoo, mode="x"):
-            assert TensileCreateLibrary.verifyManifest(
-                manifestFile
-            ), "file in manifest isn't on disk, but should be"
+            assert tcl.verifyManifest(manifestFile), "file in manifest isn't on disk, but should be"
 
         manifest.write("bar.asm\n")
         manifest.flush()
-        assert not TensileCreateLibrary.verifyManifest(
-            manifestFile
-        ), "bar.asm in manifest should not be on disk"
+        assert not tcl.verifyManifest(manifestFile), "bar.asm in manifest should not be on disk"
 
     with open(testBar, mode="x"):
-        assert TensileCreateLibrary.verifyManifest(
-            manifestFile
-        ), "files in manifest isn't on disk, but should be"
+        assert tcl.verifyManifest(manifestFile), "files in manifest isn't on disk, but should be"
 
     with open(manifestFile, "a") as generatedFile:
         for filePath in range(5):
             generatedFile.write("%s\n" % (filePath))
 
-    assert not TensileCreateLibrary.verifyManifest(
-        manifestFile
-    ), "files in manifest are on disk, but shouldn't be"
+    assert not tcl.verifyManifest(manifestFile), "files in manifest are on disk, but shouldn't be"
 
 
 def test_findLogicFiles():
@@ -249,9 +231,7 @@ def test_findLogicFiles():
         for d in logicArchs:
             createDirectoryWithYamls(baseDir / d, "foo", "yaml")
 
-        result = TensileCreateLibrary.findLogicFiles(
-            baseDir, logicArchs, lazyLoading, experimentalDir
-        )
+        result = tcl.findLogicFiles(baseDir, logicArchs, lazyLoading, experimentalDir)
         expected = findLogicFiles_oldLogic(baseDir, logicArchs, lazyLoading, experimentalDir)
         return result == expected
 
@@ -264,9 +244,7 @@ def test_findLogicFiles():
         for d in logicArchs:
             createDirectoryWithYamls(baseDir / d, d, "yaml")
 
-        result = TensileCreateLibrary.findLogicFiles(
-            baseDir, logicArchs, lazyLoading, experimentalDir
-        )
+        result = tcl.findLogicFiles(baseDir, logicArchs, lazyLoading, experimentalDir)
         expected = findLogicFiles_oldLogic(baseDir, logicArchs, lazyLoading, experimentalDir)
         return result == expected
 
@@ -277,9 +255,7 @@ def test_findLogicFiles():
         for d in logicArchs:
             createDirectoryWithYamls(baseDir / d, d, "yaml")
 
-        result = TensileCreateLibrary.findLogicFiles(
-            baseDir, logicArchs, lazyLoading, experimentalDir
-        )
+        result = tcl.findLogicFiles(baseDir, logicArchs, lazyLoading, experimentalDir)
         expected = findLogicFiles_oldLogic(baseDir, logicArchs, lazyLoading, experimentalDir)
         return result == expected
 
@@ -294,9 +270,7 @@ def test_findLogicFiles():
             createDirectoryWithYamls(baseDir / "yaml" / d, d, "yaml")
             createDirectoryWithYamls(baseDir / "yml" / d, d, "yml")
 
-        result = TensileCreateLibrary.findLogicFiles(
-            baseDir, logicArchs, lazyLoading, experimentalDir
-        )
+        result = tcl.findLogicFiles(baseDir, logicArchs, lazyLoading, experimentalDir)
         expected = findLogicFiles_oldLogic(baseDir, logicArchs, lazyLoading, experimentalDir)
         return len(result) == len(expected) * 2
 
@@ -316,12 +290,12 @@ def test_sanityCheck():
     coPathsExtra = ["foo.hsaco", "bar.hsaco", "baz.co", "gru.co", "tux.hsaco"]
     coPathsMissing = ["foo.hsaco", "bar.hsaco", "baz.co"]
 
-    TensileCreateLibrary.sanityCheck(srcPaths, asmPaths, coPathsMatch, False)
+    tcl.sanityCheck(srcPaths, asmPaths, coPathsMatch, False)
     # Ensure that old logic also succeeds
     sanityCheck_oldLogic(srcPaths, asmPaths, coPathsMatch, False)
 
     with pytest.raises(ValueError, match=r"(.*) unexpected code object files: \['tux.hsaco'\]"):
-        TensileCreateLibrary.sanityCheck(srcPaths, asmPaths, coPathsExtra, False)
+        tcl.sanityCheck(srcPaths, asmPaths, coPathsExtra, False)
     # Ensure that old logic also fails
     with pytest.raises(Exception):
         try:
@@ -330,7 +304,7 @@ def test_sanityCheck():
             raise Exception
 
     with pytest.raises(ValueError, match=r"(.*) missing expected code object files: \['gru.co'\]"):
-        TensileCreateLibrary.sanityCheck(srcPaths, asmPaths, coPathsMissing, False)
+        tcl.sanityCheck(srcPaths, asmPaths, coPathsMissing, False)
     # Ensure that old logic also fails
     with pytest.raises(Exception):
         try:
@@ -352,11 +326,11 @@ def test_generateClientConfig():
         FileNotFoundError,
         match=r"(.*) No such file or directory: '(.*)/my-output/best-solution.ini'",
     ):
-        TensileCreateLibrary.generateClientConfig(outputPath, masterLibrary, codeObjectFiles)
+        tcl.generateClientConfig(outputPath, masterLibrary, codeObjectFiles)
 
     setupClientConfigTest(outputPath, masterLibrary, codeObjectFiles)
 
-    TensileCreateLibrary.generateClientConfig(outputPath, masterLibrary, codeObjectFiles)
+    tcl.generateClientConfig(outputPath, masterLibrary, codeObjectFiles)
 
     assert configFile.is_file(), "{configFile} was not generated"
 
@@ -384,13 +358,13 @@ def test_generateMasterFileList():
         "arch1": MasterLibraryMock({"mylib1": MasterLibraryMock(None, 3)}, 1),
     }
 
-    result = TensileCreateLibrary.generateMasterFileList(libraries, archs, lazy=False)
+    result = tcl.generateMasterFileList(libraries, archs, lazy=False)
     for idx, t in enumerate(result):
         assert t[0] == "TensileLibrary_arch" + str(idx), "Incorrect naming for key."
         assert isinstance(t[1], MasterLibraryMock), "Incorrect type for value."
         assert t[1].data == idx, "Incorrect data."
 
-    result = TensileCreateLibrary.generateMasterFileList(libraries, archs, lazy=True)
+    result = tcl.generateMasterFileList(libraries, archs, lazy=True)
 
     for idx, t in enumerate(result[0:2]):
         assert t[0] == "TensileLibrary_lazy_arch" + str(idx), "Incorrect naming for key."
@@ -411,9 +385,7 @@ def test_logicDataAndSolutionsConstruction(initGlobalParametersForTCL):
         # instances of MasterSolutionLibrary.
         SolutionLibrary.MasterSolutionLibrary.ArchitectureSet.clear()
 
-        masterLibraries = TensileCreateLibrary.makeMasterLibraries(
-            logicFiles, separate=separateArch
-        )
+        masterLibraries = tcl.makeMasterLibraries(logicFiles, separate=separateArch)
         arch = "gfx900" if separateArch else "full"
 
         if separateArch:
@@ -421,7 +393,7 @@ def test_logicDataAndSolutionsConstruction(initGlobalParametersForTCL):
                 len(masterLibraries[arch].solutions.values()) == 17
             ), f"There should be 17 solutions prior to adding the fallback for {arch}."
 
-            TensileCreateLibrary.addFallback(masterLibraries)
+            tcl.addFallback(masterLibraries)
 
             assert (
                 len(masterLibraries[arch].solutions.values()) == 19
@@ -431,7 +403,7 @@ def test_logicDataAndSolutionsConstruction(initGlobalParametersForTCL):
                 len(masterLibraries[arch].solutions.values()) == 19
             ), f"There should be 19 solutions for {arch}."
 
-        solutions = TensileCreateLibrary.generateSolutions(masterLibraries, separate=separateArch)
+        solutions = tcl.generateSolutions(masterLibraries, separate=separateArch)
         assert isinstance(solutions, list), "generateSolutions should return a list."
         assert len(solutions) == 19, "There should be 19 solutions after adding the fallback."
 
@@ -441,7 +413,7 @@ def test_logicDataAndSolutionsConstruction(initGlobalParametersForTCL):
         # instances of MasterSolutionLibrary.
         SolutionLibrary.MasterSolutionLibrary.ArchitectureSet.clear()
 
-        masterLibraries = TensileCreateLibrary.generateLogicData(
+        masterLibraries = tcl.generateLogicData(
             yamlFiles, version="foo", printLevel=0, separate=separateArch
         )
         arch = "gfx900" if separateArch else "full"
@@ -450,7 +422,7 @@ def test_logicDataAndSolutionsConstruction(initGlobalParametersForTCL):
             len(masterLibraries[arch].solutions.values()) == 19
         ), f"There should be 19 solutions for {arch}."
 
-        solutions = TensileCreateLibrary.generateSolutions(masterLibraries, separate=separateArch)
+        solutions = tcl.generateSolutions(masterLibraries, separate=separateArch)
         assert isinstance(solutions, list), "generateSolutions should return a list."
         assert len(solutions) == 19, "There should be 19 solutions after adding the fallback."
 
@@ -460,7 +432,7 @@ def test_logicDataAndSolutionsConstruction(initGlobalParametersForTCL):
         # instances of MasterSolutionLibrary.
         SolutionLibrary.MasterSolutionLibrary.ArchitectureSet.clear()
 
-        masterLibraries = TensileCreateLibrary.makeMasterLibraries(logicFiles, separate=True)
+        masterLibraries = tcl.makeMasterLibraries(logicFiles, separate=True)
         arch = "gfx900"
 
         assert (
@@ -470,7 +442,7 @@ def test_logicDataAndSolutionsConstruction(initGlobalParametersForTCL):
             len(next(iter(masterLibraries[arch].lazyLibraries.values())).solutions.values()) == 17
         ), f"There should be 17 solutions prior to adding the fallback for {arch}."
 
-        TensileCreateLibrary.addFallback(masterLibraries)
+        tcl.addFallback(masterLibraries)
 
         assert (
             len(masterLibraries[arch].lazyLibraries.keys()) == 2
@@ -482,7 +454,7 @@ def test_logicDataAndSolutionsConstruction(initGlobalParametersForTCL):
             else:
                 assert len(lib.solutions.values()) == 17, "There should be 17 gfx900 solutions."
 
-        solutions = TensileCreateLibrary.generateSolutions(masterLibraries, separate=True)
+        solutions = tcl.generateSolutions(masterLibraries, separate=True)
         assert isinstance(solutions, list), "generateSolutions should return a list."
         assert len(solutions) == 19, "There should be 19 solutions after adding the fallback."
 
@@ -493,7 +465,7 @@ def test_logicDataAndSolutionsConstruction(initGlobalParametersForTCL):
     ]
 
     with initGlobalParametersForTCL(["--architecture=gfx900"] + requiredArgs):
-        logicFiles = TensileCreateLibrary.parseLibraryLogicFiles(yamlFiles)
+        logicFiles = tcl.parseLibraryLogicFiles(yamlFiles)
         assert len(logicFiles) == 2, "The length of the logic files list is incorrect."
 
         for s in [True, False]:
@@ -503,7 +475,7 @@ def test_logicDataAndSolutionsConstruction(initGlobalParametersForTCL):
     with initGlobalParametersForTCL(
         ["--architecture=gfx900", "--lazy-library-loading"] + requiredArgs
     ):
-        logicFiles = TensileCreateLibrary.parseLibraryLogicFiles(yamlFiles)
+        logicFiles = tcl.parseLibraryLogicFiles(yamlFiles)
         assert len(logicFiles) == 2, "The length of the logic files list is incorrect."
         testCase3(logicFiles)
 
@@ -515,17 +487,17 @@ def unittestPath(request):
 
 
 @pytest.fixture
-def setupSolutionsAndKernels(unittestPath):
+def setupSolutionsAndKernels(
+    unittestPath,
+) -> Tuple[List[Solution], List[Solution], KernelWriterAssembly, KernelWriterSource]:
     """Reusable logic for setting up testable solutions and kernels"""
     Common.assignGlobalParameters({})
     _, _, _, _, _, lib = LibraryIO.parseLibraryLogicFile(
         unittestPath.parent / "test_data" / "unit" / "aldebaran_Cijk_AlikC_Bljk_ZB_GB.yaml"
     )
     solutions = [sol.originalSolution for sol in lib.solutions.values()]
-    kernels, _, _ = TensileCreateLibrary.generateKernelObjectsFromSolutions(solutions)
-    kernelWriterSource, kernelWriterAssembly, _, _ = TensileCreateLibrary.getKernelWriters(
-        solutions, kernels
-    )
+    kernels, _, _ = tcl.generateKernelObjectsFromSolutions(solutions)
+    kernelWriterSource, kernelWriterAssembly, _, _ = tcl.getKernelWriters(solutions, kernels)
     return solutions, kernels, kernelWriterAssembly, kernelWriterSource
 
 
@@ -535,9 +507,7 @@ def test_prepAsm(setupSolutionsAndKernels):
     buildPath.mkdir(exist_ok=True)
 
     def testLinux():
-        TensileCreateLibrary.prepAsm(
-            kernelWriterAssembly, True, Path("no-commit-prep-asm"), (9, 0, 10), 1
-        )
+        tcl.prepAsm(kernelWriterAssembly, True, Path("no-commit-prep-asm"), (9, 0, 10), 1)
 
         expected = """#!/bin/sh 
 # usage: asm-new.sh kernelName(no extension) [--wave32]
@@ -565,9 +535,7 @@ mkdir -p ../../../asm_backup && cp $f.s ../../../asm_backup/$f.s
             assert contents == expected, "Assembler script doesn't match expectation"
 
     def testWindows():
-        TensileCreateLibrary.prepAsm(
-            kernelWriterAssembly, False, Path("no-commit-prep-asm"), (9, 0, 10), 1
-        )
+        tcl.prepAsm(kernelWriterAssembly, False, Path("no-commit-prep-asm"), (9, 0, 10), 1)
 
         expected = """@echo off
 set f=%1
@@ -605,7 +573,7 @@ def test_markDuplicateKernels(setupSolutionsAndKernels):
     kernels[custom_idx1]["CustomKernelName"] = "DUPLICATE"
     kernels[custom_idx2]["CustomKernelName"] = "DUPLICATE"
 
-    kernelsOut = TensileCreateLibrary.markDuplicateKernels(kernels, kernelWriterAssembly)
+    kernelsOut = tcl.markDuplicateKernels(kernels, kernelWriterAssembly)
 
     assert len(kernelsOut) == len(kernels), "Lengths of input and output should match"
     for i, k in enumerate(kernelsOut):
@@ -625,11 +593,11 @@ def test_markDuplicateKernels(setupSolutionsAndKernels):
 
 def test_filterProcessingErrors(setupSolutionsAndKernels):
     solutions, kernels, kernelWriterAssembly, kernelWriterSource = setupSolutionsAndKernels
-    kernels = TensileCreateLibrary.markDuplicateKernels(kernels, kernelWriterAssembly)
+    kernels = tcl.markDuplicateKernels(kernels, kernelWriterAssembly)
 
     results = [(-2, 0, 0, 0, 0)] * len(kernels)
 
-    kernelsOut, solutionsOut, resultsOut = TensileCreateLibrary.filterProcessingErrors(
+    kernelsOut, solutionsOut, resultsOut = tcl.filterProcessingErrors(
         kernels, solutions, results, printLevel=1, ignoreErr=True
     )
     assert len(kernelsOut) == 0, "Kernels should be of length zero"
@@ -638,36 +606,13 @@ def test_filterProcessingErrors(setupSolutionsAndKernels):
 
     results = [(-2, 0, 0, 0, 0)] + [(0, 0, 0, 0, 0)] * (len(kernels) - 1)
     with pytest.raises(ValueError, match=r"Found 1 error\(s\) (.*)"):
-        TensileCreateLibrary.filterProcessingErrors(
-            kernels, solutions, results, printLevel=1, ignoreErr=False
-        )
-
-
-
-def test_filterProcessingErrors(setupSolutionsAndKernels):
-    solutions, kernels, kernelWriterAssembly, kernelWriterSource = setupSolutionsAndKernels
-    kernels = TensileCreateLibrary.markDuplicateKernels(kernels, kernelWriterAssembly)
-
-    results = [(-2, 0, 0, 0, 0)] * len(kernels)
-
-    kernelsOut, solutionsOut, resultsOut = TensileCreateLibrary.filterProcessingErrors(
-        kernels, solutions, results, printLevel=1, errorTolerant=True
-    )
-    assert len(kernelsOut) == 0, "Kernels should be of length zero"
-    assert len(solutionsOut) == 0, "Solutions should be of length zero"
-    assert len(resultsOut) == 0, "Results should be of length zero"
-
-    results = [(-2, 0, 0, 0, 0)] + [(0, 0, 0, 0, 0)] * (len(kernels) - 1)
-    with pytest.raises(ValueError, match=r"Found 1 error\(s\) (.*)"):
-        TensileCreateLibrary.filterProcessingErrors(
-            kernels, solutions, results, printLevel=1, errorTolerant=False
-        )
+        tcl.filterProcessingErrors(kernels, solutions, results, printLevel=1, ignoreErr=False)
 
 
 def test_processKernelSource(setupSolutionsAndKernels):
     _, kernels, kernelWriterAssembly, kernelWriterSource = setupSolutionsAndKernels
 
-    kernels = TensileCreateLibrary.markDuplicateKernels(kernels, kernelWriterAssembly)
+    kernels = tcl.markDuplicateKernels(kernels, kernelWriterAssembly)
 
     fn = functools.partial(
         tcl.processKernelSource,
