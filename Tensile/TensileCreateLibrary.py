@@ -633,8 +633,7 @@ def filterBuildErrors(
     writerSelectionFn: Callable[[str], KernelWriterSource | KernelWriterAssembly],
     ignoreErr: bool,
 ):
-    """
-    Filters a list of kernels based on build errors and error tolerance.
+    """Filters a list of kernels based on build errors and error tolerance.
 
     Args:
         kernels: A list of `Solution` objects representing kernels to filter.
@@ -645,7 +644,7 @@ def filterBuildErrors(
         A filtered list of kernels (**Solution** objects) that are eligible for building.
 
     Raises:
-        SystemExit: If **error_tolerant** is False and any kernels have build errors.
+        SystemExit: If **ignoreErr** is False and any kernels have build errors.
     """
     if not ignoreErr and len(kernelsWithBuildErrors) > 0:
         printExit(
