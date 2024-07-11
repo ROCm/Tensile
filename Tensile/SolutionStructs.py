@@ -1726,9 +1726,9 @@ class Solution(collections.abc.Mapping):
     self._state = {}
     # problem type
     if "ProblemType" in config:
-      self["ProblemType"] = ProblemType(config["ProblemType"])
+      self._state["ProblemType"] = ProblemType(config["ProblemType"])
     else:
-      self["ProblemType"] = ProblemType(defaultProblemType)
+      self._state["ProblemType"] = ProblemType(defaultProblemType)
 
     # assign parameters with defaults
     for key in defaultSolution:
@@ -1752,12 +1752,12 @@ class Solution(collections.abc.Mapping):
     for key in config:
       if key != "ProblemType" and key not in self._state:
         self._state[key] = config[key]
-    self["Valid"] = True
+    self._state["Valid"] = True
     # this could prevent OriginalSolution from re-assigning the parameters, save lots of time
     if "AssignedProblemIndependentDerivedParameters" not in self._state:
-      self["AssignedProblemIndependentDerivedParameters"] = False
+      self._state["AssignedProblemIndependentDerivedParameters"] = False
     if "AssignedDerivedParameters" not in self._state:
-      self["AssignedDerivedParameters"] = False
+      self._state["AssignedDerivedParameters"] = False
 
     if self["ProblemType"].convolution:
         for (key,value) in self["ProblemType"].convolution.solutionParms.items():
@@ -4957,10 +4957,6 @@ class Solution(collections.abc.Mapping):
   def __getitem__(self, key):
     return self._state[key]
 
-  def __setitem__(self, key, value):
-    self._name = None
-    self._state[key] = value
-
   def __str__(self):
     if self._name is None:
       self._name = Solution.getNameFull(self._state)
@@ -4973,7 +4969,6 @@ class Solution(collections.abc.Mapping):
     return deepcopy(self._state)
 
   def __hash__(self):
-    #return hash(str(self) + self._state.get("codeObjectFile", ""))
     return hash(str(self) + "" if self.codeObjectFile is None else self.codeObjectFile)
     #return hash(self.getAttributes())
 
