@@ -29,10 +29,9 @@ import logging
 import os
 import shutil
 import uuid
-from ast import Tuple
 from copy import deepcopy
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 import pytest
 import yaml
@@ -42,8 +41,9 @@ import Tensile.Common as Common
 import Tensile.LibraryIO as LibraryIO
 import Tensile.SolutionLibrary as SolutionLibrary
 import Tensile.TensileCreateLibrary as tcl
+from Tensile.KernelWriterAssembly import KernelWriterAssembly
+from Tensile.KernelWriterSource import KernelWriterSource
 from Tensile.SolutionStructs import ProblemSizes, Solution
-from Tensile.Tensile import KernelWriterAssembly, KernelWriterSource
 
 mylogger = logging.getLogger()
 
@@ -614,6 +614,8 @@ def test_processKernelSource(setupSolutionsAndKernels):
 
     kernels = tcl.markDuplicateKernels(kernels, kernelWriterAssembly)
 
+    print("Kernel names:", [k["KernelLanguage"] for k in kernels])
+
     fn = functools.partial(
         tcl.processKernelSource,
         kernelWriterSource=kernelWriterSource,
@@ -648,8 +650,7 @@ def test_processKernelSource(setupSolutionsAndKernels):
     assert results == expected, "Assembly files shouldn't have any header or source content"
 
 
-def test_buildKernelSourceAndHeaderFiles(setupSolutionsAndKernels):
-    solutions, kernels, kernelWriterAssembly, kernelWriterSource = setupSolutionsAndKernels
+def test_buildKernelSourceAndHeaderFiles():
     outputPath = Path("no-commit-kernel-build-files")
     outputPath.mkdir(exist_ok=True)
 
@@ -668,15 +669,55 @@ def test_buildKernelSourceAndHeaderFiles(setupSolutionsAndKernels):
 
     kernelFiles, kernelsWithBuildErrors = tcl.buildKernelSourceAndHeaderFiles(results, outputPath)
 
+    # Undocumented internal logic of buildKernelSourceAndHeaderFiles
     assert len(kernelFiles) == 1, "Only one file should be created for Assembly only kernels"
+
     assert (
         kernelFiles[0] == "no-commit-kernel-build-files/Kernels.cpp"
     ), "Cpp source file doesn't match"
     assert (
         kernelsWithBuildErrors == expectedWithBuildErrors
-    ), "Kernels will build don't match expectation"
+    ), "Kernels with build errors don't match expectation"
 
-    # result = tcl.filterBuildErrors(kernels, kernelsWithBuildErrors)
+
+def test_filterBuildErrors(setupSolutionsAndKernels):
+    _, kernels, kernelWriterAssembly, kernelWriterSource = setupSolutionsAndKernels
+
+    kernels = tcl.markDuplicateKernels(kernels, kernelWriterAssembly)
+
+    # Add copies of the first three kernels with kernel language changed
+    kernels += [dict(k, KernelLanguage="Source") for k in kernels]
+
+    # Rename new copies: asm0, asm1, ..., srcN-2, srcN-1
+    for i, k in enumerate(kernels):
+        isAsm = k["KernelLanguage"] == "Assembly"
+        assert isAsm if i < len(kernels) / 2 else not isAsm, "KernelLanguage should be split"
+        # Rename for easier access
+        k["CustomKernelName"] = f"{'asm' if isAsm else 'src'}{str(i)}"
+
+    kernelsWithBuildErrors = {
+        "asm0": -2,
+        "src3": -2,
+    }
+    expectedKernelNamesToBuild = ["asm1", "asm2", "src4", "src5"]
+
+    writerSelector = lambda lang: kernelWriterAssembly if lang == "Assembly" else kernelWriterSource
+    kernelsToBuild = tcl.filterBuildErrors(
+        kernels, kernelsWithBuildErrors, writerSelector, ignoreErr=True
+    )
+    assert len(kernelsToBuild) == 4, "Only two kernels should be built"
+    assert [
+        k["CustomKernelName"] for k in kernelsToBuild
+    ] == expectedKernelNamesToBuild, "Kernels without build errors don't match expectation"
+
+    expectedKernelsToBuild = list(
+        filter(
+            lambda k: k["CustomKernelName"] != "asm0" and k["CustomKernelName"] != "src3", kernels
+        )
+    )
+    assert (
+        kernelsToBuild == expectedKernelsToBuild
+    ), "Kernels should be filtered to only those without build errors"
 
 
 # ----------------

@@ -475,7 +475,7 @@ def buildKernelSourceAndHeaderFiles(results, outputPath):
 
     # Find kernels to write
     kernelsToWrite = []
-    kernelsWithBuildErrs = {}
+    kernelsWithBuildErrs: Dict[str, int] = {}
     filesToWrite = collections.defaultdict(list)
     validKernelCount = 0
     for err, src, header, kernelName, filename in results:
@@ -629,9 +629,9 @@ def filterProcessingErrors(
 
 def filterBuildErrors(
     kernels: List[Solution],
-    kernelsWithBuildErrors: List[Solution],
+    kernelsWithBuildErrors: Dict[str, int],
     writerSelectionFn: Callable[[str], KernelWriterSource | KernelWriterAssembly],
-    errorTolerant: bool,
+    ignoreErr: bool,
 ):
     """
     Filters a list of kernels based on build errors and error tolerance.
@@ -647,7 +647,7 @@ def filterBuildErrors(
     Raises:
         SystemExit: If **error_tolerant** is False and any kernels have build errors.
     """
-    if not errorTolerant and len(kernelsWithBuildErrors) > 0:
+    if not ignoreErr and len(kernelsWithBuildErrors) > 0:
         printExit(
             "** Kernel compilation failure **"
             "Kernel compilation failed in one or more subprocesses. "
