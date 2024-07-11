@@ -81,8 +81,7 @@ TENSILE_LIBRARY_DIR = "library"
 
 ################################################################################
 def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
-    """
-    Generate source for a single kernel.
+    """Generate source for a single kernel.
     Returns (error, source, header, kernelName).
     """
     try:
@@ -597,6 +596,52 @@ def markDuplicateKernels(
     return kernels
 
 
+def filterProcessingErrors(
+    kernels: List[Solution],
+    solutions: List[Solution],
+    results: List[Any],
+    printLevel: int,
+    ignoreErr: bool,
+) -> Tuple[List[Solution], List[Solution], List[Any]]:
+    """Filters out processing errors from lists of kernels, solutions, and results.
+
+    This function iterates through the results of **processKernelSource** and identifies
+    any errors encountered during processing. If an error is found (-2 error code),
+    the corresponding kernel, solution, and result are appended to separate lists
+    for removal. After processing, items identified for removal are deleted from the
+    original lists of kernels, solutions, and results.
+
+    Args:
+        kernels: List of Solution objects representing kernels.
+        solutions: List of Solution objects associated with kernels.
+        results: List of tuples representing processing results.
+        printLevel: Print level indicator.
+
+    Returns:
+        Tuple[List[Solution], List[Solution], List[Any]]: Tuple containing filtered lists
+        of kernels, solutions, and results after removing items with processing errors.
+
+    Raises:
+        KeyError: If 'PrintLevel' key is not found in the params dictionary.
+    """
+    keepKernels = []
+    keepSolutions = []
+    keepResults = []
+    for i, res in enumerate(results) if printLevel == 0 else Utils.tqdm(enumerate(results)):
+        err, _, _, _, _ = res
+        if err != -2:
+            keepKernels.append(kernels[i])
+            keepSolutions.append(solutions[i])
+            keepResults.append(results[i])
+        elif not ignoreErr:
+            k = kernels[i]
+            tPrint(1, f"Kernel generation failed for {k['SolutionIndex']}: {k['SolutionNameMin']}")
+    diff = len(kernels) - len(keepKernels)
+    if diff and not ignoreErr:
+        raise ValueError(f"Found {diff} error(s) while processing kernels; use ignoreErr to bypass")
+    return keepKernels, keepSolutions, keepResults
+
+
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
@@ -656,35 +701,9 @@ def writeKernels(
         itertools.repeat(kernelWriterAssembly),
     )
     results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels")
-
-    removeKernels = []
-    removeSolutions = []
-    removeResults = []
-    for kernIdx, res in (
-        enumerate(results)
-        if globalParameters["PrintLevel"] == 0
-        else Utils.tqdm(enumerate(results))
-    ):
-        (err, src, header, kernelName, filename) = res
-        if err == -2:
-            if not errorTolerant:
-                print(
-                    "\nKernel generation failed for kernel: {}".format(
-                        kernels[kernIdx]["SolutionIndex"]
-                    )
-                )
-                print(kernels[kernIdx]["SolutionNameMin"])
-            removeKernels.append(kernels[kernIdx])
-            removeSolutions.append(solutions[kernIdx])
-            removeResults.append(results[kernIdx])
-    if len(removeKernels) > 0 and not errorTolerant:
-        printExit("** kernel generation failure **")
-    for kern in removeKernels:
-        kernels.remove(kern)
-    for solut in removeSolutions:
-        solutions.remove(solut)
-    for rel in removeResults:
-        results.remove(rel)
+    kernels, solutions, results = filterProcessingErrors(
+        kernels, solutions, results, params["PrintLevel"], errorTolerant
+    )
 
     kernelFiles += buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs)
 

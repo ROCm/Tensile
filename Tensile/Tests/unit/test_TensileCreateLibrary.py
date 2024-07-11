@@ -611,6 +611,26 @@ def test_markDuplicateKernels(setupSolutionsAndKernels):
             ), f"Kernel with name {kernels[i]['CustomKernelName']} should not be marked as a duplicate, but is"
 
 
+def test_filterProcessingErrors(setupSolutionsAndKernels):
+    solutions, kernels, kernelWriterAssembly, kernelWriterSource = setupSolutionsAndKernels
+    kernels = TensileCreateLibrary.markDuplicateKernels(kernels, kernelWriterAssembly)
+
+    results = [(-2, 0, 0, 0, 0)] * len(kernels)
+
+    kernelsOut, solutionsOut, resultsOut = TensileCreateLibrary.filterProcessingErrors(
+        kernels, solutions, results, printLevel=1, ignoreErr=True
+    )
+    assert len(kernelsOut) == 0, "Kernels should be of length zero"
+    assert len(solutionsOut) == 0, "Solutions should be of length zero"
+    assert len(resultsOut) == 0, "Results should be of length zero"
+
+    results = [(-2, 0, 0, 0, 0)] + [(0, 0, 0, 0, 0)] * (len(kernels) - 1)
+    with pytest.raises(ValueError, match=r"Found 1 error\(s\) (.*)"):
+        TensileCreateLibrary.filterProcessingErrors(
+            kernels, solutions, results, printLevel=1, ignoreErr=False
+        )
+
+
 # ----------------
 # Helper functions
 # ----------------
