@@ -45,10 +45,21 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Set, Tuple
 
 from . import ClientExecutable, Common, EmbeddedData, LibraryIO, Utils
-from .Common import (HR, CHeader, CMakeHeader, assignGlobalParameters,
-                     ensurePath, getArchitectureName, gfxName,
-                     globalParameters, printExit, printWarning,
-                     supportedCompiler, tPrint, which)
+from .Common import (
+    HR,
+    CHeader,
+    CMakeHeader,
+    assignGlobalParameters,
+    ensurePath,
+    getArchitectureName,
+    gfxName,
+    globalParameters,
+    printExit,
+    printWarning,
+    supportedCompiler,
+    tPrint,
+    which,
+)
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterBase import KernelWriterBase
 from .KernelWriterSource import KernelWriterSource
