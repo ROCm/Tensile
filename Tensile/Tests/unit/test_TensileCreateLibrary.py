@@ -722,7 +722,7 @@ def test_filterBuildErrors(setupSolutionsAndKernels):
 
 # ----------------
 # Helper functions
-# --------------
+# ----------------
 def setupClientConfigTest(outputPath, masterLibrary, codeObjectFiles):
     outputPath.mkdir()
     with open(masterLibrary, "w") as testFile:

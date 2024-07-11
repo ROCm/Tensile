@@ -723,8 +723,6 @@ def writeKernels(
 
     kernelFiles, kernelsWithBuildErrors = buildKernelSourceAndHeaderFiles(results, outputPath)
 
-    ## TODO(bstefanuk): I'm not convinced this is returning distinct output above just calling the base class function
-    ## KernelWriter.getKernelName(...)
     writerSelector = lambda lang: kernelWriterAssembly if lang == "Assembly" else kernelWriterSource
     kernelsToBuild = filterBuildErrors(
         kernels, kernelsWithBuildErrors, writerSelector, errorTolerant
