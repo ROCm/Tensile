@@ -1656,7 +1656,7 @@ def TensileCreateLibrary():
     tPrint(3, HR)
     tPrint(3, "")
 
-    assignGlobalParameters(args)    
+    assignGlobalParameters(args)
 
     manifestFile = Path(outputPath) / TENSILE_LIBRARY_DIR / TENSILE_MANIFEST_FILENAME
     manifestFile.parent.mkdir(exist_ok=True)
