@@ -24,6 +24,7 @@
 
 from copy import deepcopy
 import logging
+from re import match
 import pytest
 import os
 import glob
@@ -580,35 +581,62 @@ copy %f%.co ..\..\..\library\%f%_%h%.co
     testWindows()
 
 
-def test_markDuplicateKernels(setupSolutionsAndKernels):
-    _, kernels, kernelWriterAssembly, _ = setupSolutionsAndKernels
+class MockSolution:
+    def __init__(self, name: str, lang: str):
+        self.name = name
+        self.lang = lang
 
-    shortname_idx = 0
-    custom_idx1 = 1
-    custom_idx2 = 2
+    def __getitem__(self, key):
+        if key == "KernelLanguage":
+            return self.lang
+        raise KeyError(f"Key {key} not found")
 
-    # Use deepcopy here, otherwise when the entry is updated later, both entries will be
-    # marked as duplicates.
-    kernels.append(deepcopy(kernels[shortname_idx]))
-    kernels[custom_idx1]["CustomKernelName"] = "DUPLICATE"
-    kernels[custom_idx2]["CustomKernelName"] = "DUPLICATE"
 
-    kernelsOut = TensileCreateLibrary.markDuplicateKernels(kernels, kernelWriterAssembly)
+class MockKernelWriter:
+    def getKernelFileBase(self, kernel: MockSolution):
+        return kernel.name
 
-    assert len(kernelsOut) == len(kernels), "Lengths of input and output should match"
-    for i, k in enumerate(kernelsOut):
-        if i == custom_idx2:
-            assert (
-                k.duplicate == True
-            ), f"Kernel with custom name {kernels[i]['CustomKernelName']} should be a duplicate, but isn't, found {kernelWriterAssembly.getKernelFileBase(k)} instead"
-        elif i == len(kernels) - 1:
-            assert (
-                k.duplicate == True
-            ), f"Shortened name {kernelWriterAssembly.getKernelFileBase(k)} wasn't located"
-        elif k["KernelLanguage"] == "Assembly":
-            assert (
-                k.duplicate == False
-            ), f"Kernel with name {kernels[i]['CustomKernelName']} should not be marked as a duplicate, but is"
+
+def test_markDuplicateKernels():
+
+    kernelsAsm = [MockSolution(name, "Assembly") for name in ["A", "B", "C"]]
+    kernelWriterAssembly = MockKernelWriter()
+    kernelsOut = TensileCreateLibrary.markDuplicateKernels(kernelsAsm, kernelWriterAssembly)
+
+    assert len(kernelsOut) == len(kernelsAsm), "Lengths of input and output should match"
+    assert all([not k.duplicate for k in kernelsOut]), "All kernels should be unique"
+
+    kernelsAsm = [MockSolution(name, "Assembly") for name in ["A", "B", "B", "C"]]
+    kernelsOut = TensileCreateLibrary.markDuplicateKernels(kernelsAsm, kernelWriterAssembly)
+
+    assert len(kernelsOut) == len(kernelsAsm), "Lengths of input and output should match"
+    for i in range(len(kernelsOut)):
+        isDup = kernelsOut[i].duplicate
+        assert isDup if i == 2 else not isDup, "Duplicate status is incorrect"
+
+    kernelsSrc = [MockSolution(name, "Source") for name in ["D", "E", "E", "F"]]
+    kernelsOut = TensileCreateLibrary.markDuplicateKernels(kernelsSrc, kernelWriterAssembly)
+
+    assert len(kernelsOut) == len(kernelsSrc), "Lengths of input and output should match"
+    for i in range(len(kernelsOut)):
+        with pytest.raises(
+            AttributeError, match="'MockSolution' object has no attribute 'duplicate'"
+        ):
+            kernelsOut[i].duplicate
+
+    kernelsAll = kernelsSrc + kernelsAsm
+    kernelsOut = TensileCreateLibrary.markDuplicateKernels(kernelsAll, kernelWriterAssembly)
+
+    assert len(kernelsOut) == len(kernelsAll), "Lengths of input and output should match"
+    for i in range(len(kernelsAll)):
+        if i < len(kernelsSrc):
+            with pytest.raises(
+                AttributeError, match="'MockSolution' object has no attribute 'duplicate'"
+            ):
+                kernelsOut[i].duplicate
+        else:
+            isDup = kernelsOut[i].duplicate
+            assert isDup if i == 6 else not isDup, "Duplicate status is incorrect"
 
 
 def test_filterProcessingErrors(setupSolutionsAndKernels):
