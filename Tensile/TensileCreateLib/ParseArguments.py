@@ -203,7 +203,7 @@ def parseArguments(input: List[str] | None = None) -> Dict[str, Any]:
         "--verbose",
         "-v",
         dest="PrintLevel",
-        choices=[0, 1, 2],
+        choices=[0, 1, 2, 3],
         default=1,
         type=int,
         help="Set printing verbosity level.",

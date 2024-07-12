@@ -574,10 +574,6 @@ class MockKernelWriter:
     def getKernelFileBase(self, kernel: MockSolution):
         return kernel.name
 
-    # @abc.abstractmethod
-    def getKernelName(self, kernel: MockSolution):
-        return kernel.name
-
 
 def test_markDuplicateKernels():
 
