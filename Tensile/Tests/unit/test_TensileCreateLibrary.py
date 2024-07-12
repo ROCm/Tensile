@@ -584,6 +584,7 @@ copy %f%.co ..\..\..\library\%f%_%h%.co
     testLinux()
     testWindows()
 
+
 @pytest.mark.skip(reason="Can't mutate a solution")
 def test_markDuplicateKernels(setupSolutionsAndKernels):
     _, kernels, kernelWriterAssembly, _ = setupSolutionsAndKernels
