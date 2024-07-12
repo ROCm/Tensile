@@ -764,7 +764,7 @@ def writeKernels(
         (err, src) = ko.getSourceFileString()
         kernelSourceFile.write(src)
         if err:
-            printWarning("*** warning: invalid kernel#%u" % kernelName)
+            printWarning("Invalid kernel#%u" % kernelName)
 
         if not globalParameters["MergeFiles"]:
             kernelSourceFile.close()
