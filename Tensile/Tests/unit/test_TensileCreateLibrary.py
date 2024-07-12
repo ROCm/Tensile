@@ -22,9 +22,7 @@
 #
 ################################################################################
 
-from copy import deepcopy
 import logging
-from re import match
 import pytest
 import os
 import glob
