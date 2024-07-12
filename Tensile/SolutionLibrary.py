@@ -507,7 +507,7 @@ class MasterSolutionLibrary:
             naming = OriginalSolution.getMinNaming(kernels)
 
         for s in list(self.solutions.values()):
-            s.name = OriginalSolution.getNameMin(s.originalSolution.getKernels()[0], naming)
+            s.name = OriginalSolution.getNameMin(s.originalSolution.getKernels(), naming)
 
     def _remapSolutionIndicesStartingFrom(self, library, solutions: dict, curIndex: int) -> tuple:
         reIndexMap = {}

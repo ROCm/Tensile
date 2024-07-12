@@ -1121,9 +1121,8 @@ def generateKernelObjectsFromSolutions(
     kernels = []
     kernelHelperObjs = []
     kernelHelperNames = set()
-
     for solution in solutions:
-        kernels += solution.getKernels()
+        kernels.append(solution.getKernels())
         solutionHelperKernels = solution.getHelperKernelObjects()
         kernelHelperObjs += solutionHelperKernels
         for ko in solutionHelperKernels:
@@ -1155,7 +1154,7 @@ def addNewLibrary(
     Returns:
         Index to the last solution of the library associated with current architecture.
     """
-    masterLibraries[architectureName] = deepcopy(newLibrary)
+    masterLibraries[architectureName] = newLibrary
     archIndex = MasterSolutionLibrary.ArchitectureIndexMap(architectureName)
     masterLibraries[architectureName].remapSolutionIndicesStartingFrom(archIndex)
     return archIndex
@@ -1187,7 +1186,7 @@ def makeMasterLibraries(
         if separate:
             if architectureName in masterLibraries:
                 nextSolIndex[architectureName] = masterLibraries[architectureName].merge(
-                    deepcopy(newLibrary), nextSolIndex[architectureName]
+                    newLibrary, nextSolIndex[architectureName]
                 )
             else:
                 nextSolIndex[architectureName] = addNewLibrary(
@@ -1195,9 +1194,9 @@ def makeMasterLibraries(
                 )
         else:
             if fullMasterLibrary:
-                fullMasterLibrary.merge(deepcopy(newLibrary))
+                fullMasterLibrary.merge(newLibrary)
             else:
-                fullMasterLibrary = deepcopy(newLibrary)
+                fullMasterLibrary = newLibrary
 
     return {"full": fullMasterLibrary} if fullMasterLibrary is not None else masterLibraries
 
@@ -1215,13 +1214,13 @@ def addFallback(masterLibraries: Dict[str, MasterSolutionLibrary]) -> None:
 
     for key, value in masterLibraries.items():
         if key != "fallback":
-            value.insert(deepcopy(masterLibraries["fallback"]))
+            value.insert(masterLibraries["fallback"])
 
     for archName in archs:
         archName = archName.split("-", 1)[0]
         if archName not in masterLibraries:
             tPrint(1, "Using fallback for arch: " + archName)
-            masterLibraries[archName] = deepcopy(masterLibraries["fallback"])
+            masterLibraries[archName] = masterLibraries["fallback"]
 
     masterLibraries.pop("fallback")
 

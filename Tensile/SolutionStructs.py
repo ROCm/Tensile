@@ -43,6 +43,7 @@ from collections.abc import Mapping
 from copy import deepcopy
 from enum import Enum
 from functools import reduce
+from types import MappingProxyType
 
 import collections
 import math
@@ -1720,50 +1721,51 @@ class Solution(collections.abc.Mapping):
   ########################################
   def __init__(self, config):
     self._name = None
+    self.Kernel = False
     self.codeObjectFile = None
-    config = deepcopy(config)
 
-    self._state = {}
+    state = {}
     # problem type
     if "ProblemType" in config:
-      self._state["ProblemType"] = ProblemType(config["ProblemType"])
+      state["ProblemType"] = ProblemType(config["ProblemType"])
     else:
-      self._state["ProblemType"] = ProblemType(defaultProblemType)
+      state["ProblemType"] = ProblemType(defaultProblemType)
 
     # assign parameters with defaults
     for key in defaultSolution:
-      assignParameterWithDefault(self._state, key, config, defaultSolution)
+      assignParameterWithDefault(state, key, config, defaultSolution)
 
-    if 'ISA' not in self._state:
+    if 'ISA' not in state:
       if 'ISA' in config:
-        self._state['ISA'] = config['ISA']
+        state['ISA'] = config['ISA']
       elif config['KernelLanguage'] == 'Assembly':
-        self._state['ISA'] = list(globalParameters["CurrentISA"])
+        state['ISA'] = list(globalParameters["CurrentISA"])
       else:
-        self._state['ISA'] = [0,0,0]
+        state['ISA'] = [0,0,0]
 
-    if "CodeObjectVersion" not in self._state:
+    if "CodeObjectVersion" not in state:
       if "CodeObjectVersion" in config:
-        self._state["CodeObjectVersion"] = config["CodeObjectVersion"]
+        state["CodeObjectVersion"] = config["CodeObjectVersion"]
       else:
-        self._state["CodeObjectVersion"] = globalParameters["CodeObjectVersion"]
+        state["CodeObjectVersion"] = globalParameters["CodeObjectVersion"]
 
     # assign parameters without defaults
     for key in config:
-      if key != "ProblemType" and key not in self._state:
-        self._state[key] = config[key]
-    self._state["Valid"] = True
+      if key != "ProblemType" and key not in state:
+        state[key] = config[key]
+    state["Valid"] = True
     # this could prevent OriginalSolution from re-assigning the parameters, save lots of time
-    if "AssignedProblemIndependentDerivedParameters" not in self._state:
-      self._state["AssignedProblemIndependentDerivedParameters"] = False
-    if "AssignedDerivedParameters" not in self._state:
-      self._state["AssignedDerivedParameters"] = False
+    if "AssignedProblemIndependentDerivedParameters" not in state:
+      state["AssignedProblemIndependentDerivedParameters"] = False
+    if "AssignedDerivedParameters" not in state:
+      state["AssignedDerivedParameters"] = False
 
-    if self["ProblemType"].convolution:
-        for (key,value) in self["ProblemType"].convolution.solutionParms.items():
-            self._state[key]=value
-    Solution.assignDerivedParameters(self._state)
+    if state["ProblemType"].convolution:
+        for (key,value) in state["ProblemType"].convolution.solutionParms.items():
+            state[key] = value
+    Solution.assignDerivedParameters(state)
     self._name = config["CustomKernelName"] if isCustomKernelConfig(config) else None
+    self._state = MappingProxyType(state)    
     self.initHelperKernelObjects()
 
   # these keys are copied from ProblemType to internal that may be overridden
@@ -1773,12 +1775,9 @@ class Solution(collections.abc.Mapping):
   ########################################
   # get a list of kernel parameters for this solution
   def getKernels(self):
-    kernel = deepcopy(self)
-    kernel._state.update({"Kernel": True})
-    kernels = []
-    kernels.append(kernel)
-    return kernels
-
+    #return Solution({"Kernel": True}.merge(self._state))
+    self.Kernel = True
+    return self
 
   ########################################
   # create Helper Kernels
@@ -4802,7 +4801,6 @@ class Solution(collections.abc.Mapping):
   def getNameMin(state, requiredParameters):
     if isCustomKernelConfig(state):
       return state["CustomKernelName"]
-
     name = ""
     first = True
     # put problem first
@@ -4823,6 +4821,9 @@ class Solution(collections.abc.Mapping):
         name += "SE_"
       else:
         name += "SN_"
+    if state.Kernel:
+      name += "%s%s_" % ( Solution.getParameterNameAbbreviation("Kernel"), \
+          Solution.getParameterValueAbbreviation("Kernel", state.Kernel) )
     for key in sorted(state.keys()):
       if key in requiredParameters and key[0] != '_':
         if requiredParameters[key] and key != "CustomKernelName":
@@ -4956,10 +4957,10 @@ class Solution(collections.abc.Mapping):
 
   def __getitem__(self, key):
     return self._state[key]
-
+  
   def __str__(self):
     if self._name is None:
-      self._name = Solution.getNameFull(self._state)
+      self._name = Solution.getNameFull(self)
     return self._name
 
   def __repr__(self):
@@ -4970,10 +4971,8 @@ class Solution(collections.abc.Mapping):
 
   def __hash__(self):
     return hash(str(self) + "" if self.codeObjectFile is None else self.codeObjectFile)
-    #return hash(self.getAttributes())
 
   def __eq__(self, other):
-    #return isinstance(other, Solution) and self.getAttributes() == other.getAttributes()
     return isinstance(other, Solution) and str(self) == str(other)
 
   def __ne__(self, other):
