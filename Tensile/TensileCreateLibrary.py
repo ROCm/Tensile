@@ -643,7 +643,7 @@ def filterBuildErrors(
     kernelsWithBuildErrors: Dict[str, int],
     writerSelectionFn: Callable[[str], KernelWriterSource | KernelWriterAssembly],
     ignoreErr: bool,
-):
+) -> List[Solution]:
     """Filters a list of kernels based on build errors and error tolerance.
 
     Args:
@@ -658,8 +658,7 @@ def filterBuildErrors(
         SystemExit: If **ignoreErr** is False and any kernels have build errors.
     """
     if not ignoreErr and len(kernelsWithBuildErrors) > 0:
-        printExit(
-            "** Kernel compilation failure **"
+        raise RuntimeError(
             "Kernel compilation failed in one or more subprocesses. "
             "Consider setting CpuThreads=0 and re-run to debug."
         )

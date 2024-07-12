@@ -29,7 +29,6 @@ import logging
 import os
 import shutil
 import uuid
-from copy import deepcopy
 from pathlib import Path
 from typing import List, Tuple
 
@@ -560,35 +559,66 @@ copy %f%.co ..\..\..\library\%f%_%h%.co
     testWindows()
 
 
-def test_markDuplicateKernels(setupSolutionsAndKernels):
-    _, kernels, kernelWriterAssembly, _ = setupSolutionsAndKernels
+class MockSolution:
+    def __init__(self, name: str, lang: str):
+        self.name = name
+        self.lang = lang
 
-    shortname_idx = 0
-    custom_idx1 = 1
-    custom_idx2 = 2
+    def __getitem__(self, key):
+        if key == "KernelLanguage":
+            return self.lang
+        raise KeyError(f"Key {key} not found")
 
-    # Use deepcopy here, otherwise when the entry is updated later, both entries will be
-    # marked as duplicates.
-    kernels.append(deepcopy(kernels[shortname_idx]))
-    kernels[custom_idx1]["CustomKernelName"] = "DUPLICATE"
-    kernels[custom_idx2]["CustomKernelName"] = "DUPLICATE"
 
-    kernelsOut = tcl.markDuplicateKernels(kernels, kernelWriterAssembly)
+class MockKernelWriter:
+    def getKernelFileBase(self, kernel: MockSolution):
+        return kernel.name
 
-    assert len(kernelsOut) == len(kernels), "Lengths of input and output should match"
-    for i, k in enumerate(kernelsOut):
-        if i == custom_idx2:
-            assert (
-                k.duplicate == True
-            ), f"Kernel with custom name {kernels[i]['CustomKernelName']} should be a duplicate, but isn't, found {kernelWriterAssembly.getKernelFileBase(k)} instead"
-        elif i == len(kernels) - 1:
-            assert (
-                k.duplicate == True
-            ), f"Shortened name {kernelWriterAssembly.getKernelFileBase(k)} wasn't located"
-        elif k["KernelLanguage"] == "Assembly":
-            assert (
-                k.duplicate == False
-            ), f"Kernel with name {kernels[i]['CustomKernelName']} should not be marked as a duplicate, but is"
+    # @abc.abstractmethod
+    def getKernelName(self, kernel: MockSolution):
+        return kernel.name
+
+
+def test_markDuplicateKernels():
+
+    kernelsAsm = [MockSolution(name, "Assembly") for name in ["A", "B", "C"]]
+    kernelWriterAssembly = MockKernelWriter()
+    kernelsOut = tcl.markDuplicateKernels(kernelsAsm, kernelWriterAssembly)
+
+    assert len(kernelsOut) == len(kernelsAsm), "Lengths of input and output should match"
+    assert all([not k.duplicate for k in kernelsOut]), "All kernels should be unique"
+
+    kernelsAsm = [MockSolution(name, "Assembly") for name in ["A", "B", "B", "C"]]
+    kernelsOut = tcl.markDuplicateKernels(kernelsAsm, kernelWriterAssembly)
+
+    assert len(kernelsOut) == len(kernelsAsm), "Lengths of input and output should match"
+    for i in range(len(kernelsOut)):
+        isDup = kernelsOut[i].duplicate
+        assert isDup if i == 2 else not isDup, "Duplicate status is incorrect"
+
+    kernelsSrc = [MockSolution(name, "Source") for name in ["D", "E", "E", "F"]]
+    kernelsOut = tcl.markDuplicateKernels(kernelsSrc, kernelWriterAssembly)
+
+    assert len(kernelsOut) == len(kernelsSrc), "Lengths of input and output should match"
+    for i in range(len(kernelsOut)):
+        with pytest.raises(
+            AttributeError, match="'MockSolution' object has no attribute 'duplicate'"
+        ):
+            kernelsOut[i].duplicate
+
+    kernelsAll = kernelsSrc + kernelsAsm
+    kernelsOut = tcl.markDuplicateKernels(kernelsAll, kernelWriterAssembly)
+
+    assert len(kernelsOut) == len(kernelsAll), "Lengths of input and output should match"
+    for i in range(len(kernelsAll)):
+        if i < len(kernelsSrc):
+            with pytest.raises(
+                AttributeError, match="'MockSolution' object has no attribute 'duplicate'"
+            ):
+                kernelsOut[i].duplicate
+        else:
+            isDup = kernelsOut[i].duplicate
+            assert isDup if i == 6 else not isDup, "Duplicate status is incorrect"
 
 
 def test_filterProcessingErrors(setupSolutionsAndKernels):
@@ -680,44 +710,47 @@ def test_buildKernelSourceAndHeaderFiles():
     ), "Kernels with build errors don't match expectation"
 
 
-def test_filterBuildErrors(setupSolutionsAndKernels):
-    _, kernels, kernelWriterAssembly, kernelWriterSource = setupSolutionsAndKernels
+def test_filterBuildErrors():
 
-    kernels = tcl.markDuplicateKernels(kernels, kernelWriterAssembly)
-
-    # Add copies of the first three kernels with kernel language changed
-    kernels += [dict(k, KernelLanguage="Source") for k in kernels]
-
-    # Rename new copies: asm0, asm1, ..., srcN-2, srcN-1
-    for i, k in enumerate(kernels):
-        isAsm = k["KernelLanguage"] == "Assembly"
-        assert isAsm if i < len(kernels) / 2 else not isAsm, "KernelLanguage should be split"
-        # Rename for easier access
-        k["CustomKernelName"] = f"{'asm' if isAsm else 'src'}{str(i)}"
-
+    kernels = [MockSolution(name, "Assembly") for name in ["A", "B", "C"]]
+    kernels += [MockSolution(name, "Source") for name in ["D", "E", "F"]]
+    kernelWriter = MockKernelWriter()
     kernelsWithBuildErrors = {
-        "asm0": -2,
-        "src3": -2,
+        "A": -2,
+        "D": -2,
     }
-    expectedKernelNamesToBuild = ["asm1", "asm2", "src4", "src5"]
+    writerSelector = lambda lang: kernelWriter
 
-    writerSelector = lambda lang: kernelWriterAssembly if lang == "Assembly" else kernelWriterSource
-    kernelsToBuild = tcl.filterBuildErrors(
-        kernels, kernelsWithBuildErrors, writerSelector, ignoreErr=True
-    )
-    assert len(kernelsToBuild) == 4, "Only two kernels should be built"
-    assert [
-        k["CustomKernelName"] for k in kernelsToBuild
-    ] == expectedKernelNamesToBuild, "Kernels without build errors don't match expectation"
+    def noBuildFailures():
+        kernelsToBuild = tcl.filterBuildErrors(kernels, {}, writerSelector, ignoreErr=False)
+        assert kernelsToBuild == kernels, "All kernels should be built without failure"
 
-    expectedKernelsToBuild = list(
-        filter(
-            lambda k: k["CustomKernelName"] != "asm0" and k["CustomKernelName"] != "src3", kernels
+    def buildFailuresIgnoreErr():
+        kernelsToBuild = tcl.filterBuildErrors(
+            kernels, kernelsWithBuildErrors, writerSelector, ignoreErr=True
         )
-    )
-    assert (
-        kernelsToBuild == expectedKernelsToBuild
-    ), "Kernels should be filtered to only those without build errors"
+
+        expectedKernelsToBuild = [MockSolution(name, "Assembly") for name in ["B", "C"]]
+        expectedKernelsToBuild += [MockSolution(name, "Source") for name in ["E", "F"]]
+
+        assert len(kernelsToBuild) == len(
+            expectedKernelsToBuild
+        ), "Length of built kernels is incorrect"
+
+        assert all(
+            [
+                k.name == e.name and k.lang == e.lang
+                for k, e in zip(kernelsToBuild, expectedKernelsToBuild)
+            ]
+        ), "Kernels should be filtered to only those without build errors"
+
+    def buildFailuresNoIgnoreErr():
+        with pytest.raises(RuntimeError, match=r"Kernel compilation failed (.*)"):
+            tcl.filterBuildErrors(kernels, kernelsWithBuildErrors, writerSelector, ignoreErr=False)
+
+    noBuildFailures()
+    buildFailuresIgnoreErr()
+    buildFailuresNoIgnoreErr()
 
 
 # ----------------
