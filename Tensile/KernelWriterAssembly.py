@@ -873,13 +873,11 @@ class KernelWriterAssembly(KernelWriter):
     self.AsmBugs["ExplicitNC"] = globalParameters["AsmCaps"][self.version]["HasExplicitNC"]
 
     hasDtl = globalParameters["AsmCaps"][self.version]["HasDirectToLdsDest"] or globalParameters["AsmCaps"][self.version]["HasDirectToLdsNoDest"]
-    if not hasDtl:
+    if not hasDtl: 
       if kernel["DirectToLdsA"] or kernel["DirectToLdsB"]:
         printExit("DirectToLds requested, but not available on this architecture ( {} )".format(self.version))
-      kernel["DirectToLdsA"] = False
-      kernel["DirectToLdsB"] = False
-      kernel["LocalWriteUseSgprA"] = False # Requires DirectToLdsA
-      kernel["LocalWriteUseSgprB"] = False # Requires DirectToLdsB
+      if kernel["LocalWriteUseSgprA"] or kernel["LocalWriteUseSgprB"]:
+        printExit("DirectToLds requested, LocalWriteUseSgprA and LocalWriteUseSgprB should be disabled".format(self.version))
 
     # set up useAtomicAdd
     # TODO Stream-K In future change, either gneeralize GSUAA option, or add toggle to control SK behaviour
