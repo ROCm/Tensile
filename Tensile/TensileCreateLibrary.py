@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -1646,13 +1646,13 @@ def TensileCreateLibrary():
     ensurePath(outputPath)
     outputPath = os.path.abspath(outputPath)
 
-    assignGlobalParameters(args)
-
     tPrint(1, "")
     tPrint(1, HR)
     tPrint(1, "# Tensile Create Library")
     tPrint(3, HR)
     tPrint(3, "")
+
+    assignGlobalParameters(args)
 
     manifestFile = Path(outputPath) / TENSILE_LIBRARY_DIR / TENSILE_MANIFEST_FILENAME
     manifestFile.parent.mkdir(exist_ok=True)
@@ -1664,18 +1664,10 @@ def TensileCreateLibrary():
         else:
             printExit("Failed to verify all files in manifest")
 
-    tPrint(
-        1,
-        "# CodeObjectVersion from TensileCreateLibrary: %s" % args["CodeObjectVersion"],
-    )
-    tPrint(1, "# CxxCompiler       from TensileCreateLibrary: %s" % cxxCompiler)
-    tPrint(
-        1,
-        "# Architecture      from TensileCreateLibrary: %s" % args["Architecture"],
-    )
-    tPrint(1, "# CxxCompiler       from TensileCreateLibrary: %s" % cxxCompiler)
-    tPrint(1, "# Architecture      from TensileCreateLibrary: %s" % args["Architecture"])
-    tPrint(1, "# LibraryFormat     from TensileCreateLibrary: %s" % libraryFormat)
+    tPrint(1, "# CodeObjectVersion: %s" % args["CodeObjectVersion"])
+    tPrint(1, "# CxxCompiler:       %s" % cxxCompiler)
+    tPrint(1, "# Architecture:      %s" % args["Architecture"])
+    tPrint(1, "# LibraryFormat:     %s" % libraryFormat)
 
     if not os.path.exists(logicPath):
         printExit("LogicPath %s doesn't exist" % logicPath)
