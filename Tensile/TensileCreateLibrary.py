@@ -71,7 +71,6 @@ import sys
 import time
 import warnings
 
-from copy import deepcopy
 from typing import Dict, Any, Set, List, Tuple
 from pathlib import Path
 
@@ -1367,23 +1366,6 @@ def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, 
     LibraryIO.writeYAML(newLibraryFile, Utils.state(newLibrary))
 
     return (codeObjectFiles, newLibrary)
-
-
-def WriteClientLibraryFromSolutions(solutionList, libraryWorkingPath, tensileSourcePath=None):
-
-    if tensileSourcePath == None:
-        tensileSourcePath = os.path.dirname(os.path.realpath(__file__))
-    firstSolution = deepcopy(solutionList[0])
-    problemType = firstSolution["ProblemType"].state
-    problemType["DataType"] = problemType["DataType"].value
-    problemType["DataTypeA"] = problemType["DataTypeA"].value
-    problemType["DataTypeB"] = problemType["DataTypeB"].value
-    problemType["DestDataType"] = problemType["DestDataType"].value
-    problemType["ComputeDataType"] = problemType["ComputeDataType"].value
-    problemType["MathDataTypeA"] = problemType["MathDataTypeA"].value
-    problemType["MathDataTypeB"] = problemType["MathDataTypeB"].value
-    problemType["F32XdlMathOp"] = problemType["F32XdlMathOp"].value
-    cxxCompiler = globalParameters["CxxCompiler"]
 
     effectiveWorkingPath = os.path.join(libraryWorkingPath, "library")
     ensurePath(effectiveWorkingPath)
