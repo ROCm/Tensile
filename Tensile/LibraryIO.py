@@ -94,7 +94,7 @@ def writeSolutions(filename, problemSizes, solutions, cache=False):
         solutionStates = solYaml[2:]
     else:
         for solution in solutions:
-            solutionState = solution.getAttributes()
+            solutionState = dict(solution.getAttributes())
             solutionState["ProblemType"] = solutionState["ProblemType"].state
             updateProblemDatatypes(solutionState["ProblemType"])
             solutionStates.append(solutionState)

@@ -1775,7 +1775,6 @@ class Solution(collections.abc.Mapping):
   ########################################
   # get a list of kernel parameters for this solution
   def getKernels(self):
-    #return Solution({"Kernel": True}.merge(self._state))
     self.Kernel = True
     return self
 
@@ -4782,8 +4781,6 @@ class Solution(collections.abc.Mapping):
     requiredParameters["Fp16AltImplRound"]  = False # Will show up as a different type
     requiredParameters["StochasticRounding"]= False # Will show up as a different type
 
-    requiredParameters["Kernel"]            = True  # distinguish kernels from solutions
-                                                    # for single-source compilation
     return requiredParameters
 
   ########################################
@@ -4967,7 +4964,7 @@ class Solution(collections.abc.Mapping):
     return self.__str__()
 
   def getAttributes(self):
-    return deepcopy(self._state)
+    return self._state
 
   def __hash__(self):
     return hash(str(self) + "" if self.codeObjectFile is None else self.codeObjectFile)
