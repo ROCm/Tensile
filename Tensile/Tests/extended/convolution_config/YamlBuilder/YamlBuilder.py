@@ -27,6 +27,8 @@ import subprocess
 import copy, operator, pytest
 from functools import reduce
 from Tensile.SolutionStructs import ConvProblem
+from Tensile.Utilities.ConditionalImports import yamlDumper
+
 import yaml
 
 
@@ -216,7 +218,7 @@ class YamlBuilder:
 
     def write(self, fname):
         with open(str(fname), "w") as f:
-            yaml.dump(self.doc, f, yaml.CSafeDumper, default_flow_style=None)
+            yaml.dump(self.doc, f, yamlDumper, default_flow_style=None)
 
     @classmethod
     def findAvailableArchs(self):

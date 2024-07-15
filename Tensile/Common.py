@@ -35,7 +35,6 @@ import subprocess
 import sys
 import time
 import warnings
-import rich
 
 startTime = time.time()
 
@@ -48,7 +47,7 @@ class DeveloperWarning(Warning):
     """
 
 def showwarning(message, category, filename, lineno, file=None, line=None):
-    rich.print(f"[yellow]{category.__name__}: {message}[/yellow]")
+    print(f"{category.__name__}: {message}")
 
 warnings.showwarning = showwarning
 
@@ -1986,7 +1985,7 @@ def tPrint(verbosity: int, arg) -> None:
         print(arg)
         sys.stdout.flush()
 
-def printWarning(message: str, category: type[Warning]=DeveloperWarning):
+def printWarning(message: str, category=DeveloperWarning):
   warnings.warn(message, category)
   sys.stdout.flush()
 

@@ -27,6 +27,7 @@ from .SolutionStructs import Solution, ProblemSizes, ProblemType
 from . import __version__
 from . import Common
 from . import SolutionLibrary
+from .Utilities.ConditionalImports import yamlLoader, yamlDumper
 
 from typing import NamedTuple
 
@@ -74,7 +75,7 @@ def writeYAML(filename, data, **kwargs):
         kwargs["default_flow_style"] = None
 
     with open(filename, "w") as f:
-        yaml.dump(data, f, yaml.CSafeDumper, **kwargs)
+        yaml.dump(data, f, yamlDumper, **kwargs)
 
 
 def writeMsgPack(filename, data):
@@ -109,7 +110,7 @@ def writeSolutions(filename, problemSizes, solutions, cache=False):
                 #FIXME-problem, this ignores strides:
                 f.write("  - Exact: {}\n".format(problemExact))
 
-        yaml.dump(solutionStates, f, yaml.CSafeDumper, default_flow_style=None)
+        yaml.dump(solutionStates, f, yamlDumper, default_flow_style=None)
 
 
 ###############################
@@ -118,7 +119,7 @@ def writeSolutions(filename, problemSizes, solutions, cache=False):
 def readYAML(filename):
     """Reads and returns YAML data from file."""
     with open(filename, "r") as f:
-        data = yaml.load(f, yaml.CSafeLoader)
+        data = yaml.load(f, yamlLoader)
     return data
 
 
