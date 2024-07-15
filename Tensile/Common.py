@@ -24,6 +24,7 @@
 
 from . import __version__
 from . import Parallel
+from .Utilities.ConditionalImports import *
 from collections import OrderedDict
 from copy import deepcopy
 from .AsmCaps import CACHED_ASM_CAPS
@@ -47,7 +48,10 @@ class DeveloperWarning(Warning):
     """
 
 def showwarning(message, category, filename, lineno, file=None, line=None):
-    print(f"{category.__name__}: {message}")
+    msg = f"{category.__name__}: {message}"
+    if TENSILE_TERM_COLORS:
+        msg = f"[yellow]{msg}[/yellow]"
+    print(msg)
 
 warnings.showwarning = showwarning
 
