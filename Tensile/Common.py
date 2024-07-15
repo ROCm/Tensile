@@ -2372,6 +2372,16 @@ def assignGlobalParameters( config ):
   else:
     globalParameters["LlvmBinPath"] = os.path.join(globalParameters["ROCmPath"], "llvm/bin")
 
+  if not os.path.isdir(globalParameters["LlvmBinPath"]):
+    if globalParameters["HipConfigPath"]:
+        process = subprocess.run([globalParameters["HipConfigPath"], "-l"], stdout=subprocess.PIPE)
+        if (process.returncode):
+            printWarning("%s exited with code %u" % (globalParameters["HipConfigPath"], process.returncode))
+        else:
+            lines = process.stdout.decode().split("\n")
+            if os.path.isdir(lines[0]):
+                globalParameters["LlvmBinPath"] = lines[0]
+
   if "CxxCompiler" in config:
     globalParameters["CxxCompiler"] = config["CxxCompiler"]
     # Pair the CCompiler with CxxCompiler
