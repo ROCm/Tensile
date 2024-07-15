@@ -24,7 +24,7 @@
 
 from . import __version__
 from . import Parallel
-from .Utilities.ConditionalImports import *
+from .Utilities.ConditionalImports import showwarning
 from collections import OrderedDict
 from copy import deepcopy
 from .AsmCaps import CACHED_ASM_CAPS
@@ -46,12 +46,6 @@ class DeveloperWarning(Warning):
 
     This warning can be safely ignored when running any Tensile applications as a user.
     """
-
-def showwarning(message, category, filename, lineno, file=None, line=None):
-    msg = f"{category.__name__}: {message}"
-    if TENSILE_TERM_COLORS:
-        msg = f"[yellow]{msg}[/yellow]"
-    print(msg)
 
 warnings.showwarning = showwarning
 
