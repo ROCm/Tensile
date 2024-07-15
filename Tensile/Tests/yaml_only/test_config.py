@@ -23,6 +23,7 @@
 ################################################################################
 
 import os
+import platform
 import pytest
 import subprocess
 import yaml
@@ -158,6 +159,10 @@ def configMarks(filepath, rootDir, availableArchs):
 def findAvailableArchs():
     availableArchs = []
     rocmpath = "/opt/rocm"
+    # /opt/rocm is not always the default location
+    if not os.path.isdir(rocmpath):
+      if platform.system() == "Linux":
+        rocmpath = "/usr"
     if "ROCM_PATH" in os.environ:
         rocmpath = os.environ.get("ROCM_PATH")
     if "TENSILE_ROCM_PATH" in os.environ:

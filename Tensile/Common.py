@@ -31,6 +31,7 @@ from typing import Optional
 
 import math
 import os.path
+import platform
 import subprocess
 import sys
 import time
@@ -2338,6 +2339,10 @@ def assignGlobalParameters( config ):
       tPrint(3, " %24s: %8s (unspecified)" % (key, defaultValue))
 
   globalParameters["ROCmPath"] = "/opt/rocm"
+  # /opt/rocm is not always the default location
+  if not os.path.isdir(globalParameters["ROCmPath"]):
+    if platform.system() == "Linux":
+      globalParameters["ROCmPath"] = "/usr"
   if "ROCM_PATH" in os.environ:
     globalParameters["ROCmPath"] = os.environ.get("ROCM_PATH")
   if "TENSILE_ROCM_PATH" in os.environ:
