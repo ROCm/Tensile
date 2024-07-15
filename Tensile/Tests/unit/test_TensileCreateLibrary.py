@@ -574,6 +574,9 @@ class MockKernelWriter:
     def getKernelFileBase(self, kernel: MockSolution):
         return kernel.name
 
+    def getKernelName(self, kernel: MockSolution):
+        return f"{kernel.name}_name"
+
 
 def test_markDuplicateKernels():
 
@@ -712,8 +715,8 @@ def test_filterBuildErrors():
     kernels += [MockSolution(name, "Source") for name in ["D", "E", "F"]]
     kernelWriter = MockKernelWriter()
     kernelsWithBuildErrors = {
-        "A": -2,
-        "D": -2,
+        "A_name": -2,
+        "D_name": -2,
     }
     writerSelector = lambda lang: kernelWriter
 
@@ -722,13 +725,16 @@ def test_filterBuildErrors():
         assert kernelsToBuild == kernels, "All kernels should be built without failure"
 
     def buildFailuresIgnoreErr():
-        kernelsToBuild = tcl.filterBuildErrors(
-            kernels, kernelsWithBuildErrors, writerSelector, ignoreErr=True
-        )
 
         expectedKernelsToBuild = [MockSolution(name, "Assembly") for name in ["B", "C"]]
         expectedKernelsToBuild += [MockSolution(name, "Source") for name in ["E", "F"]]
 
+        kernelsToBuild = tcl.filterBuildErrors(
+            kernels, kernelsWithBuildErrors, writerSelector, ignoreErr=True
+        )
+
+        print("Kernels wtih build errors:", [k for k in kernelsWithBuildErrors])
+        print("Kernels to build:", [k.name for k in kernelsToBuild])
         assert len(kernelsToBuild) == len(
             expectedKernelsToBuild
         ), "Length of built kernels is incorrect"
