@@ -1,5 +1,3 @@
-import warnings
-
 TENSILE_TERM_COLORS: bool = False
 try:
     from rich import print as _print
