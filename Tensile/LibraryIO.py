@@ -322,7 +322,7 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple
     # solutions
     solutionList = []
     for solution in rawSolutions:
-        solutionState = solution.getAttributes()
+        solutionState = dict(solution.getAttributes())
         solutionState["ProblemType"] = "derive"
         solutionList.append(solutionState)
 
@@ -373,7 +373,7 @@ def createLibraryLogicList(schedulePrefix, architectureName, deviceNames, logicT
     # solutions
     solutionList = []
     for solution in solutions:
-        solutionState = solution.getAttributes()
+        solutionState = dict(solution.getAttributes())
         solutionState["ProblemType"] = solutionState["ProblemType"].state
         updateProblemDatatypes(solutionState["ProblemType"])
         solutionList.append(solutionState)
@@ -381,7 +381,7 @@ def createLibraryLogicList(schedulePrefix, architectureName, deviceNames, logicT
     if tileSelection:
         tileSolutions = logicTuple[5]
         for solution in tileSolutions:
-            solutionState = solution.getAttributes()
+            solutionState = dict(solution.getAttributes())
             solutionState["ProblemType"] = solutionState["ProblemType"].state
             updateProblemDatatypes(solutionState["ProblemType"])
             solutionList.append(solutionState)

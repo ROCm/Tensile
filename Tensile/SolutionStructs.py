@@ -1718,12 +1718,7 @@ def isExtractableIndex(ks, index, tc='x'):
 ################################################################################
 class Solution(collections.abc.Mapping):
 
-  ########################################
-  def __init__(self, config):
-    self._name = None
-    self.Kernel = False
-    self.codeObjectFile = None
-
+  def init(self, config: dict):
     state = {}
     # problem type
     if "ProblemType" in config:
@@ -1768,6 +1763,20 @@ class Solution(collections.abc.Mapping):
     self._state = MappingProxyType(state)    
     self.initHelperKernelObjects()
 
+
+
+
+
+  ########################################
+  def __init__(self, config: dict, fromExisting: bool = False):
+    self._name = None
+    self.codeObjectFile = None
+
+    if fromExisting:
+        self._state = MappingProxyType(config)
+    else:
+        self.init(config)
+
   # these keys are copied from ProblemType to internal that may be overridden
   InternalKeys = ["UseSgprForGRO","VectorStore"]
 
@@ -1776,7 +1785,9 @@ class Solution(collections.abc.Mapping):
   # get a list of kernel parameters for this solution
   def getKernels(self):
     self.Kernel = True
-    return self
+    newState = dict(self._state)
+    newState["Kernel"] = True
+    return Solution(newState, fromExisting=True)
 
   ########################################
   # create Helper Kernels
@@ -4781,6 +4792,8 @@ class Solution(collections.abc.Mapping):
     requiredParameters["Fp16AltImplRound"]  = False # Will show up as a different type
     requiredParameters["StochasticRounding"]= False # Will show up as a different type
 
+    requiredParameters["Kernel"] = True
+
     return requiredParameters
 
   ########################################
@@ -4818,9 +4831,6 @@ class Solution(collections.abc.Mapping):
         name += "SE_"
       else:
         name += "SN_"
-    if state.Kernel:
-      name += "%s%s_" % ( Solution.getParameterNameAbbreviation("Kernel"), \
-          Solution.getParameterValueAbbreviation("Kernel", state.Kernel) )
     for key in sorted(state.keys()):
       if key in requiredParameters and key[0] != '_':
         if requiredParameters[key] and key != "CustomKernelName":
@@ -4955,6 +4965,11 @@ class Solution(collections.abc.Mapping):
   def __getitem__(self, key):
     return self._state[key]
   
+  def __setitem__(self, key, value):
+    newState = dict(self._state)
+    newState[key] = value
+    self = Solution(newState, fromExisting=True)
+
   def __str__(self):
     if self._name is None:
       self._name = Solution.getNameFull(self)

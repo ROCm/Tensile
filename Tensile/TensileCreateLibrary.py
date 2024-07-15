@@ -1367,19 +1367,6 @@ def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, 
 
     return (codeObjectFiles, newLibrary)
 
-    effectiveWorkingPath = os.path.join(libraryWorkingPath, "library")
-    ensurePath(effectiveWorkingPath)
-    mataDataFilePath = os.path.join(effectiveWorkingPath, "metadata.yaml")
-
-    metaData = {"ProblemType": problemType}
-    LibraryIO.writeYAML(mataDataFilePath, metaData)
-
-    codeObjectFiles, newLibrary = writeBenchmarkClientFiles(
-        libraryWorkingPath, tensileSourcePath, solutionList, cxxCompiler
-    )
-
-    return (codeObjectFiles, newLibrary)
-
 
 ################################################################################
 # Write Master Solution Index CSV
