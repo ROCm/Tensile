@@ -24,7 +24,6 @@
 
 from __future__ import print_function
 
-
 import itertools
 import sys
 import time
