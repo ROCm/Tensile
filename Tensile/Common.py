@@ -262,6 +262,7 @@ globalParameters["CurrentISA"] = (0,0,0)
 globalParameters["ROCmAgentEnumeratorPath"] = None      # /opt/rocm/bin/rocm_agent_enumerator
 globalParameters["ROCmSMIPath"] = None                  # /opt/rocm/bin/rocm-smi
 globalParameters["AssemblerPath"] = None                # /opt/rocm/llvm/bin/clang++
+globalParameters["HipConfigPath"] = None                # /opt/rocm/bin/hipconfig
 globalParameters["WorkingPath"] = os.getcwd()           # path where tensile called from
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
@@ -2362,6 +2363,8 @@ def assignGlobalParameters( config ):
     globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "hipinfo.exe")
   else:
     globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm_agent_enumerator")
+
+  globalParameters["HipConfigPath"] = locateExe(globalParameters["ROCmBinPath"], "hipconfig")
 
   if "CxxCompiler" in config:
     globalParameters["CxxCompiler"] = config["CxxCompiler"]
