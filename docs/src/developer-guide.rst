@@ -21,79 +21,6 @@ ROCm is a base requirement for contributing to Tensile. To begin, ensure that RO
    Environment setup steps are provided for Ubuntu/Debian platforms. For other operating systems, use the appropriate package manager, or your preferred installation method.
 
 
-.. table:: Python dependencies
-   :widths: grid
-
-   =========== =======
-   Dependency  Version
-   =========== =======
-   Python      3.8+
-   Tox         4.0+   
-   Joblib      1.4+   
-   PyYAML      6.0+   
-   MsgPack     1.0+
-   =========== =======
-
-.. table:: C++ & build dependencies
-   :widths: grid
-
-   ========== =======
-   Dependency Version
-   ========== =======
-   amdclang++ 17.0+  
-   Make       4.2+   
-   CMake      3.16+  
-   ========== =======
-
-------------------------------
-Setting up Python dependencies
-------------------------------
-
-1. Install OS dependencies
-
-.. code-block:: 
-
-   apt-get install libyaml python3-yaml libomp-dev libboost-program-options-dev libboost-filesystem-dev
-
-2. Install *one* of the following, depending on your preferred Tensile data format
-
-.. code-block::
-
-  apt-get install libmsgpack-dev    # If using the msgpack backend
-  # OR
-  apt-get install libtinfo-dev      # If using the YAML backend
-
-3. Setup a virtual environment
-
-.. code-block::
-
-   python3 -m venv .venv
-   source .venv/bin/activate
-
-4. Install Python dependencies
-
-.. code-block::
-
-   pip3 install -r requirements.txt
-
----------------------------
-Setting up C++ dependencies
----------------------------
-
-1. Install ROCm for your platform (`Linux <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/tutorial/quick-start.html>`_ or `Windows <https://rocm.docs.amd.com/projects/install-on-windows/en/latest/index.html>`_). After the installation is complete, binaries and libraries can be found at */opt/rocm*---we recommend adding ``PATH=/opt/rocm/bin/:$PATH`` to your *.bashrc* or *.zshrc*. ROCm comes packaged with compilers such as **amdclang++**, and other useful tools including **rocminfo** and **rocprofv2**.
-
-2. Install build tools
-
-.. code-block::
-
-   apt-get install build-essential
-
-3. Install CMake (additional installation methods for the latest versions can be found `here <https://cliutils.gitlab.io/modern-cmake/chapters/intro/installing.html>`_).
-
-.. code-block::
-
-   apt-get install cmake
-
 --------------------
 Developing in Docker
 --------------------
@@ -101,29 +28,109 @@ Developing in Docker
 ROCm development images are available on `Docker Hub <https://hub.docker.com/search?q=rocm%2Fdev>`_ for a variety of OS/ROCm versions. See `Docker images in the ROCm ecosystem <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/docker.html#docker-images-in-the-rocm-ecosystem>`_ for more details.
 
 
+
+------------------------------
+Setting up Python dependencies
+------------------------------
+
+1. Install OS dependencies (requires elevated privileges),
+
+   .. code-block:: 
+
+      apt-get install libyaml python3-yaml \
+          libomp-dev libboost-program-options-dev libboost-filesystem-dev
+
+2. Install *one* of the following, depending on your preferred Tensile data format. If both are installed, *msgpack* is preferred,
+
+   .. code-block::
+
+      apt-get install libmsgpack-dev    # If using the msgpack backend
+      # OR
+      apt-get install libtinfo-dev      # If using the YAML backend
+
+3. Setup a virtual environment
+
+   .. code-block::
+
+      python3 -m venv .venv
+      source .venv/bin/activate
+
+4. Install Python dependencies
+
+   .. code-block::
+
+      pip3 install -r requirements.txt
+
+5. Confirm your dependencies match the following listing with ``pip3 freeze``,
+
+   .. literalinclude:: ../../requirements.txt
+      :caption: **requirements.txt**—Direct and transitive Python dependencies
+      :lines: 7-
+
+You can now run Tensile's Python applications—see `Tensile/bin <https://github.com/ROCm/Tensile/tree/develop/Tensile/bin>`_.
+
+---------------------------
+Setting up C++ dependencies
+---------------------------
+
+1. Install ROCm for your platform (`Linux <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/tutorial/quick-start.html>`_ or `Windows <https://rocm.docs.amd.com/projects/install-on-windows/en/latest/index.html>`_). 
+   
+   After the installation is complete, binaries and libraries can be found at */opt/rocm*. ROCm comes packaged with compilers such as **amdclang++**, and other useful tools including **rocminfo** and **rocprofv2**.
+
+   .. tip:: 
+
+      If using Bash, we recommend setting ``PATH=/opt/rocm/bin/:$PATH`` in your *~/.bashrc* and refreshing your shell, e.g., ``source ~/.bashrc``. Alternatively, export the path only for your current shell session with ``export PATH=/opt/rocm/bin/:$PATH``.
+
+2. Install build tools. Additional installation methods for the latest versions for CMake can be found `here <https://cliutils.gitlab.io/modern-cmake/chapters/intro/installing.html>`_.
+
+   .. code-block::
+
+      apt-get install build-essential cmake
+
+3. Verify the versions of installed tools against the following table,
+
+   .. table:: C++ build dependencies
+      :widths: grid
+
+      ========== =======
+      Dependency Version
+      ========== =======
+      amdclang++ 17.0+  
+      Make       4.2+   
+      CMake      3.16+  
+      ========== =======
+
+You can now run Tensile's `Host library tests`_.
+
 =======
 Testing
 =======
 
-Tensile uses `pytest <https://docs.pytest.org/>`_ to work with library/kernel tests. In particular, the project makes use of `markers <https://docs.pytest.org/en/stable/how-to/mark.html>`_ to filter which tests are run, as well as for general testing abstraction. Important markers include *pre_checkin*, *extended*, *integration*, and *unit*---refer to `pytest.ini <https://github.com/ROCm/Tensile/blob/develop/pytest.ini>`_ for all supported markers.
+Tensile uses `pytest <https://docs.pytest.org/>`_ to manage library/kernel tests. In particular, the project makes use of `pytest markers <https://docs.pytest.org/en/stable/how-to/mark.html>`_ to filter which tests are run. Important markers include *pre_checkin*, *extended*, *integration*, and *unit*---refer to `pytest.ini <https://github.com/ROCm/Tensile/blob/develop/pytest.ini>`_ for all supported markers.
 
 In general, a test can be run via the tox **ci** environment by passing the desired test marker with ``-m <MARKER>``,
 
 .. code-block::
 
-   tox run -e ci -- -m <pre_checkin|extended|integration|unit>
+   tox run -e ci -- -m {pre_checkin|extended|integration|unit}
 
-Note that ``--`` is used to pass options to the underlying pytest command. By default, ``tox run -e ci`` will run extended tests.
+Note that ``--`` is used to pass options to the underlying pytest command. 
+
+.. note::
+
+   By default ``tox run -e ci`` will run extended tests.
 
 -------------------------------
 Unit tests and coverage reports
 -------------------------------
 
-Unit tests include all tests located under *Tensile/Tests/unit/*. Although unit tests can be run with the tox **ci** environment, a convenience command is included that adds coverage reporting,
+Unit tests include all tests located under *Tensile/Tests/unit/*. A convenience command is included that adds coverage reporting,
 
 .. code-block::
 
    tox run -e unittest
+   # OR for 32 processes
+   tox run -e unittest -- -n 32
 
 By default, coverage results will be dumped to the terminal. To generate reports in other formats (e.g. HTML) use,
 
@@ -132,6 +139,15 @@ By default, coverage results will be dumped to the terminal. To generate reports
    tox run -e unittest -- --cov-report=html
 
 Files and directories excluded from coverage reporting are itemized in `.coveragerc <https://github.com/ROCm/Tensile/blob/develop/.coveragerc>`_.
+
+Although it is encouraged to run unit tests through tox to support consistency, they may also be run directly with pytest for quicker feedback, for example, to debug a run a single test named *test_foo*, the following command may be useful
+
+.. code-block::
+   :class: WHAT
+   :caption: From *Tensile/Tests/*
+
+   pytest unit/test_TensileCreateLibrary.py -k "test_foo" --capture=no -v
+
 
 ------------------
 Host library tests
@@ -148,7 +164,11 @@ Next, build and run all host library tests,
 .. code-block::
 
    mkdir build && cd build
-   cmake -DCMAKE_BUILD_TYPE=<Debug|RelWithDebInfo> -DCMAKE_CXX_COMPILER=amdclang++ -DCODE_OBJECT_VERSION=<V3|V2> -DTensile_ROOT=<Path to repo>/Tensile ../HostLibraryTests
+   cmake ../HostLibraryTests 
+       -DCMAKE_BUILD_TYPE={Debug|RelWithDebInfo} \ 
+       -DCMAKE_CXX_COMPILER=amdclang++ 
+       -DCODE_OBJECT_VERSION=<V3|V2> 
+       -DTensile_ROOT=<PATH TO>/Tensile
    make -j
    ./TensileTests
 
@@ -163,19 +183,25 @@ Static analysis
 Python
 ------
 
-**Linting** is evaluated with `flake8 <https://flake8.pycqa.org/en/latest/>`_,
-
-.. code-block::
-
-   tox run -e lint
-   # OR
-   flake8 Tensile
-
-For convenience, all static analysis checks have been collected under the tox label **static** and can be run with a single command,
+Use the top-level tox label **static** to run all static analysis, **this may reformat your code**, so be sure to commit your changes after running the command,
 
 .. code-block::
 
    tox run -m static
+
+
+**Linting** is evaluated with `flake8 <https://flake8.pycqa.org/en/latest/>`_, and **formatting** is conducted with `black <https://black.readthedocs.io/en/stable/>`_ and `isort <https://pycqa.github.io/isort/>`_. To run a check in isolation refer to `tox.ini <https://github.com/ROCm/Tensile/blob/develop/tox.ini>`_, or use one the following commands,
+
+.. code-block::
+
+   tox run -e lint
+   tox run -e format     # add `-- --check` to check formatting without applying changes
+   tox run -e isort      # add `-- --check` to check imports without applying changes
+
+
+.. tip::
+
+   To ensure consistent formatting, we recommend setting up your editor to **format on save** using the same formatter settings as in `tox.ini <https://github.com/ROCm/Tensile/blob/develop/tox.ini>`_. Either way, ensuring you commit changes after running  static analysis will reduce wait-times caused by simple CI failures.
 
 ---
 C++
@@ -207,7 +233,7 @@ Profiling is enabled through the ``@profile`` decorator, and can be imported fro
 Documentation
 =============
 
-Tensile uses https://github.com/ROCm/rocm-docs-core as the documentation engine (which itself wraps Read the Docs and Sphinx). 
+Tensile uses https://github.com/ROCm/rocm-docs-core as the documentation engine, which itself wraps Read the Docs and Sphinx. 
 
 You can build the documentation locally with,
 
@@ -221,8 +247,4 @@ After the documentation is built, the generated HTML files can be found at *docs
 Versioning
 ==========
 
-Tensile follows semantic versioning practices, e.g., **major.minor.patch**.
-
-* **Major** increments are conducted if the public API changes, or if either the benchmark or library configuration (YAML) files change format in a non-backwards-compatible manner.
-* **Minor** increments are conducted when new kernel, solution, or benchmarking features are introduced in a backwards-compatible manner.
-* **Patch** increments are conducted for bug fixes or minor improvements.
+Tensile follows semantic versioning practices, e.g., **major.minor.patch**. See `server.org <https://semver.org/>`_ for more details.

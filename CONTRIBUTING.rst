@@ -2,7 +2,7 @@
 Contributing Guide
 ********************************************************************
 
-Welcome to the Tensile project! If you're thinking about contributing, this document is for you. We welcome all contributions, It is intended to help newcomers get acquainted with the contribution workflow.
+Welcome to the Tensile project! If you're thinking about contributing, this document is for you. We encourage you to read this guide to understand how to contribute to the project to ensure that your contributions are accepted and merged in a timely manner.
 
 .. tip::
    
@@ -29,6 +29,14 @@ When opening a Pull Request (PR):
 2. Create the PRs against the https://github.com/ROCm/Tensile **develop** branch.
 3. Fill in as many details as possible. Include a description, outcomes, notable changes, and environment information. This more information, the more likely the PR will be reviewed and merged in a timely manner.
 4. Title the PR in present imperative tense, e.g., "*Update* kernel parameters" not "Updates" nor "Updated".
+
+Once all checks pass and the PR is approved:
+
+1. Ensure the title of the PR properly describes the changes, update if necessary.
+2. Squash and merge the PR---if you are not a maintainer, a maintainer will do this for you. When merging a large change, use bullet points in the commit message to break down the changes.
+
+
+After the PR is merged into the **develop** branch, it will undergo extended testing and profiling. Pending all of these checks pass, it may be promoted to staging be included in the next release. If you would like to see the changes in the next release, please ensure that the PR is merged before the release branch is cut.
 
 ------
 Labels

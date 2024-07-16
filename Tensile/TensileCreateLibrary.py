@@ -577,7 +577,7 @@ def markDuplicateKernels(
         are marked with a `duplicate` attribute indicating their duplication status.
 
     Notes:
-        - This function sets the "duplicate" attribute on Solution objects, and thereby prepares
+        This function sets the "duplicate" attribute on Solution objects, and thereby prepares
         kernels for **processKernelSource**, which requires "duplicate" to be set.
     """
     # Kernels may be intended for different .co files, but generate the same .o file
