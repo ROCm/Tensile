@@ -143,7 +143,6 @@ Files and directories excluded from coverage reporting are itemized in `.coverag
 Although it is encouraged to run unit tests through tox to support consistency, they may also be run directly with pytest for quicker feedback, for example, to debug a run a single test named *test_foo*, the following command may be useful
 
 .. code-block::
-   :class: WHAT
    :caption: From *Tensile/Tests/*
 
    pytest unit/test_TensileCreateLibrary.py -k "test_foo" --capture=no -v
