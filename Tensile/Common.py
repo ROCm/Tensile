@@ -24,6 +24,7 @@
 
 from . import __version__
 from . import Parallel
+from .Utilities.ConditionalImports import print, TENSILE_TERM_COLORS
 from collections import OrderedDict
 from copy import deepcopy
 from .AsmCaps import CACHED_ASM_CAPS
@@ -35,7 +36,6 @@ import subprocess
 import sys
 import time
 import warnings
-import rich
 
 startTime = time.time()
 
@@ -48,7 +48,10 @@ class DeveloperWarning(Warning):
     """
 
 def showwarning(message, category, filename, lineno, file=None, line=None):
-    rich.print(f"[yellow]{category.__name__}: {message}[/yellow]")
+    msg = f"{category.__name__}: {message}"
+    if TENSILE_TERM_COLORS:
+        msg = f"[yellow]{msg}[/yellow]"
+    print(msg)
 
 warnings.showwarning = showwarning
 
@@ -1986,7 +1989,7 @@ def tPrint(verbosity: int, arg) -> None:
         print(arg)
         sys.stdout.flush()
 
-def printWarning(message: str, category: type[Warning]=DeveloperWarning):
+def printWarning(message: str, category=DeveloperWarning):
   warnings.warn(message, category)
   sys.stdout.flush()
 
