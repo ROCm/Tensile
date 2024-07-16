@@ -43,14 +43,13 @@ def runCompileCommand(platform, project, jobName, boolean debug=false) {
             export HOME=/home/jenkins
 
             gfx_name="gfx90a"
-            arch_name="aldebaran"
             logic_path="library/src/blas3/Tensile/Logic/asm_full"
             repo_name="rocBLAS"
 
             git clone --depth=1 https://github.com/ROCm/\$repo_name.git ../\$repo_name
 
             TENSILE_PROFILE=ON Tensile/bin/TensileCreateLibrary \
-              \$PWD/../\$repo_name/\$logic_path/\$arch_name \
+              \$PWD/../\$repo_name/\$logic_path \
               _build \
               HIP \
               --merge-files \
@@ -58,7 +57,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false) {
               --lazy-library-loading \
               --no-short-file-names \
               --code-object-version=default \
-              --cxx-compiler=hipcc \
+              --cxx-compiler=amdclang++ \
               --jobs=32 \
               --library-format=msgpack \
               --architecture=\$gfx_name
