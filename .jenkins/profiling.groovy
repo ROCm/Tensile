@@ -57,7 +57,6 @@ def runCompileCommand(platform, project, jobName, boolean debug=false) {
               --separate-architecture \
               --lazy-library-loading \
               --no-short-file-names \
-              --no-library-print-debug \
               --code-object-version=default \
               --cxx-compiler=hipcc \
               --jobs=32 \
