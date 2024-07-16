@@ -32,6 +32,7 @@ import Tensile.Common as Common
 import Tensile.ClientWriter as ClientWriter
 import Tensile.SolutionStructs as SolutionStructs
 import Tensile.SolutionLibrary as SolutionLibrary
+from Tensile.Utilities.ConditionalImports import yamlLoader
 import yaml
 import contextlib
 import uuid
@@ -110,7 +111,7 @@ def test_WriteClientLibraryFromSolutions(tmpdir):
         stream = open(tensileYamlFilePath, "r")
     except IOError:
         mylogger.error("Cannot open file: %s" % tensileYamlFilePath)
-    config = yaml.load(stream, yaml.CSafeLoader)
+    config = yaml.load(stream, yamlLoader)
     stream.close()
     actualSolutions = config["solutions"]
 
@@ -124,7 +125,7 @@ def test_WriteClientLibraryFromSolutions(tmpdir):
         stream = open(metadataYamlFilePath, "r")
     except IOError:
         mylogger.error("Cannot open file: %s" % metadataYamlFilePath)
-    metadata = yaml.load(stream, yaml.CSafeLoader)
+    metadata = yaml.load(stream, yamlLoader)
     stream.close()
     actualProblemType = metadata["ProblemType"]
 
