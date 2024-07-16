@@ -2,7 +2,7 @@
 Contributing Guide
 ********************************************************************
 
-Welcome to the Tensile project! If you're thinking about contributing, this document is for you, and is intended to help newcomers get acquainted with the contribution workflow.
+Welcome to the Tensile project! If you're thinking about contributing, this document is for you. We welcome all contributions, It is intended to help newcomers get acquainted with the contribution workflow.
 
 .. tip::
    
