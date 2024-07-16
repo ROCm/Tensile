@@ -1123,9 +1123,9 @@ class LogicAnalyzer:
     solutionMapOldToNew = [-1] * self.numSolutions
 
     # temporarily move current to old
-    oldSolutions = deepcopy(self.solutions)
+    oldSolutions = self.solutions
     oldNumSolutions = self.numSolutions
-    oldData = deepcopy(self.data)
+    oldData = self.data
     # update solutions
     self.solutions = []
     for i in range(0, oldNumSolutions):
