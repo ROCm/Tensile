@@ -469,7 +469,7 @@ class MasterSolutionLibrary:
 
     @classmethod
     def BenchmarkingLibrary(cls, solutions):
-        solutionObjs = list([Contractions.Solution.FromOriginalState(s._state) for s in solutions])
+        solutionObjs = list([Contractions.Solution.FromOriginalState(s.getAttributes()) for s in solutions])
         cls.FixSolutionIndices(solutionObjs)
 
         predRows = list([{

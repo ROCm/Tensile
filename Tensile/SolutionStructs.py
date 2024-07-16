@@ -43,6 +43,7 @@ from collections.abc import Mapping
 from copy import deepcopy
 from enum import Enum
 from functools import reduce
+from types import MappingProxyType
 
 import collections
 import math
@@ -1720,51 +1721,52 @@ class Solution(collections.abc.Mapping):
   ########################################
   def __init__(self, config):
     self._name = None
-    config = deepcopy(config)
+    self._mutable_state = {}
 
-    self._state = {}
+    state = {}
     # problem type
     if "ProblemType" in config:
-      self["ProblemType"] = ProblemType(config["ProblemType"])
+      state["ProblemType"] = ProblemType(config["ProblemType"])
     else:
-      self["ProblemType"] = ProblemType(defaultProblemType)
+      state["ProblemType"] = ProblemType(defaultProblemType)
 
     # assign parameters with defaults
     for key in defaultSolution:
-      assignParameterWithDefault(self._state, key, config, defaultSolution)
+      assignParameterWithDefault(state, key, config, defaultSolution)
 
-    if 'ISA' not in self._state:
+    if 'ISA' not in state:
       if 'ISA' in config:
-        self._state['ISA'] = config['ISA']
+        state['ISA'] = config['ISA']
       elif config['KernelLanguage'] == 'Assembly':
-        self._state['ISA'] = list(globalParameters["CurrentISA"])
+        state['ISA'] = list(globalParameters["CurrentISA"])
       else:
-        self._state['ISA'] = [0,0,0]
+        state['ISA'] = [0,0,0]
 
-    if "CodeObjectVersion" not in self._state:
+    if "CodeObjectVersion" not in state:
       if "CodeObjectVersion" in config:
-        self._state["CodeObjectVersion"] = config["CodeObjectVersion"]
+        state["CodeObjectVersion"] = config["CodeObjectVersion"]
       else:
-        self._state["CodeObjectVersion"] = globalParameters["CodeObjectVersion"]
+        state["CodeObjectVersion"] = globalParameters["CodeObjectVersion"]
 
     # assign parameters without defaults
     for key in config:
-      if key != "ProblemType" and key not in self._state:
-        self._state[key] = config[key]
-    self["Valid"] = True
+      if key != "ProblemType" and key not in state:
+        state[key] = config[key]
+    state["Valid"] = True
     # this could prevent OriginalSolution from re-assigning the parameters, save lots of time
-    if "AssignedProblemIndependentDerivedParameters" not in self._state:
-      self["AssignedProblemIndependentDerivedParameters"] = False
-    if "AssignedDerivedParameters" not in self._state:
-      self["AssignedDerivedParameters"] = False
+    if "AssignedProblemIndependentDerivedParameters" not in state:
+      state["AssignedProblemIndependentDerivedParameters"] = False
+    if "AssignedDerivedParameters" not in state:
+      state["AssignedDerivedParameters"] = False
 
-    if self["ProblemType"].convolution:
-        for (key,value) in self["ProblemType"].convolution.solutionParms.items():
-            self._state[key]=value
-    Solution.assignDerivedParameters(self._state)
+    if state["ProblemType"].convolution:
+        for (key,value) in state["ProblemType"].convolution.solutionParms.items():
+            state[key]=value
+    Solution.assignDerivedParameters(state)
     self._name = config["CustomKernelName"] if isCustomKernelConfig(config) else None
+    self._state = MappingProxyType(state)
     self.initHelperKernelObjects()
-
+    
   # these keys are copied from ProblemType to internal that may be overridden
   InternalKeys = ["UseSgprForGRO","VectorStore"]
 
@@ -1772,8 +1774,8 @@ class Solution(collections.abc.Mapping):
   ########################################
   # get a list of kernel parameters for this solution
   def getKernels(self):
-    kernel = deepcopy(self)
-    kernel._state.update({"Kernel": True})
+    kernel = self
+    kernel._mutable_state.update({"Kernel": True})
     kernels = []
     kernels.append(kernel)
     return kernels
@@ -4945,20 +4947,27 @@ class Solution(collections.abc.Mapping):
   ##########################
   # make class look like dict
   def keys(self):
-    return list(self._state.keys())
+    mkeys = self._mutable_state.keys()
+    ikeys = list(self._state.keys())
+    return ikeys + list(mkeys) if mkeys else ikeys
 
   def __len__(self):
-    return len(self._state)
+    return len(self._state) + len(self._mutable_state)
 
   def __iter__(self):
-    return iter(self._state)
+    temp = self._mutable_state
+    temp.update(self._state)
+    return iter(temp)
 
   def __getitem__(self, key):
+    if key in self._mutable_state:
+      return self._mutable_state[key]
     return self._state[key]
 
   def __setitem__(self, key, value):
+    printWarning(f"Mutating solution: {self._name} {key}")
     self._name = None
-    self._state[key] = value
+    self._mutable_state[key] = value
 
   def __str__(self):
     if self._name is None:
@@ -4969,10 +4978,12 @@ class Solution(collections.abc.Mapping):
     return self.__str__()
 
   def getAttributes(self):
-    return deepcopy(self._state)
+    temp = self._mutable_state
+    temp.update(self._state)    
+    return temp
 
   def __hash__(self):
-    return hash(str(self) + self._state.get("codeObjectFile", ""))
+    return hash(str(self) + self.get("codeObjectFile", ""))
     #return hash(self.getAttributes())
 
   def __eq__(self, other):

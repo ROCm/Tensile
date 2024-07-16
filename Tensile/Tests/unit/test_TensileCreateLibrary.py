@@ -483,9 +483,15 @@ def test_logicDataAndSolutionsConstruction(initGlobalParametersForTCL):
         logicFiles = TensileCreateLibrary.parseLibraryLogicFiles(yamlFiles)
         assert len(logicFiles) == 2, "The length of the logic files list is incorrect."
 
-        for s in [True, False]:
-            testCase1(logicFiles, separateArch=s)
-            testCase2(yamlFiles, separateArch=s)
+        testCase1(logicFiles, separateArch=True)
+        testCase2(yamlFiles, separateArch=True)
+
+    with initGlobalParametersForTCL(["--architecture=gfx900"] + requiredArgs):
+        logicFiles = TensileCreateLibrary.parseLibraryLogicFiles(yamlFiles)
+        assert len(logicFiles) == 2, "The length of the logic files list is incorrect."
+
+        testCase1(logicFiles, separateArch=False)
+        testCase2(yamlFiles, separateArch=False)
 
     with initGlobalParametersForTCL(
         ["--architecture=gfx900", "--lazy-library-loading"] + requiredArgs
