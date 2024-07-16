@@ -2396,14 +2396,16 @@ def assignGlobalParameters( config ):
   if "CCompiler" in config:
     globalParameters["CCompiler"] = config["CCompiler"]    
 
+  if os.name == "nt":
+    globalParameters["AssemblerPath"] = locateExe(globalParameters["LlvmBinPath"], "clang++.exe")
+  else:
+    compiler = "clang++"
+    if locateExe(globalParameters["LlvmBinPath"], "amdclang++") and globalParameters["CxxCompiler"] != "hipcc":
+      compiler = "amdclang++"
+    globalParameters["AssemblerPath"] = locateExe(globalParameters["LlvmBinPath"], compiler)
+
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
-  elif globalParameters["AssemblerPath"] is None and supportedCompiler(globalParameters["CxxCompiler"]):
-    if os.name == "nt":
-      globalParameters["AssemblerPath"] = locateExe(globalParameters["LlvmBinPath"], "clang++.exe")
-    else:
-      compiler = "clang++" if globalParameters["CxxCompiler"] == "hipcc" else "amdclang++"
-      globalParameters["AssemblerPath"] = locateExe(globalParameters["LlvmBinPath"], compiler)
 
   globalParameters["ROCmSMIPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm-smi")
 
