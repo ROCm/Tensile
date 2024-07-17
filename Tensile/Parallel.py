@@ -55,7 +55,7 @@ def pcallWithGlobalParamsSingleArg(f, arg, newGlobalParameters):
   OverwriteGlobalParameters(newGlobalParameters)
   return f(arg)
 
-def ParallelMap(function, objects, message="", enable=True, multiArg=True):
+def ParallelMap(function, objects, message="", enable=True, multiArg=True, verbose=0):
   """
   Generally equivalent to list(map(function, objects)), possibly executing in parallel.
 
@@ -70,24 +70,15 @@ def ParallelMap(function, objects, message="", enable=True, multiArg=True):
   
   if threadCount <= 1 and globalParameters["ShowProgressBar"]:
     # Provide a progress bar for single-threaded operation.
-    return list(map(lambda objs: function(*objs), Utils.tqdm(objects, message)))
+    return list(map(lambda objs: function(*objs), Utils.tqdm(objects, msg=message)))
   
-  countMessage = ""
+  message += f" with {threadCount} threads"
   try:
-    countMessage = " for {} tasks".format(len(objects))
+    message += f" for {len(objects)} tasks"
   except TypeError: pass
-
-  if message != "": message += ": "
-  
-  if globalParameters["PrintLevel"] >= 1:
-    print("{0}Launching {1} threads{2}...".format(message, threadCount, countMessage))
-    sys.stdout.flush()  
   
   pcall = pcallWithGlobalParamsMultiArg if multiArg else pcallWithGlobalParamsSingleArg
-  pargs = zip(objects, itertools.repeat(globalParameters))
-  rv = Parallel(n_jobs=threadCount)(delayed(pcall)(function, a, params) for a, params in pargs)
-  if globalParameters["PrintLevel"] >= 1:
-    print("{0}Done.".format(message))    
-    sys.stdout.flush()  
+  pargs = Utils.tqdm(zip(objects, itertools.repeat(globalParameters)), msg=message)
+  rv = Parallel(n_jobs=threadCount, verbose=verbose)(delayed(pcall)(function, a, params) for a, params in pargs)
   
   return rv

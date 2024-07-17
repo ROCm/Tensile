@@ -43,7 +43,7 @@ def merge_libraries(args):
 
     masterLibrary = MasterSolutionLibrary.FromOriginalState(data)
 
-    for inFile in Utils.tqdm(inFiles[1:]):
+    for inFile in Utils.tqdm(inFiles[1:], msg="Merge libraries"):
         with open(inFile) as inf:
             data = yaml.load(inf)
         newLibrary = MasterSolutionLibrary.FromOriginalState(data)
@@ -89,7 +89,7 @@ def convert_one(args):
 
 if __name__ == "__main__":
 
-    for i in Utils.tqdm(itertools.chain([1,2,3], [4,5,6])): time.sleep(1)
+    for i in Utils.tqdm(itertools.chain([1,2,3], [4,5,6]), msg="Converting YAML"): time.sleep(1)
 
     merge_libraries(sys.argv[1:])
 

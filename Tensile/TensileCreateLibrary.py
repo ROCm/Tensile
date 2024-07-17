@@ -182,7 +182,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
             for src, dst in (
                 zip(origCOFiles, newCOFiles)
                 if globalParameters["PrintLevel"] == 0
-                else Utils.tqdm(zip(origCOFiles, newCOFiles), "Copying code objects")
+                else Utils.tqdm(zip(origCOFiles, newCOFiles), msg="Copying code objects")
             ):
                 shutil.copyfile(src, dst)
             coFiles += newCOFiles
@@ -248,7 +248,6 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         hipFlags += (
             ["--genco"] if CxxCompiler == "hipcc" else ["--cuda-device-only", "-x", "hip", "-O3"]
         )
-        hipFlags += ["-v"]
         # if CxxCompiler == "amdclang++":
         # hipFlags += ["-mllvm", "-amdgpu-early-inline-all=true", "-mllvm", "-amdgpu-function-calls=false"]
         hipFlags += ["-I", outputPath]
@@ -295,7 +294,6 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         except subprocess.CalledProcessError as err:
             print(err.output)
             raise
-        # out = subprocess.check_call(compileArgs)
 
         # get hipcc version due to compatiblity reasons
         # If we aren't using hipcc what happens?
@@ -629,7 +627,7 @@ def filterProcessingErrors(
     keepKernels = []
     keepSolutions = []
     keepResults = []
-    for i, res in enumerate(results) if printLevel == 0 else Utils.tqdm(enumerate(results)):
+    for i, res in enumerate(results):
         err, _, _, _, _ = res
         if err != -2:
             keepKernels.append(kernels[i])
@@ -702,7 +700,7 @@ def writeKernels(
         itertools.repeat(kernelWriterSource),
         itertools.repeat(kernelWriterAssembly),
     )
-    results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels")
+    results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", verbose=0)
     kernels, solutions, results = filterProcessingErrors(
         kernels, solutions, results, params["PrintLevel"], errorTolerant
     )
@@ -1312,7 +1310,7 @@ def generateLogicData(
         master solution library for all architectures.
     """
     libraries = parseLibraryLogicFiles(logicFiles)
-    logicList = libraries if not printLevel else Utils.tqdm(libraries, "Processing logic data")
+    logicList = libraries if not printLevel else Utils.tqdm(libraries, msg="Processing logic data")
     masterLibraries = makeMasterLibraries(logicList, separate)
     if separate:
         addFallback(masterLibraries)

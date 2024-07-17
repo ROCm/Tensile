@@ -22,30 +22,94 @@
 #
 ################################################################################
 
-from .Common import ProgressBar
-
 import functools
 import sys
+import time
 
-class SpinnyThing:
-    def __init__(self):
-        self.chars = ['|', '/', '-', '\\']
-        self.index = 0;
+from .Common import DeveloperWarning, printWarning
+
+class ProgressBar:
+    def __init__(self, maxValue, msg: str, width=40):
+        self.char = '|'
+        self.maxValue = maxValue
+        self.width = width
+        self.maxTicks = self.width - 10  # Adjusted for better alignment
+
+        self.priorValue = 0
+        self.fraction = 0
+        self.numTicks = 0
+        self.createTime = time.time()
+
+        self.message = "# " + msg
 
     def increment(self, value=1):
-        sys.stdout.write('\b' + self.chars[self.index])
+        self.update(self.priorValue + value)
+
+    def update(self, value):
+        currentFraction = 1.0 * value / self.maxValue
+        currentNumTicks = int(currentFraction * self.maxTicks)
+        if currentNumTicks > self.numTicks:
+            self.numTicks = currentNumTicks
+            self.fraction = currentFraction
+            self.printStatus()
+        self.priorValue = value
+
+    def printStatus(self):
+        progress_bar = '[' + self.char * self.numTicks + ' ' * (self.maxTicks - self.numTicks) + ']'
+        status_msg = f"{self.message} {progress_bar} {self.fraction * 100:.1f}%"
+        
+        if self.numTicks == 0:
+            sys.stdout.write(status_msg)
+        else:
+            sys.stdout.write('\r' + ' ' * len(status_msg) + '\r' + status_msg)
+        sys.stdout.flush()
+
+    def finish(self):
+        sys.stdout.write('\r')
+        sys.stdout.write(' ' * (len(self.message) + self.maxTicks + 15) + '\r')
+        stopTime = time.time()
+        sys.stdout.write(f"{self.message}... Done ({stopTime - self.createTime:.1f} secs elapsed)\n")
+        sys.stdout.flush()
+
+class SpinnyThing:
+    def __init__(self, msg: str):
+        self.msg = "# " + msg
+        self.chars = ['|', '/', '-', '\\']
+        self.index = 0
+        self.count = 0
+        self.createTime = time.time()
+
+    def increment(self, value=1):
+        self.count += 1
+        if self.count % 3 != 0:
+            return
+        # Clear the current line
+        sys.stdout.write('\r' + ' ' * (len(self.msg) + 10))
+        sys.stdout.flush()
+        # Write the updated message
+        sys.stdout.write('\r' + self.msg + " " + self.chars[self.index])
         sys.stdout.flush()
         self.index = (self.index + 1) % len(self.chars)
 
     def finish(self):
-        sys.stdout.write('\b*\n')
+        # Clear the current line
+        sys.stdout.write('\r' + ' ' * (len(self.msg) + 10))
+        sys.stdout.flush()
+        # Calculate elapsed time
+        stopTime = time.time()
+        elapsedTime = stopTime - self.createTime
+        # Write the final message with elapsed time
+        sys.stdout.write('\r' + self.msg + f'... Done ({elapsedTime:.1f} secs)\n')
         sys.stdout.flush()
 
 def iterate_progress(obj, *args, **kwargs):
+    if 'msg' not in kwargs:
+        printWarning("No message provided for TQDM progress bar/spinner", DeveloperWarning)
+        kwargs['msg'] = 'Processing unknown function'
     try:
-        progress = ProgressBar(len(obj))
-    except TypeError:
-        progress = SpinnyThing()
+        progress = ProgressBar(len(obj), kwargs['msg'])
+    except TypeError as e:
+        progress = SpinnyThing(kwargs['msg'])
     for o in obj:
         yield o
         progress.increment()

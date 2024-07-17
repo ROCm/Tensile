@@ -23,8 +23,9 @@
 ################################################################################
 
 from .Common import tPrint, HR, printExit, defaultAnalysisParameters, globalParameters, \
-  setWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar, printWarning
+  setWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, printWarning
 from .SolutionStructs import Solution
+from . import Utils
 from . import LibraryIO
 from . import SolutionSelectionLibrary
 
@@ -252,7 +253,7 @@ class LogicAnalyzer:
     for solutionGroupIdx in range(0, len(solutionsList)):
       solutionGroup = solutionsList[solutionGroupIdx]
       totalSolutions += len(solutionGroup)
-    progressBar = ProgressBar(totalSolutions)
+    progressBar = Utils.ProgressBar(totalSolutions, msg="LogicAnalyzer")
     for solutionGroupIdx in range(0, len(solutionsList)):
       solutionGroup = solutionsList[solutionGroupIdx]
       self.numSolutionsPerGroup.append(len(solutionGroup))
