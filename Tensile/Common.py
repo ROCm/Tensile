@@ -1986,7 +1986,7 @@ def tPrint(verbosity: int, arg) -> None:
         print(arg)
         sys.stdout.flush()
 
-def printWarning(message: str, category: type[Warning]=DeveloperWarning):
+def printWarning(message: str, category=UserWarning):
   warnings.warn(message, category)
   sys.stdout.flush()
 
@@ -2118,7 +2118,7 @@ def GetAsmCaps(isaVersion):
                          (compilerVer[0] == 5 and compilerVer[1] <= 2) 
       
     if not derivedAsmCaps["SupportedISA"] and CACHED_ASM_CAPS[isaVersion]["SupportedISA"]:
-      printWarning("Architecture {} not supported by ROCm {}".format(isaVersion, globalParameters['HipClangVersion']))
+      printWarning("Architecture {} not supported by ROCm {}".format(isaVersion, globalParameters['HipClangVersion']), DeveloperWarning)
       ignoreCacheCheck = True
 
     # check if derived caps matches asm cap cache
@@ -2469,7 +2469,7 @@ def assignGlobalParameters( config ):
   for key in config:
     value = config[key]
     if key not in globalParameters:
-      printWarning("Global parameter %s = %s unrecognized." % ( key, value ))
+      printWarning("Global parameter %s = %s unrecognized." % ( key, value ), DeveloperWarning)
     globalParameters[key] = value
 
 def setupRestoreClocks():
