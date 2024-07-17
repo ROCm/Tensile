@@ -248,6 +248,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         hipFlags += (
             ["--genco"] if CxxCompiler == "hipcc" else ["--cuda-device-only", "-x", "hip", "-O3"]
         )
+        hipFlags += ["-v"]
         # if CxxCompiler == "amdclang++":
         # hipFlags += ["-mllvm", "-amdgpu-early-inline-all=true", "-mllvm", "-amdgpu-function-calls=false"]
         hipFlags += ["-I", outputPath]
@@ -288,12 +289,13 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
         tPrint(2, "hipcc:" + " ".join(compileArgs))
         # change to use  check_output to force windows cmd block util command finish
-        try:
-            out = subprocess.check_output(compileArgs, stderr=subprocess.STDOUT)
-            tPrint(3, out)
-        except subprocess.CalledProcessError as err:
-            print(err.output)
-            raise
+        # try:
+        #     out = subprocess.check_output(compileArgs, stderr=subprocess.STDOUT)
+        #     tPrint(3, out)
+        # except subprocess.CalledProcessError as err:
+        #     print(err.output)
+        #     raise
+        out = subprocess.check_call(compileArgs)
 
         # get hipcc version due to compatiblity reasons
         # If we aren't using hipcc what happens?
