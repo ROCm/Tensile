@@ -32,7 +32,7 @@ import yaml
 sys.path.append('../..')
 from Tensile.SolutionStructs import Solution
 from Tensile import Utils
-
+from Tensile.Utilities.ConditionalImports import yamlDumper
 
 def merge_libraries(args):
     inFiles = args[:-1]
@@ -55,7 +55,7 @@ def merge_libraries(args):
 
     with open(outFile, 'w') as outf:
         if True:
-            yaml.dump(outData, outf, yaml.CSafeDumper)
+            yaml.dump(outData, outf, yamlDumper)
         else:
             import json
             json.dump(outData, outf, sort_keys=True, indent=2, separators=(",", ": "))
@@ -82,7 +82,7 @@ def convert_one(args):
 
     with open(args[1], 'w') as outFile:
         if True:
-            yaml.dump(outData, outFile, yaml.CSafeDumper)
+            yaml.dump(outData, outFile, yamlDumper)
         else:
             import json
             json.dump(outData, outFile, sort_keys=True, indent=2, separators=(",", ": "))
