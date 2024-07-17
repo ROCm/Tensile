@@ -289,13 +289,13 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
         tPrint(2, "hipcc:" + " ".join(compileArgs))
         # change to use  check_output to force windows cmd block util command finish
-        # try:
-        #     out = subprocess.check_output(compileArgs, stderr=subprocess.STDOUT)
-        #     tPrint(3, out)
-        # except subprocess.CalledProcessError as err:
-        #     print(err.output)
-        #     raise
-        out = subprocess.check_call(compileArgs)
+        try:
+            out = subprocess.check_output(compileArgs, stderr=subprocess.STDOUT)
+            tPrint(3, out)
+        except subprocess.CalledProcessError as err:
+            print(err.output)
+            raise
+        # out = subprocess.check_call(compileArgs)
 
         # get hipcc version due to compatiblity reasons
         # If we aren't using hipcc what happens?
