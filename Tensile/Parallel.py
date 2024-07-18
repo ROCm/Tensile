@@ -80,18 +80,15 @@ def ParallelMap(function: Callable, objects: Any, message: str="", enable: bool=
     from . import Utils
     threadCount = CPUThreadCount(enable)
     
-    if threadCount <= 1 and globalParameters["ShowProgressBar"]:
-      # Provide a progress bar for single-threaded operation.
+    if threadCount <= 1:
       return list(map(lambda objs: function(*objs), Utils.tqdm(objects, desc=message)))
-    
-    message += f": {threadCount} threads"
-    try:
-      message += f", {len(objects)} tasks"
-    except TypeError: pass
-    
-    pcall = pcallWithGlobalParamsMultiArg if multiArg else pcallWithGlobalParamsSingleArg
+        
     inputs = list(zip(objects, itertools.repeat(globalParameters)))
+    message += f": {threadCount} threads, {len(inputs)} tasks"
+
     pargs = Utils.tqdm(inputs, desc=message)
+    pcall = pcallWithGlobalParamsMultiArg if multiArg else pcallWithGlobalParamsSingleArg
+
     rv = Parallel(n_jobs=threadCount)(delayed(pcall)(function, a, params) for a, params in pargs)
     
     return rv

@@ -244,7 +244,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         archFlags = ["--offload-arch=" + arch for arch in cmdlineArchs]
 
         # needs to be fixed when Maneesh's change is made available
-        hipFlags = ["-D__HIP_HCC_COMPAT_MODE__=1", "-v"]
+        hipFlags = ["-D__HIP_HCC_COMPAT_MODE__=1"]
         hipFlags += (
             ["--genco"] if CxxCompiler == "hipcc" else ["--cuda-device-only", "-x", "hip", "-O3"]
         )
