@@ -77,7 +77,7 @@ def ParallelMap(function, objects, message="", enable=True, multiArg=True, verbo
   except TypeError: pass
   
   pcall = pcallWithGlobalParamsMultiArg if multiArg else pcallWithGlobalParamsSingleArg
-  inputs = list(zip(objects, itertools.repeat(globalParameters)))
+  inputs = zip(objects, itertools.repeat(globalParameters))
   pargs = Utils.tqdm(inputs, msg=message)
   rv = Parallel(n_jobs=threadCount, verbose=verbose)(delayed(pcall)(function, a, params) for a, params in pargs)
   
