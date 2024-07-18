@@ -68,7 +68,7 @@ class ProgressBar:
         sys.stdout.write('\r')
         sys.stdout.write(' ' * (len(self.message) + self.maxTicks + 15) + '\r')
         stopTime = time.time()
-        sys.stdout.write(f"{self.message}... Done ({stopTime - self.createTime:.1f} secs elapsed)\n")
+        sys.stdout.write(f"{self.message}... Done in {stopTime - self.createTime:.1f} secs\n")
         sys.stdout.flush()
 
 class SpinnyThing:
@@ -99,7 +99,7 @@ class SpinnyThing:
         stopTime = time.time()
         elapsedTime = stopTime - self.createTime
         # Write the final message with elapsed time
-        sys.stdout.write('\r' + self.msg + f'... Done ({elapsedTime:.1f} secs)\n')
+        sys.stdout.write('\r' + self.msg + f'... Done in {elapsedTime:.1f} secs\n')
         sys.stdout.flush()
 
 def iterate_progress(obj, *args, **kwargs):
@@ -108,7 +108,7 @@ def iterate_progress(obj, *args, **kwargs):
         kwargs['msg'] = 'Processing unknown function'
     try:
         progress = ProgressBar(len(obj), kwargs['msg'])
-    except TypeError as e:
+    except TypeError:
         progress = SpinnyThing(kwargs['msg'])
     for o in obj:
         yield o

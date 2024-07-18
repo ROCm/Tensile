@@ -24,7 +24,6 @@
 
 import itertools
 import os
-import sys
 
 from joblib import Parallel, delayed
 
@@ -72,13 +71,14 @@ def ParallelMap(function, objects, message="", enable=True, multiArg=True, verbo
     # Provide a progress bar for single-threaded operation.
     return list(map(lambda objs: function(*objs), Utils.tqdm(objects, msg=message)))
   
-  message += f" with {threadCount} threads"
+  message += f": {threadCount} threads"
   try:
-    message += f" for {len(objects)} tasks"
+    message += f", {len(objects)} tasks"
   except TypeError: pass
   
   pcall = pcallWithGlobalParamsMultiArg if multiArg else pcallWithGlobalParamsSingleArg
-  pargs = Utils.tqdm(zip(objects, itertools.repeat(globalParameters)), msg=message)
+  inputs = list(zip(objects, itertools.repeat(globalParameters)))
+  pargs = Utils.tqdm(inputs, msg=message)
   rv = Parallel(n_jobs=threadCount, verbose=verbose)(delayed(pcall)(function, a, params) for a, params in pargs)
   
   return rv
