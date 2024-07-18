@@ -1721,7 +1721,6 @@ class Solution(collections.abc.Mapping):
   ########################################
   def __init__(self, config):
     self._name = None
-    self._mutable_state = {}
 
     state = {}
     # problem type
@@ -1764,7 +1763,7 @@ class Solution(collections.abc.Mapping):
             state[key]=value
     Solution.assignDerivedParameters(state)
     self._name = config["CustomKernelName"] if isCustomKernelConfig(config) else None
-    self._state = MappingProxyType(state)
+    self._state = state
     self.initHelperKernelObjects()
     
   # these keys are copied from ProblemType to internal that may be overridden
@@ -1775,7 +1774,7 @@ class Solution(collections.abc.Mapping):
   # get a list of kernel parameters for this solution
   def getKernels(self):
     kernel = self
-    kernel._mutable_state.update({"Kernel": True})
+    kernel["Kernel"] = True
     kernels = []
     kernels.append(kernel)
     return kernels
@@ -4943,31 +4942,26 @@ class Solution(collections.abc.Mapping):
       printExit('Parameter {key}={value} is new object type ({t})'.format(key=key, value=value, t=type(value)))
       return str(value)
 
-
+  def getState(self):
+    return MappingProxyType(self._state)
+  
   ##########################
   # make class look like dict
   def keys(self):
-    mkeys = self._mutable_state.keys()
-    ikeys = list(self._state.keys())
-    return ikeys + list(mkeys) if mkeys else ikeys
+    return self._state.keys()
 
   def __len__(self):
-    return len(self._state) + len(self._mutable_state)
+    return len(self._state)
 
   def __iter__(self):
-    temp = self._mutable_state
-    temp.update(self._state)
-    return iter(temp)
+    return iter(self._state)
 
   def __getitem__(self, key):
-    if key in self._mutable_state:
-      return self._mutable_state[key]
     return self._state[key]
 
   def __setitem__(self, key, value):
-    printWarning(f"Mutating solution: {self._name} {key}")
     self._name = None
-    self._mutable_state[key] = value
+    self._state[key] = value
 
   def __str__(self):
     if self._name is None:
@@ -4978,16 +4972,12 @@ class Solution(collections.abc.Mapping):
     return self.__str__()
 
   def getAttributes(self):
-    temp = self._mutable_state
-    temp.update(self._state)    
-    return temp
+    return self._state
 
   def __hash__(self):
     return hash(str(self) + self.get("codeObjectFile", ""))
-    #return hash(self.getAttributes())
 
   def __eq__(self, other):
-    #return isinstance(other, Solution) and self.getAttributes() == other.getAttributes()
     return isinstance(other, Solution) and str(self) == str(other)
 
   def __ne__(self, other):
