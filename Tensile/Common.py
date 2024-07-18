@@ -2299,7 +2299,7 @@ def which(p):
     if supportedCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
         return os.environ['CMAKE_CXX_COMPILER']
     if os.name == "nt":
-        exes = [p+x for x in ['', '.bat']]  # bat may be front end for file with no extension
+        exes = [p+x for x in ['.exe', '', '.bat']]  # bat may be front end for file with no extension
     else:
         exes = [p+x for x in ['', '.exe', '.bat']]
     system_path = os.environ['PATH'].split(os.pathsep)
