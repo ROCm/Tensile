@@ -82,7 +82,7 @@ def ParallelMap(function: Callable, objects: Any, message: str="", enable: bool=
     
     if threadCount <= 1 and globalParameters["ShowProgressBar"]:
       # Provide a progress bar for single-threaded operation.
-      return list(map(lambda objs: function(*objs), Utils.tqdm(objects, desc=message, total=n)))
+      return list(map(lambda objs: function(*objs), Utils.tqdm(objects, desc=message)))
     
     message += f": {threadCount} threads"
     try:

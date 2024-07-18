@@ -654,7 +654,7 @@ def writeKernels(
     kernelHelperObjs: List[KernelWriterBase],
     kernelWriterSource: KernelWriterSource,
     kernelWriterAssembly: KernelWriterAssembly,
-    errorTolerant: bool=True,
+    errorTolerant: bool = True,
 ):
     start = time.time()
 
