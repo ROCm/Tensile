@@ -25,7 +25,7 @@
 import os
 import warnings
 from argparse import Action, ArgumentParser
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from ..Common import architectureMap
 
@@ -45,7 +45,7 @@ def splitExtraParameters(par):
     return (key, value)
 
 
-def parseArguments(input: List[str] | None = None) -> Dict[str, Any]:
+def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
     """Parse command line arguments for TensileCreateLibrary.
 
     Args:
