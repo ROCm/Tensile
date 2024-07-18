@@ -24,6 +24,7 @@
 
 import itertools
 import os
+from typing import Any, Callable
 
 from joblib import Parallel, delayed
 
@@ -54,31 +55,43 @@ def pcallWithGlobalParamsSingleArg(f, arg, newGlobalParameters):
   OverwriteGlobalParameters(newGlobalParameters)
   return f(arg)
 
-def ParallelMap(function, objects, message="", enable=True, multiArg=True, verbose=0):
-  """
-  Generally equivalent to list(map(function, objects)), possibly executing in parallel.
+def ParallelMap(function: Callable, objects: Any, message: str="", enable: bool=True, multiArg: bool=True):
+    """Executes a function over a list of objects in parallel or sequentially.
 
-    message: A message describing the operation to be performed.
-    enable: May be set to false to disable parallelism.
-    multiArg: True if objects represent multiple arguments
-                (differentiates multi args vs single collection arg)
-  """
-  from .Common import globalParameters
-  from . import Utils
-  threadCount = CPUThreadCount(enable)
-  
-  if threadCount <= 1 and globalParameters["ShowProgressBar"]:
-    # Provide a progress bar for single-threaded operation.
-    return list(map(lambda objs: function(*objs), Utils.tqdm(objects, msg=message)))
-  
-  message += f": {threadCount} threads"
-  try:
-    message += f", {len(objects)} tasks"
-  except TypeError: pass
-  
-  pcall = pcallWithGlobalParamsMultiArg if multiArg else pcallWithGlobalParamsSingleArg
-  inputs = zip(objects, itertools.repeat(globalParameters))
-  pargs = Utils.tqdm(inputs, msg=message)
-  rv = Parallel(n_jobs=threadCount, verbose=verbose)(delayed(pcall)(function, a, params) for a, params in pargs)
-  
-  return rv
+    This function is generally equivalent to ``list(map(function, objects))``. However, it provides
+    additional functionality to run in parallel, depending on the 'enable' flag and available CPU
+    threads.
+
+    Args:
+        function: The function to apply to each item in 'objects'. If 'multiArg' is True, 'function'
+                  should accept multiple arguments.
+        objects: An iterable of objects to be processed by 'function'. If 'multiArg' is True, each
+                 item in 'objects' should be an iterable of arguments for 'function'.
+        message: Optional; a message describing the operation. Default is an empty string.
+        enable: Optional; if False, disables parallel execution and runs sequentially. Default is True.
+        multiArg: Optional; if True, treats each item in 'objects' as multiple arguments for
+                  'function'. Default is True.
+        verbose: Optional; verbosity level for parallel execution. Default is 0.
+
+    Returns:
+        A list containing the results of applying **function** to each item in **objects**.
+    """
+    from .Common import globalParameters
+    from . import Utils
+    threadCount = CPUThreadCount(enable)
+    
+    if threadCount <= 1 and globalParameters["ShowProgressBar"]:
+      # Provide a progress bar for single-threaded operation.
+      return list(map(lambda objs: function(*objs), Utils.tqdm(objects, desc=message, total=n)))
+    
+    message += f": {threadCount} threads"
+    try:
+      message += f", {len(objects)} tasks"
+    except TypeError: pass
+    
+    pcall = pcallWithGlobalParamsMultiArg if multiArg else pcallWithGlobalParamsSingleArg
+    inputs = list(zip(objects, itertools.repeat(globalParameters)))
+    pargs = Utils.tqdm(inputs, desc=message)
+    rv = Parallel(n_jobs=threadCount)(delayed(pcall)(function, a, params) for a, params in pargs)
+    
+    return rv

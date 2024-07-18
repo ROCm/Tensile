@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,26 +26,47 @@ import functools
 import sys
 import time
 
+from typing import List
+
 from .Common import DeveloperWarning, printWarning
 
 class ProgressBar:
-    def __init__(self, maxValue, msg: str, width=40):
-        self.char = '|'
-        self.maxValue = maxValue
-        self.width = width
-        self.maxTicks = self.width - 10  # Adjusted for better alignment
+    """A class for displaying a progress bar in the console.
 
-        self.priorValue = 0
-        self.fraction = 0
-        self.numTicks = 0
-        self.createTime = time.time()
+    This class provides a simple way to display and update a progress bar in the console
+    to indicate the progress of a long-running operation. The progress bar can be updated
+    incrementally and supports displaying a completion message and time upon finishing.
 
-        self.message = "# " + msg
+    Attributes:
+        char: The character used to fill the progress bar.
+        maxValue: The maximum value the progress bar can represent.
+        width: The total width of the progress bar, including borders.
+        maxTicks: The maximum number of ticks (fill characters) within the progress bar.
+        priorValue: The value of the progress bar during the last update.
+        fraction: The fraction of the progress bar that is filled.
+        numTicks: The current number of ticks (fill characters) in the progress bar.
+        createTime: The timestamp when the progress bar was created.
+        message: The message displayed alongside the progress bar.
+    """
+    def __init__(self, maxValue: int, msg: str, width=40):
+        self.char: str = '█'
+        self.maxValue: int = maxValue
+        self.width: int = width
+        self.maxTicks: int = self.width - 10  # Adjusted for better alignment
+
+        self.priorValue: int = 0
+        self.fraction: float = 0
+        self.numTicks: int = 0
+        self.createTime: float = time.time()
+
+        self.message: str = "# " + msg
 
     def increment(self, value=1):
+        """Increments the progress bar by a given value and updates the display."""
         self.update(self.priorValue + value)
 
     def update(self, value):
+        """Updates the progress bar to a specific value and refreshes the display."""
         currentFraction = 1.0 * value / self.maxValue
         currentNumTicks = int(currentFraction * self.maxTicks)
         if currentNumTicks > self.numTicks:
@@ -55,7 +76,8 @@ class ProgressBar:
         self.priorValue = value
 
     def printStatus(self):
-        progress_bar = '[' + self.char * self.numTicks + ' ' * (self.maxTicks - self.numTicks) + ']'
+        """Prints the current status of the progress bar to the console."""
+        progress_bar = '|' + self.char * self.numTicks + ' ' * (self.maxTicks - self.numTicks) + '|'
         status_msg = f"{self.message} {progress_bar} {self.fraction * 100:.1f}%"
         
         if self.numTicks == 0:
@@ -65,51 +87,72 @@ class ProgressBar:
         sys.stdout.flush()
 
     def finish(self):
+        """Marks the operation as done, cleans up the display, and prints the completion time."""
         sys.stdout.write('\r')
         sys.stdout.write(' ' * (len(self.message) + self.maxTicks + 15) + '\r')
+
         stopTime = time.time()
+
         sys.stdout.write(f"{self.message}... Done in {stopTime - self.createTime:.1f} secs\n")
         sys.stdout.flush()
 
 class SpinnyThing:
-    def __init__(self, msg: str):
-        self.msg = "# " + msg
-        self.chars = ['|', '/', '-', '\\']
-        self.index = 0
-        self.count = 0
-        self.createTime = time.time()
+    """A class to display a spinning indicator in the console for long-running operations.
 
-    def increment(self, value=1):
+    This class provides a simple way to visually indicate that a long-running operation
+    is in progress by displaying a spinning character in the console. The spinner is
+    updated at regular intervals, and a completion message with the elapsed time is
+    displayed when the operation finishes.
+
+    Attributes:
+        msg: The message displayed alongside the spinner.
+        chars: The sequence of characters used for the spinner animation.
+        index: The current index in the `chars` list for the spinner.
+        count: A counter to control the update frequency of the spinner.
+        createTime: The timestamp when the spinner was created.
+    """
+    def __init__(self, msg: str):
+        self.msg: str = "# " + msg
+        self.chars: List[str] = ['|', '/', '-', '\\']
+        self.index: int = 0
+        self.count: int = 0
+        self.createTime: float = time.time()
+
+    def increment(self):
+        """Increments the spinner's position and updates the display if necessary."""
         self.count += 1
         if self.count % 3 != 0:
             return
-        # Clear the current line
+
         sys.stdout.write('\r' + ' ' * (len(self.msg) + 10))
         sys.stdout.flush()
-        # Write the updated message
+
         sys.stdout.write('\r' + self.msg + " " + self.chars[self.index])
         sys.stdout.flush()
         self.index = (self.index + 1) % len(self.chars)
 
     def finish(self):
-        # Clear the current line
+        """Clears the spinner and displays a completion message with the elapsed time."""
         sys.stdout.write('\r' + ' ' * (len(self.msg) + 10))
         sys.stdout.flush()
-        # Calculate elapsed time
+
         stopTime = time.time()
         elapsedTime = stopTime - self.createTime
-        # Write the final message with elapsed time
+
         sys.stdout.write('\r' + self.msg + f'... Done in {elapsedTime:.1f} secs\n')
         sys.stdout.flush()
 
 def iterate_progress(obj, *args, **kwargs):
-    if 'msg' not in kwargs:
+    if 'desc' not in kwargs:
         printWarning("No message provided for TQDM progress bar/spinner", DeveloperWarning)
-        kwargs['msg'] = 'Processing unknown function'
-    try:
-        progress = ProgressBar(len(obj), kwargs['msg'])
-    except TypeError:
-        progress = SpinnyThing(kwargs['msg'])
+        kwargs['desc'] = 'Processing unknown function'
+    if 'total' in kwargs:
+        progress = ProgressBar(kwargs['total'], kwargs['desc'])
+    else:
+        try:
+            progress =  ProgressBar(len(obj), kwargs['desc'])
+        except TypeError:
+            progress = SpinnyThing(kwargs['desc'])
     for o in obj:
         yield o
         progress.increment()

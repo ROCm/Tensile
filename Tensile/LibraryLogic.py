@@ -253,7 +253,7 @@ class LogicAnalyzer:
     for solutionGroupIdx in range(0, len(solutionsList)):
       solutionGroup = solutionsList[solutionGroupIdx]
       totalSolutions += len(solutionGroup)
-    progressBar = Utils.ProgressBar(totalSolutions, msg="LogicAnalyzer")
+    progressBar = Utils.ProgressBar(totalSolutions, desc="LogicAnalyzer")
     for solutionGroupIdx in range(0, len(solutionsList)):
       solutionGroup = solutionsList[solutionGroupIdx]
       self.numSolutionsPerGroup.append(len(solutionGroup))

@@ -182,7 +182,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
             for src, dst in (
                 zip(origCOFiles, newCOFiles)
                 if globalParameters["PrintLevel"] == 0
-                else Utils.tqdm(zip(origCOFiles, newCOFiles), msg="Copying code objects")
+                else Utils.tqdm(zip(origCOFiles, newCOFiles), desc="Copying code objects")
             ):
                 shutil.copyfile(src, dst)
             coFiles += newCOFiles
@@ -654,7 +654,7 @@ def writeKernels(
     kernelHelperObjs: List[KernelWriterBase],
     kernelWriterSource: KernelWriterSource,
     kernelWriterAssembly: KernelWriterAssembly,
-    errorTolerant: bool = False,
+    errorTolerant: bool=True,
 ):
     start = time.time()
 
@@ -700,7 +700,7 @@ def writeKernels(
         itertools.repeat(kernelWriterSource),
         itertools.repeat(kernelWriterAssembly),
     )
-    results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", verbose=0)
+    results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels")
     kernels, solutions, results = filterProcessingErrors(
         kernels, solutions, results, params["PrintLevel"], errorTolerant
     )
@@ -1310,7 +1310,7 @@ def generateLogicData(
         master solution library for all architectures.
     """
     libraries = parseLibraryLogicFiles(logicFiles)
-    logicList = libraries if not printLevel else Utils.tqdm(libraries, msg="Processing logic data")
+    logicList = libraries if not printLevel else Utils.tqdm(libraries, desc="Processing logic data")
     masterLibraries = makeMasterLibraries(logicList, separate)
     if separate:
         addFallback(masterLibraries)

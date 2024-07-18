@@ -2,4 +2,4 @@ pyyaml
 msgpack
 joblib
 rich
-
+tqdm
