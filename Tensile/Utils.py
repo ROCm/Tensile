@@ -48,7 +48,7 @@ class ProgressBar:
         createTime: The timestamp when the progress bar was created.
         message: The message displayed alongside the progress bar.
     """
-    def __init__(self, maxValue: int, msg: str, width=40):
+    def __init__(self, maxValue: int, desc: str, width=40):
         self.char: str = '█'
         self.maxValue: int = maxValue
         self.width: int = width
@@ -59,7 +59,7 @@ class ProgressBar:
         self.numTicks: int = 0
         self.createTime: float = time.time()
 
-        self.message: str = "# " + msg
+        self.message: str = "# " + desc
 
     def increment(self, value=1):
         """Increments the progress bar by a given value and updates the display."""
@@ -111,8 +111,8 @@ class SpinnyThing:
         count: A counter to control the update frequency of the spinner.
         createTime: The timestamp when the spinner was created.
     """
-    def __init__(self, msg: str):
-        self.msg: str = "# " + msg
+    def __init__(self, desc: str):
+        self.message: str = "# " + desc
         self.chars: List[str] = ['|', '/', '-', '\\']
         self.index: int = 0
         self.count: int = 0
@@ -124,22 +124,22 @@ class SpinnyThing:
         if self.count % 3 != 0:
             return
 
-        sys.stdout.write('\r' + ' ' * (len(self.msg) + 10))
+        sys.stdout.write('\r' + ' ' * (len(self.message) + 10))
         sys.stdout.flush()
 
-        sys.stdout.write('\r' + self.msg + " " + self.chars[self.index])
+        sys.stdout.write('\r' + self.message + " " + self.chars[self.index])
         sys.stdout.flush()
         self.index = (self.index + 1) % len(self.chars)
 
     def finish(self):
         """Clears the spinner and displays a completion message with the elapsed time."""
-        sys.stdout.write('\r' + ' ' * (len(self.msg) + 10))
+        sys.stdout.write('\r' + ' ' * (len(self.message) + 10))
         sys.stdout.flush()
 
         stopTime = time.time()
         elapsedTime = stopTime - self.createTime
 
-        sys.stdout.write('\r' + self.msg + f'... Done in {elapsedTime:.1f} secs\n')
+        sys.stdout.write('\r' + self.message + f'... Done in {elapsedTime:.1f} secs\n')
         sys.stdout.flush()
 
 def iterate_progress(obj, *args, **kwargs):
