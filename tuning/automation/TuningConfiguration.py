@@ -27,6 +27,8 @@ import os
 import sys
 import argparse
 
+from Tensile.Utilities.ConditionalImports import yamlLoader, yamlDumper
+
 
 def printExit(message):
   print ("Tensile::FATAL: %s" % message)
@@ -120,7 +122,7 @@ class TuningConfiguration(object):
             except IOError:
                 printExit("Cannot open file: %s" % filename )
 
-            data = yaml.load(stream, yaml.CSafeLoader)
+            data = yaml.load(stream, yamlLoader)
 
             if CONST.GlobalParameters in data:
                 self.__globalParameters = data[CONST.GlobalParameters]
@@ -188,17 +190,17 @@ class TuningConfiguration(object):
 
             if self.globalParameters:
                 dataGlobal[CONST.GlobalParameters] = self.globalParameters
-                yaml.dump(dataGlobal, stream, yaml.CSafeDumper, default_flow_style=None, width=1024)
+                yaml.dump(dataGlobal, stream, yamlDumper, default_flow_style=None, width=1024)
                 stream.flush()
 
             if self.benchmarkProblems:
                 dataBenchmark[CONST.BenchmarkProblems] = self.benchmarkProblems
-                yaml.dump(dataBenchmark, stream, yaml.CSafeDumper, default_flow_style=None)
+                yaml.dump(dataBenchmark, stream, yamlDumper, default_flow_style=None)
                 stream.flush()
 
             if self.libraryLogic:
                 dataLibraryLogic[CONST.LibraryLogic] = self.libraryLogic
-                yaml.dump(dataLibraryLogic, stream, yaml.CSafeDumper, default_flow_style=None, width=1024)
+                yaml.dump(dataLibraryLogic, stream, yamlDumper, default_flow_style=None, width=1024)
                 stream.flush()
 
             if self.libraryClient:

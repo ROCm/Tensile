@@ -22,6 +22,8 @@
 #
 ################################################################################
 
+from Tensile.Utilities.ConditionalImports import yamlLoader, yamlDumper
+
 import yaml
 import os
 import sys
@@ -134,7 +136,7 @@ def loadData(filename):
         print("Cannot open file: ", filename)
         sys.stdout.flush()
         sys.exit(-1)
-    data = yaml.load(stream, yaml.CSafeLoader)
+    data = yaml.load(stream, yamlLoader)
     return data
 
 # this is for complying the behavior of legacy merge script, where incremental logic
@@ -390,7 +392,7 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSi
         msg(stats[0], "size(s) and", stats[1], "kernel(s) added,", stats[2], "kernel(s) removed")
 
         with open(os.path.join(outputPath, basename), "w") as outFile:
-            yaml.dump(mergedData, outFile, yaml.CSafeDumper, default_flow_style=None)
+            yaml.dump(mergedData, outFile, yamlDumper, default_flow_style=None)
         msg("File written to", os.path.join(outputPath, basename))
         msg("------------------------------")
 
@@ -434,7 +436,7 @@ def mergePartialLogics(partialLogicFilePaths, outputDir, forceMerge, trimSize=Tr
     baseFileName = os.path.basename(baseLogicFile)
     outputFilePath = os.path.join(outputDir, baseFileName)
     with open(outputFilePath, "w") as outFile:
-        yaml.dump(baseLogicData, outFile, yaml.CSafeDumper, default_flow_style=None)
+        yaml.dump(baseLogicData, outFile, yamlDumper, default_flow_style=None)
     msg("File written to", outputFilePath)
     msg("------------------------------")
 
