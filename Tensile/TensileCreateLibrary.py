@@ -42,7 +42,7 @@ import time
 import warnings
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Set, Tuple
+from typing import Any, Callable, Dict, List, Set, Tuple, Union
 
 from . import ClientExecutable, Common, EmbeddedData, LibraryIO, Utils
 from .Common import (
@@ -80,7 +80,7 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
     Returns (error, source, header, kernelName).
     """
     try:
-        kernelWriter: KernelWriterAssembly | KernelWriterSource = (
+        kernelWriter = (
             kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
         )
         # get kernel name
@@ -641,7 +641,7 @@ def filterProcessingErrors(
 def filterBuildErrors(
     kernels: List[Solution],
     kernelsWithBuildErrors: Dict[str, int],
-    writerSelectionFn: Callable[[str], KernelWriterSource | KernelWriterAssembly],
+    writerSelectionFn: Callable[[str], Union[KernelWriterSource, KernelWriterAssembly]],
     ignoreErr: bool,
 ) -> List[Solution]:
     """Filters a list of kernels based on build errors and error tolerance.
