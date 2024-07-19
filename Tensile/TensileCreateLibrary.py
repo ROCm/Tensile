@@ -43,7 +43,7 @@ import warnings
 from copy import deepcopy
 from io import TextIOWrapper
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 from . import ClientExecutable, Common, EmbeddedData, LibraryIO, Utils
 from .Common import (
@@ -695,8 +695,8 @@ def openKernelFiles(
     mergeFiles: bool,
     lazyLoading: bool,
     outputPath: Path,
-    kernelFiles: List[str] | None = None,
-) -> Tuple[TextIOWrapper | None, TextIOWrapper | None]:
+    kernelFiles: Optional[List[str]] = None,
+) -> Tuple[Optional[TextIOWrapper], Optional[TextIOWrapper]]:
     """Opens kernel source and header files based on merging and loading configurations.
 
     Decides to open existing files for appending or create new ones based on `numMergedFiles`,
@@ -729,12 +729,13 @@ def openKernelFiles(
 
 
 def closeKernelFiles(
-    kernelSourceFile: TextIOWrapper | None, kernelHeaderFile: TextIOWrapper | None
+    kernelSourceFile: Optional[TextIOWrapper], kernelHeaderFile: Optional[TextIOWrapper]
 ):
     """Closes the kernel source and header file objects if they are open.
 
-    This function checks if the provided file objects for the kernel source and header files are not None (i.e., they are open)
-    and closes them. It's a cleanup function to ensure that file resources are properly released after their use.
+    This function checks if the provided file objects for the kernel source and header files are
+    not None (they are open) and closes them. It's a cleanup function to ensure that file resources
+    are properly released after their use.
 
     Args:
         kernelSourceFile: The file object for the kernel's source code, or None if it's not open.
@@ -747,7 +748,7 @@ def closeKernelFiles(
 
 
 def openFilesWithFixedNames(outputPath: Path) -> Tuple[TextIOWrapper, TextIOWrapper]:
-    """Opens two files for appending: one for kernel source code and one for kernel header code, with fixed names.
+    """Opens files for kernel source code (Kernels.cpp) and header code (Kernels.h).
 
     Args:
         outputPath: The directory path where the files should be opened.
@@ -786,8 +787,8 @@ def openFilesBasedOnFirstKernel(kernelFiles) -> Tuple[TextIOWrapper, TextIOWrapp
 
 def writeKernelHelpers(
     kernelHelperObj: KernelWriterBase,
-    kernelSourceFile: TextIOWrapper | None,
-    kernelHeaderFile: TextIOWrapper | None,
+    kernelSourceFile: Optional[TextIOWrapper],
+    kernelHeaderFile: Optional[TextIOWrapper],
     outputPath: Path,
     kernelFiles: List[str],
 ):
@@ -795,14 +796,18 @@ def writeKernelHelpers(
 
     Args:
         kernelHelperObj: The kernel helper object providing source and header code.
-        kernelSourceFile: The file object for the kernel's source code. If None, a new file is created.
-        kernelHeaderFile: The file object for the kernel's header code. If None, a new file is created.
-        outputPath: The directory path where new files should be saved if `kernelSourceFile` and `kernelHeaderFile` are None.
-        kernelFiles: A list of kernel file names to be updated with the new kernel name if new files are created.
+        kernelSourceFile: The file object for the kernel's source. If None, a new file is created.
+        kernelHeaderFile: The file object for the kernel's header. If None, a new file is created.
+        outputPath: The directory path where new files should be saved if `kernelSourceFile` and
+            `kernelHeaderFile` are None.
+        kernelFiles: A list of kernel file names to be updated with the new kernel name if new
+            files are created.
 
     Notes:
-        - If `kernelSourceFile` and `kernelHeaderFile` are provided, the source and header code are appended to these files.
-        - If these file objects are None, new `.cpp` and `.h` files are created in the `outputPath/Kernels` directory named after the kernel.
+        - If `kernelSourceFile` and `kernelHeaderFile` are provided, the source and header code 
+          are appended to these files.
+        - If these file objects are None, new `.cpp` and `.h` files are created in the 
+          `outputPath/Kernels` directory named after the kernel.
         - The function appends the new kernel name to `kernelFiles` if new files are created.
     """
     err, srcCode, hdrCode, kernelName = getKernelSourceAndHeaderCode(kernelHelperObj)
