@@ -32,7 +32,7 @@ import os
 import argparse
 import yaml
 
-from Tensile.Utilities.ConditionalImports import yamlDumper
+from yaml import SafeDumper as yamlDumper
 
 
 def parseBenchCofnig():

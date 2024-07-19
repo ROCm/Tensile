@@ -26,7 +26,8 @@
 # Usage:
 # $ python3 RemoveSizes.py [-v] <input lib logic> <output lib logic> <csv file with sizes>
 
-from Tensile.Utilities.ConditionalImports import yamlLoader, yamlDumper
+from yaml import SafeDumper as yamlDumper
+from yaml import SafeLoader as yamlLoader
 
 import argparse
 import csv
