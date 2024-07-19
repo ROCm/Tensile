@@ -27,7 +27,7 @@ import warnings
 from argparse import Action, ArgumentParser
 from typing import Any, Dict, List, Optional
 
-from ..Common import architectureMap, DeveloperWarning
+from ..Common import DeveloperWarning, architectureMap
 
 
 class DeprecatedOption(Action):
