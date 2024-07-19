@@ -4941,9 +4941,6 @@ class Solution(collections.abc.Mapping):
     else:
       printExit('Parameter {key}={value} is new object type ({t})'.format(key=key, value=value, t=type(value)))
       return str(value)
-
-  def getState(self):
-    return MappingProxyType(self._state)
   
   ##########################
   # make class look like dict

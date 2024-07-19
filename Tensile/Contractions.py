@@ -537,7 +537,7 @@ class Solution:
 
     @classmethod
     def FromSolutionStruct(cls, solution):
-        return cls.FromOriginalState(solution.getAttributes())
+        return cls.FromOriginalState(solution._state)
 
     @classmethod
     def FromOriginalState(cls, d, deviceInfo=None):
