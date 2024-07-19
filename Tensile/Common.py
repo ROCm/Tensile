@@ -1989,7 +1989,7 @@ def tPrint(verbosity: int, arg) -> None:
         print(arg)
         sys.stdout.flush()
 
-def printWarning(message: str, category=DeveloperWarning):
+def printWarning(message: str, category=UserWarning):
   warnings.warn(message, category)
   sys.stdout.flush()
 
@@ -2123,7 +2123,7 @@ def GetAsmCaps(isaVersion):
                          (compilerVer[0] == 5 and compilerVer[1] <= 2) 
       
     if not derivedAsmCaps["SupportedISA"] and CACHED_ASM_CAPS[isaVersion]["SupportedISA"]:
-      printWarning("Architecture {} not supported by ROCm {}".format(isaVersion, globalParameters['HipClangVersion']))
+      printWarning("Architecture {} not supported by ROCm {}".format(isaVersion, globalParameters['HipClangVersion']), DeveloperWarning)
       ignoreCacheCheck = True
 
     # check if derived caps matches asm cap cache
@@ -2301,7 +2301,7 @@ def which(p):
     if supportedCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
         return os.environ['CMAKE_CXX_COMPILER']
     if os.name == "nt":
-        exes = [p+x for x in ['.bat', '', '.exe']]  # bat may be front end for file with no extension
+        exes = [p+x for x in ['.exe', '', '.bat']]  # bat may be front end for file with no extension
     else:
         exes = [p+x for x in ['', '.exe', '.bat']]
     system_path = os.environ['PATH'].split(os.pathsep)
@@ -2474,7 +2474,7 @@ def assignGlobalParameters( config ):
   for key in config:
     value = config[key]
     if key not in globalParameters:
-      printWarning("Global parameter %s = %s unrecognized." % ( key, value ))
+      printWarning("Global parameter %s = %s unrecognized." % ( key, value ), DeveloperWarning)
     globalParameters[key] = value
 
 def setupRestoreClocks():
@@ -2578,45 +2578,6 @@ def ClientExecutionLock():
 def listToInitializer(l):
   return "{" + ','.join(map(str, l)) + "}"
 
-################################################################################
-# Progress Bar Printing
-# prints "||||" up to width
-################################################################################
-class ProgressBar:
-  def __init__(self, maxValue, width=80):
-    self.char = '|'
-    self.maxValue = maxValue
-    self.width = width
-    self.maxTicks = self.width - 7
-
-
-    self.priorValue = 0
-    self.fraction = 0
-    self.numTicks = 0
-    self.createTime = time.time()
-
-  def increment(self, value=1):
-    self.update(self.priorValue+value)
-
-  def update(self, value):
-    currentFraction = 1.0 * value / self.maxValue
-    currentNumTicks = int(currentFraction * self.maxTicks)
-    if currentNumTicks > self.numTicks:
-      self.numTicks = currentNumTicks
-      self.fraction = currentFraction
-      self.printStatus()
-    self.priorValue = value
-
-  def printStatus(self):
-    sys.stdout.write("\r")
-    sys.stdout.write("[%-*s] %3d%%" \
-        % (self.maxTicks, self.char*self.numTicks, self.fraction*100) )
-    if self.numTicks == self.maxTicks:
-      stopTime = time.time()
-      sys.stdout.write(" (%-.1f secs elapsed)\n"%(stopTime-self.createTime))
-    sys.stdout.flush()
-
-  def finish(self): pass
 
 from copy import copy
 class Backup:

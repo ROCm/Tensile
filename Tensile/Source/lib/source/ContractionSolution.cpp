@@ -1787,7 +1787,7 @@ namespace Tensile
             }
         }
 
-        return remainder >= get<1>(predictionCurve.back()) ? 0 : 1;
+        return remainder >= std::get<1>(predictionCurve.back()) ? 0 : 1;
     }
 
     size_t ContractionSolution::getSKGrid(Problem const&  problem,

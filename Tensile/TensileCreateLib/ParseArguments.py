@@ -27,7 +27,7 @@ import warnings
 from argparse import Action, ArgumentParser
 from typing import Any, Dict, List, Optional
 
-from ..Common import architectureMap
+from ..Common import architectureMap, DeveloperWarning
 
 
 class DeprecatedOption(Action):
@@ -296,6 +296,8 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
     if args.GenerateSourcesAndExit:
         # Generated sources are preserved and go into output directory
         arguments["WorkingPath"] = arguments["OutputPath"]
+    if args.PrintLevel == 0:
+        warnings.filterwarnings("ignore", category=DeveloperWarning)
 
     for k, v in args.GlobalParameters:
         arguments[k] = v
