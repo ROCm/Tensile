@@ -1143,7 +1143,7 @@ def generateKernelObjectsFromSolutions(
         kernelHelperObjs += solutionHelperKernels
         for ko in solutionHelperKernels:
             kernelHelperNames.add(ko.getKernelName())
-            
+
     kernelHelperObjs = list(dict.fromkeys(kernelHelperObjs))
     return (kernels, kernelHelperObjs, kernelHelperNames)
 
