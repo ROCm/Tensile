@@ -1994,7 +1994,9 @@ def printWarning(message: str, category=UserWarning):
   sys.stdout.flush()
 
 def printExit(message):
-  print("Tensile::FATAL: %s" % message)
+  if TENSILE_TERM_COLORS:
+        message = f"[bold red]{message}[/bold red]"
+  print(message)
   sys.stdout.flush()
   sys.exit(-1)
 

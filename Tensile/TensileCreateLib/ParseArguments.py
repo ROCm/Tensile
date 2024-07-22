@@ -24,11 +24,10 @@
 
 import os
 import warnings
+from argparse import Action, ArgumentParser
+from typing import Any, Dict, List, Optional
 
-from typing import Dict, Any, List, Optional
-from argparse import ArgumentParser, Action
-
-from ..Common import architectureMap, DeveloperWarning
+from ..Common import DeveloperWarning, architectureMap
 
 
 class DeprecatedOption(Action):
