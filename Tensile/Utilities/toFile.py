@@ -24,9 +24,9 @@
 
 from io import TextIOWrapper
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
-def toFile(outputFile: Path | TextIOWrapper, contents: List[str], delimiter: str = "\n") -> None:
+def toFile(outputFile: Union[Path, TextIOWrapper], contents: List[str], delimiter: str = "\n") -> None:
     """Generates a user specified delimited file. 
 
     Writes the elements of a List of strings with a given delimiter. The state of
@@ -42,20 +42,23 @@ def toFile(outputFile: Path | TextIOWrapper, contents: List[str], delimiter: str
         AssertionError: If contents is not a List[str]
 
     Notes:
-        - If outputFile is a TextIOWrapper, the file is assumed to be opened.
+        - If outputFile is a TextIOWrapper, the file must not be closed.
         - Providing an open file is useful for writing multiple calls to the same file.
     """
-    assert isinstance(contents, list), "contents must be a list."
-    assert isinstance(contents[0], str), "contents elements must be a str."
+    assert isinstance(contents, list), f"contents must be a list, found {type(contents)}"
+    assert isinstance(contents[0], str), f"contents elements must be a str, found {type(contents[0])}"
 
-    opened = isinstance(outputFile, TextIOWrapper) 
+    isTextIO = isinstance(outputFile, TextIOWrapper)
+    if isTextIO:
+        if outputFile.closed:
+            raise ValueError(f"Provided file {outputFile.name} is already closed: outputFile must be an open file, or a Path.")
 
-    f = outputFile if opened else open(outputFile, "w")
+    f = outputFile if isTextIO else open(outputFile, "w")
 
     for chunk in contents:
         f.write(f"{chunk}{delimiter}")
 
-    if not opened:
+    if not isTextIO:
         f.close()
 
     

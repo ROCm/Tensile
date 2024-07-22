@@ -66,6 +66,7 @@ from .KernelWriterBase import KernelWriterBase
 from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
 from .SolutionStructs import Solution
+from .TensileCreateLib.KernelFileContext import KernelFileContextManager
 from .TensileCreateLib.ParseArguments import parseArguments
 from .Utilities.Profile import profile
 from .Utilities.String import splitDelimitedString
@@ -690,101 +691,6 @@ def getKernelSourceAndHeaderCode(ko: KernelWriterBase) -> Tuple[int, List[str], 
     return err, [CHeader, src], [CHeader, hdr], name
 
 
-def openKernelFiles(
-    numMergedFiles: int,
-    mergeFiles: bool,
-    lazyLoading: bool,
-    outputPath: Path,
-    kernelFiles: Optional[List[str]] = None,
-) -> Tuple[Optional[TextIOWrapper], Optional[TextIOWrapper]]:
-    """Opens kernel source and header files based on merging and loading configurations.
-
-    Decides to open existing files for appending or create new ones based on `numMergedFiles`,
-    `mergeFiles`, `lazyLoading`, and the presence of `kernelFiles`. If `numMergedFiles` is greater
-    than 1 and `kernelFiles` is not empty, it opens files based on the first kernel file name.
-    Otherwise, if `mergeFiles` or `lazyLoading` is enabled, it opens fixed-named files for appending.
-
-    Args:
-        numMergedFiles: The number of files to merge, affecting file opening behavior.
-        mergeFiles: Flag indicating if files should be merged, affecting file naming.
-        lazyLoading: Flag indicating if lazy loading is enabled, also affecting file naming.
-        outputPath: Path to the directory for creating or appending files.
-        kernelFiles: Optional list of kernel file names, used for naming if not empty.
-
-    Returns:
-        A tuple of `TextIOWrapper` objects for the kernel source and header files, or (None, None)
-        if no files need to be opened based on the conditions.
-
-    Notes:
-        - Relies on `openFilesBasedOnFirstKernel` and `openFilesWithFixedNames` for file handling.
-        - The caller is responsible for closing the returned file objects.
-    """
-    kernelSourceFile, kernelHeaderFile = None, None
-    if numMergedFiles > 1 and kernelFiles:
-        kernelSourceFile, kernelHeaderFile = openFilesBasedOnFirstKernel(kernelFiles)
-    elif mergeFiles or lazyLoading:
-        kernelSourceFile, kernelHeaderFile = openFilesWithFixedNames(outputPath)
-
-    return kernelSourceFile, kernelHeaderFile
-
-
-def closeKernelFiles(
-    kernelSourceFile: Optional[TextIOWrapper], kernelHeaderFile: Optional[TextIOWrapper]
-):
-    """Closes the kernel source and header file objects if they are open.
-
-    This function checks if the provided file objects for the kernel source and header files are
-    not None (they are open) and closes them. It's a cleanup function to ensure that file resources
-    are properly released after their use.
-
-    Args:
-        kernelSourceFile: The file object for the kernel's source code, or None if it's not open.
-        kernelHeaderFile: The file object for the kernel's header code, or None if it's not open.
-    """
-    if kernelSourceFile:
-        kernelSourceFile.close()
-    if kernelHeaderFile:
-        kernelHeaderFile.close()
-
-
-def openFilesWithFixedNames(outputPath: Path) -> Tuple[TextIOWrapper, TextIOWrapper]:
-    """Opens files for kernel source code (Kernels.cpp) and header code (Kernels.h).
-
-    Args:
-        outputPath: The directory path where the files should be opened.
-
-    Returns:
-        A tuple containing two `TextIOWrapper` objects for the source and header files respectively.
-
-    Notes:
-        - The source file is named "Kernels.cpp" and the header file is named "Kernels.h".
-        - Both files are opened in append mode with UTF-8 encoding.
-    """
-    srcFilename = Path(outputPath).resolve() / "Kernels.cpp"
-    hdrFilename = Path(outputPath).resolve() / "Kernels.h"
-    return open(srcFilename, "a", encoding="utf-8"), open(hdrFilename, "a", encoding="utf-8")
-
-
-def openFilesBasedOnFirstKernel(kernelFiles) -> Tuple[TextIOWrapper, TextIOWrapper]:
-    """Opens two files for appending based on the name of the first kernel file in the list.
-
-    Args:
-        kernelFiles: A list of kernel file names, where the first element is used to determine the base file name.
-
-    Returns:
-        A tuple containing two `TextIOWrapper` objects for appending to the source and header files respectively.
-
-    Notes:
-        - The base file name is derived by removing the ".cpp" extension from the first kernel file name.
-        - The source and header files are named using the base name with ".cpp" and ".h" extensions respectively.
-        - Files are opened in append mode with UTF-8 encoding.
-    """
-    filename = kernelFiles[0].replace(".cpp", "")
-    return open(filename + ".cpp", "a", encoding="utf-8"), open(
-        filename + ".h", "a", encoding="utf-8"
-    )
-
-
 def writeKernelHelpers(
     kernelHelperObj: KernelWriterBase,
     kernelSourceFile: Optional[TextIOWrapper],
@@ -804,15 +710,15 @@ def writeKernelHelpers(
             files are created.
 
     Notes:
-        - If `kernelSourceFile` and `kernelHeaderFile` are provided, the source and header code 
+        - If `kernelSourceFile` and `kernelHeaderFile` are provided, the source and header code
           are appended to these files.
-        - If these file objects are None, new `.cpp` and `.h` files are created in the 
+        - If these file objects are None, new `.cpp` and `.h` files are created in the
           `outputPath/Kernels` directory named after the kernel.
         - The function appends the new kernel name to `kernelFiles` if new files are created.
     """
     err, srcCode, hdrCode, kernelName = getKernelSourceAndHeaderCode(kernelHelperObj)
     if err:
-        printWarning(f"Invalid kernel: {kernelName}")
+        printWarning(f"Invalid kernel: {kernelName} may be corrupt")
     if kernelSourceFile and kernelHeaderFile:
         toFile(kernelSourceFile, srcCode)
         toFile(kernelHeaderFile, hdrCode)
@@ -851,8 +757,6 @@ def writeKernels(
     Common.pushWorkingPath(os.path.basename(outputPath).upper())
 
     tPrint(1, "# Writing Kernels...")
-    kernelSourceFile = None
-    kernelHeaderFile = None
 
     ## TODO: This may be unused
     if not params["MergeFiles"] or params["NumMergedFiles"] > 1 or params["LazyLibraryLoading"]:
@@ -886,18 +790,10 @@ def writeKernels(
         kernels, kernelsWithBuildErrors, writerSelector, errorTolerant
     )
 
-    kernelSourceFile, kernelHeaderFile = openKernelFiles(
-        params["NumMergedFiles"],
-        params["MergeFiles"],
-        params["LazyLibraryLoading"],
-        outputPath,
-        kernelFiles,
-    )
-
-    for ko in kernelHelperObjs:
-        writeKernelHelpers(ko, kernelSourceFile, kernelHeaderFile, Path(outputPath), kernelFiles)
-
-    closeKernelFiles(kernelSourceFile, kernelHeaderFile)
+    outPath = Path(outputPath)
+    with KernelFileContextManager(params, outPath, kernelFiles) as (srcFile, hdrFile):
+        for ko in kernelHelperObjs:
+            writeKernelHelpers(ko, srcFile, hdrFile, outPath, kernelFiles)
 
     codeObjectFiles = []
     if not globalParameters["GenerateSourcesAndExit"]:
