@@ -2338,18 +2338,20 @@ def populateCapabilities(
     Note:
         This function modifies `globalParameters` and `cachedAsmCaps` in place.
     """
-    compilerVersion = CompilerVersion(
+    compilerVer = CompilerVersion(
         *[int(c) for c in globalParameters["HipClangVersion"].split(".")[:2]]
     )
     supportedISA = globalParameters["SupportedISA"]
     to_remove = []
 
     for v in supportedISA + [(0, 0, 0)]:
-        if v[0] == 12 and not (compilerVersion.major == 6 and compilerVersion.minor == 3):
-            printWarning(f"ISA {v} isn't supported for ROCm stack {compilerVersion}, skipping...")
+        if v[0] == 12 and not (
+            compilerVer.major > 6 or (compilerVer.major == 6 and compilerVer.minor >= 3)
+        ):
+            printWarning(f"ISA {v} isn't supported for ROCm stack {compilerVer}, skipping...")
             to_remove.append(v)
             continue
-        globalParameters["AsmCaps"][v] = GetAsmCaps(v, compilerVersion)
+        globalParameters["AsmCaps"][v] = GetAsmCaps(v, compilerVer)
         globalParameters["ArchCaps"][v] = GetArchCaps(v)
 
     # Efficiently remove unsupported ISA versions after iterating
