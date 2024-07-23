@@ -69,6 +69,8 @@ Setting up Python dependencies
 
 You can now run Tensile's Python applications—see `Tensile/bin <https://github.com/ROCm/Tensile/tree/develop/Tensile/bin>`_.
 
+
+
 ---------------------------
 Setting up C++ dependencies
 ---------------------------
@@ -152,26 +154,30 @@ Although it is encouraged to run unit tests through tox to support consistency, 
 Host library tests
 ------------------
 
-Host library tests ensure that generated libraries remain operational when being called from client code, e.g., other libraries or applications. These tests are built on `gtest <https://github.com/google/googletest>`_; to run them you must first download the submodule,
+Host library tests ensure that generated libraries remain operational when being called from client code, e.g., other libraries or applications. These tests are built on `gtest <https://github.com/google/googletest>`_; to run them you must first download the submodule. From Tensile's project root run,
 
 .. code-block::
 
    git submodule update --init
 
-Next, build and run all host library tests,
+Next, you can configure and build the host library tests through tox,
 
 .. code-block::
 
-   mkdir build && cd build
-   cmake ../HostLibraryTests 
-       -DCMAKE_BUILD_TYPE={Debug|RelWithDebInfo} \ 
-       -DCMAKE_CXX_COMPILER=amdclang++ 
-       -DCODE_OBJECT_VERSION=<V3|V2> 
-       -DTensile_ROOT=<PATH TO>/Tensile
-   make -j
-   ./TensileTests
+   tox run -e hostlibtest
 
-For advanced usage, like filtering or repeating test cases, see the `gtest documentation <https://github.com/google/googletest/blob/main/docs/advanced.md>`_.
+.. note::
+   Note that this tox command wraps `invoke <https://www.pyinvoke.org/index.html>`_, a tool to manage CLI-invokable tasks. Since tox is, fundamentally, a Python environment manager and test runner, any reusable shell commands that fall outside its purview are managed by invoke (which are then sometimes encapsulated by tox). See `tasks.py <https://github.com/ROCm/Tensile/blob/develop/tasks.py>`_ for more details.
+
+You also can configure, build, and run host library tests directly with `invoke <https://www.pyinvoke.org/index.html>`_,
+
+.. code-block::
+
+   invoke hostlibtest --configure --build --run
+
+An executable *TensileTests* will be generate upon build, which can be used to run the tests.
+
+If you wish to build and run the tests manually, checkout the commands in `tasks.py <https://github.com/ROCm/Tensile/blob/develop/tasks.py>`_. For advanced usage, like filtering or repeating test cases, see the `gtest documentation <https://github.com/google/googletest/blob/main/docs/advanced.md>`_.
 
 
 ===============
