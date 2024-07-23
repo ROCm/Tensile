@@ -1519,6 +1519,14 @@ validParameters = {
     "MinKForGSU":                   [16,32,64,128,256]
     }
 
+def getNameAbbreviation(name):
+  specialValues = {
+    'MACInstruction': '' # Conflicts with MatrixInstruction, but _MAD and _FMA should be enough differentiation for the kernel name.
+  }
+  if name in specialValues: return specialValues[name]
+  return ''.join([c for c in name if not c.islower()])
+
+parameterNameAbbreviations = {name: getNameAbbreviation(name) for name in list(validParameters.keys()) + ["Kernel"]}
 
 # same parameter for all solution b/c depends only on compiler
 defaultBenchmarkCommonParameters = [
