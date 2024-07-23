@@ -819,7 +819,9 @@ def test_writeKernelHelpers_createFiles(
         call(basepath / "Kernels" / "kernelName.cpp", ["source_code", "abc"]),
         call(basepath / "Kernels" / "kernelName.h", ["header_code", "def"]),
     ]
-    assert kernelFiles == ["kernelName"], "kernelFiles should be updated with the new kernel name"
+    assert kernelFiles == [
+        "/fake/path/Kernels/kernelName.cpp"
+    ], "kernelFiles should be updated with the path to the new kernel"
 
 
 def test_writeKernelHelpers_withOpenFiles(
@@ -866,7 +868,9 @@ def test_writeKernelHelpers_failure(
         call(basepath / "Kernels" / "kernelName.h", ["// hdr comment", ""]),
     ]
     assert mock_toFile.call_args_list == expected_calls
-    assert kernelFiles == ["kernelName"], "kernelFiles should be updated with the new kernel name"
+    assert kernelFiles == [
+        "/fake/path/Kernels/kernelName.cpp"
+    ], "kernelFiles should be updated with the new kernel name"
 
 
 def test_getKernelSourceAndHeaderCode_success(mock_KernelWriterBase):
