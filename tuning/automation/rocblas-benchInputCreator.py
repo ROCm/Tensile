@@ -44,7 +44,8 @@ import os
 import yaml
 import math
 
-from Tensile.Utilities.ConditionalImports import yamlLoader, yamlDumper
+from yaml import SafeDumper as yamlDumper
+from yaml import SafeLoader as yamlLoader
 
 typeIndexToName = {0: "f32_r", 1: "f64_r", 2: "f32_c", 3: "f64_c", 4: "f16_r", 5: "i8_r", 6: "i32_r", 7: "bf16_r", 8: "i8_r", 10: "f8_r", 11: "bf8_r", 12: "f8b8", 13: "b8f8"}
 

@@ -1146,14 +1146,12 @@ def generateKernelObjectsFromSolutions(
     kernelHelperNames = set()
 
     for solution in solutions:
-        kernels += solution.getKernels()
+        kernels.append(solution.getKernels())
         solutionHelperKernels = solution.getHelperKernelObjects()
         kernelHelperObjs += solutionHelperKernels
         for ko in solutionHelperKernels:
             kernelHelperNames.add(ko.getKernelName())
 
-    # remove duplicates while preserving order
-    kernels = list(dict.fromkeys(kernels))
     kernelHelperObjs = list(dict.fromkeys(kernelHelperObjs))
     return (kernels, kernelHelperObjs, kernelHelperNames)
 

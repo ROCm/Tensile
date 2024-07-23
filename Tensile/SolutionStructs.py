@@ -1774,9 +1774,7 @@ class Solution(collections.abc.Mapping):
   def getKernels(self):
     kernel = deepcopy(self)
     kernel._state.update({"Kernel": True})
-    kernels = []
-    kernels.append(kernel)
-    return kernels
+    return kernel
 
 
   ########################################
@@ -4791,7 +4789,7 @@ class Solution(collections.abc.Mapping):
   def getNameFull(state):
     requiredParameters = {}
     for key in state:
-      if key in list(validParameters.keys()):
+      if key in validParameters:
         requiredParameters[key] = True
     return Solution.getNameMin(state, requiredParameters)
 
