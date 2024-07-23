@@ -727,7 +727,7 @@ def writeKernelHelpers(
         hdrFilename = Path(outputPath) / "Kernels" / f"{kernelName}.h"
         toFile(srcFilename, srcCode)
         toFile(hdrFilename, hdrCode)
-        kernelFiles.append(kernelName)
+        kernelFiles.append(str(srcFilename))
 
 
 ################################################################################
