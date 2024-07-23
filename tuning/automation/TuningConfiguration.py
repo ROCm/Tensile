@@ -27,7 +27,8 @@ import os
 import sys
 import argparse
 
-from Tensile.Utilities.ConditionalImports import yamlLoader, yamlDumper
+from yaml import SafeDumper as yamlDumper
+from yaml import SafeLoader as yamlLoader
 
 
 def printExit(message):

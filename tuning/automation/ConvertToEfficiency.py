@@ -28,7 +28,8 @@ import yaml
 import sys
 sys.path.append(os.path.join(os.path.dirname(sys.path[0]),'..','Tensile'))
 from DataType import DataType
-from Tensile.Utilities.ConditionalImports import yamlLoader, yamlDumper
+from yaml import SafeDumper as yamlDumper
+from yaml import SafeLoader as yamlLoader
 
 def parseArgs():
     argParser = argparse.ArgumentParser()
