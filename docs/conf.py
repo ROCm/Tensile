@@ -4,11 +4,11 @@
 # For a full list, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-import re
 import datetime
+import re
 import sys
-
 from pathlib import Path
+
 from rocm_docs import ROCmDocs
 
 # Add the Tensile module to PYTHON_PATH
