@@ -43,7 +43,6 @@ from collections.abc import Mapping
 from copy import deepcopy
 from enum import Enum
 from functools import reduce
-from types import MappingProxyType
 
 import collections
 import math
@@ -1773,11 +1772,8 @@ class Solution(collections.abc.Mapping):
   ########################################
   # get a list of kernel parameters for this solution
   def getKernels(self):
-    kernel = self
-    kernel["Kernel"] = True
-    kernels = []
-    kernels.append(kernel)
-    return kernels
+    self["Kernel"] = True
+    return self
 
 
   ########################################
@@ -4792,7 +4788,7 @@ class Solution(collections.abc.Mapping):
   def getNameFull(state):
     requiredParameters = {}
     for key in state:
-      if key in list(validParameters.keys()):
+      if key in validParameters:
         requiredParameters[key] = True
     return Solution.getNameMin(state, requiredParameters)
 

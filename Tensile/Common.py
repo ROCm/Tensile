@@ -26,9 +26,10 @@ from . import __version__
 from . import Parallel
 from .Utilities.ConditionalImports import print, TENSILE_TERM_COLORS
 from collections import OrderedDict
+
 from copy import deepcopy
 from .AsmCaps import CACHED_ASM_CAPS
-from typing import Optional
+from typing import Any, NamedTuple, Optional, Tuple, Dict
 
 import math
 import os.path
@@ -40,6 +41,15 @@ import warnings
 startTime = time.time()
 
 ParallelMap = Parallel.ParallelMap
+
+IsaVersion = Tuple[int, int, int]
+
+class CompilerVersion(NamedTuple):
+    major: int
+    minor: int
+
+    def __str__(self) -> str:
+        return f"{self.major}.{self.minor}"
 
 class DeveloperWarning(Warning):
     """Custom warning for Tensile developers.
@@ -1994,7 +2004,9 @@ def printWarning(message: str, category=UserWarning):
   sys.stdout.flush()
 
 def printExit(message):
-  print("Tensile::FATAL: %s" % message)
+  if TENSILE_TERM_COLORS:
+        message = f"[bold red]{message}[/bold red]"
+  print(message)
   sys.stdout.flush()
   sys.exit(-1)
 
@@ -2016,7 +2028,7 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
       return exePath
   return None
 
-def GetAsmCaps(isaVersion):
+def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion) -> Dict[IsaVersion, dict]:
   """ Determine assembler capabilities by testing short instructions sequences """
   if globalParameters["AssemblerPath"] is not None:
 
@@ -2113,13 +2125,11 @@ def GetAsmCaps(isaVersion):
     ignoreCacheCheck = globalParameters["IgnoreAsmCapCache"]
 
     # disable cache checking for < rocm 5.3
-    compilerVer = globalParameters['HipClangVersion'].split(".")[:2]
-    compilerVer = [int(c) for c in compilerVer]
-    if len(compilerVer) >= 2:
+    if len(compilerVersion) >= 2:
       ignoreCacheCheck = ignoreCacheCheck or \
-                         compilerVer[0] < 5 or \
-                         (compilerVer[0] == 5 and compilerVer[1] <= 2) 
-      
+                         compilerVersion.major < 5 or \
+                         (compilerVersion.major == 5 and compilerVersion.minor <= 2) 
+
     if not derivedAsmCaps["SupportedISA"] and CACHED_ASM_CAPS[isaVersion]["SupportedISA"]:
       printWarning("Architecture {} not supported by ROCm {}".format(isaVersion, globalParameters['HipClangVersion']), DeveloperWarning)
       ignoreCacheCheck = True
@@ -2128,7 +2138,7 @@ def GetAsmCaps(isaVersion):
     if not ignoreCacheCheck:
       exitFlag = False
       # rocm<=6.0, ignore KernargPreloading
-      if compilerVer[0] <= 5 or (compilerVer[0] == 6 and compilerVer[1] == 0):
+      if compilerVersion.major <= 5 or (compilerVersion.major == 6 and compilerVersion.minor == 0):
         derivedAsmCapsCopy = deepcopy(derivedAsmCaps)
         # copy KernargPreloading from CACHED_ASM_CAPS (to ignore this)
         derivedAsmCapsCopy["KernargPreloading"] = CACHED_ASM_CAPS[isaVersion]["KernargPreloading"]
@@ -2310,6 +2320,47 @@ def which(p):
                 return candidate
     return None
 
+
+def populateCapabilities(
+    globalParameters: Dict[str, Any], cachedAsmCaps: Dict[IsaVersion, dict]
+):
+    """Populates the assembler and archiecture capabilities based on the compiler and ISA.
+
+    This function updates the **globalParameters** and **cachedAsmCaps** dictionaries with
+    the assembler and architecture capabilities for each supported ISA version. It checks
+    the compatibility of each ISA version with the current ROCm stack version and skips any
+    unsupported ISA versions, issuing a warning for each skipped version.
+
+    Args:
+        globalParameters: A dictionary containing global parameters of the
+            application, including the HipClang version and supported ISA versions.
+        cachedAsmCaps: A dictionary to be populated with the assembler
+            capabilities for each ISA version.
+
+    Note:
+        This function modifies `globalParameters` and `cachedAsmCaps` in place.
+    """
+    compilerVer = CompilerVersion(
+        *[int(c) for c in globalParameters["HipClangVersion"].split(".")[:2]]
+    )
+    supportedISA = globalParameters["SupportedISA"]
+    to_remove = []
+
+    for v in supportedISA + [(0, 0, 0)]:
+        if v[0] == 12 and not (
+            compilerVer.major > 6 or (compilerVer.major == 6 and compilerVer.minor >= 3)
+        ):
+            printWarning(f"ISA {v} isn't supported for ROCm stack {compilerVer}, skipping...")
+            to_remove.append(v)
+            continue
+        globalParameters["AsmCaps"][v] = GetAsmCaps(v, compilerVer)
+        globalParameters["ArchCaps"][v] = GetArchCaps(v)
+
+    # Efficiently remove unsupported ISA versions after iterating
+    for v in to_remove:
+        cachedAsmCaps.pop(v, None)  # Safely attempt to remove v from cachedAsmCaps
+        supportedISA.remove(v)
+
 ################################################################################
 ################################################################################
 def assignGlobalParameters( config ):
@@ -2434,7 +2485,7 @@ def assignGlobalParameters( config ):
     for line in output.split('\n'):
       if 'HIP version' in line:
         globalParameters['HipClangVersion'] = line.split()[2]
-        tPrint(1, "# Found  hipcc version " + globalParameters['HipClangVersion'])
+        tPrint(1, "# Found hipcc version " + globalParameters['HipClangVersion'])
 
   except (subprocess.CalledProcessError, OSError) as e:
       printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))
@@ -2444,21 +2495,18 @@ def assignGlobalParameters( config ):
     
   globalParameters["AsmCaps"] = {}
   globalParameters["ArchCaps"] = {}
+  populateCapabilities(globalParameters, CACHED_ASM_CAPS)
 
-  for v in globalParameters["SupportedISA"] + [(0,0,0)]:
-    globalParameters["AsmCaps"][v] = GetAsmCaps(v)
-    globalParameters["ArchCaps"][v] = GetArchCaps(v)
-
-  if globalParameters["PrintLevel"] >= 1:
+  if globalParameters["PrintLevel"] >= 2:
     printCapTable(globalParameters)
 
-    if globalParameters["AsmCaps"] != CACHED_ASM_CAPS:
-      import pprint
-      print("ASM Caps differ from cache. New caps:")
-      print("####################")
-      print("CACHED_ASM_CAPS = \\\n")
-      pprint.pprint(globalParameters["AsmCaps"])
-      print("####################")
+  if globalParameters["AsmCaps"] != CACHED_ASM_CAPS and globalParameters["PrintLevel"] >= 1:
+    import pprint
+    printWarning("ASM Caps differ from cache. New caps:")
+    print("####################")
+    print("CACHED_ASM_CAPS = \\\n")
+    pprint.pprint(globalParameters["AsmCaps"])
+    print("####################")
 
   globalParameters["SupportedISA"] = list([i for i in globalParameters["SupportedISA"] if globalParameters["AsmCaps"][i]["SupportedISA"]])
 
