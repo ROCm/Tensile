@@ -120,7 +120,7 @@ Note that ``--`` is used to pass options to the underlying pytest command.
 
 .. note::
 
-   By default ``tox run -e ci`` will run extended tests.
+   By default ``tox run -e ci`` will run pre-checkin tests.
 
 -------------------------------
 Unit tests and coverage reports

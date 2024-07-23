@@ -34,9 +34,10 @@ How to submit a Pull Request
 **When opening a PR:**
 
 1. Ensure that **your develop** branch is up-to-date with the **upstream develop** branch---this may require a rebase or a merge.
-2. Create the PRs against the https://github.com/ROCm/Tensile **develop** branch.
-3. Fill in as many details as possible. Include a description, outcomes, notable changes, and environment information. This more information, the more likely the PR will be reviewed and merged in a timely manner.
-4. Title the PR in present imperative tense, e.g., "*Update* kernel parameters" not "Updates" nor "Updated".
+2. Verify that your changes pass static analysis checks and all pre-checkin, host library, and unit tests by running ``tox run -m prepr``---then go get a coffee, this could take up to an hour.
+3. Create the PRs against the https://github.com/ROCm/Tensile **develop** branch.
+4. Fill in as many details as possible. Include a description, outcomes, notable changes, and environment information. This more information, the more likely the PR will be reviewed and merged in a timely manner.
+5. Title the PR in present imperative tense, e.g., "*Update* kernel parameters" not "Updates" nor "Updated".
 
 .. tip::
 
