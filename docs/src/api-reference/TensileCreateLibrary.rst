@@ -5,13 +5,10 @@
 TensileCreateLibrary
 ====================
 
-.. autofunction:: Tensile.TensileCreateLibrary::prepAsm
-.. autofunction:: Tensile.TensileCreateLibrary::markDuplicateKernels
-.. autofunction:: Tensile.TensileCreateLibrary::filterProcessingErrors
-.. autofunction:: Tensile.TensileCreateLibrary::filterBuildErrors
-.. autofunction:: Tensile.TensileCreateLibrary::addFallBacks
+.. autofunction:: Tensile.TensileCreateLibrary::addFallback
 .. autofunction:: Tensile.TensileCreateLibrary::addNewLibrary
-.. autofunction:: Tensile.TensileCreateLibrary::applyNaming    
+.. autofunction:: Tensile.TensileCreateLibrary::applyNaming  
+.. autofunction:: Tensile.TensileCreateLibrary::filterProcessingErrors
 .. autofunction:: Tensile.TensileCreateLibrary::findLogicFiles
 .. autofunction:: Tensile.TensileCreateLibrary::generateClientConfig
 .. autofunction:: Tensile.TensileCreateLibrary::generateLogicData    
@@ -19,7 +16,8 @@ TensileCreateLibrary
 .. autofunction:: Tensile.TensileCreateLibrary::generateMasterFileList
 .. autofunction:: Tensile.TensileCreateLibrary::makeMasterLibraries    
 .. autofunction:: Tensile.TensileCreateLibrary::makeSolutions
-.. autofunction:: Tensile.TensileCreateLibrary::parseLibraryLogicFiles  
+.. autofunction:: Tensile.TensileCreateLibrary::markDuplicateKernels
+.. autofunction:: Tensile.TensileCreateLibrary::parseLibraryLogicFiles
 .. autofunction:: Tensile.TensileCreateLibrary::prepAsm          
 .. autofunction:: Tensile.TensileCreateLibrary::sanityCheck
 .. autofunction:: Tensile.TensileCreateLibrary::verifyManifest
