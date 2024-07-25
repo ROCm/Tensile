@@ -804,7 +804,7 @@ def writeKernels(
 
     Common.popWorkingPath()  # build_tmp
 
-    return codeObjectFiles, solutions, kernels
+    return codeObjectFiles, kernels, solutions
 
 
 ##############################################################################
