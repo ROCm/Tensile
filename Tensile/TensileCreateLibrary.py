@@ -1754,7 +1754,7 @@ def TensileCreateLibrary():
     for fileName in staticFiles:
         shutil.copy(os.path.join(globalParameters["SourcePath"], fileName), outputPath)
 
-    codeObjectFiles = writeKernels(
+    codeObjectFiles, kernels, solutions = writeKernels(
         outputPath,
         cxxCompiler,
         args,
