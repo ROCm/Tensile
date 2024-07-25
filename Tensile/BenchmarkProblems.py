@@ -147,12 +147,11 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
 
     # write solution, kernels and CMake
     problemType = solutions[0]["ProblemType"]
-    codeObjectFiles = writeKernels( \
+    codeObjectFiles, kernels, solutions = writeKernels( \
             globalParameters["WorkingPath"], globalParameters["CxxCompiler"], \
             globalParameters, solutions, kernels, kernelHelperOjbs, \
             kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
     # ^ this is where solutions is mutated
-
     newLibraryDir = ensurePath(os.path.join(globalParameters["WorkingPath"], 'library'))
     newLibraryFile = os.path.join(newLibraryDir, "TensileLibrary")
     newLibrary = SolutionLibrary.MasterSolutionLibrary.BenchmarkingLibrary(solutions)

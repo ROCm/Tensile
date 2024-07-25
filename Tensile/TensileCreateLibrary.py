@@ -804,7 +804,7 @@ def writeKernels(
 
     Common.popWorkingPath()  # build_tmp
 
-    return codeObjectFiles
+    return codeObjectFiles, solutions, kernels
 
 
 ##############################################################################
@@ -1361,7 +1361,7 @@ def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, 
     )
 
     # write solution, kernels and CMake
-    codeObjectFiles = writeKernels(
+    codeObjectFiles, kernels, solutions = writeKernels(
         libraryWorkingPath,
         cxxCompiler,
         globalParameters,
