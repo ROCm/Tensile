@@ -804,7 +804,7 @@ def writeKernels(
 
     Common.popWorkingPath()  # build_tmp
 
-    return codeObjectFiles
+    return codeObjectFiles, kernels, solutions
 
 
 ##############################################################################
@@ -1361,7 +1361,7 @@ def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, 
     )
 
     # write solution, kernels and CMake
-    codeObjectFiles = writeKernels(
+    codeObjectFiles, kernels, solutions = writeKernels(
         libraryWorkingPath,
         cxxCompiler,
         globalParameters,
@@ -1754,7 +1754,7 @@ def TensileCreateLibrary():
     for fileName in staticFiles:
         shutil.copy(os.path.join(globalParameters["SourcePath"], fileName), outputPath)
 
-    codeObjectFiles = writeKernels(
+    codeObjectFiles, kernels, solutions = writeKernels(
         outputPath,
         cxxCompiler,
         args,
