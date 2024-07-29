@@ -572,7 +572,7 @@ def markDuplicateKernels(
         are marked with a `duplicate` attribute indicating their duplication status.
 
     Notes:
-        - This function sets the "duplicate" attribute on Solution objects, and thereby prepares
+        This function sets the "duplicate" attribute on Solution objects, and thereby prepares
         kernels for **processKernelSource**, which requires "duplicate" to be set.
     """
     # Kernels may be intended for different .co files, but generate the same .o file
@@ -803,7 +803,7 @@ def writeKernels(
 
     Common.popWorkingPath()  # build_tmp
 
-    return codeObjectFiles
+    return codeObjectFiles, kernels, solutions
 
 
 ##############################################################################
@@ -1360,7 +1360,7 @@ def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, 
     )
 
     # write solution, kernels and CMake
-    codeObjectFiles = writeKernels(
+    codeObjectFiles, kernels, solutions = writeKernels(
         libraryWorkingPath,
         cxxCompiler,
         globalParameters,
@@ -1723,7 +1723,7 @@ def TensileCreateLibrary():
     for fileName in staticFiles:
         shutil.copy(os.path.join(globalParameters["SourcePath"], fileName), outputPath)
 
-    codeObjectFiles = writeKernels(
+    codeObjectFiles, kernels, solutions = writeKernels(
         outputPath,
         cxxCompiler,
         args,
