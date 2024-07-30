@@ -12,7 +12,7 @@
 - add factor embed library logic into function and test
 - add clang++ as cxx-compiler option for windows
 - add logic to cope with different compilers
-- add generateManifest fxn and rename generateManifest to toFile and move to Utilitiess
+- add generateManifest fxn and rename generateManifest to toFile and move to Utilities
 - add profiling CI job
 - add support for amdclang and use defaults
 - add architecture management functions to TensileCreateLibrary
