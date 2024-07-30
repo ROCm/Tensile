@@ -29,6 +29,8 @@
 #include <glob.h>
 #include <unistd.h>
 
+#include <memory>
+
 #include <boost/version.hpp>
 
 #if BOOST_VERSION >= 106100

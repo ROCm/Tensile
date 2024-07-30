@@ -119,18 +119,9 @@ if(TENSILE_USE_MSGPACK)
 endif()
 
 if(TENSILE_USE_LLVM)
-    target_compile_definitions(TensileHost PUBLIC -DTENSILE_YAML=1)
-    find_library(LLVMObjectYAML_LIBRARY
-        NAMES LLVMObjectYAML
-        PATHS ${LLVM_LIBRARY_DIR})
-    message("LLVMObjectYAML_LIBRARY: ${LLVMObjectYAML_LIBRARY}")
-    #Use LLVM shared libs if LLVMObjectYAML static lib cannot be found
-    if(LLVMObjectYAML_LIBRARY)
-        target_link_libraries(TensileHost PRIVATE LLVMObjectYAML )
-    else()
-        target_link_libraries(TensileHost PRIVATE LLVM )
-    endif()
-    target_include_directories(TensileHost PRIVATE ${LLVM_INCLUDE_DIRS})
+target_compile_definitions(TensileHost PUBLIC -DTENSILE_YAML=1)
+find_package(LLVM REQUIRED COMPONENTS LLVMObjectYAML)
+target_link_libraries(TensileHost PRIVATE LLVMObjectYAML)
 endif()
 
 if(TENSILE_STATIC_ONLY)

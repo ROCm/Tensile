@@ -177,17 +177,9 @@ endif()
 target_link_libraries(TensileTests PUBLIC gtest TensileHost TensileTestLib ${Boost_LIBRARIES})
 
 if(TENSILE_USE_LLVM)
-    find_library(LLVMObjectYAML_LIBRARY
-        NAMES LLVMObjectYAML
-        PATHS ${LLVM_LIBRARY_DIR})
-    message("LLVMObjectYAML_LIBRARY: ${LLVMObjectYAML_LIBRARY}")
-    #Use LLVM shared libs if LLVMObjectYAML static lib cannot be found
-    if(LLVMObjectYAML_LIBRARY)
-        target_link_libraries(TensileTests PUBLIC LLVMObjectYAML )
-    else()
-        target_link_libraries(TensileTests PUBLIC LLVM )
-    endif()
-    target_include_directories(TensileTests PUBLIC ${LLVM_INCLUDE_DIRS})
+    target_compile_definitions(TensileHost PUBLIC -DTENSILE_YAML=1)
+    find_package(LLVM REQUIRED COMPONENTS LLVMObjectYAML)
+    target_link_libraries(TensileHost PRIVATE LLVMObjectYAML)
 endif()
 
 if(TENSILE_USE_HIP)
