@@ -178,8 +178,15 @@ target_link_libraries(TensileTests PUBLIC gtest TensileHost TensileTestLib ${Boo
 
 if(TENSILE_USE_LLVM)
     target_compile_definitions(TensileHost PUBLIC -DTENSILE_YAML=1)
-    find_package(LLVM REQUIRED COMPONENTS LLVMObjectYAML)
-    target_link_libraries(TensileHost PRIVATE LLVMObjectYAML)
+    find_package(LLVM COMPONENTS LLVMObjectYAML)
+    if(LLVMObjectYAML_FOUND)
+    message(FATAL_ERROR "asdfasdfasdfasdfsadf")
+        target_link_libraries(TensileHost PRIVATE LLVM)
+    else()
+        message(FATAL_ERROR "asdfasdfasdfasdfsadf")    
+        find_package(LLVM REQUIRED)
+        target_link_libraries(TensileHost PRIVATE LLVM)
+    endif()
 endif()
 
 if(TENSILE_USE_HIP)
