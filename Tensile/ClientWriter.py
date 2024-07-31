@@ -25,7 +25,7 @@
 from . import ClientExecutable
 from . import Common
 from . import LibraryIO
-from .Common import globalParameters, pushWorkingPath, popWorkingPath, print1, printExit, printWarning, ClientExecutionLock
+from .Common import globalParameters, pushWorkingPath, popWorkingPath, tPrint, printExit, printWarning, ClientExecutionLock
 from .SolutionStructs import ProblemType, ProblemSizesMock
 from .TensileCreateLibrary import copyStaticFiles
 
@@ -85,7 +85,7 @@ def main( config ):
       in os.listdir(libraryLogicPath) \
       if (os.path.isfile(os.path.join(libraryLogicPath, f)) \
       and os.path.splitext(f)[1]==".yaml")]
-  print1("LogicFiles: %s" % logicFiles)
+  tPrint(1, "LogicFiles: %s" % logicFiles)
   functions = []
   functionNames = []
 
@@ -187,11 +187,6 @@ def getBuildClientLibraryScript(buildPath, libraryLogicPath):
     callCreateLibraryCmd += ["--short-file-names"]
   else:
     callCreateLibraryCmd += ["--no-short-file-names"]
-
-  if globalParameters["LibraryPrintDebug"]:
-    callCreateLibraryCmd += ["--library-print-debug"]
-  else:
-    callCreateLibraryCmd += ["--no-library-print-debug"]
 
   if globalParameters["GenerateManifestAndExit"]:
     callCreateLibraryCmd += ["--generate-manifest-and-exit"]

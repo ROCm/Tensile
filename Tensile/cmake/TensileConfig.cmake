@@ -84,29 +84,6 @@ endif()
 
 add_subdirectory("${Tensile_ROOT}/Source" "Tensile")
 
-# Target is created for copying dependencies
-function(TensileCreateCopyTarget
-    Target_NAME
-    Tensile_OBJECTS_TO_COPY
-    Dest_PATH
-    )
-
-    file(MAKE_DIRECTORY "${Dest_PATH}")
-    add_custom_target(
-        ${Target_NAME} ALL
-        COMMENT "${Target_NAME}: Copying tensile objects to ${Dest_PATH}"
-        DEPENDS ${Tensile_OBJECTS_TO_COPY}
-    )
-    foreach(OBJECT_TO_COPY ${Tensile_OBJECTS_TO_COPY})
-        add_custom_command(
-            TARGET ${Target_NAME} PRE_BUILD
-            COMMAND_EXPAND_LISTS
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OBJECT_TO_COPY} ${Dest_PATH}
-            DEPENDS ${OBJECT_TO_COPY}
-        )
-    endforeach()
-endfunction()
-
 # Output target: ${Tensile_VAR_PREFIX}_LIBRARY_TARGET. Ensures that the libs get built in Tensile_OUTPUT_PATH/library.
 # Output symbol: ${Tensile_VAR_PREFIX}_ALL_FILES. List of full paths of all expected library files in manifest.
 function(TensileCreateLibraryFiles
@@ -119,7 +96,6 @@ function(TensileCreateLibraryFiles
        MERGE_FILES
        NO_MERGE_FILES
        SHORT_FILE_NAMES
-       PRINT_DEBUG
        GENERATE_PACKAGE
        SEPARATE_ARCHITECTURES
        LAZY_LIBRARY_LOADING
@@ -136,6 +112,7 @@ function(TensileCreateLibraryFiles
        TENSILE_ROOT
        VAR_PREFIX
        CPU_THREADS
+       VERBOSE
        )
 
   # Multi value settings
@@ -190,11 +167,11 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--no-short-file-names")
   endif()
 
-  if(Tensile_PRINT_DEBUG)
-    set(Options ${Options} "--library-print-debug")
+  if(Tensile_VERBOSE)
+    set(Options ${Options} "--verbose=${Tensile_VERBOSE}")
   else()
-    set(Options ${Options} "--no-library-print-debug")
-  endif()
+    set(Options ${Options} "--verbose=0")
+  endif()  
 
   if(Tensile_EMBED_LIBRARY)
     set(Options ${Options} "--embed-library=${Tensile_EMBED_LIBRARY}")
@@ -266,46 +243,32 @@ function(TensileCreateLibraryFiles
         set(CommandLine env LD_PRELOAD=${ASAN_LIB_PATH} ${CommandLine})
       endif()
 
-      # Create the manifest file of the output libraries.
-      set(Tensile_CREATE_MANIFEST_COMMAND ${CommandLine} "--generate-manifest-and-exit")
-      execute_process(
-        COMMAND ${Tensile_CREATE_MANIFEST_COMMAND}
-        RESULT_VARIABLE Tensile_CREATE_MANIFEST_RESULT
-        COMMAND_ECHO STDOUT)
-
-      if(Tensile_CREATE_MANIFEST_RESULT OR (NOT EXISTS ${Tensile_MANIFEST_FILE_PATH}))
-        message(FATAL_ERROR "Error creating Tensile library: ${Tensile_CREATE_MANIFEST_RESULT}")
-      endif()
-
-      # Defer the actual call of the TensileCreateLibraries to 'make' time as needed.
-      # Read the manifest file and declare the files as expected output.
-      file(STRINGS ${Tensile_MANIFEST_FILE_PATH} Tensile_MANIFEST_CONTENTS)
       add_custom_command(
-        COMMENT "Generating Tensile Libraries"
-        OUTPUT ${Tensile_EMBED_LIBRARY_SOURCE};${Tensile_MANIFEST_CONTENTS}
+        OUTPUT "${Tensile_OUTPUT_PATH}/library"
+        DEPENDS ${Tensile_LOGIC_PATH}
         COMMAND ${CommandLine}
-      )
+        COMMENT "Generating libraries with TensileCreateLibrary")
 
-      set("${Tensile_VAR_PREFIX}_ALL_FILES" ${Tensile_EMBED_LIBRARY_SOURCE};${Tensile_MANIFEST_CONTENTS} PARENT_SCOPE)
-
-      # Create a chained library build target.
-      # We've declared the manifest contents as output of the custom
-      # command above which builds the tensile libs. Now create a
-      # target dependency on those files so that we force the custom
-      # command to be invoked at build time, not cmake time.
-      TensileCreateCopyTarget(
-      "${Tensile_VAR_PREFIX}_LIBRARY_TARGET"
-      "${Tensile_EMBED_LIBRARY_SOURCE};${Tensile_MANIFEST_CONTENTS}"
-      "${Tensile_OUTPUT_PATH}/library"
-    )
-
+      add_custom_target(${Tensile_VAR_PREFIX}_LIBRARY_TARGET
+         DEPENDS "${Tensile_OUTPUT_PATH}/library"
+         COMMAND ${CommandLine} "--verify-manifest"
+         COMMENT "Verifying files in ${Tensile_MANIFEST_FILE_PATH} were generated")
   endif()
 
   if(Tensile_EMBED_LIBRARY)
 
-    add_library(${Tensile_EMBED_LIBRARY} ${Tensile_EMBED_LIBRARY_SOURCE})
-    target_link_libraries(${Tensile_EMBED_LIBRARY} PUBLIC TensileHost)
-
+      set_source_files_properties(${Tensile_EMBED_LIBRARY_SOURCE} PROPERTIES GENERATED TRUE)
+      add_library(${Tensile_EMBED_LIBRARY} ${Tensile_EMBED_LIBRARY_SOURCE})
+      target_link_libraries(${Tensile_EMBED_LIBRARY} PUBLIC TensileHost)
+      
+      add_dependencies(${Tensile_EMBED_LIBRARY} ${Tensile_VAR_PREFIX}_LIBRARY_TARGET)
+    
+      add_custom_command(
+          TARGET ${Tensile_EMBED_LIBRARY} PRE_BUILD
+          COMMAND ${CMAKE_COMMAND} -E copy
+                  ${Tensile_EMBED_LIBRARY_SOURCE}
+                  "${Tensile_OUTPUT_PATH}/library"
+          DEPENDS ${Tensile_EMBED_LIBRARY_SOURCE})
   endif()
 
 endfunction()

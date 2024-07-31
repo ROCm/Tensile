@@ -82,6 +82,7 @@ namespace Tensile
         int    packSummationDims          = 0;
         int    magicDivAlg                = 1;
         int    streamK                    = 0;
+        int    streamKAtomic              = 0;
         int    persistentKernel           = 0;
         bool   persistentKernelAlongBatch = false;
 
@@ -203,9 +204,14 @@ namespace Tensile
         /**
         * Calculate required workspace size.
         */
-        size_t       requiredWorkspaceSize(Problem const& problem, Hardware const& hardware) const;
-        size_t       getSKGrid(Hardware const& hardware, size_t tiles) const;
-        size_t       partialTileSize(size_t skGrid) const;
+
+        size_t requiredWorkspaceSize(Problem const& problem, Hardware const& hardware) const;
+        int    predictNumFullTiles(Problem const&  problem,
+                                   Hardware const& hardware,
+                                   size_t          tiles,
+                                   size_t          skGrid) const;
+        size_t getSKGrid(Problem const& problem, Hardware const& hardware, size_t tiles) const;
+        size_t partialTileSize(size_t skGrid) const;
         static float computeGranularity(float x);
 
         Granularities computeGranularities(

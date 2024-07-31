@@ -27,7 +27,7 @@ import os
 import subprocess
 
 from . import Common
-from .Common import globalParameters, print2
+from .Common import globalParameters, tPrint, supportedCompiler
 from .Parallel import CPUThreadCount
 
 def cmake_path(os_path):
@@ -47,12 +47,12 @@ class CMakeEnvironment:
         args += [self.sourceDir]
         args = [cmake_path(arg) for arg in args]
 
-        Common.print2(' '.join(args))
+        Common.tPrint(3, ' '.join(args))
         with Common.ClientExecutionLock():
             # change to use  check_output to force windows cmd block util command finish
             try:
                 out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=Common.ensurePath(self.buildDir))
-                print2(out)
+                tPrint(3, out)
             except subprocess.CalledProcessError as err:
                 print(err.output)
                 raise
@@ -60,12 +60,12 @@ class CMakeEnvironment:
 
     def build(self):
         args = [('ninja' if (os.name == "nt") else 'make'), f'-j{CPUThreadCount()}']
-        Common.print2(' '.join(args))
+        Common.tPrint(3, ' '.join(args))
         with Common.ClientExecutionLock():
             # change to use  check_output to force windows cmd block util command finish
             try:
                 out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=self.buildDir)
-                print2(out)
+                tPrint(3, out)
             except subprocess.CalledProcessError as err:
                 print(err.output)
                 raise
@@ -79,8 +79,8 @@ def clientExecutableEnvironment(builddir=None):
         builddir = os.path.join(globalParameters["OutputPath"], globalParameters["ClientBuildPath"])
     builddir = Common.ensurePath(builddir)
 
-    CxxCompiler = "clang++.exe" if ((os.name == "nt") and (globalParameters['CxxCompiler'] == "hipcc")) else globalParameters['CxxCompiler']
-    CCompiler   = "clang.exe"   if ((os.name == "nt") and (globalParameters['CxxCompiler'] == "hipcc")) else globalParameters['CxxCompiler']
+    CxxCompiler = "clang++.exe" if ((os.name == "nt") and supportedCompiler(globalParameters['CxxCompiler'])) else globalParameters['CxxCompiler']
+    CCompiler   = "clang.exe"   if ((os.name == "nt") and supportedCompiler(globalParameters['CxxCompiler'])) else globalParameters['CCompiler']
 
     options = {'CMAKE_BUILD_TYPE': globalParameters["CMakeBuildType"],
                'TENSILE_USE_MSGPACK': 'ON',

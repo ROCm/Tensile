@@ -22,9 +22,10 @@
 #
 ################################################################################
 
-from .Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, \
-  setWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar, printWarning
+from .Common import tPrint, HR, printExit, defaultAnalysisParameters, globalParameters, \
+  setWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, printWarning
 from .SolutionStructs import Solution
+from . import Utils
 from . import LibraryIO
 from . import SolutionSelectionLibrary
 
@@ -40,8 +41,8 @@ import time
 # Analyze Problem Type
 ################################################################################
 def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
-  print2(HR)
-  print1("# Analyzing: %s" % problemType)
+  tPrint(3, HR)
+  tPrint(1, "# Analyzing: %s" % problemType)
 
   enableTileSelection = problemType["TileAwareSelection"]
   solutionsList = []
@@ -68,15 +69,15 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
     problemSizesList.append(problemSizes)
     solutionsList.append(solutions)
     solutionMinNaming = Solution.getMinNaming(solutions)
-    print1("# Read: %s" % (solutionsFileName))
-    print2("# ProblemSizes: %s" % problemSizes)
-    print2("# Solutions:")
+    tPrint(1, "# Read: %s" % (solutionsFileName))
+    tPrint(3, "# ProblemSizes: %s" % problemSizes)
+    tPrint(3, "# Solutions:")
     solutionIdx = 0
     for solution in solutions:
-      print2("#  (%u) %s" % (solutionIdx, Solution.getNameMin(solution, \
+      tPrint(3, "#  (%u) %s" % (solutionIdx, Solution.getNameMin(solution, \
           solutionMinNaming)))
       solutionIdx += 1
-    print2(HR)
+    tPrint(3, HR)
 
   ######################################
   # Create Logic Analyzer
@@ -102,7 +103,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
     printExit("Bad KeepLogic=%u"%globalParameters["KeepLogic"])
 
   # print raw data
-  if globalParameters["PrintLevel"] >= 2:
+  if globalParameters["PrintLevel"] >= 3:
     line = "After Removals:\n"
     numOther = 1
     for size in logicAnalyzer.numProblemSizes:
@@ -122,7 +123,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
     s = logicAnalyzer.solutions[i]
     s["SolutionIndex"] = i
     s["SolutionNameMin"] = Solution.getNameMin(s, solutionMinNaming)
-    print1("(%2u) %s : %s" % (i, Solution.getNameMin(s, solutionMinNaming), Solution.getNameFull(s)))
+    tPrint(1, "(%2u) %s : %s" % (i, Solution.getNameMin(s, solutionMinNaming), Solution.getNameFull(s)))
 
   if enableTileSelection:
     validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelection(problemType, selectionFileNameList, \
@@ -190,21 +191,21 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
   ######################################
   # Range Logic
   rangeLogic = logicAnalyzer.enRule(0, logicAnalyzer.globalIndexRange)
-  print2("# Final Range Logic:")
-  print2(rangeLogic)
+  tPrint(3, "# Final Range Logic:")
+  tPrint(3, rangeLogic)
   logicComplexity = [0]*logicAnalyzer.numIndices
   logicAnalyzer.scoreLogicComplexity(rangeLogic, logicComplexity)
-  print2("# Range Logic Complexity: %s" % logicComplexity)
+  tPrint(3, "# Range Logic Complexity: %s" % logicComplexity)
   score = logicAnalyzer.scoreRangeForLogic( \
       logicAnalyzer.globalIndexRange, rangeLogic)
-  print1("\n# Score: %.0f ms" % (score/1000))
+  tPrint(1, "\n# Score: %.0f ms" % (score/1000))
   logicAnalyzer.prepareLogic(rangeLogic) # convert indices to sizes, -1
 
   ######################################
   # Range Logic
   exactLogic = logicAnalyzer.exactWinners
-  print1("# Exact Logic:\n")
-  print1("%s"%exactLogic)
+  tPrint(1, "# Exact Logic:\n")
+  tPrint(1, "%s"%exactLogic)
 
   #selectionSolutionsIdsList = list(selectionSolutionsIds)
   return (problemType, logicAnalyzer.solutions, logicAnalyzer.indexOrder, \
@@ -242,7 +243,7 @@ class LogicAnalyzer:
 
     # merge solutions from size groups
     # solutions needs to be a set, and offset needs to be mapping
-    print1("# Merging Solutions:")
+    tPrint(1, "# Merging Solutions:")
     self.numSolutionsPerGroup = []
     self.solutionGroupMap = []
     self.solutions = []
@@ -252,7 +253,7 @@ class LogicAnalyzer:
     for solutionGroupIdx in range(0, len(solutionsList)):
       solutionGroup = solutionsList[solutionGroupIdx]
       totalSolutions += len(solutionGroup)
-    progressBar = ProgressBar(totalSolutions)
+    progressBar = Utils.ProgressBar(totalSolutions, desc="LogicAnalyzer")
     for solutionGroupIdx in range(0, len(solutionsList)):
       solutionGroup = solutionsList[solutionGroupIdx]
       self.numSolutionsPerGroup.append(len(solutionGroup))
@@ -323,9 +324,9 @@ class LogicAnalyzer:
               currentStride += index[2]
     for i in range(0, len(unifiedProblemSizes)):
       unifiedProblemSizes[i] = sorted(list(unifiedProblemSizes[i]))
-    print2("UnifiedProblemSizes: %s" % unifiedProblemSizes)
-    print2("ExactProblemSizes: %s" % self.exactProblemSizes)
-    print2("RangeProblemSizes: %s" % self.rangeProblemSizes)
+    tPrint(3, "UnifiedProblemSizes: %s" % unifiedProblemSizes)
+    tPrint(3, "ExactProblemSizes: %s" % self.exactProblemSizes)
+    tPrint(3, "RangeProblemSizes: %s" % self.rangeProblemSizes)
 
     # problem size index <-> size
     self.problemSizeToIndex = []
@@ -339,16 +340,16 @@ class LogicAnalyzer:
         self.problemSizeToIndex[i][size] = j
         self.problemIndexToSize[i].append(size)
       self.numProblemSizes.append(len(unifiedProblemSizes[i]))
-    print1("# NumProblemSizes: %s" % self.numProblemSizes)
+    tPrint(1, "# NumProblemSizes: %s" % self.numProblemSizes)
 
     # total size of data array
     self.totalProblems = 1
     for numProblems in self.numProblemSizes:
       self.totalProblems *= numProblems
     self.totalSize = self.totalProblems * self.numSolutions
-    print2("TotalProblems: %u" % self.totalProblems)
-    print2("TotalSolutions: %u" % self.numSolutions)
-    print2("TotalSize: %u" % self.totalSize)
+    tPrint(3, "TotalProblems: %u" % self.totalProblems)
+    tPrint(3, "TotalSolutions: %u" % self.numSolutions)
+    tPrint(3, "TotalSize: %u" % self.totalSize)
     # data is a 2D array [problemIdx][solutionIdx] which stores perf data in gflops for
     # the specified solution
     self.data = array.array('f', [-2]*self.totalSize)
@@ -386,7 +387,7 @@ class LogicAnalyzer:
     #self.rangeIndicesSummation = range(self.problemType["NumIndicesC"], \
     #    self.problemType["TotalIndices"])
     self.indexOrder = self.recommendedIndexOrder()
-    print2("IndexOrder: %s" % self.indexOrder)
+    tPrint(3, "IndexOrder: %s" % self.indexOrder)
     self.globalIndexRange = []
     for i in range(0, self.numIndices):
       self.globalIndexRange.append([0, self.numProblemSizes[i]])
@@ -405,7 +406,7 @@ class LogicAnalyzer:
 
     #print self.data
     # map exact problem sizes to solutions
-    print1("# ExactWinners: %s" % self.exactWinners)
+    tPrint(1, "# ExactWinners: %s" % self.exactWinners)
 
 
   ##############################################################################
@@ -530,7 +531,7 @@ class LogicAnalyzer:
             invalidIdx = solutionIdx
             break
       if invalidIdx >= 0:
-        print1("# Removing Invalid Solution: %u %s" \
+        tPrint(1, "# Removing Invalid Solution: %u %s" \
             % (invalidIdx, self.solutionNames[invalidIdx]) )
         self.removeSolution(invalidIdx)
       else:
@@ -555,7 +556,7 @@ class LogicAnalyzer:
         lisPercWins = lisTuple[2]
         lisPercTime = lisTuple[3]
         if lisPercSaved < self.parameters["SolutionImportanceMin"] or lisPercWins == 0:
-          print1("# Removing Unimportant Solution %u/%u: %s ( %f%% wins, %f%% ms time, %f%% ms saved" \
+          tPrint(1, "# Removing Unimportant Solution %u/%u: %s ( %f%% wins, %f%% ms time, %f%% ms saved" \
               % (lisIdx, self.numSolutions, self.solutionNames[lisIdx], 100*lisPercWins, 100*lisPercTime, 100*lisPercSaved) )
           self.removeSolution(lisIdx)
           continue
@@ -659,7 +660,7 @@ class LogicAnalyzer:
     if globalParameters["PrintLevel"] == 1:
       stdout.write("\n%s"%tab)
     currentIndex = self.indexOrder[currentIndexIndex]
-    print2("%senRule(%s)" % (tab, currentIndexRange))
+    tPrint(3, "%senRule(%s)" % (tab, currentIndexRange))
     nextIndexIndex = currentIndexIndex+1
     nextIndexRange = deepcopy(currentIndexRange)
     isLastIndex = currentIndexIndex == self.numIndices-1
@@ -676,10 +677,10 @@ class LogicAnalyzer:
       # this is last index, so just return fastest solution
       ########################################
       if isLastIndex:
-        print2("%sSingleProblem & LastIndex" % tab)
+        tPrint(3, "%sSingleProblem & LastIndex" % tab)
         winnerIdx = self.winnerForRange(currentIndexRange)
         if winnerIdx < 0:
-          print2("%sSingleProblem & LastIndex :: winnerIdx<0; returning" % (tab) )
+          tPrint(3, "%sSingleProblem & LastIndex :: winnerIdx<0; returning" % (tab) )
           return None
         ruleList.append([-1, winnerIdx])
         if globalParameters["PrintLevel"] == 1:
@@ -690,11 +691,11 @@ class LogicAnalyzer:
       # this isn't last index, so just recursively return next index
       ########################################
       else:
-        print2("%sSingleProblem & NotLastIndex" % tab)
+        tPrint(3, "%sSingleProblem & NotLastIndex" % tab)
         #    % (tab, nextIndexRange) )
         nextRule = self.enRule(nextIndexIndex, nextIndexRange)
         if nextRule == None:
-          print2("%sSingleProblem & NotLastIndex :: nextRule==None; returning" % (tab) )
+          tPrint(3, "%sSingleProblem & NotLastIndex :: nextRule==None; returning" % (tab) )
           return None
         rule = [ -1, nextRule ]
         ruleList.append(rule)
@@ -712,7 +713,7 @@ class LogicAnalyzer:
         # MultiProblem & LastIndex
         # InitialRule using winnerForRange()
         ########################################
-        print2("%sMultiProblem & LastIndex" % tab)
+        tPrint(3, "%sMultiProblem & LastIndex" % tab)
         winnerIdx = -1
         for problemIndex in range(currentIndexRange[currentIndex][0], \
             currentIndexRange[currentIndex][1]):
@@ -723,7 +724,7 @@ class LogicAnalyzer:
           if winnerIdx >= 0:
             break
         if winnerIdx < 0:
-          print2("%sMultiProblem & LastIndex :: winnerIdx<0; returning" % (tab) )
+          tPrint(3, "%sMultiProblem & LastIndex :: winnerIdx<0; returning" % (tab) )
           return None
 
       else:
@@ -731,7 +732,7 @@ class LogicAnalyzer:
         # MultiProblem & NotLastIndex
         # InitialRule using enRule()
         ########################################
-        print2("%sMultiProblem & NotLastIndex" % tab)
+        tPrint(3, "%sMultiProblem & NotLastIndex" % tab)
 
         # create initial rule
         winnerIdx = -1
@@ -750,7 +751,7 @@ class LogicAnalyzer:
           return None
         initialRule = [ currentIndexRange[currentIndex][0], nextRule ]
       ruleList.append(initialRule)
-      print2("%sMultiProblem::InitialRuleList=%s" % (tab, ruleList))
+      tPrint(3, "%sMultiProblem::InitialRuleList=%s" % (tab, ruleList))
       if globalParameters["PrintLevel"] == 1:
         stdout.write("#")
 
@@ -758,7 +759,7 @@ class LogicAnalyzer:
       # MultiProblem
       # Append Rules to Initial Rule
       ########################################
-      print2("%sMultiProblem::Improving Rule" % tab)
+      tPrint(3, "%sMultiProblem::Improving Rule" % tab)
       for problemIndex in range(currentIndexRange[currentIndex][0]+1, \
           currentIndexRange[currentIndex][1]):
         nextIndexRange[currentIndex][0] = problemIndex
@@ -771,11 +772,11 @@ class LogicAnalyzer:
           ########################################
           # nextRule using winnersForRange()
           winnerIdx = self.winnerForRange(nextIndexRange)
-          print2("%sMultiProblem::ImproveRule[%u]::LastIndex::WinnerIdx=%u for %s" % (tab, problemIndex, winnerIdx, nextIndexRange))
+          tPrint(3, "%sMultiProblem::ImproveRule[%u]::LastIndex::WinnerIdx=%u for %s" % (tab, problemIndex, winnerIdx, nextIndexRange))
           # if no solutions benchmarked for this problem size, continue
           if winnerIdx < 0:
             ruleList[len(ruleList)-1][0] = problemIndex # NO_UPDATE
-            print2("%sUpdating range b/c None" % tab)
+            tPrint(3, "%sUpdating range b/c None" % tab)
             if globalParameters["PrintLevel"] == 1:
               stdout.write(" ")
             continue
@@ -785,10 +786,10 @@ class LogicAnalyzer:
           ########################################
           # nextRule using enRule()
           nextRule = self.enRule(nextIndexIndex, nextIndexRange)
-          print2("%sMultiProblem::ImproveRule[%u]::NotLastIndex::NextRule=%s for %s; %s" % (tab, problemIndex, nextRule, nextIndexIndex, nextIndexRange))
+          tPrint(3, "%sMultiProblem::ImproveRule[%u]::NotLastIndex::NextRule=%s for %s; %s" % (tab, problemIndex, nextRule, nextIndexIndex, nextIndexRange))
           if nextRule == None:
             ruleList[len(ruleList)-1][0] = problemIndex # NO_UPDATE
-            print2("%sUpdating b/c None" % tab)
+            tPrint(3, "%sUpdating b/c None" % tab)
             if globalParameters["PrintLevel"] == 1:
               stdout.write(" ")
             continue
@@ -798,7 +799,7 @@ class LogicAnalyzer:
         ########################################
         # candidate same as prior
         if candidateRule[1] == priorRule[1]:
-          print2("%sCandidateRule==PriorRule; just updating prior" % (tab))
+          tPrint(3, "%sCandidateRule==PriorRule; just updating prior" % (tab))
           ruleList[len(ruleList)-1][0] = problemIndex # NO_UPDATE
           if globalParameters["PrintLevel"] == 1:
             stdout.write(" ")
@@ -807,7 +808,7 @@ class LogicAnalyzer:
         ########################################
         # compare candidate vs prior
         else:
-          print2("%sCandidateRule!=PriorRule; appending rule assuming its better" % (tab))
+          tPrint(3, "%sCandidateRule!=PriorRule; appending rule assuming its better" % (tab))
 
           """
           priorRuleScore = self.scoreRangeForLogic(nextIndexRange, \
@@ -828,7 +829,7 @@ class LogicAnalyzer:
               * sum(logicComplexity)
           candidateRuleScore += self.parameters["BranchPenalty"] # penalize
           candidateFaster = candidateRuleScore < priorRuleScore
-          print2("%sP[%2u]: %s %s~%.0fus < %s~%.0fus" % (tab, problemIndex, \
+          tPrint(3, "%sP[%2u]: %s %s~%.0fus < %s~%.0fus" % (tab, problemIndex, \
               "wins" if candidateFaster else "same", \
               candidateRule, candidateRuleScore, priorRuleForSize, \
               priorRuleScore ))
@@ -839,19 +840,19 @@ class LogicAnalyzer:
           #print candidateRuleScore, priorRuleScore
           if True: # or candidateRuleScore < priorRuleScore:
             ruleList.append(candidateRule)
-            print2("%sAppending b/c Different" % tab)
+            tPrint(3, "%sAppending b/c Different" % tab)
             if globalParameters["PrintLevel"] == 1:
               stdout.write("#")
 
           ########################################
           # prior wins
           else:
-            print2("%sPrior Rule Wins" % tab)
+            tPrint(3, "%sPrior Rule Wins" % tab)
             if globalParameters["PrintLevel"] == 1:
               stdout.write(".")
             ruleList[len(ruleList)-1][0] = problemIndex # NO_UPDATE
 
-    print2("%sReturning RuleList: %s" % (tab, ruleList))
+    tPrint(3, "%sReturning RuleList: %s" % (tab, ruleList))
     return ruleList
 
 
@@ -1034,7 +1035,7 @@ class LogicAnalyzer:
 
     # print data before sorting
     for i in range(0, self.numSolutions):
-      print2("[%2u] %s: %e saved, %u wins, %u time, %s" \
+      tPrint(3, "[%2u] %s: %e saved, %u wins, %u time, %s" \
           % (solutionImportance[i][0], \
           self.solutionNames[solutionImportance[i][0]], \
           solutionImportance[i][1], \
@@ -1399,8 +1400,8 @@ class LogicAnalyzer:
 
 
 def generateLogic(config, benchmarkDataPath, libraryLogicPath):
-  print2("# LibraryLogic config: %s" % config)
-  print2("# DefaultAnalysisParameters: " % defaultAnalysisParameters)
+  tPrint(3, "# LibraryLogic config: %s" % config)
+  tPrint(3, "# DefaultAnalysisParameters: " % defaultAnalysisParameters)
 
   setWorkingPath(libraryLogicPath)
 
@@ -1410,15 +1411,15 @@ def generateLogic(config, benchmarkDataPath, libraryLogicPath):
     assignParameterWithDefault(analysisParameters, parameter, config, \
         defaultAnalysisParameters)
 
-  print1("")
-  print1(HR)
+  tPrint(1, "")
+  tPrint(1, HR)
   currentTime = time.time()
   elapsedTime = currentTime - startTime
-  print1("# Analysing data in %s - %.3fs" % (globalParameters["BenchmarkDataPath"], elapsedTime) )
+  tPrint(1, "# Analysing data in %s - %.3fs" % (globalParameters["BenchmarkDataPath"], elapsedTime) )
   for parameter in analysisParameters:
-    print2("#   %s: %s" % (parameter, analysisParameters[parameter]))
-  print1(HR)
-  print1("")
+    tPrint(3, "#   %s: %s" % (parameter, analysisParameters[parameter]))
+  tPrint(1, HR)
+  tPrint(1, "")
 
   ##############################################################################
   # Determine Which Problem Types
@@ -1455,7 +1456,7 @@ def generateLogic(config, benchmarkDataPath, libraryLogicPath):
     filename = os.path.join(globalParameters["WorkingPath"], \
         "{}_{}".format(analysisParameters["ScheduleName"], str(problemType) + ".yaml"))
 
-    print2("# writing library logic YAML {}".format(filename))
+    tPrint(3, "# writing library logic YAML {}".format(filename))
     dictFormat = globalParameters["DictLibraryLogic"]
     data = LibraryIO.createLibraryLogic(analysisParameters["ScheduleName"], \
         analysisParameters["ArchitectureName"], analysisParameters["DeviceNames"], logicTuple, dictFormat)
@@ -1464,7 +1465,7 @@ def generateLogic(config, benchmarkDataPath, libraryLogicPath):
 
   currentTime = time.time()
   elapsedTime = currentTime - startTime
-  print1("%s\n# Finish Analysing data to %s in %.3fs\n%s" % (HR, os.path.split(libraryLogicPath)[0], elapsedTime, HR) )
+  tPrint(1, "%s\n# Finish Analysing data to %s in %.3fs\n%s" % (HR, os.path.split(libraryLogicPath)[0], elapsedTime, HR) )
   popWorkingPath()
 
 

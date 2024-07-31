@@ -47,25 +47,17 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
 
     def command = """#!/usr/bin/env bash
             set -ex
-
             hostname
-
             cd ${project.paths.project_build_prefix}
 
-            gpuArch=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
-
-            #### temporary fix to remedy incorrect home directory
             export HOME=/home/jenkins
-            ####
+
             tox --version
-            tox -v --workdir /tmp/.tensile-tox -e lint
+            tox run -v --workdir /tmp/.tensile-tox -e lint
+            tox run -v -e format -- --check
+            tox run -v -e isort -- --check
 
-            mkdir build
-            pushd build
-
-            popd
-
-            doxygen docs/Doxyfile
+            doxygen docs/doxygen/Doxyfile
             """
 
     try

@@ -33,6 +33,7 @@ import glob
 from shutil import copyfile
 from copy import deepcopy
 
+from .Utilities.ConditionalImports import yamlLoader
 from . import LibraryIO
 
 from . import ClientWriter
@@ -61,8 +62,8 @@ def createLibraryForBenchmark(logicPath, libraryPath, currentPath):
 
     pythonExePath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "bin", "TensileCreateLibrary")
     args = [pythonExePath, \
-        "--merge-files", "--new-client-only", "--no-short-file-names", "--no-library-print-debug", \
-        "--architecture=all", "--cxx-compiler=hipcc", "--library-format=yaml", \
+        "--merge-files", "--new-client-only", "--no-short-file-names", \
+        "--architecture=all", "--cxx-compiler="+globalParameters["CxxCompiler"], "--library-format=yaml", \
         logicPath, libraryPath, "HIP"]
 
     try:
@@ -140,7 +141,7 @@ def GenerateSummations(userArgs):
         tensileLibraryFile = os.path.join(libPath, "library", "TensileLibrary.yaml")
 
         stream = open(tensileLibraryFile, "r")
-        tensileLibrary = yaml.load(stream, yaml.SafeLoader)
+        tensileLibrary = yaml.load(stream, yamlLoader)
         stream.close()
 
         libSolutions = tensileLibrary["solutions"]

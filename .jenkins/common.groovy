@@ -23,170 +23,110 @@
  *******************************************************************************/
 
 // This file is for internal AMD use.
-// If you are interested in running your own Jenkins, please raise a github issue for assistance.
+// If you are interested in running your own Jenkins,
+// please raise a github issue for assistance.
 
 def runCompileCommand(platform, project, jobName, boolean debug=false)
 {
     project.paths.construct_build_prefix()
 
-    String compiler = 'hipcc'
-    String pythonVersion = 'py3'
+    String compiler = '/opt/rocm/bin/amdclang++'
     // Do release build of HostLibraryTests on CI until it is upgraded to rocm 5.3 to
     // avoid bug causing long build times of certain files.
     String buildType = 'Release' // debug ? 'Debug' : 'RelWithDebInfo'
-    String parallelJobs = "export HIPCC_COMPILE_FLAGS_APPEND='-O3 -Wno-format-nonliteral -parallel-jobs=4'"
     
     int systemCPUs = sh(script: 'nproc', returnStdout: true ).trim().toInteger()
-    //int systemRAM = sh(script: 'free -g | grep -P "[[:digit:]]+" -m 1 -o | head -n 1', returnStdout: true ).trim().toInteger()
     long containerRAMbytes = sh(script: 'if [ -f /sys/fs/cgroup/memory.max ]; then cat /sys/fs/cgroup/memory.max; else cat /sys/fs/cgroup/memory/memory.limit_in_bytes; fi', returnStdout: true ).trim().toLong()
     int containerRAM = containerRAMbytes / (1024 * 1024)
-    //int maxThreads = Math.min(Math.min(systemCPUs, systemRAM / 10), 64)
     int maxThreads = containerRAM / 8
-    if (maxThreads > systemCPUs)
-        maxThreads = systemCPUs
-    if (maxThreads > 64)
-        maxThreads = 64
-    if (maxThreads < 1)
-        maxThreads = 1
+    if (maxThreads > systemCPUs) maxThreads = systemCPUs
+    if (maxThreads > 64) maxThreads = 64
+    if (maxThreads < 1) maxThreads = 1
     
     String buildThreads = maxThreads.toString() // if hipcc is used may be multiplied by parallel-jobs
 
-    def test_dir =  "Tensile/Tests"
-    def test_marks = "unit"
+    String sclCommand = ""
+    if (platform.os.contains("rhel"))
+    {
+        sclCommand = "source scl_source enable gcc-toolset-12"
+    }
 
     def command = """#!/usr/bin/env bash
             set -ex
-
             hostname
-
             cd ${project.paths.project_build_prefix}
-            ${parallelJobs}
-
-            gpuArch=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
-
-            #### temporary fix to remedy incorrect home directory
-            export HOME=/home/jenkins
-            ####
-            tox --version
-            export TENSILE_COMPILER=${compiler}
-            tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --timing-file=\$(pwd)/timing-\$gpuArch.csv
-
-            mkdir build
-            pushd build
 
             export PATH=/opt/rocm/bin:\$PATH
-            cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DTensile_CPU_THREADS=${buildThreads} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
-            NPROC_BUILD=16
-            if [ `nproc` -lt 16 ]
-            then
-              NPROC_BUILD=`nproc`
-            fi
-            make -j\$NPROC_BUILD
+            export HOME=/home/jenkins
+            export TENSILE_COMPILER=${compiler}
+            export HIPCC_COMPILE_FLAGS_APPEND='-O3 -Wno-format-nonliteral -parallel-jobs=4'
+            ${sclCommand}           
+
+            mkdir build && pushd build
+
+            cmake ../HostLibraryTests \
+                -DCMAKE_BUILD_TYPE=${buildType} \
+                -DCMAKE_CXX_COMPILER=${compiler} \
+                -DCMAKE_CXX_FLAGS="-D__HIP_HCC_COMPAT_MODE__=1" \
+                -DTensile_CPU_THREADS=${buildThreads} \
+                -DTensile_ROOT=`pwd`/../Tensile
+            
+            make -j\$((`nproc`<16 ? `nproc` : 16))
 
             popd
             """
 
-    try
-    {
-        platform.runCommand(this, command)
-    }
-    catch(e)
-    {
-        try
-        {
-            junit "${project.paths.project_build_prefix}/python_unit_tests.xml"
-        }
-        catch(ee)
-        {}
-
-        throw e
-    }
-
-    junit "${project.paths.project_build_prefix}/python_unit_tests.xml"
+    platform.runCommand(this, command)
 }
 
-def publishResults(project, boolean skipHostTest=false)
-{
-    try
-    {
-        archiveArtifacts "${project.paths.project_build_prefix}/timing*.csv"
-    }
-    finally
-    {
-        try
-        {
-            if (!skipHostTest) junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
-        }
-        finally
-        {
-            junit "${project.paths.project_build_prefix}/python_tests.xml"
-        }
-    }
-}
 
-def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest=false)
+def runTestCommand(platform, project, jobName, testMark, boolean runHostTest=true, boolean runUnitTest=true)
 {
-    def test_dir =  "Tensile/Tests"
-
-    String compiler = 'hipcc'
-    String pythonVersion = 'py3'
-    String markSkipHostTest = skipHostTest ? "#" : ""
-    String markSkipExtendedTest = !test_marks.contains("extended") ? "\"--gtest_filter=-*Extended*:*Ocl*\"" : "\"--gtest_filter=-*Ocl*\""
+    String compiler = '/opt/rocm/bin/amdclang++'
+    String markSkipExtendedTest = !testMark.contains("extended") ? "\"--gtest_filter=-*Extended*:*Ocl*\"" : "\"--gtest_filter=-*Ocl*\""
 
     def command = """#!/usr/bin/env bash
+            check_err() {
+              local ERR=\$?
+              if [ \$ERR -ne 0 ]; then
+                exit \$ERR
+              fi
+            }
+
             set -x
-
             hostname
-
-            export PATH=/opt/rocm/bin:\$PATH
+            date
             cd ${project.paths.project_build_prefix}
 
-            gpuArch=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
-
-            ${markSkipHostTest}pushd build
-            ${markSkipHostTest}./TensileTests ${markSkipExtendedTest} --gtest_output=xml:host_test_output.xml --gtest_color=yes
-            ${markSkipHostTest}HOST_ERR=\$?
-            ${markSkipHostTest}popd
-
-            #### temporary fix to remedy incorrect home directory
             export HOME=/home/jenkins
-            ####
-            tox --version
+            export PATH=/opt/rocm/bin:\$PATH
             export TENSILE_COMPILER=${compiler}
-            tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --timing-file=\$(pwd)/timing-\$gpuArch.csv
-            PY_ERR=\$?
-            date
+            export GPU_ARCH=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
+            export TIMING_FILE=`pwd`/timing-\$GPU_ARCH.csv
 
-            ${markSkipHostTest}if [[ \$HOST_ERR -ne 0 ]]
-            ${markSkipHostTest}then
-            ${markSkipHostTest}    exit \$HOST_ERR
-            ${markSkipHostTest}fi
+            if ${runUnitTest}; then 
+              tox run -e unittest -- --cov-report=xml:cobertura.xml
+              check_err
+            fi
 
-            if [[ \$PY_ERR -ne 0 ]]
-            then
-                exit \$PY_ERR
+            tox --version
+            tox run -e ci -- -m ${testMark} --timing-file=\$TIMING_FILE
+            check_err
+
+            if ${runHostTest}; then
+              pushd build
+              ./TensileTests ${markSkipExtendedTest} --gtest_color=yes
+              check_err
+              popd
             fi
         """
+    platform.runCommand(this, command)
 
-    // This awkward sequence prevents an exception in runCommand() from being
-    // eaten by an exception in publishResults(), while allowing partial results
-    // to still be published.
-    try
-    {
-        platform.runCommand(this, command)
-    }
-    catch(e)
-    {
-        try
-        {
-            publishResults(project, skipHostTest)
-        }
-        catch(ee)
-        {}
+    archiveArtifacts "${project.paths.project_build_prefix}/timing*.csv"
 
-        throw e
+    if (runUnitTest) {
+        recordCoverage(tools: [[parser: 'COBERTURA', pattern: "${project.paths.project_build_prefix}/cobertura.xml"]])
     }
-    publishResults(project, skipHostTest)
 }
 
 return this

@@ -24,20 +24,46 @@
 
 from . import __version__
 from . import Parallel
+from .Utilities.ConditionalImports import print, TENSILE_TERM_COLORS
 from collections import OrderedDict
+
 from copy import deepcopy
 from .AsmCaps import CACHED_ASM_CAPS
-
+from typing import Any, NamedTuple, Optional, Tuple, Dict
 
 import math
 import os.path
 import subprocess
 import sys
 import time
+import warnings
 
 startTime = time.time()
 
 ParallelMap = Parallel.ParallelMap
+
+IsaVersion = Tuple[int, int, int]
+
+class CompilerVersion(NamedTuple):
+    major: int
+    minor: int
+
+    def __str__(self) -> str:
+        return f"{self.major}.{self.minor}"
+
+class DeveloperWarning(Warning):
+    """Custom warning for Tensile developers.
+
+    This warning can be safely ignored when running any Tensile applications as a user.
+    """
+
+def showwarning(message, category, filename, lineno, file=None, line=None):
+    msg = f"{category.__name__}: {message}"
+    if TENSILE_TERM_COLORS:
+        msg = f"[yellow]{msg}[/yellow]"
+    print(msg)
+
+warnings.showwarning = showwarning
 
 # print level
 # 0 - user wants no printing
@@ -55,7 +81,7 @@ workingDirectoryStack = []
 ########################################
 globalParameters["MinimumRequiredVersion"] = "0.0.0" # which version of tensile is required to handle all the features required by this configuration file
 globalParameters["PerformanceMetric"] = "DeviceEfficiency" # performance metric for benchmarking; one of {DeviceEfficiency, CUEfficiency}
-globalParameters["PrintLevel"] = 1                # how much info to print in generator. 0=none, 1=standard, 2=verbose
+globalParameters["PrintLevel"] = 1                # how much info to print in generator. 0=none, 1=standard, 2=add code commands, 3=verbose
 globalParameters["ClientLogLevel"] = 3            # the log level of client. 0=Error, 1=Terse, 2=Verbose, 3=Debug (Aligned with ResultReporter.hpp)
 # benchmarking
 globalParameters["KernelTime"] = False            # T=use device timers, F=use host timers
@@ -205,7 +231,6 @@ globalParameters["PrintTensorD"] = 0          # Print TensorD.  0x1=after init; 
 globalParameters["PrintTensorRef"] = 0          # Print reference tensor.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintIndexAssignments"] = 0      # Print the tensor index assignment info
 globalParameters["PrintWinnersOnly"] = False      # Only print the solutions which become the fastest
-globalParameters["PrintCodeCommands"] = False  # print the commands used to generate the code objects (asm,link,hip-clang, etc)
 globalParameters["DumpTensors"] = False        # If True, dump tensors to binary files instead of printing them.
 
 # If PrintMax* is greater than the dimension, the middle elements will be replaced with "..."
@@ -228,10 +253,12 @@ globalParameters["SupportedISA"] = [(8,0,3),
                                     (9,0,0), (9,0,6), (9,0,8), (9,0,10),
                                     (9,4,0), (9,4,1), (9,4,2),
                                     (10,1,0), (10,1,1), (10,1,2), (10,3,0), (10,3,1),
-                                    (11,0,0), (11,0,1), (11,0,2)] # assembly kernels writer supports these architectures
+                                    (11,0,0), (11,0,1), (11,0,2),
+                                    (12,0,0), (12,0,1)] # assembly kernels writer supports these architectures
 
 globalParameters["CleanupBuildFiles"] = False                     # cleanup build files (e.g. kernel assembly) once no longer needed
 globalParameters["GenerateManifestAndExit"] = False               # Output manifest file with list of expected library objects and exit
+globalParameters["VerifyManifest"] = False                        # Verify manifest file against generated library files and exit.
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
@@ -246,7 +273,7 @@ globalParameters["DictLibraryLogic"] = False
 globalParameters["CurrentISA"] = (0,0,0)
 globalParameters["ROCmAgentEnumeratorPath"] = None      # /opt/rocm/bin/rocm_agent_enumerator
 globalParameters["ROCmSMIPath"] = None                  # /opt/rocm/bin/rocm-smi
-globalParameters["AssemblerPath"] = None                # /opt/rocm/hip/bin/hipcc
+globalParameters["AssemblerPath"] = None                # /opt/rocm/llvm/bin/clang++
 globalParameters["WorkingPath"] = os.getcwd()           # path where tensile called from
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
@@ -260,12 +287,12 @@ else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
 globalParameters["CodeObjectVersion"] = "default"
-globalParameters["CxxCompiler"] = "hipcc"
+globalParameters["CxxCompiler"] = "amdclang++" if os.name != "nt" else "clang++"
+globalParameters["CCompiler"] = "amdclang" if os.name != "nt" else "clang"
 globalParameters["Architecture"] = "all"
 
 # might be deprecated
 globalParameters["ClientArgs"] = ""
-globalParameters["PackageLibrary"] = False
 
 # perf model
 globalParameters["PerfModelL2ReadHits"] = 0.0
@@ -306,10 +333,21 @@ architectureMap = {
   'gfx942':'aquavanjaram942', 'gfx942:xnack+':'aquavanjaram942', 'gfx942:xnack-':'aquavanjaram942',
   'gfx1010':'navi10', 'gfx1011':'navi12', 'gfx1012':'navi14',
   'gfx1030':'navi21', 'gfx1031':'navi22', 'gfx1032':'navi23', 'gfx1034':'navi24', 'gfx1035':'rembrandt',
-  'gfx1100':'navi31', 'gfx1101':'navi32', 'gfx1102':'navi33'
+  'gfx1100':'navi31', 'gfx1101':'navi32', 'gfx1102':'navi33',
+  'gfx1200':'gfx1200',
+  'gfx1201':'gfx1201'
 }
 
-def getArchitectureName(gfxName):
+def getArchitectureName(gfxName: str) -> Optional[str]:
+  """Maps the provided Gfx architecture to its common name using the **architectureMap**.
+
+  Args:
+      gfxName: Gfx architecture name to map.
+
+  Returns:
+      Common name associated with the provided **gfxName** if it matches or is a substring
+      of a key in **architectureMap**, otherwise None.
+  """
   if gfxName in architectureMap:
     return architectureMap[gfxName]
   else:
@@ -317,6 +355,25 @@ def getArchitectureName(gfxName):
       if gfxName in archKey:
         return architectureMap[archKey]
     return None
+
+def supportedCompiler(compiler: str) -> bool:
+  """ Determines if compiler is supported by Tensile.
+
+      Args:
+          The name of a compiler to test for support.
+      
+      Return:
+          If supported True; otherwise, False.
+  """
+  isSupported = (compiler == "hipcc")
+  if os.name == "nt": 
+    isSupported = (isSupported or compiler == "clang++")
+  else:
+    isSupported = (isSupported or compiler == "amdclang++")
+  
+  if not isSupported: printWarning(f"{compiler} is unsupported for os {os.name}")
+  
+  return isSupported
 
 ################################################################################
 # Enumerate Valid Solution Parameters
@@ -357,7 +414,7 @@ validMFMA["B1k"] = validMFMA["H"]
 validMFMA["C"] = validMFMA["S"]
 validMFMA["Z"] = validMFMA["D"]
 validMFMA["X"] = [[32,32,4,1], [16,16,8,1]]
-validMFMA["F8"] = [[32,32,16,1], [16,16,32,1]]      
+validMFMA["F8"] = [[32,32,16,1], [16,16,32,1]]
 validMFMA["B8"] = validMFMA["F8"]
 validMFMA["F8B8"] = validMFMA["F8"]
 validMFMA["B8F8"] = validMFMA["F8"]
@@ -1116,29 +1173,55 @@ validParameters = {
     # fp16 alternate implementation round mode: false for truncate, true for round near zero
     "Fp16AltImplRound": [False, True],
 
-    # StreamK kernels divide work evenly among CUs by splitting along MT and K dimensions
-    # Total work units are calculated as (#MTs x #LoopIters) and divided among workgroups
+    # StreamK (SK) kernels divide work evenly among CUs by splitting along MT and K dimensions.
+    # Total work units are calculated as (#MTs x #LoopIters) and divided among workgroups.
     # In most cases each workgroup will calculate a partial tile that are accumulated in a fixup step in the same kernel
-    # 0: Standard data-parallel kernel
-    # 1: Basic StreamK atomic (uses atomics to accumulate partial tiles)
-    # 2: Basic StreamK non-atomic (uses workspace to store partial tiles, accumulate in deterministic fix-up step)
-    # 3: Two-Tile StreamK (non-atomic, each WG completes an even number of sk iterations, followed by an even number of dp tiles)
+    # 0 : Standard data-parallel kernel
+    # 1 : Basic StreamK
+    # 2 : Two-Tile StreamK (each WG completes an even number of sk iterations, followed by an even number of dp tiles)
+    # 3 : Two-Tile StreamK with DP before SK tiles
     # StreamK kernels can adjust the number of CUs being used.
     # Using fewer sometimes increases overall throughput by allowing other kernels to run in parallel.
     # StreamK grid is controlled by setting these enviornment variables:
-    # TENSILE_STREAMK_DYNAMIC_GRID enables dynamic grid mode, which automatically limits the number of CUs used for small
-    #   problems to a subset based on the number of output tiles.
-    #   0 = off (default)
-    #   1 = on
-    #   2 = also reduce CUs used for large sizes to improve data-parallel portion and reduce power
-    # TENSILE_STREAMK_MAX_CUS allows the user to manually set maximum number of CUs used, which could free up some CUs for
-    #   other operations to run in parallel with gemm.
-    #   0 = use all CUs (default)
-    # TENSILE_STREAMK_GRID_MULTIPLIER lets you set how many workgroups are created per CU being used.
-    #   1 = 1 WG per CU (default)
     # TENSILE_STREAMK_FIXED_GRID lets you override the default grid size with a specific number
     #   0 = override disabled (default)
+    # TENSILE_STREAMK_FULL_TILES sets the number of full tiles to be included in stream-k work
+    #   -1 = use prediction model for best performance (default)
+    #   0 = only remainder tiles run in stream-k
+    #   1+ = remainder + 1 (or more) full grids of tiles run in stream-k
+    # TENSILE_STREAMK_DYNAMIC_GRID enables dynamic grid mode, which automatically limits the number of CUs used:
+    #   0 = Off, use all CUs (default)
+    #   1 = Only reduce CUs for small problems to number of output tiles when num_tiles < CU count.
+    #   2 = Also reduce CUs used for large sizes to improve data-parallel portion and reduce power.
+    #   3 = Analytically predict the best grid-size by weighing the cost of the fix-up step and the cost of processing MACs.
+    # TENSILE_STREAMK_MAX_CUS allows the user to manually set maximum number of CUs used, which could free up some CUs for
+    #   other operations to run in parallel with gemm.
+    # TENSILE_STREAMK_GRID_MULTIPLIER lets you set how many workgroups are created per CU being used.
+    #   1 = 1 WG per CU (default), for example. 2 will launch WGs = 2 x CU count.
+    # The priority of these environment variables is defined as follows:
+    # TENSILE_STREAMK_FIXED_GRID > TENSILE_STREAMK_DYNAMIC_GRID > TENSILE_STREAMK_MAX_CUS > TENSILE_STREAMK_GRID_MULTIPLIER
     "StreamK": [0, 1, 2, 3],
+    
+    # Determines if StreamK kernel uses atomics
+    # 0: uses workspace to store partial tiles, accumulate in deterministic fix-up step
+    # 1: uses atomics to accumulate partial tiles
+    "StreamKAtomic": [0, 1],
+
+    # Enables XCC-based remapping of workgroups, set the value to the number of XCCs
+    # for the device/configuration being used
+    # 0: uses default workgroup assignment
+    # 2+: remaps workgroups to be contiguous within an XCC for a given number of XCCs
+    "StreamKXCCMapping": [0] + list(range(2, 9)),
+
+    # Debug settings for stream-k kernels to disable parts of the kernel
+    #   Bit 0: Don't generate fixup code
+    #   Bit 1: Don't generate write to partials code
+    # Both parts can be disabled together
+    #   0 = Debug mode off, generate full kernel
+    #   1 = No fixup
+    #   2 = No partials
+    #   3 = Nofixup and no partials
+    "DebugStreamK": [0, 1, 2, 3],
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
@@ -1540,6 +1623,9 @@ defaultBenchmarkCommonParameters = [
     {"MacroTileShapeMin":         [ 1 ] },
     {"MacroTileShapeMax":         [ 64 ] },
     {"StreamK":                   [ 0 ] },
+    {"StreamKAtomic":             [ 0 ] },
+    {"StreamKXCCMapping":         [ 0 ] },
+    {"DebugStreamK":              [ 0 ] },
     {"PersistentKernel":          [ 0 ] },
     {"PersistentKernelAlongBatch":[ False ] },    # May be default True is better ?
     {"PackBatchDims":             [ 0 ] },
@@ -1899,20 +1985,28 @@ def getParamValues( name, structure ):
 ################################################################################
 # Print Debug
 ################################################################################
-def print1(message):
-  if globalParameters["PrintLevel"] >= 1:
-    print(message)
-    sys.stdout.flush()
-def print2(message):
-  if globalParameters["PrintLevel"] >= 2:
-    print(message)
-    sys.stdout.flush()
+def tPrint(verbosity: int, arg) -> None:
+    """Conditionally prints input to stdout.
 
-def printWarning(message):
-  print("Tensile::WARNING: %s" % message)
+    If the global print level is greater than or equal to the verbosity,
+    the argument is printed to stdout.
+
+    Args:
+        verbosity: Level to use for printing arg.
+        arg: Item to print to stdout.
+    """
+    if globalParameters["PrintLevel"] >= verbosity:
+        print(arg)
+        sys.stdout.flush()
+
+def printWarning(message: str, category=UserWarning):
+  warnings.warn(message, category)
   sys.stdout.flush()
+
 def printExit(message):
-  print("Tensile::FATAL: %s" % message)
+  if TENSILE_TERM_COLORS:
+        message = f"[bold red]{message}[/bold red]"
+  print(message)
   sys.stdout.flush()
   sys.exit(-1)
 
@@ -1934,7 +2028,7 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
       return exePath
   return None
 
-def GetAsmCaps(isaVersion):
+def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion) -> Dict[IsaVersion, dict]:
   """ Determine assembler capabilities by testing short instructions sequences """
   if globalParameters["AssemblerPath"] is not None:
 
@@ -1954,7 +2048,7 @@ def GetAsmCaps(isaVersion):
     derivedAsmCaps["HasLshlOr"]             = tryAssembler(isaVersion, "v_lshl_or_b32 v47, v36, 0x2, v34")
     derivedAsmCaps["HasSMulHi"]             = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
 
-    derivedAsmCaps["HasWMMA"]               = tryAssembler(isaVersion, "v_wmma_f32_16x16x16_f16 v[0:7], v[8:15], v[16:23], v[0:7]")
+    derivedAsmCaps["HasWMMA"]               = tryAssembler(isaVersion, "v_wmma_f32_16x16x16_f16 v[0:3], v[8:15], v[16:23], v[0:3]")
     derivedAsmCaps["HasMFMA"]               = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]") \
                                            or tryAssembler(isaVersion, "v_mfma_f32_32x32x1_2b_f32 a[0:31], v0, v1, a[0:31]")
     derivedAsmCaps["HasMFMA_constSrc"]      = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, 0") \
@@ -2031,22 +2125,20 @@ def GetAsmCaps(isaVersion):
     ignoreCacheCheck = globalParameters["IgnoreAsmCapCache"]
 
     # disable cache checking for < rocm 5.3
-    compilerVer = globalParameters['HipClangVersion'].split(".")[:2]
-    compilerVer = [int(c) for c in compilerVer]
-    if len(compilerVer) >= 2:
+    if len(compilerVersion) >= 2:
       ignoreCacheCheck = ignoreCacheCheck or \
-                         compilerVer[0] < 5 or \
-                         (compilerVer[0] == 5 and compilerVer[1] <= 2) 
-      
+                         compilerVersion.major < 5 or \
+                         (compilerVersion.major == 5 and compilerVersion.minor <= 2) 
+
     if not derivedAsmCaps["SupportedISA"] and CACHED_ASM_CAPS[isaVersion]["SupportedISA"]:
-      printWarning("Architecture {} not supported by ROCm {}".format(isaVersion, globalParameters['HipClangVersion']))
+      printWarning("Architecture {} not supported by ROCm {}".format(isaVersion, globalParameters['HipClangVersion']), DeveloperWarning)
       ignoreCacheCheck = True
 
     # check if derived caps matches asm cap cache
     if not ignoreCacheCheck:
       exitFlag = False
       # rocm<=6.0, ignore KernargPreloading
-      if compilerVer[0] <= 5 or (compilerVer[0] == 6 and compilerVer[1] == 0):
+      if compilerVersion.major <= 5 or (compilerVersion.major == 6 and compilerVersion.minor == 0):
         derivedAsmCapsCopy = deepcopy(derivedAsmCaps)
         # copy KernargPreloading from CACHED_ASM_CAPS (to ignore this)
         derivedAsmCapsCopy["KernargPreloading"] = CACHED_ASM_CAPS[isaVersion]["KernargPreloading"]
@@ -2070,12 +2162,12 @@ def GetArchCaps(isaVersion):
   rv["Waitcnt0Disabled"]   = (isaVersion==(9,0,8) or isaVersion==(9,0,10) or \
                               isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
   rv["SeparateVscnt"]      = isaVersion[0] in (10, 11)
-  rv["CMPXWritesSGPR"]     = isaVersion[0] not in (10, 11)
-  rv["HasWave32"]          = isaVersion[0] in (10, 11)
+  rv["CMPXWritesSGPR"]     = isaVersion[0] not in (10, 11, 12)
+  rv["HasWave32"]          = isaVersion[0] in (10, 11, 12)
   rv["HasAccCD"]           = (isaVersion==(9,0,10) or isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
   rv["ArchAccUnifiedRegs"] = (isaVersion==(9,0,10) or isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
-  rv["VgprBank"]           = isaVersion[0] in (10, 11)
-  rv["InstRename"]         = isaVersion[0]==11
+  rv["VgprBank"]           = isaVersion[0] in (10, 11, 12)
+  rv["InstRename"]         = isaVersion[0]>=11
   rv["CrosslaneWait"]      = (isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
   rv["ForceStoreSC1"]      = (isaVersion==(9,4,0) or isaVersion==(9,4,1))
 
@@ -2087,7 +2179,7 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
   Success is defined as assembler returning no error code or stderr/stdout
   """
   options = list(options)
-  if globalParameters["PrintLevel"] >= 2:
+  if globalParameters["PrintLevel"] >= 3:
     debug = True
 
   if isaVersion[0] >= 10:
@@ -2157,14 +2249,14 @@ def detectGlobalCurrentISA():
       arch = gfxArch(line.strip())
       if arch is not None:
         if arch in globalParameters["SupportedISA"]:
-          print1("# Detected local GPU with ISA: " + gfxName(arch))
+          tPrint(1, "# Detected local GPU with ISA: " + gfxName(arch))
           globalParameters["CurrentISA"] = arch
     else:
       for line in process.stdout.decode().split("\n"):
         arch = gfxArch(line.strip())
         if arch is not None:
           if arch in globalParameters["SupportedISA"]:
-            print1("# Detected local GPU with ISA: " + gfxName(arch))
+            tPrint(1, "# Detected local GPU with ISA: " + gfxName(arch))
             globalParameters["CurrentISA"] = arch
     if (process.returncode):
       printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
@@ -2214,16 +2306,60 @@ def printCapTable(parameters):
   printTable([headerRow] + asmCapRows + archCapRows)
 
 def which(p):
-    exes = [p+x for x in ['', '.exe', '.bat']]
-    system_path = os.environ['PATH'].split(os.pathsep)
-    if p == 'hipcc' and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
+    if supportedCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
         return os.environ['CMAKE_CXX_COMPILER']
+    if os.name == "nt":
+        exes = [p+x for x in ['.exe', '', '.bat']]  # bat may be front end for file with no extension
+    else:
+        exes = [p+x for x in ['', '.exe', '.bat']]
+    system_path = os.environ['PATH'].split(os.pathsep)
     for dirname in system_path+[globalParameters["ROCmBinPath"]]:
         for exe in exes:
             candidate = os.path.join(os.path.expanduser(dirname), exe)
             if os.path.isfile(candidate):
                 return candidate
     return None
+
+
+def populateCapabilities(
+    globalParameters: Dict[str, Any], cachedAsmCaps: Dict[IsaVersion, dict]
+):
+    """Populates the assembler and archiecture capabilities based on the compiler and ISA.
+
+    This function updates the **globalParameters** and **cachedAsmCaps** dictionaries with
+    the assembler and architecture capabilities for each supported ISA version. It checks
+    the compatibility of each ISA version with the current ROCm stack version and skips any
+    unsupported ISA versions, issuing a warning for each skipped version.
+
+    Args:
+        globalParameters: A dictionary containing global parameters of the
+            application, including the HipClang version and supported ISA versions.
+        cachedAsmCaps: A dictionary to be populated with the assembler
+            capabilities for each ISA version.
+
+    Note:
+        This function modifies `globalParameters` and `cachedAsmCaps` in place.
+    """
+    compilerVer = CompilerVersion(
+        *[int(c) for c in globalParameters["HipClangVersion"].split(".")[:2]]
+    )
+    supportedISA = globalParameters["SupportedISA"]
+    to_remove = []
+
+    for v in supportedISA + [(0, 0, 0)]:
+        if v[0] == 12 and not (
+            compilerVer.major > 6 or (compilerVer.major == 6 and compilerVer.minor >= 3)
+        ):
+            printWarning(f"ISA {v} isn't supported for ROCm stack {compilerVer}, skipping...")
+            to_remove.append(v)
+            continue
+        globalParameters["AsmCaps"][v] = GetAsmCaps(v, compilerVer)
+        globalParameters["ArchCaps"][v] = GetArchCaps(v)
+
+    # Efficiently remove unsupported ISA versions after iterating
+    for v in to_remove:
+        cachedAsmCaps.pop(v, None)  # Safely attempt to remove v from cachedAsmCaps
+        supportedISA.remove(v)
 
 ################################################################################
 ################################################################################
@@ -2243,17 +2379,17 @@ def assignGlobalParameters( config ):
           % (config["MinimumRequiredVersion"], __version__) )
 
   # User-specified global parameters
-  print2("GlobalParameters:")
+  tPrint(3, "GlobalParameters:")
   for key in globalParameters:
     defaultValue = globalParameters[key]
     if key in config:
       configValue = config[key]
       if configValue == defaultValue:
-        print2(" %24s: %8s (same)" % (key, configValue))
+        tPrint(3, " %24s: %8s (same)" % (key, configValue))
       else:
-        print2(" %24s: %8s (overridden)" % (key, configValue))
+        tPrint(3, " %24s: %8s (overridden)" % (key, configValue))
     else:
-      print2(" %24s: %8s (unspecified)" % (key, defaultValue))
+      tPrint(3, " %24s: %8s (unspecified)" % (key, defaultValue))
 
   globalParameters["ROCmPath"] = "/opt/rocm"
   if "ROCM_PATH" in os.environ:
@@ -2265,6 +2401,8 @@ def assignGlobalParameters( config ):
   globalParameters["CmakeCxxCompiler"] = None
   if "CMAKE_CXX_COMPILER" in os.environ:
     globalParameters["CmakeCxxCompiler"] = os.environ.get("CMAKE_CXX_COMPILER")
+  if "CMAKE_C_COMPILER" in os.environ:
+    globalParameters["CmakeCCompiler"] = os.environ.get("CMAKE_C_COMPILER")
 
   globalParameters["ROCmBinPath"] = os.path.join(globalParameters["ROCmPath"], "bin")
 
@@ -2276,14 +2414,27 @@ def assignGlobalParameters( config ):
 
   if "CxxCompiler" in config:
     globalParameters["CxxCompiler"] = config["CxxCompiler"]
+    # Pair the CCompiler with CxxCompiler
+    if globalParameters["CxxCompiler"] == "hipcc":
+       globalParameters["CCompiler"] = "hipcc"
+    else:
+        if supportedCompiler(globalParameters["CxxCompiler"]):
+          globalParameters["CCompiler"] = "clang" if os.name == "nt" else "amdclang"
+        else: # unkown c++ compiler so set c compile rto be the same
+          globalParameters["CCompiler"] = globalParameters["CxxCompiler"]
+
+  if "CCompiler" in config:
+    globalParameters["CCompiler"] = config["CCompiler"]    
 
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
-  elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hipcc":
+  elif globalParameters["AssemblerPath"] is None and supportedCompiler(globalParameters["CxxCompiler"]):
     if os.name == "nt":
       globalParameters["AssemblerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang++.exe")
     else:
-      globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang++")
+      bin_path = "llvm/bin" if globalParameters["CxxCompiler"] == "hipcc" else "bin"
+      compiler = "clang++" if globalParameters["CxxCompiler"] == "hipcc" else "amdclang++"
+      globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], bin_path), compiler)
 
   globalParameters["ROCmSMIPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm-smi")
 
@@ -2308,9 +2459,10 @@ def assignGlobalParameters( config ):
     if os.name == "nt":
       globalParameters["CurrentISA"] = (9,0,6)
       printWarning("Failed to detect ISA so forcing (gfx906) on windows")
-  if globalParameters["CurrentISA"] == (9,4,1) or globalParameters["CurrentISA"] == (9,4,2) or globalParameters["CurrentISA"] == (11,0,0) or \
-     globalParameters["CurrentISA"] == (11,0,1) or globalParameters["CurrentISA"] == (11,0,2):
-    printWarning("HardwareMonitor currently disabled for gfx941/942 or gfx1100/gfx1101/gfx1102")
+  isasWithDisabledHWMonitor = ((9,4,1), (9,4,2), (11,0,0), (11,0,1), (11,0,2), (12,0,0), (12,0,1))
+  if globalParameters["CurrentISA"] in isasWithDisabledHWMonitor:
+    isaString = ', '.join(map(gfxName, isasWithDisabledHWMonitor))
+    printWarning(f"HardwareMonitor currently disabled for {isaString}")
     globalParameters["HardwareMonitor"] = False
 
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
@@ -2320,6 +2472,8 @@ def assignGlobalParameters( config ):
   # Due to platform.linux_distribution() being deprecated, just try to run dpkg regardless.
   # The alternative would be to install the `distro` package.
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
+  
+  # The following try except block computes the hipcc version
   try:
     if os.name == "nt":
       compileArgs = ['perl'] + [which('hipcc')] + ['--version']
@@ -2331,7 +2485,7 @@ def assignGlobalParameters( config ):
     for line in output.split('\n'):
       if 'HIP version' in line:
         globalParameters['HipClangVersion'] = line.split()[2]
-        print1("# Found  hipcc version " + globalParameters['HipClangVersion'])
+        tPrint(1, "# Found hipcc version " + globalParameters['HipClangVersion'])
 
   except (subprocess.CalledProcessError, OSError) as e:
       printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))
@@ -2341,21 +2495,18 @@ def assignGlobalParameters( config ):
     
   globalParameters["AsmCaps"] = {}
   globalParameters["ArchCaps"] = {}
+  populateCapabilities(globalParameters, CACHED_ASM_CAPS)
 
-  for v in globalParameters["SupportedISA"] + [(0,0,0)]:
-    globalParameters["AsmCaps"][v] = GetAsmCaps(v)
-    globalParameters["ArchCaps"][v] = GetArchCaps(v)
-
-  if globalParameters["PrintLevel"] >= 1:
+  if globalParameters["PrintLevel"] >= 2:
     printCapTable(globalParameters)
 
-    if globalParameters["AsmCaps"] != CACHED_ASM_CAPS:
-      import pprint
-      print("ASM Caps differ from cache. New caps:")
-      print("####################")
-      print("CACHED_ASM_CAPS = \\\n")
-      pprint.pprint(globalParameters["AsmCaps"])
-      print("####################")
+  if globalParameters["AsmCaps"] != CACHED_ASM_CAPS and globalParameters["PrintLevel"] >= 1:
+    import pprint
+    printWarning("ASM Caps differ from cache. New caps:")
+    print("####################")
+    print("CACHED_ASM_CAPS = \\\n")
+    pprint.pprint(globalParameters["AsmCaps"])
+    print("####################")
 
   globalParameters["SupportedISA"] = list([i for i in globalParameters["SupportedISA"] if globalParameters["AsmCaps"][i]["SupportedISA"]])
 
@@ -2369,7 +2520,7 @@ def assignGlobalParameters( config ):
   for key in config:
     value = config[key]
     if key not in globalParameters:
-      printWarning("Global parameter %s = %s unrecognized." % ( key, value ))
+      printWarning("Global parameter %s = %s unrecognized." % ( key, value ), DeveloperWarning)
     globalParameters[key] = value
 
 def setupRestoreClocks():
@@ -2473,45 +2624,6 @@ def ClientExecutionLock():
 def listToInitializer(l):
   return "{" + ','.join(map(str, l)) + "}"
 
-################################################################################
-# Progress Bar Printing
-# prints "||||" up to width
-################################################################################
-class ProgressBar:
-  def __init__(self, maxValue, width=80):
-    self.char = '|'
-    self.maxValue = maxValue
-    self.width = width
-    self.maxTicks = self.width - 7
-
-
-    self.priorValue = 0
-    self.fraction = 0
-    self.numTicks = 0
-    self.createTime = time.time()
-
-  def increment(self, value=1):
-    self.update(self.priorValue+value)
-
-  def update(self, value):
-    currentFraction = 1.0 * value / self.maxValue
-    currentNumTicks = int(currentFraction * self.maxTicks)
-    if currentNumTicks > self.numTicks:
-      self.numTicks = currentNumTicks
-      self.fraction = currentFraction
-      self.printStatus()
-    self.priorValue = value
-
-  def printStatus(self):
-    sys.stdout.write("\r")
-    sys.stdout.write("[%-*s] %3d%%" \
-        % (self.maxTicks, self.char*self.numTicks, self.fraction*100) )
-    if self.numTicks == self.maxTicks:
-      stopTime = time.time()
-      sys.stdout.write(" (%-.1f secs elapsed)\n"%(stopTime-self.createTime))
-    sys.stdout.flush()
-
-  def finish(self): pass
 
 from copy import copy
 class Backup:

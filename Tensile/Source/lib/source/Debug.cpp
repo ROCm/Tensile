@@ -133,6 +133,11 @@ namespace Tensile
         return m_value & 0x40000;
     }
 
+    bool Debug::printStreamKGridInfo() const
+    {
+        return m_value & 0x80000;
+    }
+
     bool Debug::naivePropertySearch() const
     {
         return m_naivePropertySearch;
@@ -141,6 +146,11 @@ namespace Tensile
     bool Debug::skipKernelLaunch() const
     {
         return m_value2 & 0x1;
+    }
+
+    bool Debug::skipInitKernelLaunch() const
+    {
+        return m_value2 & 0x2;
     }
 
     bool Debug::enableDebugSelection() const

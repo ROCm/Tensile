@@ -29,6 +29,8 @@ import yaml
 
 from Tensile import Tensile
 from Tensile import DataType
+from Tensile.Utilities.ConditionalImports import yamlLoader
+
 
 ################################################################################
 # Locate Executables
@@ -100,7 +102,7 @@ def configMarks(filepath, rootDir, availableArchs):
 
     try:
         with open(filepath) as f:
-            doc = yaml.load(f, yaml.SafeLoader)
+            doc = yaml.load(f, yamlLoader)
     except yaml.parser.ParserError:
         marks.append(pytest.mark.syntax_error)
         return marks

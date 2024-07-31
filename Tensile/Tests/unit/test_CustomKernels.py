@@ -27,6 +27,8 @@ import os
 from Tensile.CustomKernels import getCustomKernelConfig, getCustomKernelContents
 from Tensile.BenchmarkProblems import getCustomKernelSolutionObj
 from Tensile.Common import assignGlobalParameters
+from Tensile.Utilities.ConditionalImports import yamlLoader
+
 import yaml
 
 testKernelDir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "customKernels")
@@ -40,7 +42,7 @@ def test_FindCustomKernel(objs):
     except:
         assert False
 
-configResult = yaml.safe_load(
+configResult = yaml.load(
 """
 ProblemType:
     OperationType: GEMM
@@ -56,7 +58,7 @@ WorkGroup: [  8, 16,  1 ]
 DepthU: 8
 VectorWidth: 4
 AssertSizeEqual: {3: 512}
-AssertSizeMultiple: {0: 128, 1: 128}"""
+AssertSizeMultiple: {0: 128, 1: 128}""", yamlLoader
 )
 
 # TODO when more custom kernels have been added - expand these lists

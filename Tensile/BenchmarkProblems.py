@@ -35,7 +35,7 @@ from . import Utils
 from .BenchmarkStructs import BenchmarkProcess, checkParametersAreValid, constructForkPermutations
 from .Contractions import ProblemType as ContractionsProblemType
 from .ClientWriter import runClient, writeClientConfig, writeClientConfigIni
-from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, \
+from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, tPrint, \
         printExit, printWarning, ensurePath, startTime, validParameters
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
@@ -45,7 +45,7 @@ from .CustomKernels import getCustomKernelConfig
 
 def generateForkedSolutions(problemType, constantParams, forkPermutations):
     """Creates a list with a Solution object for each parameter combination in forkPermutations"""
-    print1("# Enumerating Solutions")
+    tPrint(1, "# Enumerating Solutions")
 
     solutions = []
     solutionSet = set()
@@ -61,7 +61,7 @@ def generateForkedSolutions(problemType, constantParams, forkPermutations):
                 solutionSet.add(solutionObject)
                 solutions.append(solutionObject)
         elif globalParameters["PrintSolutionRejectionReason"]:
-            print1("rejecting solution " + str(solutionObject))
+            tPrint(1, "rejecting solution " + str(solutionObject))
 
     return solutions
 
@@ -82,7 +82,7 @@ def generateCustomKernelSolutions(problemType, customKernels, failOnMismatch):
     """Creates a list with a Solution object for each name in customKernel"""
     solutions = []
     for kernelName in customKernels:
-        print1("# Processing custom kernel {}".format(kernelName))
+        tPrint(1, "# Processing custom kernel {}".format(kernelName))
         solution = getCustomKernelSolutionObj(kernelName)
         if solution["ProblemType"] != problemType:
             # Raise error if this kernel was specifically requested and problem type doesn't match
@@ -101,13 +101,13 @@ def generateCustomKernelSolutions(problemType, customKernels, failOnMismatch):
                         +  str(sorted(customSet - (customSet & benchmarkSet)))
                 printExit(msg)
             else:
-                print1("# Rejected {}: Problem Type doesn't match".format(kernelName))
+                tPrint(1, "# Rejected {}: Problem Type doesn't match".format(kernelName))
         else:
-            print1("# Added {} to solutions".format(kernelName))
+            tPrint(1, "# Added {} to solutions".format(kernelName))
             if solution["Valid"]:
                 solutions.append(solution)
             elif globalParameters["PrintSolutionRejectionReason"]:
-                print1("rejecting solution " + str(solution))
+                tPrint(1, "rejecting solution " + str(solution))
 
     return solutions
 
@@ -126,13 +126,12 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
     kernelHelperNames = set()
 
     # get unique kernels and kernel helpers
-    for solution in Utils.tqdm(solutions, "Finding unique solutions"):
-        solutionKernels = solution.getKernels()
-        for kernel in solutionKernels:
-            kName = Solution.getNameFull(kernel)
-            if kName not in kernelNames:
-                kernels.append(kernel)
-                kernelNames.add(kName)
+    for solution in Utils.tqdm(solutions, desc="Finding unique solutions"):
+        kernel = solution.getKernels()
+        kName = Solution.getNameFull(kernel)
+        if kName not in kernelNames:
+            kernels.append(kernel)
+            kernelNames.add(kName)
 
         solutionHelperKernels = solution.getHelperKernelObjects()
         for ko in solutionHelperKernels:
@@ -148,12 +147,11 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
 
     # write solution, kernels and CMake
     problemType = solutions[0]["ProblemType"]
-    codeObjectFiles = writeKernels( \
+    codeObjectFiles, kernels, solutions = writeKernels( \
             globalParameters["WorkingPath"], globalParameters["CxxCompiler"], \
-            [problemType], solutions, kernels, kernelHelperOjbs, \
+            globalParameters, solutions, kernels, kernelHelperOjbs, \
             kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
     # ^ this is where solutions is mutated
-
     newLibraryDir = ensurePath(os.path.join(globalParameters["WorkingPath"], 'library'))
     newLibraryFile = os.path.join(newLibraryDir, "TensileLibrary")
     newLibrary = SolutionLibrary.MasterSolutionLibrary.BenchmarkingLibrary(solutions)
@@ -201,11 +199,11 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
     """Run the benchmarking for a single entry in the BenchmarkProblems of a Tensile config"""
     benchmarkTestFails = 0
 
-    print1("")
-    print1(HR)
-    print1("# Converting Config to BenchmarkProcess Object")
-    print1(HR)
-    print1("")
+    tPrint(1, "")
+    tPrint(1, HR)
+    tPrint(1, "# Converting Config to BenchmarkProcess Object")
+    tPrint(1, HR)
+    tPrint(1, "")
     benchmarkProcess = BenchmarkProcess(problemTypeConfig, problemSizeGroupConfig)
 
     enableTileSelection = benchmarkProcess.problemType["TileAwareSelection"]
@@ -216,26 +214,26 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
     totalBenchmarkSteps = len(benchmarkProcess)
     resultsFileBaseFinal = None
 
-    print1("# NumBenchmarkSteps: {}".format(totalBenchmarkSteps))
-    print1("")
-    print1(HR)
-    print1("# Done Creating BenchmarkProcess Object")
-    print1(HR)
+    tPrint(1, "# NumBenchmarkSteps: {}".format(totalBenchmarkSteps))
+    tPrint(1, "")
+    tPrint(1, HR)
+    tPrint(1, "# Done Creating BenchmarkProcess Object")
+    tPrint(1, HR)
 
     for benchmarkStepIdx in range(0, totalBenchmarkSteps):
         benchmarkStep = benchmarkProcess[benchmarkStepIdx]
         stepName = str(benchmarkStep)
         shortName = stepName
 
-        print1("\n")
-        print1(HR)
+        tPrint(1, "\n")
+        tPrint(1, HR)
         currentTime = time.time()
         elapsedTime = currentTime - startTime
-        print1("# Benchmark Step: {} - {} {:.3f}s".format(groupName, stepName, elapsedTime))
-        print1("# Num Sizes: {}".format(benchmarkStep.problemSizes.totalProblemSizes))
-        print1("# Fork Parameters:")
+        tPrint(1, "# Benchmark Step: {} - {} {:.3f}s".format(groupName, stepName, elapsedTime))
+        tPrint(1, "# Num Sizes: {}".format(benchmarkStep.problemSizes.totalProblemSizes))
+        tPrint(1, "# Fork Parameters:")
         for k, v in sorted(benchmarkStep.forkParams.items()):
-            print1("#     {}: {}".format(k, v))
+            tPrint(1, "#     {}: {}".format(k, v))
 
         pushWorkingPath(shortName)
         stepBaseDir = globalParameters["WorkingPath"]
@@ -279,7 +277,7 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
             maxPossibleSolutions += len(kcSolutions)
             solutions = regSolutions + kcSolutions
 
-            print1("# Actual Solutions: {} / {} after SolutionStructs\n" \
+            tPrint(1, "# Actual Solutions: {} / {} after SolutionStructs\n" \
                 .format(len(solutions), maxPossibleSolutions))
 
             # handle no valid solutions
@@ -295,8 +293,8 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
 
             if globalParameters["PrintLevel"] >= 1:
                 for solution in solutions:
-                    print2("#    ({}:{}) {}".format(0, 0, Solution.getNameFull(solution)))
-                print2(HR)
+                    tPrint(3, "#    ({}:{}) {}".format(0, 0, Solution.getNameFull(solution)))
+                tPrint(3, HR)
 
             # write benchmarkFiles
             prevCount = len(solutions)
@@ -315,11 +313,11 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
             }
             LibraryIO.writeYAML(cachePath, cacheData)
 
-            print1("# Actual Solutions: {} / {} after KernelWriter\n" \
+            tPrint(1, "# Actual Solutions: {} / {} after KernelWriter\n" \
                     .format(len(solutions), prevCount ))
         else:
             solutions = None
-            print1("# Using cached solution data")
+            tPrint(1, "# Using cached solution data")
 
             ssProblemType = ProblemType(problemTypeConfig)
             conProblemType = ContractionsProblemType.FromOriginalState(ssProblemType)
@@ -346,13 +344,13 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
                 printWarning("BenchmarkProblems: Benchmark Process exited with code {}" \
                         .format(returncode))
         else:
-            print1("# Already benchmarked; skipping.")
+            tPrint(1, "# Already benchmarked; skipping.")
 
         # End Iteration
         popWorkingPath()  # stepName
         currentTime = time.time()
         elapsedTime = currentTime - startTime
-        print1("{}\n# {}\n# {}: End - {:.3f}s\n{}\n" \
+        tPrint(1, "{}\n# {}\n# {}: End - {:.3f}s\n{}\n" \
                 .format(HR, groupName, shortName, elapsedTime, HR))
 
     popWorkingPath()  # ProblemType
@@ -374,7 +372,7 @@ def main(config, useCache):
             problemSizeGroupConfigs = benchmarkProblemTypeConfig[1:]
 
         for idx, sizeGroupConfig in enumerate(problemSizeGroupConfigs):
-            print2("ProblemTypeConfig: {}".format(problemTypeConfig))
+            tPrint(3, "ProblemTypeConfig: {}".format(problemTypeConfig))
             problemTypeObj = ProblemType(problemTypeConfig)
 
             # using a suffix to check the csv version (for later addFromCSV())
@@ -410,7 +408,7 @@ def main(config, useCache):
                 if os.path.isfile(granularityFileName):
                     shutil.copy(granularityFileName, newGranularityFileName)
             else:
-                print1("# {}_{:02d} already benchmarked; skipping." \
+                tPrint(1, "# {}_{:02d} already benchmarked; skipping." \
                         .format(str(problemTypeObj), idx) )
 
     popWorkingPath()

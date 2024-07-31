@@ -24,6 +24,7 @@
 
 from .SolutionStructs import Solution
 from .Common import printExit, restoreDefaultGlobalParameters, assignGlobalParameters, ensurePath
+from .Utilities.ConditionalImports import yamlDumper
 from . import LibraryIO
 
 from copy import deepcopy
@@ -402,7 +403,7 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSi
         updateSizesAndSols(origData, mergedLogic)
 
         with open(os.path.join(outputPath, basename), "w") as outFile:
-            yaml.safe_dump(origData, outFile, default_flow_style=None)
+            yaml.dump(origData, outFile, yamlDumper, default_flow_style=None)
         msg("File written to", os.path.join(outputPath, basename))
         msg("------------------------------")
 

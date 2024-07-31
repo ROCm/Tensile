@@ -59,7 +59,7 @@ if(TENSILE_STATIC_ONLY)
 endif()
 
 if(NOT Tensile_FOUND)
-    find_package(Tensile 4.41.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
+    find_package(Tensile 4.42.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
 endif()
 
 if(NOT TENSILE_DISABLE_CTEST)
@@ -191,10 +191,6 @@ if(TENSILE_USE_LLVM)
 endif()
 
 if(TENSILE_USE_HIP)
-
-    # Make sure the testing libraries get built & copied before the client is built
-    # to avoid segfaults on gtest integration.
-    add_dependencies(TensileTests ${HIP_TEST_LIBRARY_TARGET_DEPS})
 
     target_link_libraries(TensileTests PRIVATE "-Xlinker --whole-archive")
     target_link_libraries(TensileTests PUBLIC ${HIP_TEST_LIBRARIES})
