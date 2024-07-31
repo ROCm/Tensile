@@ -1,6 +1,6 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.42.0
+## Tensile 4.42.0 for ROCm 6.3
 
 ### Additions
 - add contributor and developer guide
