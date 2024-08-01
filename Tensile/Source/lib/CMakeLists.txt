@@ -119,12 +119,12 @@ if(TENSILE_USE_MSGPACK)
 endif()
 
 if(TENSILE_USE_LLVM)
-    target_compile_definitions(TensileHost PUBLIC -DTENSILE_YAML=1)
-    find_package(LLVM COMPONENTS LLVMObjectYAML)
-    if(LLVMObjectYAML_FOUND)
+    find_library(LLVMObjectYAML_LIBRARY
+        NAMES LLVMObjectYAML
+        PATHS ${LLVM_LIBRARY_DIR})
+    if(LLVMObjectYAML_LIBRARY)
         target_link_libraries(TensileHost PUBLIC LLVMObjectYAML)
     else()
-        find_package(LLVM REQUIRED)
         target_link_libraries(TensileHost PUBLIC LLVM)
     endif()
 endif()

@@ -177,12 +177,12 @@ endif()
 target_link_libraries(TensileTests PUBLIC gtest TensileHost TensileTestLib ${Boost_LIBRARIES})
 
 if(TENSILE_USE_LLVM)
-    target_compile_definitions(TensileTests PUBLIC -DTENSILE_YAML=1)
-    find_package(LLVM COMPONENTS LLVMObjectYAML)
-    if(LLVMObjectYAML_FOUND)
+    find_library(LLVMObjectYAML_LIBRARY
+        NAMES LLVMObjectYAML
+        PATHS ${LLVM_LIBRARY_DIR})
+    if(LLVMObjectYAML_LIBRARY)
         target_link_libraries(TensileTests PRIVATE LLVMObjectYAML)
     else()
-        find_package(LLVM REQUIRED)
         target_link_libraries(TensileTests PRIVATE LLVM)
     endif()
 endif()
