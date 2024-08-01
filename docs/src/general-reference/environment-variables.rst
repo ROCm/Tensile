@@ -14,7 +14,7 @@ This document lists the environment variables that enable test or debug features
   :header-rows: 1
 
   * - Envrionment variable
-    - Description 
+    - Description
     - Values
 
   * - TENSILE_DB
@@ -62,8 +62,6 @@ This document lists the environment variables that enable test or debug features
       "Ratio"
       "Random"
 
-    .. _tensile-experimental-selection:
-
   * - TENSILE_EXPERIMENTAL_SELECTION
     - Allows experimental kernel selection for GEMM.
     - 0 or unset - Default kernel selection
@@ -74,6 +72,4 @@ This document lists the environment variables that enable test or debug features
     - When enabled, all functions decorated with ``@profile`` are profiled and results are generated as ``.prof`` files.
     - 1, "ON", "TRUE" - Enable
       Any other value - Disable
-
-
   

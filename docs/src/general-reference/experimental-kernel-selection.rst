@@ -24,4 +24,4 @@ Supported on:
     - FP16
     - NN, NT and TN transposition types
 
-To control experimental kernel selection and select the library, use :ref:`TENSILE_EXPERIMENTAL_SELECTION <tensile-experimental-selection>` environment variable. 
+To control experimental kernel selection and select the library, use :ref:`TENSILE_EXPERIMENTAL_SELECTION <environment-variables>` environment variable.
