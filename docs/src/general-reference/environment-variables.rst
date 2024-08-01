@@ -65,7 +65,7 @@ This document lists the environment variables that enable test or debug features
   * - TENSILE_EXPERIMENTAL_SELECTION
     - Allows experimental kernel selection for GEMM.
     - 0 or unset \- Default kernel selection
-    - 1 \- Grid experimental kernel selection</br>
+      1 \- Grid experimental kernel selection</br>
       <br>2 \- Decision trees experimental kernel selection</br>
 
   * - TENSILE_PROFILE
