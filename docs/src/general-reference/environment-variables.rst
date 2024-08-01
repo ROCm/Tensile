@@ -10,7 +10,7 @@ Environment variables
 
 This document lists the environment variables that enable test or debug features on the Tensile client.
 
-.. list-table::
+.. list-table:: environment variables
   :header-rows: 1
 
   * - Envrionment variable
