@@ -119,6 +119,7 @@ if(TENSILE_USE_MSGPACK)
 endif()
 
 if(TENSILE_USE_LLVM)
+    target_compile_definitions(TensileHost PUBLIC -DTENSILE_YAML=1)
     find_library(LLVMObjectYAML_LIBRARY
         NAMES LLVMObjectYAML
         PATHS ${LLVM_LIBRARY_DIR})
