@@ -124,9 +124,9 @@ if(TENSILE_USE_LLVM)
         NAMES LLVMObjectYAML
         PATHS ${LLVM_LIBRARY_DIR})
     if(LLVMObjectYAML_LIBRARY)
-        target_link_libraries(TensileHost PUBLIC LLVMObjectYAML)
+        target_link_libraries(TensileHost PRIVATE LLVMObjectYAML)
     else()
-        target_link_libraries(TensileHost PUBLIC LLVM)
+        target_link_libraries(TensileHost PRIVATE LLVM)
     endif()
 endif()
 
