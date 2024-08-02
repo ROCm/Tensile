@@ -68,6 +68,7 @@ This document lists the environment variables that enable testing, debugging, an
     - | 0 or unset \- Default kernel selection
       | 1 \- Grid experimental kernel selection
       | 2 \- Decision trees experimental kernel selection
+      | See :ref:`experimental-kernel-selection` for details.
 
   * - TENSILE_PROFILE
     - When enabled, all functions decorated with ``@profile`` are profiled and results are generated as ``.prof`` files.
