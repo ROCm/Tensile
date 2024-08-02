@@ -596,7 +596,7 @@ def filterProcessingErrors(
     solutions: List[Solution],
     results: List[Any],
     printLevel: int,
-    ignoreErr: bool,
+    errorTolerant: bool,
 ) -> Tuple[List[Solution], List[Solution], List[Any]]:
     """Filters out processing errors from lists of kernels, solutions, and results.
 
@@ -619,22 +619,34 @@ def filterProcessingErrors(
     Raises:
         KeyError: If 'PrintLevel' key is not found in the params dictionary.
     """
-    keepKernels = []
-    keepSolutions = []
-    keepResults = []
-    for i, res in enumerate(results):
-        err, _, _, _, _ = res
-        if err != -2:
-            keepKernels.append(kernels[i])
-            keepSolutions.append(solutions[i])
-            keepResults.append(results[i])
-        elif not ignoreErr:
-            k = kernels[i]
-            tPrint(1, f"Kernel generation failed for {k['SolutionIndex']}: {k['SolutionNameMin']}")
-    diff = len(kernels) - len(keepKernels)
-    if diff and not ignoreErr:
-        raise ValueError(f"Found {diff} error(s) while processing kernels; use ignoreErr to bypass")
-    return keepKernels, keepSolutions, keepResults
+    removeKernels = []
+    removeSolutions = []
+    removeResults = []
+    for kernIdx, res in (
+        enumerate(results)
+        if globalParameters["PrintLevel"] == 0
+        else Utils.tqdm(enumerate(results))
+    ):
+        (err, src, header, kernelName, filename) = res
+        if err == -2:
+            if not errorTolerant:
+                print(
+                    "\nKernel generation failed for kernel: {}".format(
+                        kernels[kernIdx]["SolutionIndex"]
+                    )
+                )
+                print(kernels[kernIdx]["SolutionNameMin"])
+            removeKernels.append(kernels[kernIdx])
+            removeSolutions.append(solutions[kernIdx])
+            removeResults.append(results[kernIdx])
+    if len(removeKernels) > 0 and not errorTolerant:
+        printExit("** kernel generation failure **")
+    for kern in removeKernels:
+        kernels.remove(kern)
+    for solut in removeSolutions:
+        solutions.remove(solut)
+    for rel in removeResults:
+        results.remove(rel)
 
 
 def filterBuildErrors(
@@ -726,9 +738,7 @@ def writeKernels(
         itertools.repeat(kernelWriterAssembly),
     )
     results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels")
-    kernels, solutions, results = filterProcessingErrors(
-        kernels, solutions, results, params["PrintLevel"], errorTolerant
-    )
+    filterProcessingErrors(kernels, solutions, results, params["PrintLevel"], errorTolerant)
 
     kernelFiles, kernelsWithBuildErrors = buildKernelSourceAndHeaderFiles(results, outputPath)
 
