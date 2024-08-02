@@ -32,7 +32,7 @@ import yaml
 sys.path.append('../..')
 from Tensile.SolutionStructs import Solution
 from Tensile import Utils
-
+from Tensile.Utilities.ConditionalImports import yamlDumper
 
 def merge_libraries(args):
     inFiles = args[:-1]
@@ -43,7 +43,7 @@ def merge_libraries(args):
 
     masterLibrary = MasterSolutionLibrary.FromOriginalState(data)
 
-    for inFile in Utils.tqdm(inFiles[1:]):
+    for inFile in Utils.tqdm(inFiles[1:], desc="Merge libraries"):
         with open(inFile) as inf:
             data = yaml.load(inf)
         newLibrary = MasterSolutionLibrary.FromOriginalState(data)
@@ -55,7 +55,7 @@ def merge_libraries(args):
 
     with open(outFile, 'w') as outf:
         if True:
-            yaml.dump(outData, outf, yaml.CSafeDumper)
+            yaml.dump(outData, outf, yamlDumper)
         else:
             import json
             json.dump(outData, outf, sort_keys=True, indent=2, separators=(",", ": "))
@@ -82,14 +82,14 @@ def convert_one(args):
 
     with open(args[1], 'w') as outFile:
         if True:
-            yaml.dump(outData, outFile, yaml.CSafeDumper)
+            yaml.dump(outData, outFile, yamlDumper)
         else:
             import json
             json.dump(outData, outFile, sort_keys=True, indent=2, separators=(",", ": "))
 
 if __name__ == "__main__":
 
-    for i in Utils.tqdm(itertools.chain([1,2,3], [4,5,6])): time.sleep(1)
+    for i in Utils.tqdm(itertools.chain([1,2,3], [4,5,6]), desc="Converting YAML"): time.sleep(1)
 
     merge_libraries(sys.argv[1:])
 

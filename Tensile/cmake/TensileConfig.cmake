@@ -96,7 +96,6 @@ function(TensileCreateLibraryFiles
        MERGE_FILES
        NO_MERGE_FILES
        SHORT_FILE_NAMES
-       PRINT_DEBUG
        GENERATE_PACKAGE
        SEPARATE_ARCHITECTURES
        LAZY_LIBRARY_LOADING
@@ -166,12 +165,6 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--short-file-names")
   else()
     set(Options ${Options} "--no-short-file-names")
-  endif()
-
-  if(Tensile_PRINT_DEBUG)
-    set(Options ${Options} "--library-print-debug")
-  else()
-    set(Options ${Options} "--no-library-print-debug")
   endif()
 
   if(Tensile_VERBOSE)

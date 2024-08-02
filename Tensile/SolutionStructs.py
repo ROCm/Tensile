@@ -1774,9 +1774,7 @@ class Solution(collections.abc.Mapping):
   def getKernels(self):
     kernel = deepcopy(self)
     kernel._state.update({"Kernel": True})
-    kernels = []
-    kernels.append(kernel)
-    return kernels
+    return kernel
 
 
   ########################################
@@ -2982,6 +2980,9 @@ class Solution(collections.abc.Mapping):
         reject(state, "Cannot enable both Stream-K and PersistentKernel")
       if not state["ProblemType"]["StridedBatched"]:
         reject(state, "General batch not supported with Stream-K")
+      if state["StreamKXCCMapping"] > 0:
+        if isa != (9,4,2):
+          reject(state, "XCC mapping currently only on gfx942")
       if state["StreamKAtomic"] == 1:
         if not state["ProblemType"]["DataType"].isSingle():
           reject(state, "Atomic Stream-K currently only tested for SGEMM")
@@ -4788,7 +4789,7 @@ class Solution(collections.abc.Mapping):
   def getNameFull(state):
     requiredParameters = {}
     for key in state:
-      if key in list(validParameters.keys()):
+      if key in validParameters:
         requiredParameters[key] = True
     return Solution.getNameMin(state, requiredParameters)
 

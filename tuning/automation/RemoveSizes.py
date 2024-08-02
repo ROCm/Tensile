@@ -26,6 +26,9 @@
 # Usage:
 # $ python3 RemoveSizes.py [-v] <input lib logic> <output lib logic> <csv file with sizes>
 
+from yaml import SafeDumper as yamlDumper
+from yaml import SafeLoader as yamlLoader
+
 import argparse
 import csv
 import yaml
@@ -55,7 +58,7 @@ def main():
         print("Sizes File  : " + args.sizeList)
 
     with open(args.inLogic) as inFile:
-        logicData = yaml.load(inFile, yaml.CSafeLoader)
+        logicData = yaml.load(inFile, yamlLoader)
 
     mapping = logicData[7]
     if args.verbose:
@@ -82,7 +85,7 @@ def main():
         print("Final size count = {}".format(len(mapping)))
 
     with open(args.outLogic, "w") as outFile:
-        yaml.dump(logicData, outFile, yaml.CSafeDumper, default_flow_style=None, sort_keys=False, width=5000)
+        yaml.dump(logicData, outFile, yamlDumper, default_flow_style=None, sort_keys=False, width=5000)
 
     if args.verbose:
         print("Done writing new logic file")

@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,6 @@ from . import Common
 from . import Contractions
 from .SolutionStructs import Solution as OriginalSolution
 from .Utils import state
-
 
 class SingleSolutionLibrary:
     Tag = "Single"
@@ -252,11 +251,21 @@ class MasterSolutionLibrary:
     ArchitectureSet = set()
 
     @classmethod
-    def ArchitectureIndexMap(cls, architectureName):
-        # 'fallback', 'gfx803', 'gfx900', 'gfx906', 'gfx908', 'gfx90a',
-        # 'gfx940', 'gfx941', 'gfx942', 'gfx1010', 'gfx1011', 'gfx1012',
-        # 'gfx1030', 'gfx1031', 'gfx1032', 'gfx1034', 'gfx1035', 'gfx1100',
-        # 'gfx1101', 'gfx1102'
+    def ArchitectureIndexMap(cls, architectureName: str) -> int:
+        """Maps hex characters from gfx name to an index.
+
+        Given a gfx name of the form gfx[0-9a-f]*, map the characters following
+        gfx from hex to int and left shift the integer by 18.   
+
+        Args:
+            architectureName: The gfx name (or fallback).
+        
+        Returns:
+            An integer representing the index for the given gfx architecture.
+
+        Raises:
+            RunTimeError: The provided architecture was already mapped to an index or umappable.
+        """
         archval = -1
         if architectureName == "fallback":
             archval = 0
@@ -498,35 +507,40 @@ class MasterSolutionLibrary:
             naming = OriginalSolution.getMinNaming(kernels)
 
         for s in list(self.solutions.values()):
-            s.name = OriginalSolution.getNameMin(s.originalSolution.getKernels()[0], naming)
+            s.name = OriginalSolution.getNameMin(s.originalSolution.getKernels(), naming)
 
-    def remapSolutionIndicesStartingFrom(self, curIndex):
+    def _remapSolutionIndicesStartingFrom(self, library, solutions: dict, curIndex: int) -> tuple:
+        reIndexMap = {}
+        newSolutions = {}
+        for _, soln in solutions.items():
+            reIndexMap[soln.index] = curIndex
+            soln.index = curIndex
+            newSolutions[curIndex] = soln
+            curIndex += 1
+        return newSolutions, reIndexMap
+    
+    def remapSolutionIndicesStartingFrom(self, startingIndex) -> None:
+        """Remap all the solution indexes for a given library.
+
+        Given a starting index, remap all indexes for a given library
+        including the lazy libraries if enabled. If a library has five 
+        solutions and the starting index is 222, the solution.index fields
+        would be 222, 223, 224, 225 and 226 respectively. If there are two
+        lazy libraries and each have two solutions, the solution.index
+        fields would be 222, 223, 224 and 225 respectively.
+
+        Args:
+            startingIndex: The index to start remapping from.
+        """
         if self.lazyLibraries:
             lazyLibrary = {}
             for name, lib in self.lazyLibraries.items():
-                reIndexMap = {}
-                newSolutions = {}
-
-                for k, s in lib.solutions.items():
-                    reIndexMap[s.index] = curIndex
-                    s.index = curIndex
-                    newSolutions[curIndex] = s
-                    curIndex += 1
-
-                lib.solutions = newSolutions
+                lib.solutions, reIndexMap = self._remapSolutionIndicesStartingFrom(lib.library, lib.solutions, startingIndex)
                 lib.library.remapSolutionIndices(reIndexMap)
-
                 lazyLibrary[name] = lib
             self.lazyLibraries = lazyLibrary
-
-        reIndexMap = {}
-        newSolutions = {}
-        for k, s in self.solutions.items():
-            reIndexMap[s.index] = curIndex
-            s.index = curIndex
-            newSolutions[curIndex] = s
-            curIndex += 1
-        self.solutions = newSolutions
+            
+        self.solutions, reIndexMap =  self._remapSolutionIndicesStartingFrom(self.library, self.solutions, startingIndex)
         self.library.remapSolutionIndices(reIndexMap)
 
     def insert(self, other):

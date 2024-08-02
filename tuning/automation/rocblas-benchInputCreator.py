@@ -44,6 +44,9 @@ import os
 import yaml
 import math
 
+from yaml import SafeDumper as yamlDumper
+from yaml import SafeLoader as yamlLoader
+
 typeIndexToName = {0: "f32_r", 1: "f64_r", 2: "f32_c", 3: "f64_c", 4: "f16_r", 5: "i8_r", 6: "i32_r", 7: "bf16_r", 8: "i8_r", 10: "f8_r", 11: "bf8_r", 12: "f8b8", 13: "b8f8"}
 
 def parseArgs():
@@ -180,7 +183,7 @@ def dumpYaml(outDir, outputfile,postfix, content):
     name = outputfile+postfix
     benchPath = os.path.join(outDir, name)
     with open(benchPath, "w") as f:
-        yaml.dump(content, f, yaml.CSafeDumper, default_flow_style=None, sort_keys=False, width=5000)
+        yaml.dump(content, f, yamlDumper, default_flow_style=None, sort_keys=False, width=5000)
         f.write(f"# End of {name} \n")
 
 def createYaml(args, outputfile, problem, sizeMappings, verify):
@@ -327,7 +330,7 @@ def main():
         print(f" working on {output}")
         yamlName = os.path.join(args.libLogic,libname)
         with open(yamlName) as f:
-            logicData = yaml.load(f, yaml.CSafeLoader)
+            logicData = yaml.load(f, yamlLoader)
 
         try:
             os.makedirs(args.outDir)

@@ -58,6 +58,7 @@ def runCI =
         commonGroovy.runCompileCommand(platform, project, jobName, false)
     }
 
+    
     def testCommand =
     {
         platform, project->

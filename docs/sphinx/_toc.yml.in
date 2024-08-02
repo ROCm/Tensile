@@ -22,6 +22,7 @@ subtrees:
     - file: src/general-reference
       entries:
         - file: src/general-reference/environment-variables
+        - file: src/general-reference/experimental-kernel-selection
     - file: src/contributor-guide
     - file: src/developer-guide
     - file: license

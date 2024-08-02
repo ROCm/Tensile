@@ -70,8 +70,6 @@ When invoking *TensileCreateLibrary*, one can provide zero or more options.
     Select which library format to use (default = msgpack).
 \-\-no-enumerate
     Do not run rocm_agent_enumerator.
-\-\-no-library-print-debug
-    Solutions will not print enqueue info when enqueueing a kernel (default).
 \-\-no-merge-files
     Store every solution and kernel in separate file.
 \-\-no-short-file-names

@@ -31,6 +31,7 @@ The code is open source and hosted at: https://github.com/ROCm/Tensile
     * :ref:`cli-reference`
     * :ref:`api-reference`
     * :ref:`environment-variables`
+    * :ref:`experimental-kernel-selection`
 
   .. grid-item-card:: Guides
 

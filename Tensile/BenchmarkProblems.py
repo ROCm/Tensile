@@ -126,13 +126,12 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
     kernelHelperNames = set()
 
     # get unique kernels and kernel helpers
-    for solution in Utils.tqdm(solutions, "Finding unique solutions"):
-        solutionKernels = solution.getKernels()
-        for kernel in solutionKernels:
-            kName = Solution.getNameFull(kernel)
-            if kName not in kernelNames:
-                kernels.append(kernel)
-                kernelNames.add(kName)
+    for solution in Utils.tqdm(solutions, desc="Finding unique solutions"):
+        kernel = solution.getKernels()
+        kName = Solution.getNameFull(kernel)
+        if kName not in kernelNames:
+            kernels.append(kernel)
+            kernelNames.add(kName)
 
         solutionHelperKernels = solution.getHelperKernelObjects()
         for ko in solutionHelperKernels:
@@ -148,12 +147,11 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
 
     # write solution, kernels and CMake
     problemType = solutions[0]["ProblemType"]
-    codeObjectFiles = writeKernels( \
+    codeObjectFiles, kernels, solutions = writeKernels( \
             globalParameters["WorkingPath"], globalParameters["CxxCompiler"], \
-            [problemType], solutions, kernels, kernelHelperOjbs, \
+            globalParameters, solutions, kernels, kernelHelperOjbs, \
             kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
     # ^ this is where solutions is mutated
-
     newLibraryDir = ensurePath(os.path.join(globalParameters["WorkingPath"], 'library'))
     newLibraryFile = os.path.join(newLibraryDir, "TensileLibrary")
     newLibrary = SolutionLibrary.MasterSolutionLibrary.BenchmarkingLibrary(solutions)

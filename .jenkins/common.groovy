@@ -45,6 +45,12 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     
     String buildThreads = maxThreads.toString() // if hipcc is used may be multiplied by parallel-jobs
 
+    String sclCommand = ""
+    if (platform.os.contains("rhel"))
+    {
+        sclCommand = "source scl_source enable gcc-toolset-12"
+    }
+
     def command = """#!/usr/bin/env bash
             set -ex
             hostname
@@ -54,6 +60,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             export HOME=/home/jenkins
             export TENSILE_COMPILER=${compiler}
             export HIPCC_COMPILE_FLAGS_APPEND='-O3 -Wno-format-nonliteral -parallel-jobs=4'
+            ${sclCommand}           
 
             mkdir build && pushd build
 
@@ -97,14 +104,14 @@ def runTestCommand(platform, project, jobName, testMark, boolean runHostTest=tru
             export GPU_ARCH=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
             export TIMING_FILE=`pwd`/timing-\$GPU_ARCH.csv
 
-            tox --version
-            tox run -e ci -- -m ${testMark} --timing-file=\$TIMING_FILE
-            check_err
-
             if ${runUnitTest}; then 
               tox run -e unittest -- --cov-report=xml:cobertura.xml
               check_err
             fi
+
+            tox --version
+            tox run -e ci -- -m ${testMark} --timing-file=\$TIMING_FILE
+            check_err
 
             if ${runHostTest}; then
               pushd build
@@ -116,6 +123,7 @@ def runTestCommand(platform, project, jobName, testMark, boolean runHostTest=tru
     platform.runCommand(this, command)
 
     archiveArtifacts "${project.paths.project_build_prefix}/timing*.csv"
+
     if (runUnitTest) {
         recordCoverage(tools: [[parser: 'COBERTURA', pattern: "${project.paths.project_build_prefix}/cobertura.xml"]])
     }

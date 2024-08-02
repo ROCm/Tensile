@@ -8,6 +8,25 @@
 Getting Started
 ********************************************************************
 
+Tensile is a tool for creating a benchmark-driven backend library for GEMMs [#gemm]_, GEMM-like problems, *N*-dimensional tensor contractions, and anything else that multiplies two multi-dimensional objects together on AMD GPUs.
+
+Project Overview
+================
+
+.. code-block::
+
+   Tensile/
+   ├── Tensile/              Source code, tests, and utilities for the Tensile project
+   │   └── Tests/                Kernels and application tests
+   ├── HostLibraryTests/     Tests for host-side code running the Tensile library
+   ├── docker/               A collection of useful Dockerfiles
+   ├── docs/                 Documentation source files
+   ├── requirements.txt      Python dependencies for running Tensile applications
+   ├── pytest.ini            Configuration settings for pytest
+   ├── tox.ini               Configuration settings for the Tox environment management tool
+   └── setup.py              Package build and installation script
+
+
 Environment requirements
 ========================
 
@@ -64,7 +83,7 @@ Quick start example
 
 .. important: Ensure you have followed the steps in the **Environment Requirements** and **Installation** sections.
 
-Tensile is a benchmark driven backend library for generating optimal kernels for GEMM-like problems. To run a benchmark, you need to pass a tuning config to the ``Tensile`` program located in *Tensile/bin*.
+To run a benchmark, you need to pass a tuning config to the ``Tensile`` program located in *Tensile/bin*.
 
 A sample tuning file has been prepared for this quick start example, it can be found in *Tensile/Configs/rocblas_sgemm_example.yaml*. Note the line at the bottom of this file ``ArchitectureName: "gfx1030"``, this line identifies the target architecture for which the benchmark will generate a library. Verify the architecture of your device by running ``rocminfo | grep gfx``. If you are running on a different architecture, for example, gfx90a, update the line to ``ArchitectureName: "gfx90a"``.
 
@@ -83,3 +102,7 @@ After the benchmark completes, Tensile will create the following directories:
 - *3_LibraryLogic* contains the winning (optimal) kernel configurations in YAML format. Typically, rocBLAS takes the YAML files from this folder.
 - *4_LibraryClient* contains the code objects, kernels, and library code. This is the output of running ``TensileCreateLibrary`` using the *3_LibraryLogic* directory as an input
 
+
+.. rubric:: Footnotes
+
+.. [#gemm] GEMM: General Matrix-Matrix Multiplication

@@ -24,20 +24,46 @@
 
 from . import __version__
 from . import Parallel
+from .Utilities.ConditionalImports import print, TENSILE_TERM_COLORS
 from collections import OrderedDict
+
 from copy import deepcopy
 from .AsmCaps import CACHED_ASM_CAPS
-from typing import Optional
+from typing import Any, NamedTuple, Optional, Tuple, Dict
 
 import math
 import os.path
 import subprocess
 import sys
 import time
+import warnings
 
 startTime = time.time()
 
 ParallelMap = Parallel.ParallelMap
+
+IsaVersion = Tuple[int, int, int]
+
+class CompilerVersion(NamedTuple):
+    major: int
+    minor: int
+
+    def __str__(self) -> str:
+        return f"{self.major}.{self.minor}"
+
+class DeveloperWarning(Warning):
+    """Custom warning for Tensile developers.
+
+    This warning can be safely ignored when running any Tensile applications as a user.
+    """
+
+def showwarning(message, category, filename, lineno, file=None, line=None):
+    msg = f"{category.__name__}: {message}"
+    if TENSILE_TERM_COLORS:
+        msg = f"[yellow]{msg}[/yellow]"
+    print(msg)
+
+warnings.showwarning = showwarning
 
 # print level
 # 0 - user wants no printing
@@ -227,7 +253,8 @@ globalParameters["SupportedISA"] = [(8,0,3),
                                     (9,0,0), (9,0,6), (9,0,8), (9,0,10),
                                     (9,4,0), (9,4,1), (9,4,2),
                                     (10,1,0), (10,1,1), (10,1,2), (10,3,0), (10,3,1),
-                                    (11,0,0), (11,0,1), (11,0,2)] # assembly kernels writer supports these architectures
+                                    (11,0,0), (11,0,1), (11,0,2),
+                                    (12,0,0), (12,0,1)] # assembly kernels writer supports these architectures
 
 globalParameters["CleanupBuildFiles"] = False                     # cleanup build files (e.g. kernel assembly) once no longer needed
 globalParameters["GenerateManifestAndExit"] = False               # Output manifest file with list of expected library objects and exit
@@ -306,7 +333,9 @@ architectureMap = {
   'gfx942':'aquavanjaram942', 'gfx942:xnack+':'aquavanjaram942', 'gfx942:xnack-':'aquavanjaram942',
   'gfx1010':'navi10', 'gfx1011':'navi12', 'gfx1012':'navi14',
   'gfx1030':'navi21', 'gfx1031':'navi22', 'gfx1032':'navi23', 'gfx1034':'navi24', 'gfx1035':'rembrandt',
-  'gfx1100':'navi31', 'gfx1101':'navi32', 'gfx1102':'navi33'
+  'gfx1100':'navi31', 'gfx1101':'navi32', 'gfx1102':'navi33',
+  'gfx1200':'gfx1200',
+  'gfx1201':'gfx1201'
 }
 
 def getArchitectureName(gfxName: str) -> Optional[str]:
@@ -385,7 +414,7 @@ validMFMA["B1k"] = validMFMA["H"]
 validMFMA["C"] = validMFMA["S"]
 validMFMA["Z"] = validMFMA["D"]
 validMFMA["X"] = [[32,32,4,1], [16,16,8,1]]
-validMFMA["F8"] = [[32,32,16,1], [16,16,32,1]]      
+validMFMA["F8"] = [[32,32,16,1], [16,16,32,1]]
 validMFMA["B8"] = validMFMA["F8"]
 validMFMA["F8B8"] = validMFMA["F8"]
 validMFMA["B8F8"] = validMFMA["F8"]
@@ -1970,11 +1999,14 @@ def tPrint(verbosity: int, arg) -> None:
         print(arg)
         sys.stdout.flush()
 
-def printWarning(message):
-  print("Tensile::WARNING: %s" % message)
+def printWarning(message: str, category=UserWarning):
+  warnings.warn(message, category)
   sys.stdout.flush()
+
 def printExit(message):
-  print("Tensile::FATAL: %s" % message)
+  if TENSILE_TERM_COLORS:
+        message = f"[bold red]{message}[/bold red]"
+  print(message)
   sys.stdout.flush()
   sys.exit(-1)
 
@@ -1996,7 +2028,7 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
       return exePath
   return None
 
-def GetAsmCaps(isaVersion):
+def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion) -> Dict[IsaVersion, dict]:
   """ Determine assembler capabilities by testing short instructions sequences """
   if globalParameters["AssemblerPath"] is not None:
 
@@ -2016,7 +2048,7 @@ def GetAsmCaps(isaVersion):
     derivedAsmCaps["HasLshlOr"]             = tryAssembler(isaVersion, "v_lshl_or_b32 v47, v36, 0x2, v34")
     derivedAsmCaps["HasSMulHi"]             = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
 
-    derivedAsmCaps["HasWMMA"]               = tryAssembler(isaVersion, "v_wmma_f32_16x16x16_f16 v[0:7], v[8:15], v[16:23], v[0:7]")
+    derivedAsmCaps["HasWMMA"]               = tryAssembler(isaVersion, "v_wmma_f32_16x16x16_f16 v[0:3], v[8:15], v[16:23], v[0:3]")
     derivedAsmCaps["HasMFMA"]               = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]") \
                                            or tryAssembler(isaVersion, "v_mfma_f32_32x32x1_2b_f32 a[0:31], v0, v1, a[0:31]")
     derivedAsmCaps["HasMFMA_constSrc"]      = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, 0") \
@@ -2093,22 +2125,20 @@ def GetAsmCaps(isaVersion):
     ignoreCacheCheck = globalParameters["IgnoreAsmCapCache"]
 
     # disable cache checking for < rocm 5.3
-    compilerVer = globalParameters['HipClangVersion'].split(".")[:2]
-    compilerVer = [int(c) for c in compilerVer]
-    if len(compilerVer) >= 2:
+    if len(compilerVersion) >= 2:
       ignoreCacheCheck = ignoreCacheCheck or \
-                         compilerVer[0] < 5 or \
-                         (compilerVer[0] == 5 and compilerVer[1] <= 2) 
-      
+                         compilerVersion.major < 5 or \
+                         (compilerVersion.major == 5 and compilerVersion.minor <= 2) 
+
     if not derivedAsmCaps["SupportedISA"] and CACHED_ASM_CAPS[isaVersion]["SupportedISA"]:
-      printWarning("Architecture {} not supported by ROCm {}".format(isaVersion, globalParameters['HipClangVersion']))
+      printWarning("Architecture {} not supported by ROCm {}".format(isaVersion, globalParameters['HipClangVersion']), DeveloperWarning)
       ignoreCacheCheck = True
 
     # check if derived caps matches asm cap cache
     if not ignoreCacheCheck:
       exitFlag = False
       # rocm<=6.0, ignore KernargPreloading
-      if compilerVer[0] <= 5 or (compilerVer[0] == 6 and compilerVer[1] == 0):
+      if compilerVersion.major <= 5 or (compilerVersion.major == 6 and compilerVersion.minor == 0):
         derivedAsmCapsCopy = deepcopy(derivedAsmCaps)
         # copy KernargPreloading from CACHED_ASM_CAPS (to ignore this)
         derivedAsmCapsCopy["KernargPreloading"] = CACHED_ASM_CAPS[isaVersion]["KernargPreloading"]
@@ -2132,12 +2162,12 @@ def GetArchCaps(isaVersion):
   rv["Waitcnt0Disabled"]   = (isaVersion==(9,0,8) or isaVersion==(9,0,10) or \
                               isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
   rv["SeparateVscnt"]      = isaVersion[0] in (10, 11)
-  rv["CMPXWritesSGPR"]     = isaVersion[0] not in (10, 11)
-  rv["HasWave32"]          = isaVersion[0] in (10, 11)
+  rv["CMPXWritesSGPR"]     = isaVersion[0] not in (10, 11, 12)
+  rv["HasWave32"]          = isaVersion[0] in (10, 11, 12)
   rv["HasAccCD"]           = (isaVersion==(9,0,10) or isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
   rv["ArchAccUnifiedRegs"] = (isaVersion==(9,0,10) or isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
-  rv["VgprBank"]           = isaVersion[0] in (10, 11)
-  rv["InstRename"]         = isaVersion[0]==11
+  rv["VgprBank"]           = isaVersion[0] in (10, 11, 12)
+  rv["InstRename"]         = isaVersion[0]>=11
   rv["CrosslaneWait"]      = (isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
   rv["ForceStoreSC1"]      = (isaVersion==(9,4,0) or isaVersion==(9,4,1))
 
@@ -2279,7 +2309,7 @@ def which(p):
     if supportedCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
         return os.environ['CMAKE_CXX_COMPILER']
     if os.name == "nt":
-        exes = [p+x for x in ['.bat', '', '.exe']]  # bat may be front end for file with no extension
+        exes = [p+x for x in ['.exe', '', '.bat']]  # bat may be front end for file with no extension
     else:
         exes = [p+x for x in ['', '.exe', '.bat']]
     system_path = os.environ['PATH'].split(os.pathsep)
@@ -2289,6 +2319,47 @@ def which(p):
             if os.path.isfile(candidate):
                 return candidate
     return None
+
+
+def populateCapabilities(
+    globalParameters: Dict[str, Any], cachedAsmCaps: Dict[IsaVersion, dict]
+):
+    """Populates the assembler and archiecture capabilities based on the compiler and ISA.
+
+    This function updates the **globalParameters** and **cachedAsmCaps** dictionaries with
+    the assembler and architecture capabilities for each supported ISA version. It checks
+    the compatibility of each ISA version with the current ROCm stack version and skips any
+    unsupported ISA versions, issuing a warning for each skipped version.
+
+    Args:
+        globalParameters: A dictionary containing global parameters of the
+            application, including the HipClang version and supported ISA versions.
+        cachedAsmCaps: A dictionary to be populated with the assembler
+            capabilities for each ISA version.
+
+    Note:
+        This function modifies `globalParameters` and `cachedAsmCaps` in place.
+    """
+    compilerVer = CompilerVersion(
+        *[int(c) for c in globalParameters["HipClangVersion"].split(".")[:2]]
+    )
+    supportedISA = globalParameters["SupportedISA"]
+    to_remove = []
+
+    for v in supportedISA + [(0, 0, 0)]:
+        if v[0] == 12 and not (
+            compilerVer.major > 6 or (compilerVer.major == 6 and compilerVer.minor >= 3)
+        ):
+            printWarning(f"ISA {v} isn't supported for ROCm stack {compilerVer}, skipping...")
+            to_remove.append(v)
+            continue
+        globalParameters["AsmCaps"][v] = GetAsmCaps(v, compilerVer)
+        globalParameters["ArchCaps"][v] = GetArchCaps(v)
+
+    # Efficiently remove unsupported ISA versions after iterating
+    for v in to_remove:
+        cachedAsmCaps.pop(v, None)  # Safely attempt to remove v from cachedAsmCaps
+        supportedISA.remove(v)
 
 ################################################################################
 ################################################################################
@@ -2388,9 +2459,10 @@ def assignGlobalParameters( config ):
     if os.name == "nt":
       globalParameters["CurrentISA"] = (9,0,6)
       printWarning("Failed to detect ISA so forcing (gfx906) on windows")
-  if globalParameters["CurrentISA"] == (9,4,1) or globalParameters["CurrentISA"] == (9,4,2) or globalParameters["CurrentISA"] == (11,0,0) or \
-     globalParameters["CurrentISA"] == (11,0,1) or globalParameters["CurrentISA"] == (11,0,2):
-    printWarning("HardwareMonitor currently disabled for gfx941/942 or gfx1100/gfx1101/gfx1102")
+  isasWithDisabledHWMonitor = ((9,4,1), (9,4,2), (11,0,0), (11,0,1), (11,0,2), (12,0,0), (12,0,1))
+  if globalParameters["CurrentISA"] in isasWithDisabledHWMonitor:
+    isaString = ', '.join(map(gfxName, isasWithDisabledHWMonitor))
+    printWarning(f"HardwareMonitor currently disabled for {isaString}")
     globalParameters["HardwareMonitor"] = False
 
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
@@ -2413,7 +2485,7 @@ def assignGlobalParameters( config ):
     for line in output.split('\n'):
       if 'HIP version' in line:
         globalParameters['HipClangVersion'] = line.split()[2]
-        tPrint(1, "# Found  hipcc version " + globalParameters['HipClangVersion'])
+        tPrint(1, "# Found hipcc version " + globalParameters['HipClangVersion'])
 
   except (subprocess.CalledProcessError, OSError) as e:
       printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))
@@ -2423,21 +2495,18 @@ def assignGlobalParameters( config ):
     
   globalParameters["AsmCaps"] = {}
   globalParameters["ArchCaps"] = {}
+  populateCapabilities(globalParameters, CACHED_ASM_CAPS)
 
-  for v in globalParameters["SupportedISA"] + [(0,0,0)]:
-    globalParameters["AsmCaps"][v] = GetAsmCaps(v)
-    globalParameters["ArchCaps"][v] = GetArchCaps(v)
-
-  if globalParameters["PrintLevel"] >= 1:
+  if globalParameters["PrintLevel"] >= 2:
     printCapTable(globalParameters)
 
-    if globalParameters["AsmCaps"] != CACHED_ASM_CAPS:
-      import pprint
-      print("ASM Caps differ from cache. New caps:")
-      print("####################")
-      print("CACHED_ASM_CAPS = \\\n")
-      pprint.pprint(globalParameters["AsmCaps"])
-      print("####################")
+  if globalParameters["AsmCaps"] != CACHED_ASM_CAPS and globalParameters["PrintLevel"] >= 1:
+    import pprint
+    printWarning("ASM Caps differ from cache. New caps:")
+    print("####################")
+    print("CACHED_ASM_CAPS = \\\n")
+    pprint.pprint(globalParameters["AsmCaps"])
+    print("####################")
 
   globalParameters["SupportedISA"] = list([i for i in globalParameters["SupportedISA"] if globalParameters["AsmCaps"][i]["SupportedISA"]])
 
@@ -2451,7 +2520,7 @@ def assignGlobalParameters( config ):
   for key in config:
     value = config[key]
     if key not in globalParameters:
-      printWarning("Global parameter %s = %s unrecognized." % ( key, value ))
+      printWarning("Global parameter %s = %s unrecognized." % ( key, value ), DeveloperWarning)
     globalParameters[key] = value
 
 def setupRestoreClocks():
@@ -2555,45 +2624,6 @@ def ClientExecutionLock():
 def listToInitializer(l):
   return "{" + ','.join(map(str, l)) + "}"
 
-################################################################################
-# Progress Bar Printing
-# prints "||||" up to width
-################################################################################
-class ProgressBar:
-  def __init__(self, maxValue, width=80):
-    self.char = '|'
-    self.maxValue = maxValue
-    self.width = width
-    self.maxTicks = self.width - 7
-
-
-    self.priorValue = 0
-    self.fraction = 0
-    self.numTicks = 0
-    self.createTime = time.time()
-
-  def increment(self, value=1):
-    self.update(self.priorValue+value)
-
-  def update(self, value):
-    currentFraction = 1.0 * value / self.maxValue
-    currentNumTicks = int(currentFraction * self.maxTicks)
-    if currentNumTicks > self.numTicks:
-      self.numTicks = currentNumTicks
-      self.fraction = currentFraction
-      self.printStatus()
-    self.priorValue = value
-
-  def printStatus(self):
-    sys.stdout.write("\r")
-    sys.stdout.write("[%-*s] %3d%%" \
-        % (self.maxTicks, self.char*self.numTicks, self.fraction*100) )
-    if self.numTicks == self.maxTicks:
-      stopTime = time.time()
-      sys.stdout.write(" (%-.1f secs elapsed)\n"%(stopTime-self.createTime))
-    sys.stdout.flush()
-
-  def finish(self): pass
 
 from copy import copy
 class Backup:
