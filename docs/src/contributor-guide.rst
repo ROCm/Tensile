@@ -5,4 +5,4 @@
 
 .. _contributor-guide:
 
-.. include:: ../../CONTRIBUTING.rst
+.. include:: ../../.github/CONTRIBUTING.rst
