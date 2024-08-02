@@ -49,7 +49,7 @@ class ProgressBar:
         message: The message displayed alongside the progress bar.
     """
     def __init__(self, maxValue: int, desc: str, width=40):
-        self.char: str = '█'
+        self.char: str = '.'
         self.maxValue: int = maxValue
         self.width: int = width
         self.maxTicks: int = self.width - 10  # Adjusted for better alignment
@@ -77,7 +77,7 @@ class ProgressBar:
 
     def printStatus(self):
         """Prints the current status of the progress bar to the console."""
-        progress_bar = '|' + self.char * self.numTicks + ' ' * (self.maxTicks - self.numTicks) + '|'
+        progress_bar = self.char * self.numTicks + ' ' * (self.maxTicks - self.numTicks)
         status_msg = f"{self.message} {progress_bar} {self.fraction * 100:.1f}%"
         
         if self.numTicks == 0:
@@ -88,12 +88,9 @@ class ProgressBar:
 
     def finish(self):
         """Marks the operation as done, cleans up the display, and prints the completion time."""
-        sys.stdout.write('\r')
-        sys.stdout.write(' ' * (len(self.message) + self.maxTicks + 15) + '\r')
-
         stopTime = time.time()
 
-        sys.stdout.write(f"{self.message}... Done in {stopTime - self.createTime:.1f} secs\n")
+        sys.stdout.write(f" (took {stopTime - self.createTime:.1f} secs)\n")
         sys.stdout.flush()
 
 class SpinnyThing:

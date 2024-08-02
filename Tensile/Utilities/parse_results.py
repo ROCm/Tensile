@@ -24,7 +24,7 @@
 #
 ################################################################################
 
-import sys,fileinput,csv
+import fileinput,csv
 import argparse
 from collections import OrderedDict
 from functools import reduce
