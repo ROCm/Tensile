@@ -277,10 +277,7 @@ class DataType:
     def toHIP(self):
         return self.properties['hip']
     def toDevice(self, language):
-        if language == "OCL":
-            return self.toOpenCL()
-        else:
-            return self.toHIP()
+        return self.toHIP()
     def toCpp(self):
         return self.properties['libType']
     def getLibString(self):

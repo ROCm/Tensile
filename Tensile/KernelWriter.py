@@ -5553,22 +5553,16 @@ for codeObjectFileName in codeObjectFileNames:
   def getHeaderFileString(self, kernel):
     kernelName = self.getKernelName(kernel)
     fileString = "" # CHeader
-    if self.language == "HIP" or self.language == "OCL":
+    if self.language == "HIP":
       if not globalParameters["MergeFiles"]:
         fileString += CHeader
         fileString += "#pragma once\n\n"
-        if self.language == "HIP":
-          fileString += "#include <hip/hip_runtime.h>\n"
-          fileString += "#include <hip/hip_fp16.h>\n"
-          fileString += "#include <KernelHeader.h>\n"
-          fileString += "\n"
-        else:
-          fileString += "#include <string>\n"
-      if self.language == "OCL":
-        fileString += "extern const char * const %s_src;\n" % kernelName
-      else:
-        fileString += self.functionSignature(kernel)
-        fileString += ";\n"
+        fileString += "#include <hip/hip_runtime.h>\n"
+        fileString += "#include <hip/hip_fp16.h>\n"
+        fileString += "#include <KernelHeader.h>\n"
+        fileString += "\n"
+      fileString += self.functionSignature(kernel)
+      fileString += ";\n"
     else:
       if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
         fileString += "#pragma once\n\n"

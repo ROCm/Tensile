@@ -73,14 +73,6 @@ if(TENSILE_USE_HIP)
         )
 endif()
 
-if(TENSILE_USE_OPENCL)
-    set(tensile_sources ${tensile_sources}
-        source/ocl/OclHardware.cpp
-        source/ocl/OclSolutionAdapter.cpp
-        source/ocl/OclUtils.cpp
-        )
-endif()
-
 include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_library (TensileHost STATIC ${tensile_sources})
