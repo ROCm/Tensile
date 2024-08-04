@@ -26,11 +26,16 @@ import itertools
 import os
 from typing import Any, Callable
 
-from joblib import Parallel, delayed
+try:
+  from joblib import Parallel, delayed
+except:
+  joblib = None
 
 def CPUThreadCount(enable=True):
   from .Common import globalParameters
   if not enable:
+    return 1
+  elif joblib is None:
     return 1
   else:
     if os.name == "nt":
@@ -76,12 +81,27 @@ def ParallelMap(function: Callable, objects: Any, message: str="", enable: bool=
     Returns:
         A list containing the results of applying **function** to each item in **objects**.
     """
-    from .Common import globalParameters
+    from .Common import globalParameters, ProgressBar
     from . import Utils
     threadCount = CPUThreadCount(enable)
     
     if threadCount <= 1:
-      return list(map(lambda objs: function(*objs), Utils.tqdm(objects, desc=message)))
+      rv = []
+      lobjects = list(objects)
+      if globalParameters["ShowProgressBar"]:
+        pb = ProgressBar(len(lobjects))
+      for obj in lobjects:
+        if multiArg:
+          r = function(*obj)
+        else:
+          r = function(obj)
+        rv.append(r)
+        if pb:
+          pb.increment()
+          pb.printStatus()
+        if pb:
+          pb.finish()
+      return rv
         
     inputs = list(zip(objects, itertools.repeat(globalParameters)))
     message += f": {threadCount} threads, {len(inputs)} tasks"
