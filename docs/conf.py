@@ -37,6 +37,8 @@ copyright = f"Copyright (c) {year} Advanced Micro Devices, Inc. All rights reser
 version = f"{semantic_version}"
 release = f"{semantic_version}"
 
+numfig_reset = True
+
 autodoc_default_options = {
     "members": True,
     "member-order": "bysource",
