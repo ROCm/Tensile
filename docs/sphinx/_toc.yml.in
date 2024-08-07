@@ -4,6 +4,9 @@ root: src/index
 subtrees:
   - entries:
     - file: src/getting-started
+      entries:
+        - file: src/getting-started/installation
+        - file: src/getting-started/quick-start
     - file: src/concepts
       entries:
         - file: src/concepts/benchmarking
@@ -24,6 +27,6 @@ subtrees:
         - file: src/general-reference/environment-variables
         - file: src/general-reference/experimental-kernel-selection
     - file: src/contributor-guide
-    - file: src/developer-guide
+    - file: src/programmers-guide
     - file: license
 

@@ -9,7 +9,7 @@ Welcome to the Tensile project! If you're thinking about contributing, this docu
 
 .. seealso::
 
-   If you haven't already, please review :ref:`getting-started` for an introduction to the project. For details on environment setup and day-to-day development processes, please refer to the :ref:`developer-guide`.
+   If you haven't already, please review :ref:`getting-started` for an introduction to the project. For details on environment setup and day-to-day development processes, please refer to the :ref:`programmers-guide`.
 
 Tensile's development practice is based on the `Gitflow Workflow <https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow>`_. The **develop** branch is the default branch for development and is where all new features and bug fixes should be merged. After a PR is merged into **develop**, it will undergo extended testing and profiling. Pending all of these checks pass, it may be promoted to **staging** be included in the next release. If you would like to see the changes in the next release, please ensure that the PR is merged before the release branch is cut.
 

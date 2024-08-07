@@ -35,5 +35,5 @@ The code is open source and hosted at: https://github.com/ROCm/Tensile
 
   .. grid-item-card:: Guides
 
-    * :ref:`developer-guide`
+    * :ref:`programmers-guide`
     * :ref:`contributor-guide`
