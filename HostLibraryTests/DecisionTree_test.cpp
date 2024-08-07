@@ -369,6 +369,8 @@ TEST(DecisionTree, DecisionTreeBatch)
     using SizeInRange = Predicates::Contraction::SizeInRange;
     using Range       = Predicates::Contraction::Range;
     using And         = Predicates::And<ContractionProblem>;
+    using Key         = std::array<float, 4>;
+    using DTree       = Tree<Key, std::shared_ptr<ContractionLibrary>, std::shared_ptr<ContractionSolution>>;    
     using BForest     = BasicForest<Key,
                                 ContractionProblem,
                                 std::shared_ptr<ContractionLibrary>,

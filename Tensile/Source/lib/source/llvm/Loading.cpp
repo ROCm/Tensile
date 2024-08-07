@@ -44,7 +44,7 @@ namespace Tensile
 
         try
         {
-            auto inputFile = llvm::MemoryBuffer::getFile(filename);
+            auto inputFile = llvm::MemoryBuffer::getFileAsStream(filename);
 
             LibraryIOContext<MySolution> context{filename, preloaded, nullptr};
             llvm::yaml::Input            yin((*inputFile)->getMemBufferRef(), &context);
