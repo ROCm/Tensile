@@ -1,11 +1,8 @@
 .. meta::
   :description: Tensile documentation and API reference
   :keywords: Tensile, GEMM, Tensor, ROCm, API, Documentation
+.. highlight:: none
 
 .. _contributor-guide:
 
-********************************************************************
-Contributor guide
-********************************************************************
-
-<placeholder text>
+.. include:: ../../.github/CONTRIBUTING.rst

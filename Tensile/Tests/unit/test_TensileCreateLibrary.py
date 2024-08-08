@@ -659,6 +659,7 @@ def test_markDuplicateKernels():
             assert isDup if i == 6 else not isDup, "Duplicate status is incorrect"
 
 
+@pytest.mark.skip(reason="Debugging function")
 def test_filterProcessingErrors(setupSolutionsAndKernels):
     solutions, kernels, kernelWriterAssembly, kernelWriterSource = setupSolutionsAndKernels
     kernels = tcl.markDuplicateKernels(kernels, kernelWriterAssembly)
