@@ -371,9 +371,10 @@ TEST(DecisionTree, DecisionTreeBatch)
     using And         = Predicates::And<ContractionProblem>;
     // Create a Key4 aliase specific to this test because this test uses four features which
     // requires a size four Key type; whereas previous tests only use three features.
-    using Key4        = std::array<float, 4>; 
-    using DTree4      = Tree<Key4, std::shared_ptr<ContractionLibrary>, std::shared_ptr<ContractionSolution>>;    
-    using BForest     = BasicForest<Key4,
+    using Key4 = std::array<float, 4>;
+    using DTree4
+        = Tree<Key4, std::shared_ptr<ContractionLibrary>, std::shared_ptr<ContractionSolution>>;
+    using BForest = BasicForest<Key4,
                                 ContractionProblem,
                                 std::shared_ptr<ContractionLibrary>,
                                 std::shared_ptr<ContractionSolution>>;
