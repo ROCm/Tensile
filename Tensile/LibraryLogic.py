@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -1124,9 +1124,9 @@ class LogicAnalyzer:
     solutionMapOldToNew = [-1] * self.numSolutions
 
     # temporarily move current to old
-    oldSolutions = self.solutions
+    oldSolutions = deepcopy(self.solutions)
     oldNumSolutions = self.numSolutions
-    oldData = self.data
+    oldData = deepcopy(self.data)
     # update solutions
     self.solutions = []
     for i in range(0, oldNumSolutions):

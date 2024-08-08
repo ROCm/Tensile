@@ -469,9 +469,7 @@ class MasterSolutionLibrary:
 
     @classmethod
     def BenchmarkingLibrary(cls, solutions):
-        # when changing this from s._state to s.getAttributes() we crash elsewhere in the code
-        # later in LibraryIO.updateProblemDatatypes.
-        solutionObjs = list([Contractions.Solution.FromOriginalState(s._state) for s in solutions])
+        solutionObjs = list([Contractions.Solution.FromOriginalState(s.getAttributes()) for s in solutions])
         cls.FixSolutionIndices(solutionObjs)
 
         predRows = list([{
