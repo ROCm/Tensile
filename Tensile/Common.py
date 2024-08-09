@@ -33,6 +33,7 @@ from typing import Any, NamedTuple, Optional, Tuple, Dict
 
 import math
 import os.path
+import platform
 import subprocess
 import sys
 import time
@@ -274,6 +275,8 @@ globalParameters["CurrentISA"] = (0,0,0)
 globalParameters["ROCmAgentEnumeratorPath"] = None      # /opt/rocm/bin/rocm_agent_enumerator
 globalParameters["ROCmSMIPath"] = None                  # /opt/rocm/bin/rocm-smi
 globalParameters["AssemblerPath"] = None                # /opt/rocm/llvm/bin/clang++
+globalParameters["HipConfigPath"] = None                # /opt/rocm/bin/hipconfig
+globalParameters["LlvmBinPath"] = None                  # /opt/rocm/llvm/bin
 globalParameters["WorkingPath"] = os.getcwd()           # path where tensile called from
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
@@ -2400,6 +2403,10 @@ def assignGlobalParameters( config ):
       tPrint(3, " %24s: %8s (unspecified)" % (key, defaultValue))
 
   globalParameters["ROCmPath"] = "/opt/rocm"
+  # /opt/rocm is not always the default location
+  if not os.path.isdir(globalParameters["ROCmPath"]):
+    if platform.system() == "Linux":
+      globalParameters["ROCmPath"] = "/usr"
   if "ROCM_PATH" in os.environ:
     globalParameters["ROCmPath"] = os.environ.get("ROCM_PATH")
   if "TENSILE_ROCM_PATH" in os.environ:
@@ -2420,6 +2427,23 @@ def assignGlobalParameters( config ):
   else:
     globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm_agent_enumerator")
 
+  globalParameters["HipConfigPath"] = locateExe(globalParameters["ROCmBinPath"], "hipconfig")
+
+  if os.name == "nt":
+    globalParameters["LlvmBinPath"] = globalParameters["ROCmBinPath"]
+  else:
+    globalParameters["LlvmBinPath"] = os.path.join(globalParameters["ROCmPath"], "llvm/bin")
+
+  if not os.path.isdir(globalParameters["LlvmBinPath"]):
+    if globalParameters["HipConfigPath"]:
+        process = subprocess.run([globalParameters["HipConfigPath"], "-l"], stdout=subprocess.PIPE)
+        if (process.returncode):
+            printWarning("%s exited with code %u" % (globalParameters["HipConfigPath"], process.returncode))
+        else:
+            lines = process.stdout.decode().split("\n")
+            if os.path.isdir(lines[0]):
+                globalParameters["LlvmBinPath"] = lines[0]
+
   if "CxxCompiler" in config:
     globalParameters["CxxCompiler"] = config["CxxCompiler"]
     # Pair the CCompiler with CxxCompiler
@@ -2434,15 +2458,16 @@ def assignGlobalParameters( config ):
   if "CCompiler" in config:
     globalParameters["CCompiler"] = config["CCompiler"]    
 
+  if os.name == "nt":
+    globalParameters["AssemblerPath"] = locateExe(globalParameters["LlvmBinPath"], "clang++.exe")
+  else:
+    compiler = "clang++"
+    if locateExe(globalParameters["LlvmBinPath"], "amdclang++") and globalParameters["CxxCompiler"] != "hipcc":
+      compiler = "amdclang++"
+    globalParameters["AssemblerPath"] = locateExe(globalParameters["LlvmBinPath"], compiler)
+
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
-  elif globalParameters["AssemblerPath"] is None and supportedCompiler(globalParameters["CxxCompiler"]):
-    if os.name == "nt":
-      globalParameters["AssemblerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang++.exe")
-    else:
-      bin_path = "llvm/bin" if globalParameters["CxxCompiler"] == "hipcc" else "bin"
-      compiler = "clang++" if globalParameters["CxxCompiler"] == "hipcc" else "amdclang++"
-      globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], bin_path), compiler)
 
   globalParameters["ROCmSMIPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm-smi")
 
@@ -2452,9 +2477,9 @@ def assignGlobalParameters( config ):
     globalParameters["ClangOffloadBundlerPath"] = os.environ.get("TENSILE_ROCM_OFFLOAD_BUNDLER_PATH")
   else:
     if os.name == "nt":
-      globalParameters["ClangOffloadBundlerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang-offload-bundler.exe")
+      globalParameters["ClangOffloadBundlerPath"] = locateExe(globalParameters["LlvmBinPath"], "clang-offload-bundler.exe")
     else:
-      globalParameters["ClangOffloadBundlerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang-offload-bundler")
+      globalParameters["ClangOffloadBundlerPath"] = locateExe(globalParameters["LlvmBinPath"], "clang-offload-bundler")
 
   if "ROCmAgentEnumeratorPath" in config:
     globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
