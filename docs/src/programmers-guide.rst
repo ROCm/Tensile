@@ -3,17 +3,10 @@
   :keywords: Tensile, GEMM, Tensor, ROCm, API, Documentation
 .. highlight:: none
 
-<<<<<<<< Updated upstream:docs/src/programmers-guide.rst
 .. _programmers-guide:
 
 ********************************************************************
 Programmer's Guide
-========
-.. _using-tensile:
-
-********************************************************************
-Using Tensile
->>>>>>>> Stashed changes:docs/src/how-to/developer-guide.rst
 ********************************************************************
 
 .. _development-environment:
@@ -24,13 +17,7 @@ Development environment
 
 ROCm is a base requirement for contributing to Tensile. To begin, ensure that ROCm is supported on your platform by reviewing the installation details on the `ROCm documentation <https://rocm.docs.amd.com/>`_ site.
 
-<<<<<<<< Updated upstream:docs/src/programmers-guide.rst
 Then, follow the steps in the :ref:`installation` guide.
-========
-.. note::
-   Environment setup steps are provided for Ubuntu/Debian platforms. For other operating systems, use the appropriate package manager, or your preferred installation method.
-
->>>>>>>> Stashed changes:docs/src/how-to/developer-guide.rst
 
 --------------------
 Developing in Docker
@@ -38,86 +25,6 @@ Developing in Docker
 
 ROCm development images are available on `Docker Hub <https://hub.docker.com/search?q=rocm%2Fdev>`_ for a variety of OS/ROCm versions. See `Docker images in the ROCm ecosystem <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/docker.html#docker-images-in-the-rocm-ecosystem>`_ for more details.
 
-
-<<<<<<<< Updated upstream:docs/src/programmers-guide.rst
-========
-
-------------------------------
-Setting up Python dependencies
-------------------------------
-
-1. Install OS dependencies (requires elevated privileges),
-
-   .. code-block::
-
-      apt-get install libyaml python3-yaml \
-          libomp-dev libboost-program-options-dev libboost-filesystem-dev
-
-2. Install *one* of the following, depending on your preferred Tensile data format. If both are installed, *msgpack* is preferred,
-
-   .. code-block::
-
-      apt-get install libmsgpack-dev    # If using the msgpack backend
-      # OR
-      apt-get install libtinfo-dev      # If using the YAML backend
-
-3. Setup a virtual environment
-
-   .. code-block::
-
-      python3 -m venv .venv
-      source .venv/bin/activate
-
-4. Install Python dependencies
-
-   .. code-block::
-
-      pip3 install -r requirements.txt
-
-5. Confirm your dependencies match the following listing with ``pip3 freeze``,
-
-   .. literalinclude:: ../../requirements.txt
-      :caption: **requirements.txt**—Direct and transitive Python dependencies
-      :lines: 7-
-
-You can now run Tensile's Python applications—see `Tensile/bin <https://github.com/ROCm/Tensile/tree/develop/Tensile/bin>`_.
-
-
-
----------------------------
-Setting up C++ dependencies
----------------------------
-
-1. Install ROCm for your platform (`Linux <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/tutorial/quick-start.html>`_ or `Windows <https://rocm.docs.amd.com/projects/install-on-windows/en/latest/index.html>`_).
-
-   After the installation is complete, binaries and libraries can be found at */opt/rocm*. ROCm comes packaged with compilers such as **amdclang++**, and other useful tools including **rocminfo** and **rocprofv2**.
-
-   .. tip::
-
-      If using Bash, we recommend setting ``PATH=/opt/rocm/bin/:$PATH`` in your *~/.bashrc* and refreshing your shell, e.g., ``source ~/.bashrc``. Alternatively, export the path only for your current shell session with ``export PATH=/opt/rocm/bin/:$PATH``.
-
-2. Install build tools. Additional installation methods for the latest versions for CMake can be found `here <https://cliutils.gitlab.io/modern-cmake/chapters/intro/installing.html>`_.
-
-   .. code-block::
-
-      apt-get install build-essential cmake
-
-3. Verify the versions of installed tools against the following table,
-
-   .. table:: C++ build dependencies
-      :widths: grid
-
-      ========== =======
-      Dependency Version
-      ========== =======
-      amdclang++ 17.0+
-      Make       4.2+
-      CMake      3.16+
-      ========== =======
-
-You can now run Tensile's `Host library tests`_.
-
->>>>>>>> Stashed changes:docs/src/how-to/developer-guide.rst
 =======
 Testing
 =======
