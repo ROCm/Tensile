@@ -184,6 +184,7 @@ class KernelWriterAssembly(KernelWriter):
     self.maxVgprs = 256
     # max allowed is 112 out of 112 , 6 is used by hardware 4 SGPRs are wasted
     self.maxSgprs = 102
+    self.maxAgprs = 256
     self.maxOccupancy = 10
 
     self.endLine = "\n"
@@ -15402,7 +15403,7 @@ class KernelWriterAssembly(KernelWriter):
       self.overflowedResources = 1
     elif self.sgprPool.size() > self.maxSgprs:
       self.overflowedResources = 2
-    elif self.agprPool.size() > self.totalAgprs:
+    elif self.agprPool.size() > self.maxAgprs:
       self.overflowedResources = 7
 
     if kernel["ScheduleIterAlg"] == 2 and \
