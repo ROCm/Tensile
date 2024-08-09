@@ -1,23 +1,20 @@
 ********************************************************************
-Contributing Guide
+Contribution guidelines
 ********************************************************************
 
-
-
-Welcome to the Tensile project! If you're thinking about contributing, this document is for you. We encourage you to read this guide to understand how to contribute to the project to ensure that your contributions are accepted and merged in a timely manner.
-   
+This document provides the guidelines for contributing to the Tensile source code.
 
 .. seealso::
 
    If you haven't already, please review :ref:`getting-started` for an introduction to the project. For details on environment setup and day-to-day development processes, please refer to the :ref:`programmers-guide`.
 
-Tensile's development practice is based on the `Gitflow Workflow <https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow>`_. The **develop** branch is the default branch for development and is where all new features and bug fixes should be merged. After a PR is merged into **develop**, it will undergo extended testing and profiling. Pending all of these checks pass, it may be promoted to **staging** be included in the next release. If you would like to see the changes in the next release, please ensure that the PR is merged before the release branch is cut.
+Tensile's development practice is based on the `Gitflow workflow <https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow>`_. The **develop** branch is the default branch for development, where all new features and bug fixes are merged. After a PR is merged into **develop**, it undergoes extended testing and profiling. If these checks pass, the PR might be merged into **staging** to be included in the next release. A PR is available in the upcoming release only if it is merged before the release branch is cut.
 
 ============================
-How to submit a Pull Request
+Submitting a Pull Request
 ============================
 
-**When making changes:**
+**Forking Pull Request (PR):**
 
 1. Create a fork of Tensile---please do not create feature branches directly in https://github.com/ROCm/Tensile.
 2. Clone your fork locally and set up your :ref:`development-environment`.
