@@ -3186,6 +3186,8 @@ class KernelWriterAssembly(KernelWriter):
           msg = "reading and writing LDS at same time require 2 LDS buffer"
       elif self.overflowedResources == 6:
         msg = "SIA2 better with occupancy 2"
+      elif self.overflowedResources == 7:
+        msg = "too many accvgprs"
       else:
         msg = "unknown"
 
@@ -15400,6 +15402,8 @@ class KernelWriterAssembly(KernelWriter):
       self.overflowedResources = 1
     elif self.sgprPool.size() > self.maxSgprs:
       self.overflowedResources = 2
+    elif self.agprPool.size() > self.totalAgprs:
+      self.overflowedResources = 7
 
     if kernel["ScheduleIterAlg"] == 2 and \
         self.getOccupancy(kernel["NumThreads"], self.vgprPool.size(), \
