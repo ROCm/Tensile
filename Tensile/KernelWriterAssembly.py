@@ -3195,12 +3195,9 @@ class KernelWriterAssembly(KernelWriter):
       if globalParameters["PrintSolutionRejectionReason"]:
         printWarning(
             f"{self.kernelName} overflowed resources. errorCode={self.overflowedResources}" \
-             ", msg='{msg}', vgprs={self.vgprPool.size()}, sgprs={self.sgprPool.size()}" 
+            f", msg='{msg}', vgprs={self.vgprPool.size()}, sgprs={self.sgprPool.size()}" 
             + f"accvgprs={self.agprPool.size()}" if kernel["EnableMatrixInstruction"] else ""
         )
-        # printWarning("%s overflowed resources.  errorCode=%d, msg=\"%s\", vgprs=%u, sgprs=%u, accvgprs=%u" \
-        #   % (self.kernelName, self.overflowedResources, msg, \
-        #   self.vgprPool.size(), self.sgprPool.size(), self.agprPool.size()))
       kStr += "s_endpgm // overflowed resources\n"
       kStr += ".if 0\n"
 
