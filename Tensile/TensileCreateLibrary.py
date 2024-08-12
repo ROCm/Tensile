@@ -692,10 +692,6 @@ def getKernelSourceAndHeaderCode(ko: KernelWriterBase) -> Tuple[int, List[str], 
 
     Returns:
         Tuple of data: (error code, source code, header code, kernel name)
-
-    Notes:
-        - This function is very similar to **processKernelSource**---the functionality
-        should be merged.
     """
     name = ko.getKernelName()
     err, src = ko.getSourceFileString()
