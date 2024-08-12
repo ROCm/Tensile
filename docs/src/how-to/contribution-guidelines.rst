@@ -3,6 +3,6 @@
   :keywords: Tensile, GEMM, Tensor, ROCm, API, Documentation
 .. highlight:: none
 
-.. _contributor-guide:
+.. _contribution-guidelines:
 
 .. include:: ../../CONTRIBUTING.rst

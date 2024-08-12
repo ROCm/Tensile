@@ -14,25 +14,26 @@ subtrees:
 
 - caption: How to
   entries:
-  - file: src/contributor-guide
-  - file: src/programmers-guide
+  - file: src/how-to/programmers-guide
+  - file: src/how-to/contribution-guidelines
 
-- file: src/concepts
-  entries:
-  - file: src/concepts/benchmarking
-  - file: src/concepts/tuning
-  - file: src/concepts/kernels
-  - file: src/concepts/library-creation
+- entries:
+  - file: src/concepts
+    entries:
+    - file: src/concepts/benchmarking
+    - file: src/concepts/tuning
+    - file: src/concepts/kernels
+    - file: src/concepts/library-creation
 
-- file: src/api-reference
-  entries:
-  - file: src/api-reference/Common
-  - file: src/api-reference/EmbeddedData
-  - file: src/api-reference/TensileCreateLibrary
-  - file: src/api-reference/Utilities
+  - file: src/api-reference
+    entries:
+    - file: src/api-reference/Common
+    - file: src/api-reference/EmbeddedData
+    - file: src/api-reference/TensileCreateLibrary
+    - file: src/api-reference/Utilities
 
-- file: src/cli-reference
-  entries:
-  - file: src/cli-reference/TensileCreateLibrary
+  - file: src/cli-reference
+    entries:
+    - file: src/cli-reference/TensileCreateLibrary
 
-- file: license
+  - file: license

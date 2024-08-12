@@ -37,7 +37,7 @@ The code is open source and hosted at: https://github.com/ROCm/Tensile
   .. grid-item-card:: How to
 
     * :ref:`programmers-guide`
-    * :ref:`contributor-guide`
+    * :ref:`contribution-guidelines`
 
 To contribute to the documentation, refer to
 `Contributing to ROCm <https://rocm.docs.amd.com/en/latest/contribute/contributing.html>`_.
