@@ -731,10 +731,10 @@ def writeKernelHelpers(
     err, srcCode, hdrCode, kernelName = getKernelSourceAndHeaderCode(kernelHelperObj)
     if err:
         printWarning(f"Invalid kernel: {kernelName} may be corrupt")
-    if kernelSourceFile and kernelHeaderFile:
+    if kernelSourceFile and kernelHeaderFile:  # Append to existing files => mergeFiles == True
         toFile(kernelSourceFile, srcCode)
         toFile(kernelHeaderFile, hdrCode)
-    else:
+    else:  # Write to new a file for each helper => mergeFiles == False. Default behaviour when called through rocBLAS
         srcFilename = Path(outputPath) / "Kernels" / f"{kernelName}.cpp"
         hdrFilename = Path(outputPath) / "Kernels" / f"{kernelName}.h"
         toFile(srcFilename, srcCode)
@@ -801,7 +801,13 @@ def writeKernels(
     )
 
     outPath = Path(outputPath)
-    with KernelFileContextManager(params, outPath, kernelFiles) as (srcFile, hdrFile):
+    with KernelFileContextManager(
+        params["LazyLibraryLoading"],
+        params["MergeFiles"],
+        params["NumMergedFiles"],
+        outPath,
+        kernelFiles,
+    ) as (srcFile, hdrFile):
         for ko in kernelHelperObjs:
             writeKernelHelpers(ko, srcFile, hdrFile, outPath, kernelFiles)
 

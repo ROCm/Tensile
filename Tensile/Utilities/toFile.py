@@ -56,7 +56,12 @@ def toFile(outputFile: Union[Path, TextIOWrapper], contents: List[str], delimite
     f = outputFile if isTextIO else open(outputFile, "w")
 
     for chunk in contents:
-        f.write(f"{chunk}{delimiter}")
+        try:
+            f.write(f"{chunk}{delimiter}")
+        except:
+            if not isTextIO:
+                f.close()
+            raise
 
     if not isTextIO:
         f.close()

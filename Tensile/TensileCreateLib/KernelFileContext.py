@@ -2,6 +2,8 @@ from io import TextIOWrapper
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+from Tensile.Tensile.Common import printWarning
+
 
 def _openKernelFiles(
     numMergedFiles: int,
@@ -12,15 +14,18 @@ def _openKernelFiles(
 ) -> Tuple[Optional[TextIOWrapper], Optional[TextIOWrapper]]:
     """Opens kernel source and header files based on merging and loading configurations.
 
-    Decides to open existing files for appending or create new ones based on `numMergedFiles`,
-    `mergeFiles`, `lazyLoading`, and the presence of `kernelFiles`. If `numMergedFiles` is greater
-    than 1 and `kernelFiles` is not empty, it opens files based on the first kernel file name.
-    Otherwise, if `mergeFiles` or `lazyLoading` is enabled, it opens fixed-named files for appending.
+    Decides to open existing files for appending or create new ones based on **numMergedFiles**,
+    **mergeFiles**, **lazyLoading**, and the presence of **kernelFiles** with the following branching:
+    1. If **numMergedFiles** > 1 and **kernelFiles** is not empty, it opens files based on the first kernel file name.
+    2. If **mergeFiles** or **lazyLoading** is enabled, it opens fixed-named files for appending: Kernels.cpp and Kernels.h.
+    3. If **mergeFiles** or **lazyLoading** is False, it returns (None, None) to indicate no that
+       files are not to be merged, and it is the caller's responsibility to handle file creation.
+       This is the default behaviour when TensileCreateLibrary is called during rocBLAS installation.
 
     Args:
-        numMergedFiles: The number of files to merge, affecting file opening behavior.
-        mergeFiles: Flag indicating if files should be merged, affecting file naming.
-        lazyLoading: Flag indicating if lazy loading is enabled, also affecting file naming.
+        numMergedFiles: The number of files to merge.
+        mergeFiles: Flag indicating if files should be merged.
+        lazyLoading: Flag indicating if lazy loading is enabled.
         outputPath: Path to the directory for creating or appending files.
         kernelFiles: Optional list of kernel file names, used for naming if not empty.
 
@@ -33,9 +38,9 @@ def _openKernelFiles(
         - The caller is responsible for closing the returned file objects.
     """
     kernelSourceFile, kernelHeaderFile = None, None
-    if numMergedFiles > 1 and kernelFiles:
+    if numMergedFiles > 1 and len(kernelFiles) > 0:
         kernelSourceFile, kernelHeaderFile = _openFilesBasedOnFirstKernel(kernelFiles)
-    elif mergeFiles or lazyLoading:
+    elif mergeFiles and lazyLoading:
         kernelSourceFile, kernelHeaderFile = _openFilesWithFixedNames(outputPath)
 
     return kernelSourceFile, kernelHeaderFile
@@ -99,8 +104,7 @@ def _openFilesBasedOnFirstKernel(kernelFiles: List[str]) -> Tuple[TextIOWrapper,
 
 
 class KernelFileContextManager:
-    """
-    A context manager for opening kernel files and ensuring they are closed after use.
+    """A context manager for opening kernel files and ensuring they are closed after use.
 
     This context manager uses the provided parameters to open kernel source and header files
     and automatically closes them when exiting the context. It simplifies the management of
@@ -111,26 +115,33 @@ class KernelFileContextManager:
             # Use kernelSourceFile and kernelHeaderFile here
     """
 
-    def __init__(self, params: dict, outputPath: Path, kernelFiles: Optional[List[str]] = None):
-        """
-        Initializes the context manager with the necessary parameters for opening kernel files.
+    def __init__(
+        self,
+        lazyLoading: bool,
+        mergeFiles: bool,
+        numMergedFiles: int,
+        outputPath: Path,
+        kernelFiles: Optional[List[str]] = None,
+    ):
+        """Initializes the context manager with the necessary parameters for opening kernel files.
 
         Args:
             params (dict): A dictionary containing parameters for opening kernel files.
             outputPath (Path): The output path where kernel files are located or will be created.
             kernelFiles (Optional[List[str]]): A list of kernel file names.
         """
-        self.numMergedFiles = params["NumMergedFiles"]
-        self.mergeFiles = params["MergeFiles"]
-        self.lazyLoading = params["LazyLibraryLoading"]
+        self.numMergedFiles = numMergedFiles
+        self.mergeFiles = mergeFiles
+        self.lazyLoading = lazyLoading
         self.outputPath = outputPath
         self.kernelFiles = kernelFiles
         self.kernelSourceFile = None
         self.kernelHeaderFile = None
 
+        self._preconditions()
+
     def __enter__(self):
-        """
-        Opens the kernel files based on the provided parameters and returns them.
+        """Opens the kernel files based on the provided parameters and returns them.
 
         Returns:
             A tuple containing the opened kernel source and header files.
@@ -145,8 +156,7 @@ class KernelFileContextManager:
         return self.kernelSourceFile, self.kernelHeaderFile
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """
-        Ensures that the kernel files are closed when exiting the context.
+        """Ensures that the kernel files are closed when exiting the context.
 
         Args:
             exc_type: The exception type if an exception was raised within the context.
@@ -154,3 +164,31 @@ class KernelFileContextManager:
             exc_tb: The traceback if an exception was raised.
         """
         _closeKernelFiles(self.kernelSourceFile, self.kernelHeaderFile)
+
+    def _preconditions(self):
+        """Checks if the context manager has been initialized with valid parameters.
+
+        Raises:
+            ValueError: If any, or some combination of, the required parameters are invalid.
+        """
+        if not self.outputPath:
+            raise ValueError("Output path cannot be empty.")
+
+        if not self.kernelFiles:
+            printWarning("Kernel file context manager opened without any kernel files.")
+            if self.numMergedFiles > 1:
+                raise ValueError(
+                    f"Number of merged files is {self.numMergedFiles}, but no kernel files were provided to place the generated code into. Provide at least one kernel file."
+                )
+
+        if self.mergeFiles != self.lazyLoading:
+            raise ValueError("To merge files, lazy loading must be set to True, and vice versa.")
+
+        if not self.mergeFiles:
+            if self.numMergedFiles > 1:
+                # This behaviour matches that in Common.assignGlobalParameters.
+                # It is enforced again to reconcile the discrepancy in the case that assignGlobalParameters is not called.
+                printWarning(
+                    "Merging files is disabled, but the number of merged files is {self.numMergedFiles}... the number of merged files will be ignored and separate files will be created."
+                )
+                self.numMergedFiles = 1
