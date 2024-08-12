@@ -1,5 +1,5 @@
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -24,18 +24,40 @@ def mock_pathResolve():
         yield mockResolve
 
 
-def test_openKernelFiles_withMergeFilesEnabled(mock_openFile, mock_pathResolve):
-    _openKernelFiles(0, True, False, Path("/some/path"))
+# @pytest.fixture
+# def mock_pathOpenWithFixedNames():
+#     with patch("Tensile.TensileCreateLib.KernelFileContext._openFilesWithFixedNames", return_value=ope) as mockResolve:
+#         yield mockResolve
+
+
+def test_openKernelFiles_withOnlyMergeFilesEnabled(mock_openFile, mock_pathResolve):
+    x, y = _openKernelFiles(0, True, False, Path("/some/path"), [])
+    mock_openFile[0].assert_not_called()
+    assert x == None and y == None, "Should return None when only mergeFiles is enabled"
+
+
+def test_openKernelFiles_withOnlyLazyLoadingEnabled(mock_openFile, mock_pathResolve):
+    x, y = _openKernelFiles(0, False, True, Path("/some/path"), [])
+    mock_openFile[0].assert_not_called()
+    assert x == None and y == None, "Should return None when only lazyLoading is enabled"
+
+
+def test_openKernelFiles_withMergeAndLazyEnabled(mock_openFile, mock_pathResolve):
+    x, y = _openKernelFiles(2, True, True, Path("/fake/path"), [])
     mock_openFile[0].assert_called()
+    assert mock_openFile[0].call_args_list == [
+        call(Path("/fake/path/Kernels.cpp"), "a", encoding="utf-8"),
+        call(Path("/fake/path/Kernels.h"), "a", encoding="utf-8"),
+    ]
 
 
 def test_openKernelFiles_withNumMergedFiles(mock_openFile, mock_pathResolve):
-    _openKernelFiles(2, False, False, Path("/some/path"), ["kernel1.cpp", "kernel2.cpp"])
+    x, y = _openKernelFiles(2, False, False, Path("/some/path"), ["kernel1.cpp", "kernel2.cpp"])
     mock_openFile[0].assert_called()
 
 
 def test_openKernelFiles_noAction(mock_openFile, mock_pathResolve):
-    _openKernelFiles(1, False, False, Path("/some/path"))
+    _openKernelFiles(2, False, False, Path("/some/path"), [])
     mock_openFile[0].assert_not_called()
 
 
@@ -46,7 +68,8 @@ def test_closeKerneFiles(mock_openFile, mock_pathResolve):
 
 
 def test_KernelFileContextManager(mock_openFile, mock_pathResolve):
-    with KernelFileContextManager(
-        {"NumMergedFiles": 0, "MergeFiles": True, "LazyLibraryLoading": False}, Path("/some/path")
+    with pytest.raises(
+        ValueError, match="To merge files, lazy loading must be set to True, and vice versa."
     ):
-        mock_openFile[0].assert_called()
+        with KernelFileContextManager(True, False, 0, Path("/some/path")):
+            pass

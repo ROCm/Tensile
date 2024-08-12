@@ -10,7 +10,7 @@ def _openKernelFiles(
     mergeFiles: bool,
     lazyLoading: bool,
     outputPath: Path,
-    kernelFiles: Optional[List[str]] = None,
+    kernelFiles: List[str],
 ) -> Tuple[Optional[TextIOWrapper], Optional[TextIOWrapper]]:
     """Opens kernel source and header files based on merging and loading configurations.
 
