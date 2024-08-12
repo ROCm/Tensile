@@ -2,31 +2,38 @@ defaults:
   numbered: False
 root: src/index
 subtrees:
-  - entries:
-    - caption: Getting started
-      entries:
-        - file: src/getting-started/installation
-        - file: src/getting-started/quick-start
-    - file: src/concepts
-      entries:
-        - file: src/concepts/benchmarking
-        - file: src/concepts/tuning
-        - file: src/concepts/kernels
-        - file: src/concepts/library-creation
-    - file: src/api-reference
-      entries:
-        - file: src/api-reference/Common
-        - file: src/api-reference/EmbeddedData
-        - file: src/api-reference/TensileCreateLibrary
-        - file: src/api-reference/Utilities
-    - file: src/cli-reference
-      entries:
-        - file: src/cli-reference/TensileCreateLibrary
-    - caption: Reference
-      entries:
-        - file: src/reference/environment-variables
-        - file: src/reference/experimental-kernel-selection
-    - file: src/contributor-guide
-    - file: src/programmers-guide
-    - file: license
+- caption: Getting started
+  entries:
+  - file: src/getting-started/installation
+  - file: src/getting-started/quick-start
 
+- caption: Reference
+  entries:
+  - file: src/reference/environment-variables
+  - file: src/reference/experimental-kernel-selection
+
+- caption: How to
+  entries:
+  - file: src/contributor-guide
+  - file: src/programmers-guide
+
+- entries:
+  - file: src/concepts
+    entries:
+    - file: src/concepts/benchmarking
+    - file: src/concepts/tuning
+    - file: src/concepts/kernels
+    - file: src/concepts/library-creation
+
+  - file: src/api-reference
+    entries:
+    - file: src/api-reference/Common
+    - file: src/api-reference/EmbeddedData
+    - file: src/api-reference/TensileCreateLibrary
+    - file: src/api-reference/Utilities
+
+  - file: src/cli-reference
+    entries:
+    - file: src/cli-reference/TensileCreateLibrary
+
+  - file: license
