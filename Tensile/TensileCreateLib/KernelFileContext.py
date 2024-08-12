@@ -2,7 +2,7 @@ from io import TextIOWrapper
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from Tensile.Tensile.Common import printWarning
+from ..Common import printWarning
 
 
 def _openKernelFiles(
