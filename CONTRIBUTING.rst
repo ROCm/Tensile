@@ -6,7 +6,7 @@ This document provides the guidelines for contributing to the Tensile source cod
 
 .. seealso::
 
-   If you haven't already, please review :ref:`getting-started` for an introduction to the project. For details on environment setup and day-to-day development processes, please refer to the :ref:`programmers-guide`.
+   For information about environment setup and development processes, see :ref:`programmers-guide`.
 
 Tensile's development practice is based on the `Gitflow workflow <https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow>`_. The **develop** branch is the default branch for development, where all new features and bug fixes are merged. After a PR is merged into **develop**, it undergoes extended testing and profiling. If these checks pass, the PR might be merged into **staging** to be included in the next release. A PR is available in the upcoming release only if it is merged before the release branch is cut.
 

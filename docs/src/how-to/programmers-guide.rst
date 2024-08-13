@@ -6,7 +6,7 @@
 .. _programmers-guide:
 
 ********************************************************************
-Programmer's Guide
+Programmer's guide
 ********************************************************************
 
 This document provides necessary information for programmers interested in contributing to the Tensile source code.
@@ -17,7 +17,7 @@ This document provides necessary information for programmers interested in contr
 Development environment
 =======================
 
-ROCm is the base requirement for contributing to Tensile. See if ROCm is supported on your platform by verifying the `supported operating systems <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/reference/system-requirements.html#supported-operating-systems>_` list.
+ROCm is the base requirement for contributing to Tensile. See if ROCm is supported on your platform by verifying the `supported operating systems <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/reference/system-requirements.html#supported-operating-systems>`_ list.
 Then, follow the steps given in the :ref:`installation` guide.
 
 =====================
@@ -106,23 +106,24 @@ Next, you can configure, build, and run the host library tests using any of the 
 
 - ``tox``:
 
-.. code-block::
+   .. code-block::
 
-   tox run -e hostlibtest
+      tox run -e hostlibtest
 
-.. note::
-   Note that the ``tox`` command wraps `invoke <https://www.pyinvoke.org/index.html>`_, a tool to manage CLI-invokable tasks. Since tox is fundamentally a Python environment manager and test runner, any reusable shell commands that fall outside its purview are managed by invoke (which are again encapsulated by tox sometimes). See `tasks.py <https://github.com/ROCm/Tensile/blob/develop/tasks.py>`_ for details.
+   .. note::
+
+      Note that the ``tox`` command wraps `invoke <https://www.pyinvoke.org/index.html>`_, a tool to manage CLI-invokable tasks. Since tox is fundamentally a Python environment manager and test runner, any reusable shell commands that fall outside its purview are managed by invoke (which are again encapsulated by tox sometimes). See `tasks.py <https://github.com/ROCm/Tensile/blob/develop/tasks.py>`_ for details.
 
 - ``invoke``:
 
-.. code-block::
+   .. code-block::
 
-   invoke hostlibtest --configure --build --run
+      invoke hostlibtest --configure --build --run
 
-Running the preceding command generates an executable ``TensileTests``, which can be further used to run the tests.
+   Running the preceding command generates an executable ``TensileTests``, which can be further used to run the tests.
 
 - Manually: To build and run the tests manually, see the commands in `tasks.py <https://github.com/ROCm/Tensile/blob/develop/tasks.py>`_.
-For advanced usage like filtering or repeating test cases, see the `gtest documentation <https://github.com/google/googletest/blob/main/docs/advanced.md>`_.
+  For advanced usage like filtering or repeating test cases, see the `gtest documentation <https://github.com/google/googletest/blob/main/docs/advanced.md>`_.
 
 ===============
 Static analysis
