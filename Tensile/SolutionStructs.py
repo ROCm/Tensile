@@ -28,7 +28,7 @@ from .Common import assignParameterRequired, assignParameterWithDefault, \
                     tPrint, printExit, printWarning, \
                     validActivationFormats, validConvolutionConfig, \
                     validMFMA, validWMMA, validParameters, validWeightFormats, \
-                    validGEMMTypes, HPATypes
+                    validGEMMTypes, HPATypes, parameterNameAbbreviations
 from .DataType import DataType
 from .Utils import roundUpToNearestMultiple
 
@@ -4888,13 +4888,9 @@ class Solution(collections.abc.Mapping):
 
   ########################################
   @ staticmethod
-  def getParameterNameAbbreviation( name ):
-    specialValues = {
-      'MACInstruction': '' # Conflicts with MatrixInstruction, but _MAD and _FMA should be enough differentiation for the kernel name.
-    }
-    if name in specialValues: return specialValues[name]
+  def getParameterNameAbbreviation(name):
+    return parameterNameAbbreviations[name]
 
-    return ''.join([c for c in name if not c.islower()])
 
   ########################################
   @ staticmethod

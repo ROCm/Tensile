@@ -9,7 +9,8 @@ Quick start
 ********************************************************************
 
 .. important::
-  Ensure you have followed the steps in the :ref:`installation` guide.
+
+   Ensure you have followed the steps in the :ref:`installation` guide.
 
 To run a benchmark, pass a tuning config to the ``Tensile`` program located in ``Tensile/bin``.
 
@@ -17,8 +18,9 @@ For demonstration purposes, we use the sample tuning file available in ``Tensile
 The sample tuning file allows you to specify the target architecture for which the benchmark will generate a library.
 To find your device architecture, run:
 
-.. code:: bash
-  rocminfo | grep gfx
+.. code-block:: bash
+
+   rocminfo | grep gfx
 
 Specify the device architecture in the sample tuning file using ``ArchitectureName:``. Based on the device architecture, use ``ArchitectureName: "gfx90a"`` or ``ArchitectureName: "gfx1030"``.
 
@@ -26,8 +28,8 @@ You can now run benchmarks using Tensile. From the top-level directory, run:
 
 .. code-block:: bash
 
-  mkdir build && cd build
-  ../Tensile/bin/Tensile ../Tensile/Configs/rocblas_sgemm_example.yaml ./
+   mkdir build && cd build
+   ../Tensile/bin/Tensile ../Tensile/Configs/rocblas_sgemm_example.yaml ./
 
 After the benchmark completes, Tensile creates the following directories:
 

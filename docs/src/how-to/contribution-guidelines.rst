@@ -5,4 +5,4 @@
 
 .. _contribution-guidelines:
 
-.. include:: ../../../CONTRIBUTING.rst
+.. include:: ../../../.github/CONTRIBUTING.rst
