@@ -28,24 +28,24 @@ a. **Forking the repository:**
 
    Keeping the scope of new PRs as narrow as possible improves the chances of it getting accepted. If you are making multiple changes, consider breaking them into separate PRs. Keeping PRs small supports timely code reviews, traceability, and straightforward reversions.
 
-**When opening a PR:**
+b. **Creating the PR:**
 
-1. Ensure that **your develop** branch is up-to-date with the **upstream develop** branch---this may require a rebase or a merge.
-2. Verify that your changes pass static analysis checks and all pre-checkin, host library, and unit tests by running ``tox run -m prepr``---then go get a coffee, this could take up to an hour.
-3. Create the PRs against the https://github.com/ROCm/Tensile **develop** branch.
-4. Fill in as many details as possible. Include a description, outcomes, notable changes, and environment information. This more information, the more likely the PR will be reviewed and merged in a timely manner.
-5. Title the PR in present imperative tense, e.g., "*Update* kernel parameters" not "Updates" nor "Updated".
+   1. Ensure that **your develop** branch is up-to-date with the **upstream develop** branch. This might require a rebase or a merge.
+   2. Verify that your changes pass static analysis checks and all pre-checkin, host library, and unit tests by running ``tox run -m prepr``.
+   3. Create the PR against the https://github.com/ROCm/Tensile **develop** branch.
+   4. Fill in as many details as possible. Include description, outcomes, notable changes, and environment information. The availability of information makes the PR review process easier, increasing the likelihood of the PR getting merged in a timely manner.
+   5. Title the PR in present imperative tense. For example, "*Update* kernel parameters", not "Updates" or "Updated".
 
 .. tip::
 
-   If you need to merge **develop** into your feature branch after a PR is opened, use a merge instead of a rebase.
+   To merge **develop** into your feature branch after a PR is opened, use a merge instead of a rebase.
 
-   In general, refrain from force pushing once a feature branch is in PR as it is prone to gotchas in our CI system. Ideally, the git history is linear and clean *before* a PR is created. As such we encourage contributors to conduct any rebases or amends prior to opening a PR.
+   In general, refrain from force pushing once a feature branch is in PR as it is prone to gotchas in our CI system. Ideally, the git history is linear and clean *before* a PR is created. Hence, we encourage contributors to conduct any rebases or amends prior to opening a PR.
 
-**Once all checks pass and the PR is approved:**
+c. **Merging the PR:**
 
-1. Ensure the title of the PR properly describes the changes, update if necessary.
-2. Squash and merge the PR---if you are not a maintainer, a maintainer will do this for you. When merging a large change, use bullet points in the commit message to break down the changes.
+   1. Ensure the title of the PR properly describes the changes.
+   2. Squash and merge the PR. If you are not the maintainer, a maintainer does this for you. When merging multiple changes, use bullet points in the commit message to break down the changes.
 
 ------
 Labels
@@ -56,10 +56,9 @@ Labels
    ============= =======
    Label         Effect
    ============= =======
-   ci:profiling  Adds the *profiling* job to the CI pipeline. Profiling artifacts will be saved for 10 days.
+   ci:profiling  Adds the *profiling* job to the CI pipeline. Profiling artifacts are saved for 10 days.
    ci:docs-only  Only runs the *docs/readthedocs* job; omits all other pipeline jobs.
    ============= =======
-
 
 ===========================
 Conventions and style guide
@@ -69,19 +68,18 @@ Conventions and style guide
 General conventions
 -------------------
 
-1. Always use space indentation (4 spaces)---never commit a tab, e.g., ``\t``.
+Always use space indentation (four spaces). Never commit a tab (``\t``).
 
 ------------------
 Python doc-strings
 ------------------
 
-Tensile uses `autodoc <https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html>`_ to pull in documentation from doc-strings and integrate them into this site. Please use the following guidelines when writing Python functions and modules to maintain quality and consistency.
+Tensile uses `autodoc <https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html>`_ to pull in documentation from doc-strings and integrate them into this site. Use the following guidelines when writing Python functions and modules to maintain quality and consistency.
 
-1. The all parameters and returned values should be identified with type-hints.
-2. All functions should have a doc-string describing the parameters, return value, and any exception; however, if the function is small and the implementation is straightforward, a one-line doc-string is sufficient.
-3. Do not include types directly in the doc-string, these should be added as type-hints in the function definition.
-4. For doc-string styling, use the `Google Python Style Guide <https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings>`_.
-
+1. Identify the parameters and returned values with type-hints.
+2. For all functions, specify doc-string describing the parameters, return value, and any exception. However, if the function is small and the implementation is straightforward, a one-line doc-string is sufficient.
+3. Don't include types directly in the doc-string. Add them as type-hints in the function definition.
+4. For doc-string styling, use the `Google Python style guide <https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings>`_.
 
 .. _commit-messages:
 
@@ -90,5 +88,5 @@ Commit messages
 ---------------
 
 1. Use `conventional commits <https://www.conventionalcommits.org/>`_.
-2. Use the present imperative tense, e.g., "add" not "adds" nor "added".
-3. Don't add a period (``.``) to the end of the message.
+2. Use the present imperative tense. For example, "add" not "adds" or "added".
+3. Don't end the message with a period (``.``).
