@@ -3196,7 +3196,7 @@ class KernelWriterAssembly(KernelWriter):
         printWarning(
             f"{self.kernelName} overflowed resources. errorCode={self.overflowedResources}" \
             f", msg='{msg}', vgprs={self.vgprPool.size()}, sgprs={self.sgprPool.size()}" 
-            + f"accvgprs={self.agprPool.size()}" if kernel["EnableMatrixInstruction"] else ""
+            + f", accvgprs={self.agprPool.size()}" if kernel["EnableMatrixInstruction"] else ""
         )
       kStr += "s_endpgm // overflowed resources\n"
       kStr += ".if 0\n"
