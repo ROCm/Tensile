@@ -846,15 +846,15 @@ def writeKernels(
 ##############################################################################
 # Min Naming / Solution and Kernel Writers
 ##############################################################################
-def getKernelWriters(solutions: List[Solution], kernels: List[Solution]):
+def getKernelWriters(solutions: List[Solution], kernels: List[Solution], removeTemporaries):
 
     # if any kernels are assembly, append every ISA supported
     kernelSerialNaming = Solution.getSerialNaming(kernels)
 
     solutionMinNaming = Solution.getMinNaming(solutions)
     kernelMinNaming = Solution.getMinNaming(kernels)
-    kernelWriterSource = KernelWriterSource(kernelMinNaming, kernelSerialNaming)
-    kernelWriterAssembly = KernelWriterAssembly(kernelMinNaming, kernelSerialNaming)
+    kernelWriterSource = KernelWriterSource(kernelMinNaming, kernelSerialNaming, removeTemporaries)
+    kernelWriterAssembly = KernelWriterAssembly(kernelMinNaming, kernelSerialNaming, removeTemporaries)
 
     return (
         kernelWriterSource,
@@ -1395,7 +1395,7 @@ def writeBenchmarkClientFiles(
 
     kernels, kernelsBetaOnly, _ = generateKernelObjectsFromSolutions(solutions)
     kernelWriterSource, kernelWriterAssembly, kernelMinNaming, _ = getKernelWriters(
-        solutions, kernels
+        solutions, kernels, removeTemporaries,
     )
 
     # write solution, kernels and CMake
@@ -1758,7 +1758,7 @@ def TensileCreateLibrary():
 
     # if any kernels are assembly, append every ISA supported
     kernelWriterSource, kernelWriterAssembly, kernelMinNaming, _ = getKernelWriters(
-        solutions, kernels
+        solutions, kernels, removeTemporaries
     )
 
     staticFiles = copyStaticFiles(outputPath)
