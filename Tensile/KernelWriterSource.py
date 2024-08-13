@@ -3229,10 +3229,7 @@ class KernelWriterSource(KernelWriter):
   # Kernel Body Suffix
   ##############################################################################
   def kernelBodySuffix(self, kernel, tPA, tPB ):
-    kStr = ""
-    kernelName = self.getKernelName(kernel)
-    kStr += "\n"
-    return kStr
+    return ""
 
   ##############################################################################
   # WaitCnt
