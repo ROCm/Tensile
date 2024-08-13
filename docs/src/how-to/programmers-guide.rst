@@ -106,13 +106,13 @@ Next, you can configure, build, and run the host library tests using any of the 
 
 - ``tox``:
 
-   .. code-block::
+  .. code-block::
 
-      tox run -e hostlibtest
+   tox run -e hostlibtest
 
-   .. note::
+ .. note::
 
-      Note that the ``tox`` command wraps `invoke <https://www.pyinvoke.org/index.html>`_, a tool to manage CLI-invokable tasks. Since tox is fundamentally a Python environment manager and test runner, any reusable shell commands that fall outside its purview are managed by invoke (which are again encapsulated by tox sometimes). See `tasks.py <https://github.com/ROCm/Tensile/blob/develop/tasks.py>`_ for details.
+   Note that the ``tox`` command wraps `invoke <https://www.pyinvoke.org/index.html>`_, a tool to manage CLI-invokable tasks. Since tox is fundamentally a Python environment manager and test runner, any reusable shell commands that fall outside its purview are managed by invoke (which are again encapsulated by tox sometimes). See `tasks.py <https://github.com/ROCm/Tensile/blob/develop/tasks.py>`_ for details.
 
 - ``invoke``:
 
