@@ -29,7 +29,6 @@
 
 #include "GEMMKernelTest.hpp"
 
-#include <CL/cl2.hpp>
 #include <Tensile/SolutionLibrary.hpp>
 
 #include <Tensile/AMDGPU.hpp>
