@@ -835,7 +835,7 @@ def writeKernels(
 
     Common.popWorkingPath()  # outputPath.upper()
 
-    if globalParameters["CleanupBuildFiles"]:
+    if removeTemporaries or globalParameters["CleanupBuildFiles"]:
         shutil.rmtree(globalParameters["WorkingPath"])
 
     Common.popWorkingPath()  # build_tmp
