@@ -5,4 +5,8 @@
 
 .. _contribution-guidelines:
 
+=============================
+Contribution guidelines
+=============================
+
 .. include:: ../../CONTRIBUTING.rst
