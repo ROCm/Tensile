@@ -99,6 +99,7 @@ function(TensileCreateLibraryFiles
        GENERATE_PACKAGE
        SEPARATE_ARCHITECTURES
        LAZY_LIBRARY_LOADING
+       KEEP_BUILD_TMP
        )
 
   # Single value settings
@@ -165,6 +166,10 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--short-file-names")
   else()
     set(Options ${Options} "--no-short-file-names")
+  endif()
+
+  if(Tensile_KEEP_BUILD_TMP)
+    set(Options ${Options} "--keep-build-tmp")
   endif()
 
   if(Tensile_VERBOSE)
