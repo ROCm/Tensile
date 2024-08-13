@@ -42,7 +42,6 @@ class DataType:
             'miOutTypeNameAbbrev': 'f32',
             'enum': 'Float',
             'reg': 1,
-            'ocl': 'float',
             'hip': 'float',
             'libType': 'float',
             'libEnum': 'tensileDataTypeFloat',
@@ -57,7 +56,6 @@ class DataType:
             'miOutTypeNameAbbrev': 'f64',
             'enum': 'Double',
             'reg': 2,
-            'ocl': 'double',
             'hip': 'double',
             'libType': 'double',
             'libEnum': 'tensileDataTypeDouble',
@@ -72,7 +70,6 @@ class DataType:
             'miOutTypeNameAbbrev': 'f32',
             'enum': 'ComplexFloat',
             'reg': 2,
-            'ocl': 'float2',
             'hip': 'TensileComplexFloat',
             'libType': 'TensileComplexFloat',
             'libEnum': 'tensileDataTypeComplexFloat',
@@ -87,7 +84,6 @@ class DataType:
             'miOutTypeNameAbbrev': 'f64',
             'enum': 'ComplexDouble',
             'reg': 4,
-            'ocl': 'double2',
             'hip': 'TensileComplexDouble',
             'libType': 'TensileComplexDouble',
             'libEnum': 'tensileDataTypeComplexDouble',
@@ -102,7 +98,6 @@ class DataType:
             'miOutTypeNameAbbrev': 'f32',
             'enum': 'Half',
             'reg': 0.5,
-            'ocl': 'ERROR',
             'hip': 'tensile_half',
             'libType': 'TensileHalf',
             'libEnum': 'tensileDataTypeHalf',
@@ -117,7 +112,6 @@ class DataType:
             'miOutTypeNameAbbrev': 'i32',
             'enum': 'Int8x4',
             'reg': 1,
-            'ocl': 'ERROR',
             'hip': 'uint32_t',
             'libType': 'TensileInt8x4',
             'libEnum': 'tensileDataTypeInt8x4',
@@ -132,7 +126,6 @@ class DataType:
             'miOutTypeNameAbbrev': 'NONE',         # not supported for MI
             'enum': 'Int32',
             'reg': 1,
-            'ocl': 'ERROR',
             'hip': 'int32_t',
             'libType': 'TensileInt32',
             'libEnum': 'tensileDataTypeInt32',
@@ -147,7 +140,6 @@ class DataType:
             'miOutTypeNameAbbrev': 'f32',
             'enum': 'BFloat16',
             'reg': 0.5,
-            'ocl': 'ERROR',
             'hip': 'tensile_bfloat16',
             'libType': 'tensile_bfloat16',
             'libEnum': 'tensileDataTypeBFloat16',
@@ -162,7 +154,6 @@ class DataType:
             'miOutTypeNameAbbrev': 'i32',
             'enum': 'Int8',                        # mapping to new client c++ enum
             'reg': 0.25,
-            'ocl': 'ERROR',
             'hip': 'int8_t',
             'libType': 'TensileInt8',              # old client
             'libEnum': 'tensileDataTypeInt8',      # old client
@@ -177,7 +168,6 @@ class DataType:
             'miOutTypeNameAbbrev': 'f32',
             'enum': 'XFloat32',
             'reg': 1,
-            'ocl': 'ERROR',
             'hip': 'ERROR',
             'libType': 'ERROR',
             'libEnum': 'tensileDataTypeXFloat32',
@@ -192,7 +182,6 @@ class DataType:
             'miOutTypeNameAbbrev': 'f32',
             'enum': 'Float8',                      # mapping to new client c++ enum
             'reg': 0.25,
-            'ocl': 'ERROR',
             'hip': 'tensile_float8',
             'libType': 'TensileFloat8',            # old client
             'libEnum': 'tensileDataTypeF8',        # old client
@@ -208,7 +197,6 @@ class DataType:
             'miOutTypeNameAbbrev': 'f32',
             'enum': 'BFloat8',                     # mapping to new client c++ enum
             'reg': 0.25,
-            'ocl': 'ERROR',
             'hip': 'tensile_bfloat8',
             'libType': 'TensileBFloat8',           # old client
             'libEnum': 'tensileDataTypeB8',        # old client
@@ -224,7 +212,6 @@ class DataType:
             'miOutTypeNameAbbrev': 'f32',
             'enum': 'Float8BFloat8',               # mapping to new client c++ enum
             'reg': 0.25,
-            'ocl': 'ERROR',
             'hip': 'ERROR',
             'libType': 'ERROR',                    # old client
             'libEnum': 'tensileDataTypeF8B8',      # old client
@@ -240,7 +227,6 @@ class DataType:
             'miOutTypeNameAbbrev': 'f32',
             'enum': 'BFloat8Float8',               # mapping to new client c++ enum
             'reg': 0.25,
-            'ocl': 'ERROR',
             'hip': 'ERROR',
             'libType': 'ERROR',                    # old client
             'libEnum': 'tensileDataTypeB8F8',      # old client
@@ -272,8 +258,6 @@ class DataType:
         return self.properties['nameAbbrev']
     def toEnum(self):
         return self.properties['enum']
-    def toOpenCL(self):
-        return self.properties['ocl']
     def toHIP(self):
         return self.properties['hip']
     def toDevice(self, language):
