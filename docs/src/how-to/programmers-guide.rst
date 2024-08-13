@@ -110,17 +110,17 @@ Next, you can configure, build, and run the host library tests using any of the 
 
    tox run -e hostlibtest
 
- .. note::
+  .. note::
 
    Note that the ``tox`` command wraps `invoke <https://www.pyinvoke.org/index.html>`_, a tool to manage CLI-invokable tasks. Since tox is fundamentally a Python environment manager and test runner, any reusable shell commands that fall outside its purview are managed by invoke (which are again encapsulated by tox sometimes). See `tasks.py <https://github.com/ROCm/Tensile/blob/develop/tasks.py>`_ for details.
 
 - ``invoke``:
 
-   .. code-block::
+  .. code-block::
 
-      invoke hostlibtest --configure --build --run
+   invoke hostlibtest --configure --build --run
 
-   Running the preceding command generates an executable ``TensileTests``, which can be further used to run the tests.
+  Running the preceding command generates an executable ``TensileTests``, which can be further used to run the tests.
 
 - Manually: To build and run the tests manually, see the commands in `tasks.py <https://github.com/ROCm/Tensile/blob/develop/tasks.py>`_.
   For advanced usage like filtering or repeating test cases, see the `gtest documentation <https://github.com/google/googletest/blob/main/docs/advanced.md>`_.

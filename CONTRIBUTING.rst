@@ -14,19 +14,19 @@ Tensile's development practice is based on the `Gitflow workflow <https://www.at
 Submitting a Pull Request
 ============================
 
-**Forking Pull Request (PR):**
+a. **Forking the repository:**
 
-1. Create a fork of Tensile---please do not create feature branches directly in https://github.com/ROCm/Tensile.
-2. Clone your fork locally and set up your :ref:`development-environment`.
-3. Create a feature branch off of **develop** and make changes to the code.
-4. Issue ``tox run -m precommit`` and ensure that all checks pass.
-5. Commit you changes using the convention for :ref:`commit-messages`.
-6. If you are updating documentation, issue ``tox run -e docs`` and verify the styling and formatting is what you expect.
-7. Push the changes to your fork.
+   1. Create a fork of Tensile. Do not create feature branches directly in https://github.com/ROCm/Tensile.
+   2. Clone your fork locally and set up your :ref:`development-environment`.
+   3. Create your feature branch from **develop** and make changes to the code.
+   4. Issue ``tox run -m precommit`` and ensure that all checks pass.
+   5. Commit your changes using the convention for :ref:`commit-messages`.
+   6. If you are updating documentation, issue ``tox run -e docs`` and verify the styling and formatting.
+   7. Push the changes to your fork.
 
 .. tip::
 
-   Keeping the scope of new PRs as narrow as possible improves the chances it will be accepted. If you are making multiple changes, consider breaking them into separate PRs. Keeping PRs small supports timely code reviews, traceability, and straightforward reversions.
+   Keeping the scope of new PRs as narrow as possible improves the chances of it getting accepted. If you are making multiple changes, consider breaking them into separate PRs. Keeping PRs small supports timely code reviews, traceability, and straightforward reversions.
 
 **When opening a PR:**
 
