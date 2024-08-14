@@ -44,7 +44,7 @@ using namespace Tensile;
  * for setting up and invoking
  * Tensile GEMM type problems on a
  * particular device backend.
- * E.g. HIP, or OpenCL
+ * E.g. HIP
  */
 template <typename DeviceBackend>
 struct GEMMKernelTest
