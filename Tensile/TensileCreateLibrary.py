@@ -1332,7 +1332,7 @@ def generateLogicData(
     libraries = parseLibraryLogicFiles(logicFiles)
     logicList = libraries if not printLevel else Utils.tqdm(libraries, desc="Processing logic data")
     masterLibraries = makeMasterLibraries(logicList, separate)
-    if separate:
+    if separate and "fallback" in masterLibraries:
         addFallback(masterLibraries)
     applyNaming(masterLibraries)
     for lib in masterLibraries.values():
