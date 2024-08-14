@@ -40,7 +40,7 @@ def _openKernelFiles(
     kernelSourceFile, kernelHeaderFile = None, None
     if numMergedFiles > 1 and len(kernelFiles) > 0:
         kernelSourceFile, kernelHeaderFile = _openFilesBasedOnFirstKernel(kernelFiles)
-    elif mergeFiles and lazyLoading:
+    elif mergeFiles or lazyLoading:
         kernelSourceFile, kernelHeaderFile = _openFilesWithFixedNames(outputPath)
 
     return kernelSourceFile, kernelHeaderFile
@@ -121,7 +121,7 @@ class KernelFileContextManager:
         mergeFiles: bool,
         numMergedFiles: int,
         outputPath: Path,
-        kernelFiles: Optional[List[str]] = None,
+        kernelFiles: List[str],
     ):
         """Initializes the context manager with the necessary parameters for opening kernel files.
 
@@ -180,9 +180,6 @@ class KernelFileContextManager:
                 raise ValueError(
                     f"Number of merged files is {self.numMergedFiles}, but no kernel files were provided to place the generated code into. Provide at least one kernel file."
                 )
-
-        if self.mergeFiles != self.lazyLoading:
-            raise ValueError("To merge files, lazy loading must be set to True, and vice versa.")
 
         if not self.mergeFiles:
             if self.numMergedFiles > 1:
