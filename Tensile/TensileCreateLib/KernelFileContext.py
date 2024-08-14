@@ -178,14 +178,20 @@ class KernelFileContextManager:
             printWarning("Kernel file context manager opened without any kernel files.")
             if self.numMergedFiles > 1:
                 raise ValueError(
-                    f"Number of merged files is {self.numMergedFiles}, but no kernel files were provided to place the generated code into. Provide at least one kernel file."
+                    f"Number of merged files is {self.numMergedFiles}, but no kernel files were "
+                    " provided to place the generated code into. Provide at least one kernel file."
                 )
+
+        if self.lazyLoading:
+            if not self.mergeFiles:
+                raise ValueError("If lazy loading is enabled, merge files must be as well")
 
         if not self.mergeFiles:
             if self.numMergedFiles > 1:
                 # This behaviour matches that in Common.assignGlobalParameters.
                 # It is enforced again to reconcile the discrepancy in the case that assignGlobalParameters is not called.
                 printWarning(
-                    "Merging files is disabled, but the number of merged files is {self.numMergedFiles}... the number of merged files will be ignored and separate files will be created."
+                    f"Merging files is disabled, but {self.numMergedFiles} merged files were requested. "
+                    "The number of merged files will be ignored and separate files will be created."
                 )
                 self.numMergedFiles = 1
