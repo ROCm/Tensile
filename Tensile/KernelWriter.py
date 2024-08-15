@@ -5470,9 +5470,6 @@ for codeObjectFileName in codeObjectFileNames:
       print(err.output)
       raise
 
-    if self.removeTemporaries:
-        os.remove(coFileName)
-
     return coFileName
 
   def getByteArrayCobaDefinition(self, varName, byteArray):

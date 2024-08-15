@@ -166,10 +166,6 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath, remove
                     print(err.output)
                     raise
 
-                #if removeTemporaries:
-                   #for objectFile in objectFiles:
-                   #     os.remove(os.path.join(asmDir, objectFile))
-
                 coFiles.append(coFile)
         else:
             # no mergefiles
