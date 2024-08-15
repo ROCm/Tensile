@@ -826,8 +826,10 @@ def writeKernels(
 
     Common.popWorkingPath()  # outputPath.upper()
 
-    if removeTemporaries or globalParameters["CleanupBuildFiles"]:
-        shutil.rmtree(globalParameters["WorkingPath"])
+    if globalParameters["CleanupBuildFiles"]:
+        buildTmp = Path(outputPath).parent / "build_tmp"
+        if buildTmp.exists() and buildTmp.is_dir():
+            shutil.rmtree(buildTmp)
 
     Common.popWorkingPath()  # build_tmp
 
@@ -845,7 +847,9 @@ def getKernelWriters(solutions: List[Solution], kernels: List[Solution], removeT
     solutionMinNaming = Solution.getMinNaming(solutions)
     kernelMinNaming = Solution.getMinNaming(kernels)
     kernelWriterSource = KernelWriterSource(kernelMinNaming, kernelSerialNaming, removeTemporaries)
-    kernelWriterAssembly = KernelWriterAssembly(kernelMinNaming, kernelSerialNaming, removeTemporaries)
+    kernelWriterAssembly = KernelWriterAssembly(
+        kernelMinNaming, kernelSerialNaming, removeTemporaries
+    )
 
     return (
         kernelWriterSource,
@@ -1386,7 +1390,9 @@ def writeBenchmarkClientFiles(
 
     kernels, kernelsBetaOnly, _ = generateKernelObjectsFromSolutions(solutions)
     kernelWriterSource, kernelWriterAssembly, kernelMinNaming, _ = getKernelWriters(
-        solutions, kernels, removeTemporaries,
+        solutions,
+        kernels,
+        removeTemporaries,
     )
 
     # write solution, kernels and CMake
@@ -1841,6 +1847,11 @@ def TensileCreateLibrary():
 
     if args["ClientConfig"]:
         generateClientConfig(Path(outputPath), Path(masterFile).with_suffix(ext), codeObjectFiles)
+
+    if removeTemporaries:
+        buildTmp = Path(outputPath).parent / "build_tmp"
+        if buildTmp.exists() and buildTmp.is_dir():
+            shutil.rmtree(buildTmp)
 
     tPrint(1, "# Tensile Library Writer DONE")
     tPrint(1, HR)
