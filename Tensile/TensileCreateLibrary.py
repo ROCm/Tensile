@@ -355,9 +355,6 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile, removeTempora
                         out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
                         tPrint(3, out)
 
-                        if removeTemporaries:
-                            os.remove(infile)
-
         except subprocess.CalledProcessError as err:
             tPrint(1, err.output)
             for i in range(len(archs)):
@@ -381,8 +378,6 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile, removeTempora
                     tPrint(1, err.output)
                     raise
 
-                if removeTemporaries:
-                    os.remove(infile)
     else:
         raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
 
