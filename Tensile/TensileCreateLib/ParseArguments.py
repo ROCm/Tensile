@@ -293,8 +293,8 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
         os.environ["CMAKE_CXX_COMPILER"] = args.CmakeCxxCompiler
     if args.NoEnumerate:
         arguments["ROCmAgentEnumeratorPath"] = False
-    # Generated sources are preserved and go into output directory
     if args.GenerateSourcesAndExit:
+        # Generated sources are preserved and go into output directory
         arguments["WorkingPath"] = arguments["OutputPath"]
     if args.PrintLevel <= 1:
         warnings.filterwarnings("ignore", category=DeveloperWarning)
