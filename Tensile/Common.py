@@ -2525,9 +2525,10 @@ def assignGlobalParameters( config ):
       config["NumMergedFiles"] = 1
       printWarning("--num-merged-files and --no-merge-files specified, ignoring --num-merged-files")
 
+  rejectGlobalParameters = {"LogicPath", "OutputPath", "EmbedLibraryKey", "Version", "BuildClient", "ClientConfig", "WriteMasterSolutionIndex"}
   for key in config:
     value = config[key]
-    if key not in globalParameters:
+    if key not in globalParameters and key not in rejectGlobalParameters:
       printWarning("Global parameter %s = %s unrecognized." % ( key, value ), DeveloperWarning)
     globalParameters[key] = value
 
