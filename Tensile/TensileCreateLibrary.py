@@ -40,7 +40,6 @@ import subprocess
 import sys
 import time
 import warnings
-from copy import deepcopy
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Set, Tuple, Union
 
@@ -88,7 +87,7 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
         (err, src) = kernelWriter.getSourceFileString(kernel)
         header = kernelWriter.getHeaderFileString(kernel)
         # will be put in Kernels.h/cpp if None
-        filename = kernel._state.get("codeObjectFile", None)
+        filename = kernel.get("codeObjectFile", None)
 
     except RuntimeError:
         return (1, "", "", kernelName, None)
@@ -967,9 +966,9 @@ def buildObjectFileNames(
         fallbackLibs = list(
             set(
                 [
-                    kernel._state["codeObjectFile"]
+                    kernel["codeObjectFile"]
                     for kernel in kernels
-                    if "fallback" in kernel._state.get("codeObjectFile", "")
+                    if "fallback" in kernel.get("codeObjectFile", "")
                 ]
             )
         )
@@ -998,27 +997,27 @@ def buildObjectFileNames(
 
         # If assembly kernel with codeObjectFile specified
         cond = (
-            lambda k: "codeObjectFile" in k._state
-            and "fallback" not in k._state["codeObjectFile"]
-            and k._state["KernelLanguage"] == "Assembly"
+            lambda k: "codeObjectFile" in k
+            and "fallback" not in k["codeObjectFile"]
+            and k["KernelLanguage"] == "Assembly"
         )
 
         asmLibFiles += list(
-            set([kernel._state["codeObjectFile"] + ".co" for kernel in kernels if cond(kernel)])
+            set([kernel["codeObjectFile"] + ".co" for kernel in kernels if cond(kernel)])
         )
 
         # If architecture specific source kernel with codeObjectFile specified
         cond = (
-            lambda k: "codeObjectFile" in k._state
-            and "fallback" not in k._state["codeObjectFile"]
-            and k._state["KernelLanguage"] == "Source"
+            lambda k: "codeObjectFile" in k
+            and "fallback" not in k["codeObjectFile"]
+            and k["KernelLanguage"] == "Source"
         )
 
         sourceLibFiles += list(
             set(
                 itertools.chain.from_iterable(
                     [
-                        addxnack(kernel._state["codeObjectFile"], ".hsaco")
+                        addxnack(kernel["codeObjectFile"], ".hsaco")
                         for kernel in kernels
                         if cond(kernel)
                     ]
@@ -1199,7 +1198,7 @@ def addNewLibrary(
     Returns:
         Index to the last solution of the library associated with current architecture.
     """
-    masterLibraries[architectureName] = deepcopy(newLibrary)
+    masterLibraries[architectureName] = newLibrary
     archIndex = MasterSolutionLibrary.ArchitectureIndexMap(architectureName)
     masterLibraries[architectureName].remapSolutionIndicesStartingFrom(archIndex)
     return archIndex
@@ -1231,7 +1230,7 @@ def makeMasterLibraries(
         if separate:
             if architectureName in masterLibraries:
                 nextSolIndex[architectureName] = masterLibraries[architectureName].merge(
-                    deepcopy(newLibrary), nextSolIndex[architectureName]
+                    newLibrary, nextSolIndex[architectureName]
                 )
             else:
                 nextSolIndex[architectureName] = addNewLibrary(
@@ -1239,9 +1238,9 @@ def makeMasterLibraries(
                 )
         else:
             if fullMasterLibrary:
-                fullMasterLibrary.merge(deepcopy(newLibrary))
+                fullMasterLibrary.merge(newLibrary)
             else:
-                fullMasterLibrary = deepcopy(newLibrary)
+                fullMasterLibrary = newLibrary
 
     return {"full": fullMasterLibrary} if fullMasterLibrary is not None else masterLibraries
 
@@ -1259,13 +1258,13 @@ def addFallback(masterLibraries: Dict[str, MasterSolutionLibrary]) -> None:
 
     for key, value in masterLibraries.items():
         if key != "fallback":
-            value.insert(deepcopy(masterLibraries["fallback"]))
+            value.insert(masterLibraries["fallback"])
 
     for archName in archs:
         archName = archName.split("-", 1)[0]
         if archName not in masterLibraries:
             tPrint(1, "Using fallback for arch: " + archName)
-            masterLibraries[archName] = deepcopy(masterLibraries["fallback"])
+            masterLibraries[archName] = masterLibraries["fallback"]
 
     masterLibraries.pop("fallback")
 
@@ -1283,7 +1282,7 @@ def applyNaming(masterLibraries: Dict[str, MasterSolutionLibrary]) -> None:
     for masterLibrary in masterLibraries.values():
         for name, lib in masterLibrary.lazyLibraries.items():
             for sol in lib.solutions.values():
-                sol.originalSolution._state["codeObjectFile"] = name
+                sol.originalSolution["codeObjectFile"] = name
 
 
 def makeSolutions(
@@ -1415,36 +1414,6 @@ def writeBenchmarkClientFiles(
     newLibrary.applyNaming(kernelMinNaming)
 
     LibraryIO.writeYAML(newLibraryFile, Utils.state(newLibrary))
-
-    return (codeObjectFiles, newLibrary)
-
-
-def WriteClientLibraryFromSolutions(solutionList, libraryWorkingPath, tensileSourcePath=None):
-
-    if tensileSourcePath == None:
-        tensileSourcePath = os.path.dirname(os.path.realpath(__file__))
-    firstSolution = deepcopy(solutionList[0])
-    problemType = firstSolution["ProblemType"].state
-    problemType["DataType"] = problemType["DataType"].value
-    problemType["DataTypeA"] = problemType["DataTypeA"].value
-    problemType["DataTypeB"] = problemType["DataTypeB"].value
-    problemType["DestDataType"] = problemType["DestDataType"].value
-    problemType["ComputeDataType"] = problemType["ComputeDataType"].value
-    problemType["MathDataTypeA"] = problemType["MathDataTypeA"].value
-    problemType["MathDataTypeB"] = problemType["MathDataTypeB"].value
-    problemType["F32XdlMathOp"] = problemType["F32XdlMathOp"].value
-    cxxCompiler = globalParameters["CxxCompiler"]
-
-    effectiveWorkingPath = os.path.join(libraryWorkingPath, "library")
-    ensurePath(effectiveWorkingPath)
-    mataDataFilePath = os.path.join(effectiveWorkingPath, "metadata.yaml")
-
-    metaData = {"ProblemType": problemType}
-    LibraryIO.writeYAML(mataDataFilePath, metaData)
-
-    codeObjectFiles, newLibrary = writeBenchmarkClientFiles(
-        libraryWorkingPath, tensileSourcePath, solutionList, cxxCompiler
-    )
 
     return (codeObjectFiles, newLibrary)
 
