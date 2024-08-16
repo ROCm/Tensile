@@ -626,7 +626,7 @@ def filterProcessingErrors(
     for kernIdx, res in (
         enumerate(results)
         if globalParameters["PrintLevel"] == 0
-        else Utils.tqdm(enumerate(results))
+        else Utils.tqdm(enumerate(results), desc="Filtering errors")
     ):
         (err, src, header, kernelName, filename) = res
         if err == -2:
