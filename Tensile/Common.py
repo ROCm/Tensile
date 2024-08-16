@@ -2527,8 +2527,10 @@ def assignGlobalParameters( config ):
 
   rejectGlobalParameters = {"LogicPath", "OutputPath", "EmbedLibraryKey", "Version", "BuildClient", "ClientConfig", "WriteMasterSolutionIndex"}
   for key in config:
+    if key in rejectGlobalParameters:
+      continue
     value = config[key]
-    if key not in globalParameters and key not in rejectGlobalParameters:
+    if key not in globalParameters:
       printWarning("Global parameter %s = %s unrecognized." % ( key, value ), DeveloperWarning)
     globalParameters[key] = value
 
