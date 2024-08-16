@@ -72,9 +72,9 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Init
   ##############################################################################
-  def __init__( self, kernelMinNaming, kernelSerialNaming ):
+  def __init__( self, kernelMinNaming, kernelSerialNaming, removeTemporaries=True ):
     super(KernelWriterAssembly, self).__init__( \
-        kernelMinNaming, kernelSerialNaming)
+        kernelMinNaming, kernelSerialNaming, removeTemporaries)
     self.do = {}
     self.do["PreLoop"]     = True
     self.do["GlobalReadA"] = True

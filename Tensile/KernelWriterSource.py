@@ -36,9 +36,9 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Make OpenCL Kernel String
   ##############################################################################
-  def __init__( self, kernelMinNaming, kernelSerialNaming ):
+  def __init__( self, kernelMinNaming, kernelSerialNaming, removeTemporaries=True ):
     super(KernelWriterSource, self).__init__( \
-        kernelMinNaming, kernelSerialNaming)
+        kernelMinNaming, kernelSerialNaming, removeTemporaries)
     self.language = globalParameters["RuntimeLanguage"]
 
     if self.language == "OCL":

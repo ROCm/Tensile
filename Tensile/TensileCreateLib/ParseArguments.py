@@ -182,6 +182,13 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
         help="Verify manifest file against generated library files and exit.",
     )
     parser.add_argument(
+        "--keep-build-tmp",
+        dest="KeepBuildTmp",
+        action="store_true",
+        default=False,
+        help="Do not remove the temporary build directory (may required hundreds of GBs of space)",
+    )
+    parser.add_argument(
         "--library-format",
         dest="LibraryFormat",
         choices=["yaml", "msgpack"],
@@ -287,6 +294,7 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
         "ClientConfig": args.ClientConfig,
         "IgnoreAsmCapCache": args.IgnoreAsmCapCache,
         "WriteMasterSolutionIndex": args.WriteMasterSolutionIndex,
+        "KeepBuildTmp": args.KeepBuildTmp,
     }
 
     if args.CmakeCxxCompiler:
