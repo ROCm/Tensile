@@ -58,7 +58,7 @@ class DeveloperWarning(Warning):
     """
 
 def showwarning(message, category, filename, lineno, file=None, line=None):
-    msg = f"{category.__name__}: {message}"
+    msg = f"> {category.__name__}: {message}"
     if TENSILE_TERM_COLORS:
         msg = f"[yellow]{msg}[/yellow]"
     print(msg)
