@@ -46,10 +46,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   # Init
   ##############################################################################
-  def __init__( self, kernelMinNaming, kernelSerialNaming ):
+  def __init__( self, kernelMinNaming, kernelSerialNaming, removeTemporaries=True ):
     self.kernelMinNaming = kernelMinNaming
     self.kernelSerialNaming = kernelSerialNaming
     self.overflowedResources = 0
+    self.removeTemporaries = removeTemporaries
 
   @property
   def asmCaps(self):
@@ -5437,7 +5438,7 @@ for codeObjectFileName in codeObjectFileNames:
     objectFileName = base + '.o'
 
     args = self.getCompileArgs(assemblyFileName, objectFileName)
-    tPrint(2, ' '.join(args) + " && ")
+    tPrint(2, 'Assembled kernel object file: ' + ' '.join(args) + " && ")
 
     # change to use  check_output to force windows cmd block util command finish
     try:
@@ -5446,6 +5447,8 @@ for codeObjectFileName in codeObjectFileNames:
     except subprocess.CalledProcessError as err:
       print(err.output)
       raise
+    if self.removeTemporaries:
+        os.remove(assemblyFileName)
 
     return objectFileName
 
@@ -5456,7 +5459,8 @@ for codeObjectFileName in codeObjectFileNames:
     coFileName = base + '.co'
 
     args = self.getLinkCodeObjectArgs([objectFileName], coFileName)
-    tPrint (2, ' '.join(args))
+    
+    tPrint(2, 'Single Code Object File: ' + ' '.join(args))
 
     # change to use  check_output to force windows cmd block util command finish
     try:

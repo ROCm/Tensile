@@ -62,7 +62,9 @@ def test_loadSolutions(caplog, useGlobalParameters):
         assert len(solutions) == 3
         assert len(kernels) == 3
 
-        _, kernelWriterAssembly, _, _ = tcl.getKernelWriters(solutions, kernels)
+        _, kernelWriterAssembly, _, _ = tcl.getKernelWriters(
+            solutions, kernels, removeTemporaries=False
+        )
 
         expectedKernelName0 = "Cijk_Ailk_Bljk_SB_MT128x128x2_SE_K1_TT8_8_WG16_16_1"
         expectedKernelName1 = "Cijk_Ailk_Bljk_SB_MT64x64x2_SE_K1_TT4_4_WG16_16_1"
@@ -497,7 +499,9 @@ def setupSolutionsAndKernels(
     )
     solutions = [sol.originalSolution for sol in lib.solutions.values()]
     kernels, _, _ = tcl.generateKernelObjectsFromSolutions(solutions)
-    kernelWriterSource, kernelWriterAssembly, _, _ = tcl.getKernelWriters(solutions, kernels)
+    kernelWriterSource, kernelWriterAssembly, _, _ = tcl.getKernelWriters(
+        solutions, kernels, removeTemporaries=False
+    )
     return solutions, kernels, kernelWriterAssembly, kernelWriterSource
 
 
