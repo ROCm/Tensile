@@ -1871,7 +1871,7 @@ namespace Tensile
         // whichever is minimum.
         else if(pAMDGPU->skMaxCUs > 0)
         {
-            return min(cuCount, pAMDGPU->skMaxCUs);
+            return min(cuCount, static_cast<size_t>(pAMDGPU->skMaxCUs));
         }
 
         // Multiply the cuCount with a constant factor (c), and launch

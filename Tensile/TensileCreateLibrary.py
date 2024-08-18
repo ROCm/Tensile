@@ -90,7 +90,7 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
         (err, src) = kernelWriter.getSourceFileString(kernel)
         header = kernelWriter.getHeaderFileString(kernel)
         # will be put in Kernels.h/cpp if None
-        filename = kernel._state.get("codeObjectFile", None)
+        filename = kernel.get("codeObjectFile", None)
 
     except RuntimeError:
         return (1, "", "", kernelName, None)
@@ -98,7 +98,7 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
     return (err, src, header, kernelName, filename)
 
 
-def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
+def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath, removeTemporaries):
     destDir = ensurePath(os.path.join(outputPath, "library"))
     asmDir = kernelWriterAssembly.getAssemblyDirectory()
     assemblyKernels = list([k for k in kernels if k["KernelLanguage"] == "Assembly"])
@@ -158,6 +158,8 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
                 else:
                     args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
 
+                tPrint(2, "Linking objects into co files: " + " ".join(args))
+
                 # change to use  check_output to force windows cmd block util command finish
                 try:
                     out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)
@@ -179,7 +181,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
             for src, dst in (
                 zip(origCOFiles, newCOFiles)
                 if globalParameters["PrintLevel"] == 0
-                else Utils.tqdm(zip(origCOFiles, newCOFiles), desc="Copying code objects")
+                else Utils.tqdm(zip(origCOFiles, newCOFiles), desc="Relocating code objects")
             ):
                 shutil.copyfile(src, dst)
             coFiles += newCOFiles
@@ -221,7 +223,7 @@ def splitArchs():
     return archs, cmdlineArchs
 
 
-def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
+def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile, removeTemporaries):
     buildPath = ensurePath(os.path.join(globalParameters["WorkingPath"], "code_object_tmp"))
     destDir = ensurePath(os.path.join(outputPath, "library"))
     (_, filename) = os.path.split(kernelFile)
@@ -346,7 +348,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
                             "%s=%s" % (outflag, outfile),
                             "-unbundle",
                         ]
-                        tPrint(2, " ".join(bundlerArgs))
+                        tPrint(2, "Build source code object file: " + " ".join(bundlerArgs))
                         # change to use  check_output to force windows cmd block util command finish
                         out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
                         tPrint(3, out)
@@ -365,7 +367,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
                     "%s=%s" % (outflag, outfile),
                     "-unbundle",
                 ]
-                tPrint(2, " ".join(bundlerArgs))
+                tPrint(2, "Build source code object file: " + " ".join(bundlerArgs))
                 # change to use  check_output to force windows cmd block util command finish
                 try:
                     out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
@@ -373,6 +375,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
                 except subprocess.CalledProcessError as err:
                     tPrint(1, err.output)
                     raise
+
     else:
         raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
 
@@ -380,13 +383,21 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
     extractedCOs = [os.path.join(buildPath, name) for name in coFilenames]
     destCOsList = [os.path.join(destDir, name) for name in coFilenames]
     for src, dst in zip(extractedCOs, destCOsList):
-        shutil.copyfile(src, dst)
+        if removeTemporaries:
+            shutil.move(src, dst)
+        else:
+            shutil.copyfile(src, dst)
 
     return destCOsList
 
 
-def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath):
-    args = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), kernelFiles)
+def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath, removeTemporaries):
+    args = zip(
+        itertools.repeat(CxxCompiler),
+        itertools.repeat(outputPath),
+        kernelFiles,
+        itertools.repeat(removeTemporaries),
+    )
     coFiles = Common.ParallelMap(buildSourceCodeObjectFile, args, "Compiling source kernels")
 
     return itertools.chain.from_iterable(coFiles)
@@ -628,7 +639,7 @@ def filterProcessingErrors(
     for kernIdx, res in (
         enumerate(results)
         if globalParameters["PrintLevel"] == 0
-        else Utils.tqdm(enumerate(results))
+        else Utils.tqdm(enumerate(results), desc="Filtering processing errors")
     ):
         (err, src, header, kernelName, filename) = res
         if err == -2:
@@ -751,6 +762,7 @@ def writeKernels(
     kernelWriterSource: KernelWriterSource,
     kernelWriterAssembly: KernelWriterAssembly,
     errorTolerant: bool = False,
+    removeTemporaries: bool = True,
 ):
     start = time.time()
 
@@ -809,9 +821,14 @@ def writeKernels(
 
     codeObjectFiles = []
     if not globalParameters["GenerateSourcesAndExit"]:
-        codeObjectFiles += buildSourceCodeObjectFiles(cxxCompiler, kernelFiles, outputPath)
+        codeObjectFiles += buildSourceCodeObjectFiles(
+            cxxCompiler, kernelFiles, outputPath, removeTemporaries
+        )
         codeObjectFiles += getAssemblyCodeObjectFiles(
-            kernelsToBuild, kernelWriterAssembly, outputPath
+            kernelsToBuild,
+            kernelWriterAssembly,
+            outputPath,
+            removeTemporaries,
         )
 
     stop = time.time()
@@ -820,7 +837,9 @@ def writeKernels(
     Common.popWorkingPath()  # outputPath.upper()
 
     if globalParameters["CleanupBuildFiles"]:
-        shutil.rmtree(globalParameters["WorkingPath"])
+        buildTmp = Path(outputPath).parent / "build_tmp"
+        if buildTmp.exists() and buildTmp.is_dir():
+            shutil.rmtree(buildTmp)
 
     Common.popWorkingPath()  # build_tmp
 
@@ -830,15 +849,17 @@ def writeKernels(
 ##############################################################################
 # Min Naming / Solution and Kernel Writers
 ##############################################################################
-def getKernelWriters(solutions: List[Solution], kernels: List[Solution]):
+def getKernelWriters(solutions: List[Solution], kernels: List[Solution], removeTemporaries):
 
     # if any kernels are assembly, append every ISA supported
     kernelSerialNaming = Solution.getSerialNaming(kernels)
 
     solutionMinNaming = Solution.getMinNaming(solutions)
     kernelMinNaming = Solution.getMinNaming(kernels)
-    kernelWriterSource = KernelWriterSource(kernelMinNaming, kernelSerialNaming)
-    kernelWriterAssembly = KernelWriterAssembly(kernelMinNaming, kernelSerialNaming)
+    kernelWriterSource = KernelWriterSource(kernelMinNaming, kernelSerialNaming, removeTemporaries)
+    kernelWriterAssembly = KernelWriterAssembly(
+        kernelMinNaming, kernelSerialNaming, removeTemporaries
+    )
 
     return (
         kernelWriterSource,
@@ -956,9 +977,9 @@ def buildObjectFileNames(
         fallbackLibs = list(
             set(
                 [
-                    kernel._state["codeObjectFile"]
+                    kernel["codeObjectFile"]
                     for kernel in kernels
-                    if "fallback" in kernel._state.get("codeObjectFile", "")
+                    if "fallback" in kernel.get("codeObjectFile", "")
                 ]
             )
         )
@@ -987,27 +1008,27 @@ def buildObjectFileNames(
 
         # If assembly kernel with codeObjectFile specified
         cond = (
-            lambda k: "codeObjectFile" in k._state
-            and "fallback" not in k._state["codeObjectFile"]
-            and k._state["KernelLanguage"] == "Assembly"
+            lambda k: "codeObjectFile" in k
+            and "fallback" not in k["codeObjectFile"]
+            and k["KernelLanguage"] == "Assembly"
         )
 
         asmLibFiles += list(
-            set([kernel._state["codeObjectFile"] + ".co" for kernel in kernels if cond(kernel)])
+            set([kernel["codeObjectFile"] + ".co" for kernel in kernels if cond(kernel)])
         )
 
         # If architecture specific source kernel with codeObjectFile specified
         cond = (
-            lambda k: "codeObjectFile" in k._state
-            and "fallback" not in k._state["codeObjectFile"]
-            and k._state["KernelLanguage"] == "Source"
+            lambda k: "codeObjectFile" in k
+            and "fallback" not in k["codeObjectFile"]
+            and k["KernelLanguage"] == "Source"
         )
 
         sourceLibFiles += list(
             set(
                 itertools.chain.from_iterable(
                     [
-                        addxnack(kernel._state["codeObjectFile"], ".hsaco")
+                        addxnack(kernel["codeObjectFile"], ".hsaco")
                         for kernel in kernels
                         if cond(kernel)
                     ]
@@ -1188,7 +1209,7 @@ def addNewLibrary(
     Returns:
         Index to the last solution of the library associated with current architecture.
     """
-    masterLibraries[architectureName] = deepcopy(newLibrary)
+    masterLibraries[architectureName] = newLibrary
     archIndex = MasterSolutionLibrary.ArchitectureIndexMap(architectureName)
     masterLibraries[architectureName].remapSolutionIndicesStartingFrom(archIndex)
     return archIndex
@@ -1220,7 +1241,7 @@ def makeMasterLibraries(
         if separate:
             if architectureName in masterLibraries:
                 nextSolIndex[architectureName] = masterLibraries[architectureName].merge(
-                    deepcopy(newLibrary), nextSolIndex[architectureName]
+                    newLibrary, nextSolIndex[architectureName]
                 )
             else:
                 nextSolIndex[architectureName] = addNewLibrary(
@@ -1228,9 +1249,9 @@ def makeMasterLibraries(
                 )
         else:
             if fullMasterLibrary:
-                fullMasterLibrary.merge(deepcopy(newLibrary))
+                fullMasterLibrary.merge(newLibrary)
             else:
-                fullMasterLibrary = deepcopy(newLibrary)
+                fullMasterLibrary = newLibrary
 
     return {"full": fullMasterLibrary} if fullMasterLibrary is not None else masterLibraries
 
@@ -1248,13 +1269,13 @@ def addFallback(masterLibraries: Dict[str, MasterSolutionLibrary]) -> None:
 
     for key, value in masterLibraries.items():
         if key != "fallback":
-            value.insert(deepcopy(masterLibraries["fallback"]))
+            value.insert(masterLibraries["fallback"])
 
     for archName in archs:
         archName = archName.split("-", 1)[0]
         if archName not in masterLibraries:
             tPrint(1, "Using fallback for arch: " + archName)
-            masterLibraries[archName] = deepcopy(masterLibraries["fallback"])
+            masterLibraries[archName] = masterLibraries["fallback"]
 
     masterLibraries.pop("fallback")
 
@@ -1272,7 +1293,7 @@ def applyNaming(masterLibraries: Dict[str, MasterSolutionLibrary]) -> None:
     for masterLibrary in masterLibraries.values():
         for name, lib in masterLibrary.lazyLibraries.items():
             for sol in lib.solutions.values():
-                sol.originalSolution._state["codeObjectFile"] = name
+                sol.originalSolution["codeObjectFile"] = name
 
 
 def makeSolutions(
@@ -1342,7 +1363,7 @@ def generateLogicData(
     libraries = parseLibraryLogicFiles(logicFiles)
     logicList = libraries if not printLevel else Utils.tqdm(libraries, desc="Processing logic data")
     masterLibraries = makeMasterLibraries(logicList, separate)
-    if separate:
+    if separate and "fallback" in masterLibraries:
         addFallback(masterLibraries)
     applyNaming(masterLibraries)
     for lib in masterLibraries.values():
@@ -1370,14 +1391,18 @@ def generateSolutions(
 ################################################################################
 # Write Benchmark Client Files
 ################################################################################
-def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, cxxCompiler):
+def writeBenchmarkClientFiles(
+    libraryWorkingPath, tensileSourcePath, solutions, cxxCompiler, removeTemporaries=False
+):
 
     if not globalParameters["GenerateSourcesAndExit"]:
         copyStaticFiles(libraryWorkingPath)
 
     kernels, kernelsBetaOnly, _ = generateKernelObjectsFromSolutions(solutions)
     kernelWriterSource, kernelWriterAssembly, kernelMinNaming, _ = getKernelWriters(
-        solutions, kernels
+        solutions,
+        kernels,
+        removeTemporaries,
     )
 
     # write solution, kernels and CMake
@@ -1391,6 +1416,7 @@ def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, 
         kernelWriterSource,
         kernelWriterAssembly,
         errorTolerant=True,
+        removeTemporaries=removeTemporaries,
     )
 
     newLibraryDir = ensurePath(os.path.join(libraryWorkingPath, "library"))
@@ -1399,36 +1425,6 @@ def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, 
     newLibrary.applyNaming(kernelMinNaming)
 
     LibraryIO.writeYAML(newLibraryFile, Utils.state(newLibrary))
-
-    return (codeObjectFiles, newLibrary)
-
-
-def WriteClientLibraryFromSolutions(solutionList, libraryWorkingPath, tensileSourcePath=None):
-
-    if tensileSourcePath == None:
-        tensileSourcePath = os.path.dirname(os.path.realpath(__file__))
-    firstSolution = deepcopy(solutionList[0])
-    problemType = firstSolution["ProblemType"].state
-    problemType["DataType"] = problemType["DataType"].value
-    problemType["DataTypeA"] = problemType["DataTypeA"].value
-    problemType["DataTypeB"] = problemType["DataTypeB"].value
-    problemType["DestDataType"] = problemType["DestDataType"].value
-    problemType["ComputeDataType"] = problemType["ComputeDataType"].value
-    problemType["MathDataTypeA"] = problemType["MathDataTypeA"].value
-    problemType["MathDataTypeB"] = problemType["MathDataTypeB"].value
-    problemType["F32XdlMathOp"] = problemType["F32XdlMathOp"].value
-    cxxCompiler = globalParameters["CxxCompiler"]
-
-    effectiveWorkingPath = os.path.join(libraryWorkingPath, "library")
-    ensurePath(effectiveWorkingPath)
-    mataDataFilePath = os.path.join(effectiveWorkingPath, "metadata.yaml")
-
-    metaData = {"ProblemType": problemType}
-    LibraryIO.writeYAML(mataDataFilePath, metaData)
-
-    codeObjectFiles, newLibrary = writeBenchmarkClientFiles(
-        libraryWorkingPath, tensileSourcePath, solutionList, cxxCompiler
-    )
 
     return (codeObjectFiles, newLibrary)
 
@@ -1673,6 +1669,7 @@ def TensileCreateLibrary():
     libraryFormat = args["LibraryFormat"]
     logicPath = args["LogicPath"]
     outputPath = args["OutputPath"]
+    removeTemporaries = not args["KeepBuildTmp"]
 
     globalParameters["PrintLevel"] = args["PrintLevel"]
 
@@ -1738,7 +1735,7 @@ def TensileCreateLibrary():
 
     # if any kernels are assembly, append every ISA supported
     kernelWriterSource, kernelWriterAssembly, kernelMinNaming, _ = getKernelWriters(
-        solutions, kernels
+        solutions, kernels, removeTemporaries
     )
 
     staticFiles = copyStaticFiles(outputPath)
@@ -1783,6 +1780,7 @@ def TensileCreateLibrary():
         kernelHelperObjs,
         kernelWriterSource,
         kernelWriterAssembly,
+        removeTemporaries=removeTemporaries,
     )
 
     sanityCheck(
@@ -1829,6 +1827,11 @@ def TensileCreateLibrary():
 
     if args["ClientConfig"]:
         generateClientConfig(Path(outputPath), Path(masterFile).with_suffix(ext), codeObjectFiles)
+
+    if removeTemporaries:
+        buildTmp = Path(outputPath).parent / "build_tmp"
+        if buildTmp.exists() and buildTmp.is_dir():
+            shutil.rmtree(buildTmp)
 
     tPrint(1, "# Tensile Library Writer DONE")
     tPrint(1, HR)

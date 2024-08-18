@@ -72,9 +72,9 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Init
   ##############################################################################
-  def __init__( self, kernelMinNaming, kernelSerialNaming ):
+  def __init__( self, kernelMinNaming, kernelSerialNaming, removeTemporaries=True ):
     super(KernelWriterAssembly, self).__init__( \
-        kernelMinNaming, kernelSerialNaming)
+        kernelMinNaming, kernelSerialNaming, removeTemporaries)
     self.do = {}
     self.do["PreLoop"]     = True
     self.do["GlobalReadA"] = True
@@ -184,6 +184,7 @@ class KernelWriterAssembly(KernelWriter):
     self.maxVgprs = 256
     # max allowed is 112 out of 112 , 6 is used by hardware 4 SGPRs are wasted
     self.maxSgprs = 102
+    self.maxAgprs = 256
     self.maxOccupancy = 10
 
     self.endLine = "\n"
@@ -3186,13 +3187,17 @@ class KernelWriterAssembly(KernelWriter):
           msg = "reading and writing LDS at same time require 2 LDS buffer"
       elif self.overflowedResources == 6:
         msg = "SIA2 better with occupancy 2"
+      elif self.overflowedResources == 7:
+        msg = "too many accvgprs"
       else:
         msg = "unknown"
 
       if globalParameters["PrintSolutionRejectionReason"]:
-        printWarning("%s overflowed resources.  errorCode=%d, msg=\"%s\", vgprs=%u, sgprs=%u" \
-          % (self.kernelName, self.overflowedResources, msg, \
-          self.vgprPool.size(), self.sgprPool.size()))
+        printWarning(
+            f"{self.kernelName} overflowed resources. errorCode={self.overflowedResources}" \
+            f", msg='{msg}', vgprs={self.vgprPool.size()}, sgprs={self.sgprPool.size()}" 
+            + f", accvgprs={self.agprPool.size()}" if kernel["EnableMatrixInstruction"] else ""
+        )
       kStr += "s_endpgm // overflowed resources\n"
       kStr += ".if 0\n"
 
@@ -15400,6 +15405,8 @@ class KernelWriterAssembly(KernelWriter):
       self.overflowedResources = 1
     elif self.sgprPool.size() > self.maxSgprs:
       self.overflowedResources = 2
+    elif kernel["EnableMatrixInstruction"] and self.agprPool.size() > self.maxAgprs:
+      self.overflowedResources = 7
 
     if kernel["ScheduleIterAlg"] == 2 and \
         self.getOccupancy(kernel["NumThreads"], self.vgprPool.size(), \
