@@ -58,7 +58,7 @@ class DeveloperWarning(Warning):
     """
 
 def showwarning(message, category, filename, lineno, file=None, line=None):
-    msg = f"{category.__name__}: {message}"
+    msg = f"> {category.__name__}: {message}"
     if TENSILE_TERM_COLORS:
         msg = f"[yellow]{msg}[/yellow]"
     print(msg)
@@ -2525,7 +2525,10 @@ def assignGlobalParameters( config ):
       config["NumMergedFiles"] = 1
       printWarning("--num-merged-files and --no-merge-files specified, ignoring --num-merged-files")
 
+  rejectGlobalParameters = {"LogicPath", "OutputPath", "EmbedLibraryKey", "Version", "BuildClient", "ClientConfig", "WriteMasterSolutionIndex"}
   for key in config:
+    if key in rejectGlobalParameters:
+      continue
     value = config[key]
     if key not in globalParameters:
       printWarning("Global parameter %s = %s unrecognized." % ( key, value ), DeveloperWarning)

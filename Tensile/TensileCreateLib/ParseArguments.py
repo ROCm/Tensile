@@ -304,7 +304,7 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
     if args.GenerateSourcesAndExit:
         # Generated sources are preserved and go into output directory
         arguments["WorkingPath"] = arguments["OutputPath"]
-    if args.PrintLevel == 0:
+    if args.PrintLevel <= 0:
         warnings.filterwarnings("ignore", category=DeveloperWarning)
 
     for k, v in args.GlobalParameters:
