@@ -31,6 +31,7 @@ import shutil
 import uuid
 from pathlib import Path
 from typing import List, Tuple
+from unittest.mock import MagicMock, call, mock_open, patch
 
 import pytest
 import yaml
@@ -41,11 +42,48 @@ import Tensile.LibraryIO as LibraryIO
 import Tensile.SolutionLibrary as SolutionLibrary
 import Tensile.TensileCreateLibrary as tcl
 from Tensile.KernelWriterAssembly import KernelWriterAssembly
+from Tensile.KernelWriterBase import KernelWriterBase
 from Tensile.KernelWriterSource import KernelWriterSource
 from Tensile.SolutionStructs import ProblemSizes, Solution
 from Tensile.Utilities.ConditionalImports import yamlLoader
 
 mylogger = logging.getLogger()
+
+
+@pytest.fixture
+def mock_openFile():
+    with patch("builtins.open", mock_open()) as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_toFile():
+    with patch("Tensile.TensileCreateLibrary.toFile") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_getKernelSourceAndHeaderCode():
+    with patch("Tensile.TensileCreateLibrary.getKernelSourceAndHeaderCode") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_printWarning():
+    with patch("Tensile.TensileCreateLibrary.printWarning") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_kernelSourceAndHeaderFiles():
+    return MagicMock(name="source_file_mock"), MagicMock(name="header_file_mock")
+
+
+@pytest.fixture
+def mock_KernelWriterBase():
+    mock = MagicMock(spec=KernelWriterBase)
+    mock.getKernelName.return_value = "TestKernelName"
+    return mock
 
 
 def test_loadSolutions(caplog, useGlobalParameters):
@@ -765,6 +803,117 @@ def test_filterBuildErrors():
     noBuildFailures()
     buildFailuresIgnoreErr()
     buildFailuresNoIgnoreErr()
+
+
+@pytest.fixture
+def setup_writeKernelHelpersTests():
+    kernelFiles = []
+    kernWriter = MockKernelWriter()
+    basepath = Path("/fake/path")
+    return kernelFiles, kernWriter, basepath
+
+
+def test_writeKernelHelpers_createFiles(
+    setup_writeKernelHelpersTests, mock_toFile, mock_openFile, mock_getKernelSourceAndHeaderCode
+):
+    kernelFiles, kernWriter, basepath = setup_writeKernelHelpersTests
+    mock_getKernelSourceAndHeaderCode.return_value = (
+        0,
+        ["source_code", "abc"],
+        ["header_code", "def"],
+        "kernelName",
+    )
+
+    tcl.writeKernelHelpers(kernWriter, None, None, basepath, kernelFiles)
+
+    assert mock_toFile.call_args_list == [
+        call(basepath / "Kernels" / "kernelName.cpp", ["source_code", "abc"]),
+        call(basepath / "Kernels" / "kernelName.h", ["header_code", "def"]),
+    ]
+    assert kernelFiles == [
+        "/fake/path/Kernels/kernelName.cpp"
+    ], "kernelFiles should be updated with the path to the new kernel"
+
+
+def test_writeKernelHelpers_withOpenFiles(
+    setup_writeKernelHelpersTests,
+    mock_toFile,
+    mock_getKernelSourceAndHeaderCode,
+    mock_kernelSourceAndHeaderFiles,
+):
+    kernelSourceFile, kernelHeaderFile = mock_kernelSourceAndHeaderFiles
+    kernelFiles, kernWriter, basepath = setup_writeKernelHelpersTests
+    mock_getKernelSourceAndHeaderCode.return_value = (
+        0,
+        ["source_code", "abc"],
+        ["header_code", "def"],
+        "kernelName",
+    )
+
+    tcl.writeKernelHelpers(kernWriter, kernelSourceFile, kernelHeaderFile, basepath, kernelFiles)
+
+    expected_calls = [
+        call(kernelSourceFile, ["source_code", "abc"]),
+        call(kernelHeaderFile, ["header_code", "def"]),
+    ]
+    assert mock_toFile.call_args_list == expected_calls
+    assert kernelFiles == [], "kernelFiles should remain unchanged when opened files are provided"
+
+
+def test_writeKernelHelpers_failure(
+    setup_writeKernelHelpersTests, mock_toFile, mock_printWarning, mock_getKernelSourceAndHeaderCode
+):
+    kernelFiles, kernWriter, basepath = setup_writeKernelHelpersTests
+    mock_getKernelSourceAndHeaderCode.return_value = (
+        -2,
+        ["// src comment", ""],
+        ["// hdr comment", ""],
+        "kernelName",
+    )
+
+    tcl.writeKernelHelpers(kernWriter, None, None, basepath, kernelFiles)
+
+    mock_printWarning.assert_called_once_with("Invalid kernel: kernelName may be corrupt")
+    expected_calls = [
+        call(basepath / "Kernels" / "kernelName.cpp", ["// src comment", ""]),
+        call(basepath / "Kernels" / "kernelName.h", ["// hdr comment", ""]),
+    ]
+    assert mock_toFile.call_args_list == expected_calls
+    assert kernelFiles == [
+        "/fake/path/Kernels/kernelName.cpp"
+    ], "kernelFiles should be updated with the new kernel name"
+
+
+def test_getKernelSourceAndHeaderCode_success(mock_KernelWriterBase):
+    mock_KernelWriterBase.getSourceFileString.return_value = (0, "source_code")
+    mock_KernelWriterBase.getHeaderFileString.return_value = "header_code"
+
+    err, src, hdr, name = tcl.getKernelSourceAndHeaderCode(mock_KernelWriterBase)
+
+    mock_KernelWriterBase.getKernelName.assert_called_once_with()
+    mock_KernelWriterBase.getSourceFileString.assert_called_once_with()
+    mock_KernelWriterBase.getHeaderFileString.assert_called_once_with()
+
+    assert err == 0
+    assert src == [Common.CHeader, "source_code"]
+    assert hdr == [Common.CHeader, "header_code"]
+    assert name == "TestKernelName"
+
+
+def test_getKernelSourceAndHeaderCode_sourceFailure(mock_KernelWriterBase):
+    mock_KernelWriterBase.getSourceFileString.return_value = (-1, "")
+    mock_KernelWriterBase.getHeaderFileString.return_value = "header_code"
+
+    err, src, hdr, name = tcl.getKernelSourceAndHeaderCode(mock_KernelWriterBase)
+
+    mock_KernelWriterBase.getKernelName.assert_called_once_with()
+    mock_KernelWriterBase.getSourceFileString.assert_called_once_with()
+    mock_KernelWriterBase.getHeaderFileString.assert_called_once_with()
+
+    assert err == -1
+    assert src == [Common.CHeader, ""]
+    assert hdr == [Common.CHeader, "header_code"]
+    assert name == "TestKernelName"
 
 
 # ----------------
