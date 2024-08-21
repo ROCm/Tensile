@@ -1,15 +1,15 @@
 #!/bin/bash
 
 usage() {
-    echo "Run grid-based profiling analysis against supported OSs"
+    echo "Run grid-based profiling analysis for TensileCreateLibrary under variable inputs"
     echo ""
     echo "Usage: $0 --build-id=<build-id> [--branch=<branch>] [--archs=<archs>] [--compiler=<compiler>]"
     echo ""
     echo "Parameters:"
     echo "  --build-id: The target docker build ID"
-    echo "  --branch: The target branch"
-    echo "  --archs: Target Gfx architecture(s)"
-    echo "  --compiler: HIP-enabled compiler (must be in PATH)"
+    echo "  --branch: The target branch [default: develop]"
+    echo "  --archs: Target Gfx architecture(s) [default: all]"
+    echo "  --compiler: HIP-enabled compiler (must be in PATH) [default: amdclang++]"
     echo ""
     echo "Example:"
     echo "  $0 --build-id=12345 --branch=develop --archs='gfx90a'"

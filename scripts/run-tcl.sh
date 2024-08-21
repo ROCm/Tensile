@@ -1,7 +1,19 @@
 #!/bin/bash
 
 usage() {
-    echo "HELP COMMAND FOR RUN TCL"
+    echo "Run TensileCreateLibrary with timestamped log and build directory"
+    echo ""
+    echo "Usage: $0 --tensile-path=<tensile-path> --logic-path=<logic-path> --jobs=<jobs> [--archs=<archs>] [--compiler=<compiler>]"
+    echo ""
+    echo "Parameters:"
+    echo "  --tensile-path: Path to root directory of Tensile"
+    echo "  --logic-path: Path to directory containing logic files"
+    echo "  --jobs: Number of concurrent processes to use"
+    echo "  --archs: Target Gfx architecture(s) [default: all]"
+    echo "  --compiler: HIP-enabled compiler (must be in PATH) [default: amdclang++]"
+    echo ""
+    echo "Example:"
+    echo "  $0 --tensile-path=/mnt/host/Tensile --logic-path=/mnt/host/Logic --jobs=16"
 }
 
 main() {
