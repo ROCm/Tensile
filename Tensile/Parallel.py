@@ -25,7 +25,9 @@
 import itertools
 import os
 from typing import Any, Callable
-from joblib import Parallel, delayed
+
+from .Utilities.ConditionalImports import joblib
+
 
 def CPUThreadCount(enable=True):
   from .Common import globalParameters
@@ -76,13 +78,13 @@ def ParallelMap(function: Callable, objects: Any, message: str="", enable: bool=
         A list containing the results of applying **function** to each item in **objects**.
     """
 
-    from .Common import globalParameters
     from . import Utils
+    from .Common import globalParameters
 
     threadCount = CPUThreadCount(enable)
     message += f": {function.__name__}" if verbose > 1 else "" + f": {threadCount} thread(s)" + f", {len(objects)} tasks" if hasattr(objects, "__len__") else ""
     
-    if threadCount <= 1:
+    if threadCount <= 1 or joblib is None:
         f = lambda x: function(*x) if multiArg else function(x)
         return [f(x) for x in Utils.tqdm(objects, desc=message)]
 
@@ -90,6 +92,6 @@ def ParallelMap(function: Callable, objects: Any, message: str="", enable: bool=
     pargs = Utils.tqdm(inputs, desc=message)
     pcall = pcallWithGlobalParamsMultiArg if multiArg else pcallWithGlobalParamsSingleArg
 
-    rv = Parallel(n_jobs=threadCount)(delayed(pcall)(function, a, params) for a, params in pargs)
+    rv = joblib.Parallel(n_jobs=threadCount)(joblib.delayed(pcall)(function, a, params) for a, params in pargs)
     
     return rv
