@@ -288,10 +288,9 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile, removeTempora
                 + [kernelFile, "-c", "-o", os.path.join(buildPath, objectFilename)]
             )
 
-        tPrint(2, "hipcc:" + " ".join(compileArgs))
+        tPrint(2, f"Build object file command: {compileArgs}")
         # change to use  check_output to force windows cmd block util command finish
         try:
-            print("Build object file command: ", compileArgs)
             out = subprocess.check_output(compileArgs, stderr=subprocess.STDOUT)
             tPrint(3, out)
         except subprocess.CalledProcessError as err:
