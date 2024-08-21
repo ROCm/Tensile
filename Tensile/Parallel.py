@@ -68,7 +68,6 @@ def ParallelMap(
     message: str = "",
     enable: bool = True,
     multiArg: bool = True,
-    verbose: int = 2,
 ):
     """Executes a function over a list of objects in parallel or sequentially.
 
@@ -95,13 +94,11 @@ def ParallelMap(
     from .Common import globalParameters
 
     threadCount = CPUThreadCount(enable)
+
     message += (
-        f": {function.__name__}"
-        if verbose > 1
-        else ("") + f": {threadCount} thread(s)" + f", {len(objects)} tasks"
-            if hasattr(objects, "__len__")
-            else ""
-        )
+        f": {threadCount} thread(s)" + f", {len(objects)} tasks"
+        if hasattr(objects, "__len__")
+        else ""
     )
 
     if threadCount <= 1 or joblib is None:
