@@ -16,7 +16,7 @@ main() {
      --cxx-compiler=$compiler \
      --jobs=$jobs \
      --library-format=msgpack \
-     --architecture=$archs" > $log_file 2>&1 & disown
+     --architecture=$archs" > "$tensile_path/$log_file" 2>&1
 }
 
 # Variables

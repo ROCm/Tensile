@@ -18,7 +18,7 @@ usage() {
 find_tensile() {
   local query="*/Tensile/setup.py"
   local os_tag=$1
-  echo docker run \
+  docker run \
     --rm \
     --volume="$HOME:/mnt/host" \
     "$base_image:$build_id$os_tag" bash -c "find /mnt/host -path $query -exec dirname {} \;"
@@ -27,7 +27,7 @@ find_tensile() {
 find_logic() {
   local query="*/Tensile/Logic/asm_full"
   local os_tag=$1
-  echo docker run \
+  docker run \
     --rm \
     --volume="$HOME:/mnt/host" \
     "$base_image:$build_id$os_tag" bash -c "find /mnt/host -path $query"
@@ -41,8 +41,7 @@ run_suite() {
         local tensile_path=$(find_tensile $tag)
         local logic_path=$(find_logic $tag)
         for n in "${jobs[@]}"; do
-            echo $tag $n
-            echo docker run --rm --security-opt seccomp=unconfined --device=/dev/kfd --device=/dev/dri \
+            docker run --rm --security-opt seccomp=unconfined --device=/dev/kfd --device=/dev/dri \
               --group-add=video --volume="$HOME:/mnt/host" "$base_image:$build_id$tag" \
               /bin/bash -c "$tensile_path/scripts/run-tcl.sh \
                 --tensile-path=$tensile_path --logic-path=$logic_path --jobs=$n --archs=$archs --compiler=$compiler"
