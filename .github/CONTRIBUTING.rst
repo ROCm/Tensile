@@ -1,49 +1,49 @@
 ********************************************************************
-Contributing to Tensile
+Contribution guidelines
 ********************************************************************
 
-Welcome to the Tensile project! If you're thinking about contributing, this document is for you. We encourage you to read this guide to understand how to contribute to the project to ensure that your contributions will be successfully accepted.
+This document provides the guidelines for contributing to the Tensile source code.
 
 .. seealso::
 
-   If you haven't already, please review :ref:`getting-started` for an introduction to the project. For details on environment setup and day-to-day development processes, please refer to the :ref:`programmers-guide`.
+   For information about environment setup and development processes, see :ref:`programmers-guide`.
 
 Tensile's development practice is based on the `Gitflow workflow <https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow>`_. The **develop** branch is the default branch for development, where all new features and bug fixes are merged. After a PR is merged into **develop**, it undergoes extended testing and profiling. If these checks pass, the PR might be merged into **staging** to be included in the next release. A PR is available in the upcoming release only if it is merged before the release branch is cut.
 
 ================
-Issue Discussion
+Raising issues
 ================
 
-Please use the GitHub Issues tab to notify us of issues.
+To notify us of any existing issue, use the GitHub *Issues* tab.
 
 - Use your best judgment for issue creation. If your issue is already listed, upvote the issue and comment or post to provide additional details, such as how you reproduced this issue.
-- If you're not sure if your issue is the same, err on the side of caution and file your issue. You can add a comment to include the issue number (and link) for the similar issue. If we evaluate your issue as being the same as the existing issue, we'll close the duplicate.
+- If you are not sure of the listed issue being the same as yours, err on the side of caution and file your issue. You can link your issue with the existing issue by providing your issue link and details in the comment section. If your issue is evaluated to be a duplicate, it will be closed.
 - If your issue doesn't exist, use the issue template to file a new issue.
-  - When filing an issue, be sure to provide as much information as possible, including script output so we can collect information about your configuration. This helps reduce the time required to reproduce your issue.
-  - Check your issue regularly, as we may require additional information to successfully reproduce the issue.
-- You may also open an issue to ask questions to the maintainers about whether a proposed change meets the acceptance criteria, or to discuss an idea pertaining to the library.
+  - When filing an issue, provide as much information as possible including the script output, which is required to collect information about your configuration. This helps to reproduce the issue effectively.
+  - Check your issue regularly, as we might require additional information to successfully reproduce the issue.
+- You can also open an issue to ask the maintainers if a proposed change meets the acceptance criteria, or to discuss an idea pertaining to the library.
 
 ===================
-Acceptance Criteria
+Acceptance criteria
 ===================
 
-Pull Requests (PRs) will be reviewed by members of `CODEOWNERS.md <https://github.com/ROCm/Tensile/blob/develop/.github/CODEOWNERS>`_.
-Depending on the PR, the reviewers may post comments or request changes. This may require several iterations.
-Once all the changes requested by the reviewers are complete, the PR will be approved.
-When a Pull Request is submitted it will also undergo a standard suite of continuous integration tests.
+Pull Requests (PR) are reviewed by the members of `CODEOWNERS.md <https://github.com/ROCm/Tensile/blob/develop/.github/CODEOWNERS>`_.
+Depending on the PR, the reviewers might post comments or request changes. This might require several iterations.
+The PR is approved only when all the changes requested by the reviewers are marked complete.
+When a Pull Request is submitted, it undergoes a standard suite of continuous integration tests.
 
-Once the pull request is approved and tests pass, it will be merged by a member of `CODEOWNERS.md <https://github.com/ROCm/Tensile/blob/develop/.github/CODEOWNERS>`_.
+Once the pull request is approved and tests pass, it is merged by a member of the codeowner's community.
 Attribution for your commit will be preserved when it is merged.
 
-=======================
-Pull Request Guidelines
-=======================
+==========================
+Submitting a Pull Request
+==========================
 
-By creating a pull request, you agree to the statements made in the `Code License`_ section. Your pull request should target the default *develop* branch, which also serves as our integration branch.
+By creating a PR, you agree to the statements made in the `Code License`_ section. Your PR must target the default *develop* branch, which also serves as our integration branch.
 
 a. **Forking the repository and making changes:**
 
-   1. Create a fork of Tensile. Do not create feature branches directly in https://github.com/ROCm/Tensile.
+   1. Create a fork of Tensile. Don't create feature branches directly in https://github.com/ROCm/Tensile.
    2. Clone your fork locally and set up your :ref:`development-environment`.
    3. Create your feature branch from **develop** and make changes to the code.
    4. Issue ``tox run -m precommit`` and ensure that all checks pass.
@@ -116,15 +116,15 @@ Commit messages
 
 1. Use `conventional commits <https://www.conventionalcommits.org/>`_.
 2. Use the present imperative tense. For example, "add" not "adds" or "added".
-3. Don't end the message with a period (``.``).
+3. Don't end the message with a period (.).
 
 ============
-Code License
+Code license
 ============
 
-All code contributed to this project will be licensed under the license identified in the `LICENSE.md <https://github.com/ROCm/Tensile/blob/develop/LICENSE.md>`_. Your contribution will be accepted under the same license.
+All code contributed to this project will be licensed under the given `LICENSE <https://github.com/ROCm/Tensile/blob/develop/LICENSE.md>`_. Your contribution will be accepted under the same license.
 
-For each new file, please include the following licensing header:
+For each new file, include the following licensing header:
 
 .. code:: cpp
 
@@ -152,7 +152,7 @@ For each new file, please include the following licensing header:
      *******************************************************************************/
 
 ===============
-Release Cadence
+Release cadence
 ===============
 
-Official Tensile releases are subject to the general ROCm release cadence, which typically follows a quarterly cycle. Latest stable versions of Tensile can be found in the **staging** branch.
+Official Tensile releases are subject to the general ROCm release cadence, which typically follows a quarterly cycle. Latest stable versions of Tensile are available in the **staging** branch.
