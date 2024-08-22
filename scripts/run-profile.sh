@@ -13,15 +13,19 @@ usage() {
     echo ""
     echo "Example:"
     echo "  $0 --build-id=12345 --branch=develop --archs='gfx90a'"
+    echo ""
+    echo "Dependencies:"
+    echo "  docker: Docker is implicitly called and may install images"
 }
 
 find_tensile() {
   local query="*/Tensile/setup.py"
   local os_tag=$1
+  # If several Tensile projects are found, use the first one
   docker run \
     --rm \
     --volume="$HOME:/mnt/host" \
-    "$base_image:$build_id$os_tag" bash -c "find /mnt/host -path $query -exec dirname {} \;"
+    "$base_image:$build_id$os_tag" bash -c "find /mnt/host -path $query -exec dirname {} \; 2>&1 | head -n1"
 }
 
 find_logic() {
@@ -34,13 +38,18 @@ find_logic() {
 }
 
 run_suite() {
-    declare -a jobs=("16" "32")
-    declare -a os_tags=("-ubuntu-24.04-stg1" "-ubuntu-22.04-stg1" "-ubuntu-20.04-stg1" "-rhel-9.x-stg1" "-sles-stg1")
+    # declare -a jobs=("16" "32")
+    # declare -a os_tags=("-ubuntu-24.04-stg1" "-ubuntu-22.04-stg1" "-ubuntu-20.04-stg1" "-rhel-9.x-stg1" "-sles-stg1")
+    declare -a jobs=("1")
+    declare -a os_tags=("-ubuntu-24.04-stg1")
 
     for tag in "${os_tags[@]}"; do
         local tensile_path=$(find_tensile $tag)
         local logic_path=$(find_logic $tag)
+        echo "> Running Tensile from: $tensile_path"
+        echo "> Loading logic files from: $logic_path"
         for n in "${jobs[@]}"; do
+            echo "> In container: $build_id$tag..."
             docker run --rm --security-opt seccomp=unconfined --device=/dev/kfd --device=/dev/dri \
               --group-add=video --volume="$HOME:/mnt/host" "$base_image:$build_id$tag" \
               /bin/bash -c "$tensile_path/scripts/run-tcl.sh \
@@ -76,11 +85,12 @@ if [ -z "$build_id" ] || [ -z "$branch" ] || [ -z "$archs" ] || [ -z "$compiler"
     exit 1
 fi
 
-echo "Profiling..."
-echo "  build number:    $build_id"
-echo "  branch:          $branch"
-echo "  architecture(s): $archs"
-echo "  compiler:        $compiler"
+echo "> Profiling..."
+echo "    build number:    $build_id"
+echo "    branch:          $branch"
+echo "    architecture(s): $archs"
+echo "    compiler:        $compiler"
+
 
 run_suite
 

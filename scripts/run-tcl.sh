@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 usage() {
     echo "Run TensileCreateLibrary with timestamped log and build directory"
     echo ""
@@ -17,9 +18,12 @@ usage() {
 }
 
 main() {
+  cd $tensile_path
+  echo "> Writing logs to: `pwd`/$log_file"
+  echo "> Building output to: `pwd`/$build_dir"
   export TENSILE_PROFILE=ON
   export PYTHONPATH="$tensile_path"
-  /bin/bash -c "$tensile_path/Tensile/bin/TensileCreateLibrary $logic_path $build_dir $language \
+  $tensile_path/Tensile/bin/TensileCreateLibrary $logic_path $build_dir $language \
      --merge-files \
      --separate-architecture \
      --lazy-library-loading \
@@ -28,7 +32,7 @@ main() {
      --cxx-compiler=$compiler \
      --jobs=$jobs \
      --library-format=msgpack \
-     --architecture=$archs" > "$tensile_path/$log_file" 2>&1
+     --architecture=$archs | tee "$tensile_path/$log_file" 2>&1
 }
 
 # Variables
