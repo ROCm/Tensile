@@ -20,9 +20,9 @@ Development environment
 ROCm is the base requirement for contributing to Tensile. See if ROCm is supported on your platform by verifying the `supported operating systems <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/reference/system-requirements.html#supported-operating-systems>`_ list.
 Then, follow the steps given in the :ref:`installation` guide.
 
-=====================
+-------------------------
 Developing in Docker
-=====================
+-------------------------
 
 ROCm development images are available on `Docker Hub <https://hub.docker.com/search?q=rocm%2Fdev>`_ for a variety of OS/ROCm versions. See `Docker images in the ROCm ecosystem <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/docker.html#docker-images-in-the-rocm-ecosystem>`_ for more details.
 
@@ -125,6 +125,8 @@ Next, you can configure, build, and run the host library tests using any of the 
 - Manually: To build and run the tests manually, see the commands in `tasks.py <https://github.com/ROCm/Tensile/blob/develop/tasks.py>`_.
   For advanced usage like filtering or repeating test cases, see the `gtest documentation <https://github.com/google/googletest/blob/main/docs/advanced.md>`_.
 
+..
+   The static analysis section is WIP and not to be reviewed.
 ===============
 Static analysis
 ===============
@@ -168,6 +170,8 @@ The following command formats all given files, however, we recommend you to setu
 
 Styling rules are configured in `.clang-format <https://github.com/ROCm/Tensile/blob/develop/.clang-format>`_.
 
+..
+   The profiling section is WIP and not to be reviewed.
 =========
 Profiling
 =========
@@ -184,8 +188,6 @@ To enable profiling, use the ``@profile`` decorator, which must be imported from
 ========================
 Building documentation
 ========================
-
-Tensile uses https://github.com/ROCm/rocm-docs-core as the documentation engine, which itself wraps Read the Docs and Sphinx.
 
 To build the documentation locally, use:
 

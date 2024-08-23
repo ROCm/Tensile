@@ -2,10 +2,9 @@ defaults:
   numbered: False
 root: src/index
 subtrees:
-- caption: Getting started
+- caption: Install
   entries:
   - file: src/getting-started/installation
-  - file: src/getting-started/quick-start
 
 - caption: Reference
   entries:

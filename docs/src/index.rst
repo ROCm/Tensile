@@ -15,10 +15,9 @@ The code is open source and hosted at: https://github.com/ROCm/Tensile
 .. grid:: 2
   :gutter: 2
 
-  .. grid-item-card:: Getting started
+  .. grid-item-card:: Install
 
     * :ref:`installation`
-    * :ref:`quick-start`
 
   .. grid-item-card:: Concepts
 
