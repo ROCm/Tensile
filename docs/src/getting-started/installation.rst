@@ -13,7 +13,7 @@ You can obtain Tensile as part of ROCm installation or choose to install Tensile
 Install ROCm
 ============
 
-1. Install ROCm for your platform. For installation instructions, refer to `Linux <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/tutorial/quick-start.html>`_ or Windows `Windows <https://rocm.docs.amd.com/projects/install-on-windows/en/latest/index.html>` installation guide.
+1. Install ROCm for your platform. For installation instructions, refer to `Linux <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/tutorial/quick-start.html>`_ or Windows `Windows <https://rocm.docs.amd.com/projects/install-on-windows/en/latest/index.html>`_ installation guide.
 
    .. tip::
 
