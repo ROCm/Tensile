@@ -27,6 +27,7 @@ from .Utils import roundUpToNearestMultiple
 from .AsmUtils import inst, vgpr, sgpr
 import traceback
 from enum import Enum
+from typing import Optional
 
 ################################################################################
 # RegisterPool
@@ -181,21 +182,49 @@ class RegisterPool:
 
     return True
 
-  def findFreeRange(self, size, alignment, preventOverflow=-1, wantedStatus=Status.Available):
+
+  def findFreeRange(
+    self, 
+    size: int, 
+    alignment: int, 
+    preventOverflow: int=-1, 
+    wantedStatus: Status=Status.Available
+  ) -> Optional[int]:
+    """Find a free range of registers of a given size, alignment, and status from the register pool.
+
+    Args:
+        size: The required size of the register block.
+        alignment: The alignment requirement for the block. Each block must start at an index
+            that is a multiple of this value.
+        preventOverflow: Flag to prevent overflow. If set to -1, it uses the default value.
+        wantedStatus: The status of the block to be found.
+
+    Returns:
+        1. The starting index of the block if found. 
+        2. None if preventOverflow is set and no block is found.
+        3. The start of the last available block rounded up to the alignment if preventOverflow is
+            not set and no block is found. 
+    """
     if preventOverflow == -1:
       preventOverflow = self.defaultPreventOverflow
 
-    for i in range(len(self.pool)+1):
-      if i % alignment != 0:
-        continue
-      if self.isRangeAvailable(i, size, preventOverflow, wantedStatus):
-        return i
+    left, right = 0, 0
+    while right < len(self.pool):
+      if self.pool[right].status == wantedStatus:
+        blockSize = right - left + 1
+        if blockSize >= size:
+          return left
+        right += 1
+      else:
+        left += alignment
+        right = left
 
     if preventOverflow:
       return None
     else:
       loc = self.startOfLastAvailableBlock()
       return roundUpToNearestMultiple(loc, alignment)
+
 
   def checkOutAt(self, start, size, tag, preventOverflow, wantedStatus = Status.Available):
     if preventOverflow:
