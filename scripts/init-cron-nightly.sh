@@ -40,15 +40,15 @@ if [ -z "$build_id" ] || [ -z "$tensile_path" ]; then
 fi
 
 if [ ! -e "$tensile_path" ]; then
-    echo -e "$H1> Error: path to Tensile does not exist.$NC"
-    echo -e "$H1> Cannot find: $tensile_path$NC"
+    echo -e "$H1+ Error: path to Tensile does not exist.$NC"
+    echo -e "$H1+ Cannot find: $tensile_path$NC"
     exit 1
 fi
 
 if crontab -l | grep -q "$script_to_run"; then
-    echo -e "$H1> Error: cron job with same command already exists.$NC"
-    echo -e "$H1> Clean your crontab manually with 'crontab -e' and rerun.$NC"
-    echo -e "$H1> Conflict line:\n>   `crontab -l | grep $script_to_run`$NC"
+    echo -e "$H1+ Error: cron job with same command already exists.$NC"
+    echo -e "$H1+ Clean your crontab manually with 'crontab -e' and rerun.$NC"
+    echo -e "$H1+ Conflict line:\n+   `crontab -l | grep $script_to_run`$NC"
     exit 1
 else
     cron_log="$tensile_path/tcl-profile-$(date +'%Y-%m-%dT%H-%M-%S').log.cron"

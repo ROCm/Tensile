@@ -19,8 +19,8 @@ usage() {
 
 main() {
   cd $tensile_path
-  echo "> Writing logs to: `pwd`/$log_file"
-  echo "> Building output to: `pwd`/$build_dir"
+  echo "+ Writing logs to: `pwd`/$log_file"
+  echo "+ Building output to: `pwd`/$build_dir"
   export TENSILE_PROFILE=ON
   export PYTHONPATH="$tensile_path"
   $tensile_path/Tensile/bin/TensileCreateLibrary $logic_path $build_dir $language \

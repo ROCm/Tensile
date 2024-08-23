@@ -55,7 +55,7 @@ find_logic() {
 run_suite() {
 
     for tag in "${os_tags[@]}"; do
-        echo "> In container: $build_id$tag..."
+        echo "+ In container: $build_id$tag..."
         local tensile_path=$(find_tensile $tag)
         local logic_path=$(find_logic $tag)
         echo "    using Tensile: $tensile_path"
@@ -87,7 +87,7 @@ if [ -z "$build_id" ] || [ -z "$branch" ] || [ -z "$arch" ] || [ -z "$compiler" 
     exit 1
 fi
 
-echo "> Profiling..."
+echo "+ Profiling..."
 echo "    build number:    $build_id"
 echo "    branch:          $branch"
 echo "    architecture(s): $arch"
