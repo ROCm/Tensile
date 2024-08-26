@@ -142,11 +142,12 @@ def test_findFreeRange_noOverflowPastPoolLength():
     assert out_new == out_old
     assert out_new == 0
 
+
 def test_findFreeRange_noOverflowPastPoolLength2():
     poolSize = 12
     vgprPool = RegisterPool(poolSize, "v", defaultPreventOverflow=False, printRP=0)
 
-    vgprPool.add(0, poolSize-2, "tag")
+    vgprPool.add(0, poolSize - 2, "tag")
 
     print(vgprPool.pool)
     #   A       A       A
