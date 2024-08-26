@@ -219,11 +219,7 @@ class RegisterPool:
         left += alignment
         right = left
 
-    if preventOverflow:
-      return None
-    else:
-      loc = self.startOfLastAvailableBlock()
-      return roundUpToNearestMultiple(loc, alignment)
+    return None if preventOverflow else left
 
 
   def checkOutAt(self, start, size, tag, preventOverflow, wantedStatus = Status.Available):
