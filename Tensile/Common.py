@@ -57,13 +57,6 @@ class DeveloperWarning(Warning):
     This warning can be safely ignored when running any Tensile applications as a user.
     """
 
-def showwarning(message, category, filename, lineno, file=None, line=None):
-    msg = f"> {category.__name__}: {message}"
-    if TENSILE_TERM_COLORS:
-        msg = f"[yellow]{msg}[/yellow]"
-    print(msg)
-
-warnings.showwarning = showwarning
 
 # print level
 # 0 - user wants no printing

@@ -92,6 +92,10 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
         filename = kernel.get("codeObjectFile", None)
 
     except RuntimeError:
+        printWarning(
+            "Gracefully handling unknown runtime error when generating kernel: %s"
+            % kernel["KernelName"]
+        )
         return (1, "", "", kernelName, None)
 
     return (err, src, header, kernelName, filename)
@@ -284,7 +288,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile, removeTempora
                 + [kernelFile, "-c", "-o", os.path.join(buildPath, objectFilename)]
             )
 
-        tPrint(2, "hipcc:" + " ".join(compileArgs))
+        tPrint(2, f"Build object file command: {compileArgs}")
         # change to use  check_output to force windows cmd block util command finish
         try:
             out = subprocess.check_output(compileArgs, stderr=subprocess.STDOUT)
@@ -530,7 +534,6 @@ def buildKernelSourceAndHeaderFiles(results, outputPath):
             filesToWrite[os.path.join(os.path.normcase(outputPath), kernelName)].append(
                 (err, src, header, kernelName)
             )
-
         validKernelCount += 1
 
     # Ensure there's at least one kernel file for helper kernels
@@ -785,6 +788,7 @@ def writeKernels(
     prepAsm(
         kernelWriterAssembly,
         os.name != "nt",
+        # Use globalParameters here, not params
         Path(globalParameters["WorkingPath"]),
         globalParameters["CurrentISA"],
         params["PrintLevel"],
@@ -797,7 +801,8 @@ def writeKernels(
         itertools.repeat(kernelWriterSource),
         itertools.repeat(kernelWriterAssembly),
     )
-    results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels")
+    results = Common.ParallelMap(processKernelSource, list(kIter), "Generating kernels")
+
     filterProcessingErrors(kernels, solutions, results, params["PrintLevel"], errorTolerant)
 
     kernelFiles, kernelsWithBuildErrors = buildKernelSourceAndHeaderFiles(results, outputPath)
@@ -1527,6 +1532,9 @@ def sanityCheck(
     """
     libPaths = set([Path(p).resolve() for p in srcLibPaths + asmLibPaths])
     coPaths = set([Path(p).resolve() for p in codeObjectPaths])
+
+    tPrint(2, "Library paths:\n    " + "\n    ".join(map(str, libPaths)))
+    tPrint(2, "Code object paths:\n    " + "\n    ".join(map(str, coPaths)))
 
     extraCodeObjects = coPaths - libPaths
     if extraCodeObjects:

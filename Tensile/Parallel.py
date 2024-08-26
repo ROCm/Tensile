@@ -26,36 +26,49 @@ import itertools
 import os
 from typing import Any, Callable
 
-from joblib import Parallel, delayed
+from .Utilities.ConditionalImports import joblib
+
 
 def CPUThreadCount(enable=True):
-  from .Common import globalParameters
-  if not enable:
-    return 1
-  else:
-    if os.name == "nt":
-      cpu_count = os.cpu_count()
+    from .Common import globalParameters
+
+    if not enable:
+        return 1
     else:
-      cpu_count = len(os.sched_getaffinity(0))
-    cpuThreads = globalParameters["CpuThreads"]
-    if cpuThreads < 1:
-        return min(cpu_count, 64) # Max build threads to avoid out-of-memory
-    return min(cpu_count, cpuThreads)
+        if os.name == "nt":
+            cpu_count = os.cpu_count()
+        else:
+            cpu_count = len(os.sched_getaffinity(0))
+        cpuThreads = globalParameters["CpuThreads"]
+        if cpuThreads < 1:
+            return min(cpu_count, 64)  # Max build threads to avoid out-of-memory
+        return min(cpu_count, cpuThreads)
+
 
 def OverwriteGlobalParameters(newGlobalParameters):
-  from . import Common
-  Common.globalParameters.clear()
-  Common.globalParameters.update(newGlobalParameters)
+    from . import Common
+
+    Common.globalParameters.clear()
+    Common.globalParameters.update(newGlobalParameters)
+
 
 def pcallWithGlobalParamsMultiArg(f, args, newGlobalParameters):
-  OverwriteGlobalParameters(newGlobalParameters)
-  return f(*args)
+    OverwriteGlobalParameters(newGlobalParameters)
+    return f(*args)
+
 
 def pcallWithGlobalParamsSingleArg(f, arg, newGlobalParameters):
-  OverwriteGlobalParameters(newGlobalParameters)
-  return f(arg)
+    OverwriteGlobalParameters(newGlobalParameters)
+    return f(arg)
 
-def ParallelMap(function: Callable, objects: Any, message: str="", enable: bool=True, multiArg: bool=True):
+
+def ParallelMap(
+    function: Callable,
+    objects: Any,
+    message: str = "",
+    enable: bool = True,
+    multiArg: bool = True,
+):
     """Executes a function over a list of objects in parallel or sequentially.
 
     This function is generally equivalent to ``list(map(function, objects))``. However, it provides
@@ -76,19 +89,26 @@ def ParallelMap(function: Callable, objects: Any, message: str="", enable: bool=
     Returns:
         A list containing the results of applying **function** to each item in **objects**.
     """
-    from .Common import globalParameters
-    from . import Utils
-    threadCount = CPUThreadCount(enable)
-    
-    if threadCount <= 1:
-      return list(map(lambda objs: function(*objs), Utils.tqdm(objects, desc=message)))
-        
-    inputs = list(zip(objects, itertools.repeat(globalParameters)))
-    message += f": {threadCount} threads, {len(inputs)} tasks"
 
+    from . import Utils
+    from .Common import globalParameters
+
+    threadCount = CPUThreadCount(enable)
+
+    message += (
+        f": {threadCount} thread(s)" + f", {len(objects)} tasks"
+        if hasattr(objects, "__len__")
+        else ""
+    )
+
+    if threadCount <= 1 or joblib is None:
+        f = lambda x: function(*x) if multiArg else function(x)
+        return [f(x) for x in Utils.tqdm(objects, desc=message)]
+
+    inputs = list(zip(objects, itertools.repeat(globalParameters)))
     pargs = Utils.tqdm(inputs, desc=message)
     pcall = pcallWithGlobalParamsMultiArg if multiArg else pcallWithGlobalParamsSingleArg
 
-    rv = Parallel(n_jobs=threadCount)(delayed(pcall)(function, a, params) for a, params in pargs)
-    
-    return rv
+    return joblib.Parallel(n_jobs=threadCount)(
+        joblib.delayed(pcall)(function, a, params) for a, params in pargs
+    )
