@@ -18,22 +18,20 @@ subtrees:
 
 - caption: API reference
   entries:
-  - file: src/api-reference/Common
-  - file: src/api-reference/EmbeddedData
-  - file: src/api-reference/TensileCreateLibrary
-  - file: src/api-reference/Utilities
-
-- entries:
-  - file: src/concepts
+  - file: src/api-reference/common
+  - file: src/api-reference/embedded_data
+  - file: src/api-reference/tensile_create_library
+  - file: src/api-reference/utilities
+  - file: src/api-reference/cli-reference
     entries:
-    - file: src/concepts/benchmarking
-    - file: src/concepts/tuning
-    - file: src/concepts/kernels
-    - file: src/concepts/library-creation
+    - file: src/cli-reference/tensile_create_library_cli
 
-  - file: src/cli-reference
-    entries:
-    - file: src/cli-reference/TensileCreateLibrary
+- caption: Conceptual
+  entries:
+  - file: src/concepts/benchmarking
+  - file: src/concepts/tuning
+  - file: src/concepts/kernels
+  - file: src/concepts/library-creation
 
 - caption: About
   entries:

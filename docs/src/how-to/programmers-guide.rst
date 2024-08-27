@@ -172,6 +172,7 @@ Styling rules are configured in `.clang-format <https://github.com/ROCm/Tensile/
 
 ..
    The profiling section is WIP and not to be reviewed.
+
 =========
 Profiling
 =========

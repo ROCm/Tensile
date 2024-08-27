@@ -19,7 +19,7 @@ The code is open source and hosted at: https://github.com/ROCm/Tensile
 
     * :ref:`installation`
 
-  .. grid-item-card:: Concepts
+  .. grid-item-card:: Conceptual
 
     * :ref:`benchmarking`
     * :ref:`tuning`
@@ -28,8 +28,6 @@ The code is open source and hosted at: https://github.com/ROCm/Tensile
 
   .. grid-item-card:: Reference
 
-    * :ref:`cli-reference`
-    * :ref:`api-reference`
     * :ref:`environment-variables`
     * :ref:`experimental-kernel-selection`
 
@@ -37,6 +35,15 @@ The code is open source and hosted at: https://github.com/ROCm/Tensile
 
     * :ref:`programmers-guide`
     * :ref:`contribution-guidelines`
+
+  .. grid-item-card:: API reference
+
+    * :ref:`common-api-reference`
+    * :ref:`embeddeddata-api-reference`
+    * :ref:`tensilecreatelibrary-api-reference`
+    * :ref:`utilities-api-reference`
+    * :ref:`cli-reference`
+      * :ref:`tensilecreatelibrary-cli-reference`
 
 To contribute to the documentation, refer to
 `Contributing to ROCm <https://rocm.docs.amd.com/en/latest/contribute/contributing.html>`_.
