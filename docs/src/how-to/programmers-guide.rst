@@ -126,7 +126,7 @@ Next, you can configure, build, and run the host library tests using any of the 
   For advanced usage like filtering or repeating test cases, see the `gtest documentation <https://github.com/google/googletest/blob/main/docs/advanced.md>`_.
 
 ..
-   The static analysis section is WIP and not to be reviewed.
+   The static analysis and profiling sections are WIP and not to be reviewed.
 ===============
 Static analysis
 ===============
@@ -169,9 +169,6 @@ The following command formats all given files, however, we recommend you to setu
    clang-format -i style=file <files>
 
 Styling rules are configured in `.clang-format <https://github.com/ROCm/Tensile/blob/develop/.clang-format>`_.
-
-..
-   The profiling section is WIP and not to be reviewed.
 
 =========
 Profiling

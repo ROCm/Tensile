@@ -43,6 +43,7 @@ The code is open source and hosted at: https://github.com/ROCm/Tensile
     * :ref:`tensilecreatelibrary-api-reference`
     * :ref:`utilities-api-reference`
     * :ref:`cli-reference`
+
       * :ref:`tensilecreatelibrary-cli-reference`
 
 To contribute to the documentation, refer to
