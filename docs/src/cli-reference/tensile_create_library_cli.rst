@@ -21,7 +21,7 @@ Required Arguments
 Here is the list of required arguments for invoking the ``TensileCreateLibrary`` command.
 
 .. list-table:: Required arguments
-    :header-rows: 1
+  :header-rows: 1
 
     * - Argument
       - Description
@@ -43,7 +43,7 @@ Options
 Here is the list of optional arguments for invoking the ``TensileCreateLibrary`` command.
 
 .. list-table:: Options
-    :header-rows: 1
+  :header-rows: 1
 
     * - Option
       - Description
