@@ -729,7 +729,7 @@ def test_processKernelSource(setupSolutionsAndKernels):
     assert results == expected, "Assembly files shouldn't have any header or source content"
 
 
-def test_buildKernelSourceAndHeaderFiles():
+def test_buildKernelSourceAndHeaderFiles_checkBuildErrorsAsmKernels():
     outputPath = Path("no-commit-kernel-build-files")
     outputPath.mkdir(exist_ok=True)
 
@@ -746,7 +746,9 @@ def test_buildKernelSourceAndHeaderFiles():
         "src1": -2,
     }
 
-    kernelFiles, kernelsWithBuildErrors = tcl.buildKernelSourceAndHeaderFiles(results, outputPath)
+    kernelFiles, kernelsWithBuildErrors = tcl.buildKernelSourceAndHeaderFiles(
+        results, outputPath, True, True, 1
+    )
 
     # Undocumented internal logic of buildKernelSourceAndHeaderFiles
     assert len(kernelFiles) == 1, "Only one file should be created for Assembly only kernels"

@@ -74,6 +74,8 @@ from .Utilities.toFile import toFile
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
 TENSILE_LIBRARY_DIR = "library"
 
+ProcKernResult = List[Tuple[int, str, str, str, Optional[str]]]
+
 
 ################################################################################
 def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
@@ -485,26 +487,21 @@ def prepAsm(
     os.chmod(assemblerFileName, 0o777)
 
 
-################################################################################
-ProcKernResult = List[Tuple[int, str, str, str, Optional[str]]]
-
-
-# @profile
 def buildKernelSourceAndHeaderFiles(
     results: ProcKernResult, outputPath, lazyLoading: bool, mergeFiles: bool, numMergedFiles: int
-):
-    """
-    Logs errors and writes appropriate info to kernelSourceFile and kernelHeaderFile.
+) -> Tuple[List[str], Dict[str, int]]:
+    """Logs errors and writes appropriate info to kernel source and header files.
 
     Arguments:
-      results:              list of (err, src, header, kernelName, filename)
-      outputPath:           path to source directory
-      kernelsWithBuildErrs: Dictionary to be updated with kernels that have errors
-      kernelSourceFile:     File to write source data to
-      kernelHeaderFile:     File to write header data to
+        results: List of (err, src, header, kernelName, filename)
+        outputPath: Path to source directory
+        lazyLoading: Flag indicating if lazy loading is enabled.
+        mergeFiles: Flag indicating if files should be merged.
+        numMergedFiles: The number of files to merge.
 
     Returns:
-      sourceFilenames:      Array containing source kernel filenames
+        Two lists, the first containing source kernel filenames, the second with kernels that
+            encountered build errors.
     """
 
     # Find kernels to write
@@ -512,10 +509,10 @@ def buildKernelSourceAndHeaderFiles(
     kernelsWithBuildErrs: Dict[str, int] = {}
     filesToWrite = collections.defaultdict(list)
     validKernelCount = 0
-    for err, src, header, kernelName, filename in results:
-        # print("RESULTS", results)
 
-        # Keep track of kernels with errors
+    pathJoin = lambda x: os.path.join(os.path.normcase(outputPath), x)
+
+    for err, src, header, kernelName, filename in results:
         if err:
             kernelsWithBuildErrs[kernelName] = err
 
@@ -525,49 +522,46 @@ def buildKernelSourceAndHeaderFiles(
 
         kernelsToWrite.append((err, src, header, kernelName))
 
-        pathJoin = lambda x: os.path.join(os.path.normcase(outputPath), x)
-
         # Create list of files
+        key = pathJoin(kernelName)  # Default kernel name
         if filename:
-            filesToWrite[pathJoin(filename)].append((err, src, header, kernelName))
+            key = pathJoin(filename)
         elif mergeFiles:
-            kernelSuffix = ""
-            if numMergedFiles > 1:
-                kernelSuffix = validKernelCount % numMergedFiles
-            filesToWrite[pathJoin("Kernels" + kernelSuffix)].append((err, src, header, kernelName))
-        else:
-            filesToWrite[os.path.join(os.path.normcase(outputPath), kernelName)].append(
-                (err, src, header, kernelName)
-            )
+            kernelSuffix = str(validKernelCount % numMergedFiles) if numMergedFiles > 1 else ""
+            key = pathJoin(f"Kernels{kernelSuffix}")
+
+        filesToWrite[key].append((err, src, header, kernelName))
         validKernelCount += 1
 
     # Ensure there's at least one kernel file for helper kernels
     if lazyLoading or (mergeFiles and not kernelsToWrite):
-        kernelSuffix = ""
-        if numMergedFiles > 1:
-            kernelSuffix = "0"
+        kernelSuffix = "0" if numMergedFiles > 1 else ""
+        filesToWrite[pathJoin(f"Kernels{kernelSuffix}")] = []
 
-        filesToWrite[os.path.join(os.path.normcase(outputPath), "Kernels" + kernelSuffix)] = []
+    def writeHeader(hdrFile):
+        hdrFile.write(CHeader)
+        hdrFile.write("#pragma once\n")
+        if globalParameters["RuntimeLanguage"] == "HIP":
+            hdrFile.write("#include <hip/hip_runtime.h>\n")
+            hdrFile.write("#include <hip/hip_ext.h>\n\n")
+        hdrFile.write('#include "KernelHeader.h"\n\n')
+
+    def writeSource(srcFile, filename):
+        srcFile.write(CHeader)
+        srcFile.write(f'#include "{filename}.h"\n')
 
     # Write kernel data to files
     # Parse list of files and write kernels
     for filename, kernelList in filesToWrite.items():
-        with open(filename + ".h", "w", encoding="utf-8") as kernelHeaderFile, open(
-            filename + ".cpp", "w", encoding="utf-8"
-        ) as kernelSourceFile:
+        with open(f"{filename}.h", "w", encoding="utf-8") as hdrFile, open(
+            f"{filename}.cpp", "w", encoding="utf-8"
+        ) as srcFile:
 
-            kernelSourceFile.write(CHeader)
-            kernelHeaderFile.write(CHeader)
-            kernelSourceFile.write('#include "{}.h"\n'.format(filename))
-            kernelHeaderFile.write("#pragma once\n")
-            if globalParameters["RuntimeLanguage"] == "HIP":
-                kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
-                kernelHeaderFile.write("#include <hip/hip_ext.h>\n\n")
-            kernelHeaderFile.write('#include "KernelHeader.h"\n\n')
-
-            for err, src, header, kernelName in kernelList:
-                kernelSourceFile.write(src)
-                kernelHeaderFile.write(header)
+            writeHeader(hdrFile)
+            writeSource(srcFile, filename)
+            for _, src, header, _ in kernelList:
+                srcFile.write(src)
+                hdrFile.write(header)
 
     sourceFilenames = [filePrefix + ".cpp" for filePrefix in filesToWrite]
 
