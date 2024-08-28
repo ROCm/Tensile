@@ -274,11 +274,7 @@ globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))    
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source") # path to Tensile/Source/
 globalParameters["HipClangVersion"] = "0.0.0"
 
-# default runtime is selected based on operating system, user can override
-if os.name == "nt":
-  globalParameters["RuntimeLanguage"] = "HIP" #"OCL"
-else:
-  globalParameters["RuntimeLanguage"] = "HIP"
+globalParameters["RuntimeLanguage"] = "HIP"
 
 globalParameters["CodeObjectVersion"] = "default"
 globalParameters["CxxCompiler"] = "amdclang++" if os.name != "nt" else "clang++"
