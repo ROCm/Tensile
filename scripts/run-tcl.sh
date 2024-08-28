@@ -1,5 +1,16 @@
 #!/bin/bash
 
+# Variables
+tensile_path=""
+logic_path=""
+jobs=""
+arch="gfx900"
+compiler="amdclang++"
+
+# Constants
+language="HIP"
+build_dir="build-tcl-$(date +'%Y-%m-%dT%H-%M-%S')"
+log_file="tcl-profile-$(date +'%Y-%m-%dT%H-%M-%S').log"
 
 usage() {
     echo "Run TensileCreateLibrary with timestamped log and build directory"
@@ -10,8 +21,8 @@ usage() {
     echo "  --tensile-path: Path to root directory of Tensile"
     echo "  --logic-path: Path to directory containing logic files"
     echo "  --jobs: Number of concurrent processes to use"
-    echo "  --arch: Target Gfx architecture(s) [default: gfx900]"
-    echo "  --compiler: HIP-enabled compiler (must be in PATH) [default: amdclang++]"
+    echo "  --arch: Target Gfx architecture(s) [default: $arch]"
+    echo "  --compiler: HIP-enabled compiler (must be in PATH) [default: $compiler]"
     echo ""
     echo "Example:"
     echo "  $0 --tensile-path=/mnt/host/Tensile --logic-path=/mnt/host/Logic --jobs=16"
@@ -34,18 +45,6 @@ main() {
      --library-format=msgpack \
      --architecture=$arch | tee "$tensile_path/$log_file" 2>&1
 }
-
-# Variables
-tensile_path=""
-logic_path=""
-jobs=""
-arch="gfx900"
-compiler="amdclang++"
-
-# Constants
-language="HIP"
-build_dir="build-tcl-$(date +'%Y-%m-%dT%H-%M-%S')"
-log_file="tcl-profile-$(date +'%Y-%m-%dT%H-%M-%S').log"
 
 # Parse command line arguments
 for arg in "$@"; do

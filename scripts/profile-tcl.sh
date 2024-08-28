@@ -1,70 +1,93 @@
 #!/bin/bash
+source `find . -name "utils.sh"`
 
 # Variables
-build_id=""
+tags=""
 branch="develop"
 arch="gfx900"
 compiler="amdclang++"
+jobs="16,32"
 
-# Constants
-base_image="compute-artifactory.amd.com:5000/rocm-plus-docker/compute-rocm-dkms-no-npi-hipclang"
-
-# declare -a jobs=("16" "32")
-# declare -a os_tags=("-ubuntu-24.04-stg1" "-ubuntu-22.04-stg1" "-ubuntu-20.04-stg1" "-rhel-9.x-stg1" "-sles-stg1")
-declare -a jobs=("16")
-declare -a os_tags=("-ubuntu-24.04-stg1")
-
+base_image_envvar="REGISTRY_IMAGE"
 
 usage() {
     echo "Run grid-based profiling analysis for TensileCreateLibrary under variable inputs"
     echo ""
-    echo "Usage: $0 --build-id=<build-id> [--branch=<branch>] [--arch=<arch>] [--compiler=<compiler>]"
+    echo "Usage: $0 --tags=<tags> [--jobs=<jobs>] [--branch=<branch>] [--arch=<arch>] [--compiler=<compiler>]"
     echo ""
     echo "Parameters:"
-    echo "  --build-id: The target docker build ID"
-    echo "  --branch: The target branch [default: develop]"
-    echo "  --arch: Target Gfx architecture(s) [default: gfx900]"
-    echo "  --compiler: HIP-enabled compiler (must be in PATH) [default: amdclang++]"
+    echo "  --tags: Docker tags to to launch run from [required]"
+    echo "  --jobs: Number of concurrent processes to use [default: $jobs]"
+    echo "  --arch: Target Gfx architecture(s) [default: $arch]"
+    echo "  --branch: The target branch [default: $branch]"
+    echo "  --compiler: HIP-enabled compiler (must be in PATH) [default: $compiler]"
+    echo ""
+    echo "Environment variables:"
+    echo "  REGISTRY_IMAGE: Base Docker image to use [required]"
     echo ""
     echo "Example:"
-    echo "  $0 --build-id=12345 --branch=develop --arch='gfx90a'"
+    echo "  export REGISTRY_IMAGE='rocm/rocm-terminal'"
+    echo "  $0 --tags='12345-ubuntu22.04' --jobs='16,32' --branch='develop' --arch='gfx90a'"
     echo ""
     echo "Dependencies:"
     echo "  docker: Docker is implicitly called and may install images"
 }
 
+check_installed_docker_images() {
+    local base_img=$1
+    local tag=$2
+    if ! docker images $base_img | grep "$tag" | grep -q .; then
+        echoerr "+ Error: Docker image $base_img:$tag is not installed. Please pull the image and retry."
+        exit 1
+    fi
+}
+
 find_tensile() {
   local query="*/Tensile/setup.py"
-  local os_tag=$1
+  local full_image=$1
   # If several Tensile projects are found, use the first one
   docker run \
     --rm \
     --volume="$HOME:/mnt/host" \
-    "$base_image:$build_id$os_tag" bash -c "find /mnt/host -path $query -exec dirname {} \; 2>&1 | head -n1"
+    "$full_image" bash -c "find /mnt/host -path $query -exec dirname {} \; 2>&1 | head -n1"
 }
 
 find_logic() {
   local query="*/Tensile/Logic/asm_full"
-  local os_tag=$1
+  local full_image=$1
   docker run \
     --rm \
     --volume="$HOME:/mnt/host" \
-    "$base_image:$build_id$os_tag" bash -c "find /mnt/host -path $query"
+    "$full_image" bash -c "find /mnt/host -path $query"
 }
 
 run_suite() {
+    for tag in "${tags[@]}"; do
+        check_installed_docker_images $base_image $tag
+    done
 
-    for tag in "${os_tags[@]}"; do
-        echo "+ In container: $build_id$tag..."
-        local tensile_path=$(find_tensile $tag)
-        local logic_path=$(find_logic $tag)
+    echo "+ Running profiling suite..."
+    for tag in "${tags[@]}"; do
+        local full_image="$base_image:$tag"
+        echo "+ In container: $full_image"
+
+        local tensile_path=$(find_tensile $full_image)
+        local logic_path=$(find_logic $full_image)
         echo "    using Tensile: $tensile_path"
         echo "    using logic files: $logic_path"
         for n in "${jobs[@]}"; do
-            docker run --rm --security-opt seccomp=unconfined --device=/dev/kfd --device=/dev/dri \
-              --group-add=video --volume="$HOME:/mnt/host" "$base_image:$build_id$tag" \
-              /bin/bash -c "$tensile_path/scripts/run-tcl.sh \
-                --tensile-path=$tensile_path --logic-path=$logic_path --jobs=$n --arch=$arch --compiler=$compiler"
+            docker run --rm \
+                       --security-opt seccomp=unconfined \
+                       --device=/dev/kfd \
+                       --device=/dev/dri \
+                       --group-add=video \
+                       --volume="$HOME:/mnt/host" "$full_image" \
+                       /bin/bash -c "$tensile_path/scripts/run-tcl.sh \
+                           --tensile-path=$tensile_path \
+                           --logic-path=$logic_path \
+                           --jobs=$n \
+                           --arch=$arch \
+                           --compiler=$compiler"
         done 
     done 
 }
@@ -72,27 +95,37 @@ run_suite() {
 # Parse command line arguments
 for arg in "$@"; do
     case $arg in
-        --build-id=*) build_id="${arg#*=}" ;;
-        --branch=*) branch="${arg#*=}" ;;
+        --tags=*) tags="${arg#*=}" ;;
+        --jobs=*) jobs="${arg#*=}" ;;
         --arch=*) arch="${arg#*=}" ;;
+        --branch=*) branch="${arg#*=}" ;;
         --compiler=*) compiler="${arg#*=}" ;;
         --help) usage; exit 0 ;;
         *) echo "Invalid option: $arg"; usage; exit 1 ;;
     esac
 done
 
+assert_envvar_exists $base_image_envvar 
+base_image=${!base_image_envvar}
+
+declare -a tags=($(convert_comma_separated_to_array "$tags"))
+declare -a jobs=($(convert_comma_separated_to_array "$jobs"))
+
 # Check if all parameters are provided
-if [ -z "$build_id" ] || [ -z "$branch" ] || [ -z "$arch" ] || [ -z "$compiler" ]; then
+if [ -z "$tags" ] || \
+   [ -z "$jobs" ]     || \
+   [ -z "$arch" ]     || \
+   [ -z "$branch" ]   || \
+   [ -z "$compiler" ]; then
     usage 
     exit 1
 fi
 
 echo "+ Profiling..."
-echo "    build number:    $build_id"
-echo "    branch:          $branch"
-echo "    architecture(s): $arch"
-echo "    compiler:        $compiler"
-
+echo "    tags:     ${tags[@]}"
+echo "    jobs:     ${jobs[@]}"
+echo "    arch:     $arch"
+echo "    branch:   $branch"
+echo "    compiler: $compiler"
 
 run_suite
-
