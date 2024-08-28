@@ -82,7 +82,6 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
     """Generate source for a single kernel.
     Returns (error, source, header, kernelName).
     """
-    # print("BIG FNAME:")
     try:
         kernelWriter = (
             kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
@@ -488,9 +487,9 @@ def prepAsm(
 
 
 def buildKernelSourceAndHeaderFiles(
-    results: ProcKernResult, outputPath, lazyLoading: bool, mergeFiles: bool, numMergedFiles: int
+    results: ProcKernResult, outputPath: Path, lazyLoading: bool, mergeFiles: bool, numMergedFiles: int
 ) -> Tuple[List[str], Dict[str, int]]:
-    """Logs errors and writes appropriate info to kernel source and header files.
+    """Collects kernels with build errors and generates kernel source and header files.
 
     Arguments:
         results: List of (err, src, header, kernelName, filename)
@@ -500,12 +499,11 @@ def buildKernelSourceAndHeaderFiles(
         numMergedFiles: The number of files to merge.
 
     Returns:
-        Two lists, the first containing source kernel filenames, the second with kernels that
+        A list containing source kernel filenames, and a dictionary with kernels that
             encountered build errors.
     """
 
     # Find kernels to write
-    kernelsToWrite = []
     kernelsWithBuildErrs: Dict[str, int] = {}
     filesToWrite = collections.defaultdict(list)
     validKernelCount = 0
@@ -520,8 +518,6 @@ def buildKernelSourceAndHeaderFiles(
         if len(src.strip()) == 0:
             continue
 
-        kernelsToWrite.append((err, src, header, kernelName))
-
         # Create list of files
         key = pathJoin(kernelName)  # Default kernel name
         if filename:
@@ -534,7 +530,8 @@ def buildKernelSourceAndHeaderFiles(
         validKernelCount += 1
 
     # Ensure there's at least one kernel file for helper kernels
-    if lazyLoading or (mergeFiles and not kernelsToWrite):
+    numFilesToWrite = sum(len(x) for x in filesToWrite.values())
+    if lazyLoading or (mergeFiles and numFilesToWrite > 0):
         kernelSuffix = "0" if numMergedFiles > 1 else ""
         filesToWrite[pathJoin(f"Kernels{kernelSuffix}")] = []
 
