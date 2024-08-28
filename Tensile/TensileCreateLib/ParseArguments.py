@@ -66,8 +66,8 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
     parser.add_argument("OutputPath", help="Build path for library files.")
     parser.add_argument(
         "RuntimeLanguage",
-        help="Runtime langauge for generated library.",
-        choices=["OCL", "HIP", "HSA"],
+        help="Runtime language for generated library.",
+        choices=["HIP", "HSA"],
     )
 
     # Optional arguments

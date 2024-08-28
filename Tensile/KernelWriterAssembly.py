@@ -16388,18 +16388,6 @@ class KernelWriterAssembly(KernelWriter):
     return False
 
   ##############################################################################
-  # Open String
-  ##############################################################################
-  def openString(self, kernel):
-    return ""
-
-  ##############################################################################
-  # Close String
-  ##############################################################################
-  def closeString(self, kernel):
-    return ""
-
-  ##############################################################################
   # WaitCnt- DONE
   # 3 components can contribute to the waitcnt:
   #   - Pending global reads.  (skipGlobalRead)

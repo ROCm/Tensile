@@ -24,7 +24,7 @@ When invoking *TensileCreateLibrary*, the following arguments are required.
 \<OUTPUT DIRECTORY\>
     Absolute or relative path to the output directory where build artifacts are placed.
 \<RUNTIME LANGUAGE\>
-    One of: {OCL, HIP, HSA}
+    One of: {HIP, HSA}
 
 Options
 -------

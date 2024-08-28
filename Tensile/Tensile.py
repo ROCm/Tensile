@@ -110,7 +110,7 @@ def addCommonArguments(argParser):
     argParser.add_argument("-p", "--platform", dest="platform", type=int, \
         help="override which OpenCL platform to benchmark")
     argParser.add_argument("--runtime-language", dest="RuntimeLanguage", \
-        choices=["HIP", "OCL"], help="override which runtime language to use")
+        choices=["HIP"], help="override which runtime language to use")
     argParser.add_argument("--code-object-version", dest="CodeObjectVersion", \
         choices=["default", "V4", "V5"], help="HSA code-object version")
     argParser.add_argument("--arch", dest="arch", help="override gfx arch version")
