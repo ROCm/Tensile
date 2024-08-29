@@ -729,11 +729,11 @@ def test_processKernelSource(setupSolutionsAndKernels):
     assert results == expected, "Assembly files shouldn't have any header or source content"
 
 
-def test_buildKernelSourceAndHeaderFiles_checkBuildErrorsAsmKernels():
+def test_generateKernelSourceAndHeaderFiles_checkBuildErrorsAsmKernels():
     outputPath = Path("no-commit-kernel-build-files")
     outputPath.mkdir(exist_ok=True)
 
-    results = [
+    results: List[tcl.ProcessedKernelResult] = [
         (-2, "", "", "asm1", None),
         (0, "", "", "asm2", None),
         (0, "", "", "asm3", None),
@@ -746,12 +746,14 @@ def test_buildKernelSourceAndHeaderFiles_checkBuildErrorsAsmKernels():
         "src1": -2,
     }
 
-    kernelFiles, kernelsWithBuildErrors = tcl.buildKernelSourceAndHeaderFiles(
-        results, outputPath, True, True, 1
+    filesToWrite, kernelsWithBuildErrors = tcl.collectFilesToWrite(
+        results, Path(outputPath), True, True, 1
     )
 
-    # Undocumented internal logic of buildKernelSourceAndHeaderFiles
-    assert len(kernelFiles) == 1, "Only one file should be created for Assembly only kernels"
+    kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
+
+    # Undocumented internal logic of generateKernelSourceAndHeaderFiles
+    assert len(kernelFiles) == 1, "Only one file should be created when mergeFiles == True"
 
     assert (
         kernelFiles[0] == "no-commit-kernel-build-files/Kernels.cpp"
@@ -761,7 +763,7 @@ def test_buildKernelSourceAndHeaderFiles_checkBuildErrorsAsmKernels():
     ), "Kernels with build errors don't match expectation"
 
 
-def test_buildKernelSourceAndHeaderFiles_noLazyMergeFallbackNames():
+def test_generateKernelSourceAndHeaderFiles_noLazyMergeFallbackNames():
     outputPath = Path("no-commit-kernel-build-files")
     outputPath.mkdir(exist_ok=True)
 
@@ -774,9 +776,11 @@ def test_buildKernelSourceAndHeaderFiles_noLazyMergeFallbackNames():
         (0, '#include "Kernels3.h"', "#pragma thrice", "src3", None),
     ]
 
-    kernelFiles, kernelsWithBuildErrors = tcl.buildKernelSourceAndHeaderFiles(
-        results, outputPath, False, False, 1
+    filesToWrite, kernelsWithBuildErrors = tcl.collectFilesToWrite(
+        results, Path(outputPath), False, False, 1
     )
+
+    kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
 
     assert (
         len(kernelFiles) == 3
@@ -788,7 +792,7 @@ def test_buildKernelSourceAndHeaderFiles_noLazyMergeFallbackNames():
     ]
 
 
-def test_buildKernelSourceAndHeaderFiles_mergeWithNonEmptyAsm():
+def test_generateKernelSourceAndHeaderFiles_mergeWithNonEmptyAsm():
     outputPath = Path("no-commit-kernel-build-files")
     outputPath.mkdir(exist_ok=True)
 
@@ -798,9 +802,11 @@ def test_buildKernelSourceAndHeaderFiles_mergeWithNonEmptyAsm():
         (0, "A3", "#pragma 3", "asm3", None),
     ]
 
-    kernelFiles, kernelsWithBuildErrors = tcl.buildKernelSourceAndHeaderFiles(
-        results, outputPath, False, True, 1
+    filesToWrite, kernelsWithBuildErrors = tcl.collectFilesToWrite(
+        results, Path(outputPath), False, True, 1
     )
+
+    kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
 
     assert (
         len(kernelFiles) == 2
@@ -819,7 +825,7 @@ def test_buildKernelSourceAndHeaderFiles_mergeWithNonEmptyAsm():
         assert contents[-1] == "#pragma 1#pragma 3"
 
 
-def test_buildKernelSourceAndHeaderFiles_noMerge_WithNonEmptyAsm():
+def test_generateKernelSourceAndHeaderFiles_noMerge_WithNonEmptyAsm():
     outputPath = Path("no-commit-kernel-build-files")
     outputPath.mkdir(exist_ok=True)
 
@@ -829,9 +835,11 @@ def test_buildKernelSourceAndHeaderFiles_noMerge_WithNonEmptyAsm():
         (0, "A3", "#pragma 3", "asm3", None),
     ]
 
-    kernelFiles, kernelsWithBuildErrors = tcl.buildKernelSourceAndHeaderFiles(
-        results, outputPath, False, False, 1
+    filesToWrite, kernelsWithBuildErrors = tcl.collectFilesToWrite(
+        results, Path(outputPath), False, False, 1
     )
+
+    kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
 
     assert (
         len(kernelFiles) == 3
@@ -843,7 +851,7 @@ def test_buildKernelSourceAndHeaderFiles_noMerge_WithNonEmptyAsm():
     ]
 
 
-def test_buildKernelSourceAndHeaderFiles_lazyMerge3Src():
+def test_generateKernelSourceAndHeaderFiles_lazyMerge3Src():
 
     outputPath = Path("no-commit-kernel-build-files")
     outputPath.mkdir(exist_ok=True)
@@ -857,12 +865,12 @@ def test_buildKernelSourceAndHeaderFiles_lazyMerge3Src():
         (0, '#include "Kernels3.h"', "#pragma thrice", "src3", "kfile3"),
     ]
 
-    # going to need a mock call to write
-    # a mock call to open
-
-    kernelFiles, kernelsWithBuildErrors = tcl.buildKernelSourceAndHeaderFiles(
-        results, outputPath, True, True, 1
+    filesToWrite, kernelsWithBuildErrors = tcl.collectFilesToWrite(
+        results, Path(outputPath), True, True, 1
     )
+
+    kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
+
     assert (
         len(kernelFiles) == 4
     ), "4 files should be created because they have file names AND some source code AND lazy loading/merge files is True"
@@ -874,7 +882,7 @@ def test_buildKernelSourceAndHeaderFiles_lazyMerge3Src():
     ]
 
 
-def test_buildKernelSourceAndHeaderFiles_noLazyMerge3Src():
+def test_generateKernelSourceAndHeaderFiles_noLazyMerge3Src():
 
     outputPath = Path("no-commit-kernel-build-files")
     outputPath.mkdir(exist_ok=True)
@@ -888,12 +896,12 @@ def test_buildKernelSourceAndHeaderFiles_noLazyMerge3Src():
         (0, '#include "Kernels3.h"', "#pragma thrice", "src3", "kfile3"),
     ]
 
-    # going to need a mock call to write
-    # a mock call to open
-
-    kernelFiles, kernelsWithBuildErrors = tcl.buildKernelSourceAndHeaderFiles(
-        results, outputPath, False, False, 1
+    filesToWrite, kernelsWithBuildErrors = tcl.collectFilesToWrite(
+        results, Path(outputPath), False, False, 1
     )
+
+    kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
+
     assert (
         len(kernelFiles) == 3
     ), "3 files should be created because they have file names AND some source code, but lazy loading/merge files is False"
