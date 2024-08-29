@@ -24,7 +24,7 @@
 
 import itertools
 import os
-from typing import Any, Callable, List
+from typing import Any, Callable
 
 from .Utilities.ConditionalImports import joblib
 
@@ -68,7 +68,7 @@ def ParallelMap(
     message: str = "",
     enable: bool = True,
     multiArg: bool = True,
-) -> List[Any]:
+) -> list:
     """Executes a function over a list of objects in parallel or sequentially.
 
     This function is generally equivalent to ``list(map(function, objects))``. However, it provides
