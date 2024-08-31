@@ -131,6 +131,8 @@ def addCommonArguments(argParser):
     argParser.add_argument("--prebuilt-client", default=None)
 
     argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
+    argParser.add_argument("--keep-build-tmp", dest="KeepBuildTmp", action="store_true",
+            help="Do not remove the temporary build directory")
 
 
 def argUpdatedGlobalParameters(args):

@@ -142,15 +142,18 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
 
     kernelSerialNaming = Solution.getSerialNaming(kernels)
     kernelMinNaming = Solution.getMinNaming(kernels)
-    kernelWriterSource = KernelWriterSource(kernelMinNaming, kernelSerialNaming)
-    kernelWriterAssembly = KernelWriterAssembly(kernelMinNaming, kernelSerialNaming)
+    kernelWriterSource = KernelWriterSource(kernelMinNaming, kernelSerialNaming, \
+                                            not globalParameters["KeepBuildTmp"])
+    kernelWriterAssembly = KernelWriterAssembly(kernelMinNaming, kernelSerialNaming, \
+                                                not globalParameters["KeepBuildTmp"])
 
     # write solution, kernels and CMake
     problemType = solutions[0]["ProblemType"]
     codeObjectFiles, kernels, solutions = writeKernels( \
             globalParameters["WorkingPath"], globalParameters["CxxCompiler"], \
             globalParameters, solutions, kernels, kernelHelperOjbs, \
-            kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
+            kernelWriterSource, kernelWriterAssembly, errorTolerant=True, \
+            removeTemporaries = not globalParameters["KeepBuildTmp"])
     # ^ this is where solutions is mutated
     newLibraryDir = ensurePath(os.path.join(globalParameters["WorkingPath"], 'library'))
     newLibraryFile = os.path.join(newLibraryDir, "TensileLibrary")
