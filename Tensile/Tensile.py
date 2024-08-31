@@ -285,6 +285,8 @@ def Tensile(userArgs):
 
     globalParameters["OutputPath"] = ensurePath(os.path.abspath(args.output_path))
     globalParameters["WorkingPath"] = globalParameters["OutputPath"]
+    if "KeepBuildTmp" not in globalParameters:
+        globalParameters["KeepBuildTmp"] = args.KeepBuildTmp
 
     overrideParameters = argUpdatedGlobalParameters(args)
 

@@ -2391,7 +2391,8 @@ def assignGlobalParameters( config ):
       tPrint(3, " %24s: %8s (unspecified)" % (key, defaultValue))
 
   if "KeepBuildTmp" in config:
-    globalParameters["KeepBuildTmp"] = config["KeepBuildTmp"]
+    globalParameters["KeepBuildTmp"] = config["KeepBuildTmp"] 
+
 
   globalParameters["ROCmPath"] = "/opt/rocm"
   if "ROCM_PATH" in os.environ:
