@@ -10,6 +10,7 @@ subtrees:
   entries:
   - file: src/reference/environment-variables
   - file: src/reference/experimental-kernel-selection
+  subtrees:
   - caption: API reference
     entries:
     - file: src/api-reference/common
