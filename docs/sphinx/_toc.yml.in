@@ -7,6 +7,7 @@ subtrees:
   - file: src/getting-started/installation
 
 - caption: Reference
+  maxdepth: -1
   entries:
   - file: src/reference/environment-variables
   - file: src/reference/experimental-kernel-selection
