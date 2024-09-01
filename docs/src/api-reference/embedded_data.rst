@@ -5,7 +5,7 @@
 .. _embeddeddata-api-reference:
 
 ==============
-Embedded Data
+EmbeddedData
 ==============
 
 .. autofunction:: Tensile.EmbeddedData::generateLibrary
