@@ -5,7 +5,7 @@
 .. _tensilecreatelibrary-api-reference:
 
 ======================
-TensileCreate library
+TensileCreateLibrary
 ======================
 
 .. autofunction:: Tensile.TensileCreateLibrary::addFallback
