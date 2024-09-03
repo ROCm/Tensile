@@ -74,6 +74,7 @@ def initProfileArtifacts(funcName: str) -> Tuple[Path, str]:
     filename = f"{funcName}-{dt.strftime('%Y-%m-%dT%H-%M-%SZ')}.prof"
     path = Path().cwd()/f"profiling-results-{dt.strftime('%Y-%m-%d')}"
     path.mkdir(exist_ok=True)
+    print(f"> Profiling report at: {str(path / filename)}")
     return path, filename
 
 
