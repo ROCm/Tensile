@@ -45,6 +45,7 @@ def pytest_addoption(parser):
     parser.addoption("--no-common-build", action="store_true")
     parser.addoption("--builddir", "--client-dir")
     parser.addoption("--timing-file", default=None)
+    parser.addoption("--asm-cache")
 
 @pytest.fixture(scope="session")
 def timing_path(pytestconfig, tmpdir_factory):
@@ -108,6 +109,8 @@ def tensile_args(pytestconfig, builddir, worker_lock_path):
         rv += ["--client-build-path", builddir]
         if pytestconfig.getoption("--prebuilt-client"):
             rv += ["--prebuilt-client", pytestconfig.getoption("--prebuilt-client")]
+    if pytestconfig.getoption("--asm-cache"):
+        rv += ["--asm-cache", pytestconfig.getoption("--asm-cache")]
 
     return rv
 

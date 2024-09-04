@@ -129,7 +129,8 @@ def addCommonArguments(argParser):
     argParser.add_argument("--client-build-path", default=None)
     argParser.add_argument("--client-lock", default=None)
     argParser.add_argument("--prebuilt-client", default=None)
-
+    argParser.add_argument("--asm-cache", dest="AsmCacheFile", action="store", type=str, \
+        help="Path to ASM cache YAML file. If it does not exist, generate the cache. If it does exist, use the cache file")
     argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
 
 
@@ -275,11 +276,16 @@ def Tensile(userArgs):
     config["UseCache"] = useCache
     globalParameters["ConfigPath"] = configPaths
 
+    capabilitiesCache, cacheFile = LibraryIO.readAsmCapsCache(config, args)
+
     # assign global parameters
     if "GlobalParameters" in config:
-        assignGlobalParameters(config["GlobalParameters"])
+        assignGlobalParameters(config["GlobalParameters"], capabilitiesCache)
     else:
-        assignGlobalParameters({})
+        assignGlobalParameters({}, capabilitiesCache)
+
+    if globalParameters["CacheAsmCaps"]:
+        LibraryIO.writeAsmCapsCache(cacheFile, globalParameters["AsmCaps"])
 
     globalParameters["OutputPath"] = ensurePath(os.path.abspath(args.output_path))
     globalParameters["WorkingPath"] = globalParameters["OutputPath"]
