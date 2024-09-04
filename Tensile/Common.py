@@ -2355,7 +2355,7 @@ def populateCapabilities(
             to_remove.append(v)
             continue
 
-        if emptyCache or not globalParameters["CacheAsmCaps"]:
+        if emptyCache or "CacheAsmCaps" not in globalParameters or not globalParameters["CacheAsmCaps"]:
             globalParameters["AsmCaps"][v] = GetAsmCaps(v, compilerVer)
 
         globalParameters["ArchCaps"][v] = GetArchCaps(v)
