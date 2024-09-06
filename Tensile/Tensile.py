@@ -132,6 +132,7 @@ def addCommonArguments(argParser):
 
     argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
 
+
 def argUpdatedGlobalParameters(args):
     """
     Returns a dictionary with `globalParameters` keys that should be updated based on `args`.
