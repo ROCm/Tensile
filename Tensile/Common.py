@@ -250,6 +250,7 @@ globalParameters["SupportedISA"] = [(8,0,3),
                                     (11,5,1),
                                     (12,0,0), (12,0,1)] # assembly kernels writer supports these architectures
 
+globalParameters["KeepBuildTmp"] = True                           # remove build artifacts during the build process and build_tmp after build completes
 globalParameters["CleanupBuildFiles"] = False                     # cleanup build files (e.g. kernel assembly) once no longer needed
 globalParameters["GenerateManifestAndExit"] = False               # Output manifest file with list of expected library objects and exit
 globalParameters["VerifyManifest"] = False                        # Verify manifest file against generated library files and exit.
@@ -2392,7 +2393,6 @@ def assignGlobalParameters( config ):
 
   if "KeepBuildTmp" in config:
     globalParameters["KeepBuildTmp"] = config["KeepBuildTmp"] 
-
 
   globalParameters["ROCmPath"] = "/opt/rocm"
   if "ROCM_PATH" in os.environ:
