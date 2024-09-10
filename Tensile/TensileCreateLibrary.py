@@ -839,12 +839,6 @@ def writeKernels(
     tPrint(1, "# Kernel Building elapsed time = %.1f secs" % (stop - start))
 
     Common.popWorkingPath()  # outputPath.upper()
-
-    if globalParameters["CleanupBuildFiles"]:
-        buildTmp = Path(outputPath).parent / "build_tmp"
-        if buildTmp.exists() and buildTmp.is_dir():
-            shutil.rmtree(buildTmp)
-
     Common.popWorkingPath()  # build_tmp
 
     return codeObjectFiles, kernels, solutions
