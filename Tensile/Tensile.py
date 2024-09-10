@@ -29,6 +29,8 @@ if __name__ == "__main__":
 import os
 import sys
 import argparse
+import shutil
+
 from .Common import globalParameters, tPrint, printExit, ensurePath, \
     assignGlobalParameters, restoreDefaultGlobalParameters, HR, gfxArch
 from . import BenchmarkProblems
@@ -216,7 +218,6 @@ def Tensile(userArgs):
 
     addCommonArguments(argParser)
     args = argParser.parse_args(userArgs)
-
     configPaths = args.config_file
     altFormat = args.AlternateFormat
     useCache = not args.NoCache
@@ -303,6 +304,12 @@ def Tensile(userArgs):
     ClientExecutable.getClientExecutable(clientPath)
     executeStepsInConfig(config)
 
+    if not globalParameters["KeepBuildTmp"]:
+        for root, subdirs, files in os.walk(globalParameters["OutputPath"]):
+            for d in subdirs:
+                if d == "build_tmp":
+                    shutil.rmtree(os.path.join(root, d))
+                    break
 
 def TensileConfigPath(*args):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), "Configs", *args)
