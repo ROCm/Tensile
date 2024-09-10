@@ -2333,8 +2333,8 @@ def populateCapabilities(
     Args:
         globalParameters: A dictionary containing global parameters of the
             application, including the HipClang version and supported ISA versions.
-        cachedAsmCaps: A dictionary to be populated with the assembler
-            capabilities for each ISA version.
+        cachedAsmCaps: An optional dictionary to be populated with the assembler
+            capabilities for each ISA version if not None.
 
     Note:
         This function modifies `globalParameters` and `cachedAsmCaps` in place.
@@ -2344,7 +2344,7 @@ def populateCapabilities(
     )
     supportedISA = globalParameters["SupportedISA"]
     to_remove = []
-
+   
     emptyCache = not bool(globalParameters["AsmCaps"])
 
     for v in supportedISA + [(0, 0, 0)]:
@@ -2355,7 +2355,7 @@ def populateCapabilities(
             to_remove.append(v)
             continue
 
-        if emptyCache or "CacheAsmCaps" not in globalParameters or not globalParameters["CacheAsmCaps"]:
+        if emptyCache or not globalParameters["CacheAsmCaps"]:
             globalParameters["AsmCaps"][v] = GetAsmCaps(v, compilerVer)
 
         globalParameters["ArchCaps"][v] = GetArchCaps(v)
@@ -2367,7 +2367,7 @@ def populateCapabilities(
 
 ################################################################################
 ################################################################################
-def assignGlobalParameters( config, capabilitiesCache = {} ):
+def assignGlobalParameters( config, capabilitiesCache: Optional[dict] ):
   """
   Assign Global Parameters
   Each global parameter has a default parameter, and the user
@@ -2497,9 +2497,7 @@ def assignGlobalParameters( config, capabilitiesCache = {} ):
   if "IgnoreAsmCapCache" in config:
     globalParameters["IgnoreAsmCapCache"] = config["IgnoreAsmCapCache"]
     
-  if "CacheAsmCaps" in config:
-    globalParameters["CacheAsmCaps"] = config["CacheAsmCaps"]
-
+  globalParameters["CacheAsmCaps"] = True if capabilitiesCache is not None else False
   globalParameters["AsmCaps"] = capabilitiesCache
   globalParameters["ArchCaps"] = {}
   populateCapabilities(globalParameters, CACHED_ASM_CAPS)

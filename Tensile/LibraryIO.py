@@ -30,7 +30,7 @@ from . import SolutionLibrary
 from .Utilities.ConditionalImports import yamlLoader, yamlDumper
 
 from argparse import Namespace
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 import os
 
@@ -415,39 +415,28 @@ def createLibraryLogicList(schedulePrefix, architectureName, deviceNames, logicT
     return data
 
 
-def readAsmCapsCache(config: dict, args: Namespace) -> dict:
+def initAsmCapsCache(cacheFile: str) -> Optional[dict]:
     """
     If requested and exists, reads an asm cache from disk.
 
     Arguments:
-      config: dict containing the GlobalParameters key: value pairs from the Tensile config file
-      args:   Command line arguments.
+      cacheFile: Cache file (YAML format).
 
     Returns:
-      newcache:  If file exists, a dictionary containing capabilities cache; otherwise
-                 an empty dict.
-      cacheFile: The user specified yaml file that contains or will contain the asm cache.
+      newcache:  If cachFile is empty, None. Otherwise, if file exists, a dictionary containing 
+                 capabilities cache; if not, an empty dict
     """
-    if "GlobalParameters" in config and "AsmCacheFile" in config["GlobalParameters"]:
-      globalParameters["CacheAsmCaps"] = True
-      cacheFile = config["GlobalParameters"]["AsmCacheFile"]
-      globalParameters["AsmCacheFile"] = cacheFile
-    elif args.AsmCacheFile:
-      globalParameters["CacheAsmCaps"] = True
-      cacheFile = args.AsmCacheFile
-      globalParameters["AsmCacheFile"] = cacheFile
-    else:
-      globalParameters["CacheAsmCaps"] = False
-      cacheFile = ""
-
-    useCache = globalParameters["CacheAsmCaps"]
+    # if cacheFile str is empty, do not use cache
+    if not cacheFile:
+        return None
+    
     cacheExists = os.path.exists(cacheFile)
+    
+    cache  = readYAML(cacheFile) if cacheExists else {}
+    toTuple = lambda s: tuple(int(i.strip()) for i in s.split(","))
+    newcache = {toTuple(k): v for k,v in cache.items()}
 
-    cache  = readYAML(cacheFile) if useCache and cacheExists else {}
-    toList = lambda s: tuple([int(i.strip()) for i in s.split(",")])
-    newcache = {toList(k): v for k,v in cache.items()}
-
-    return (newcache, cacheFile)
+    return newcache
 
 def writeAsmCapsCache(cacheFile: str, data: dict):
     """
@@ -457,5 +446,5 @@ def writeAsmCapsCache(cacheFile: str, data: dict):
       cacheFile: User spedified file to write the cache.
       data:      dict containg the computed cache.
     """
-    newcache = {", ".join(map(str, k)): v for k, v in data.items()}
-    writeYAML(cacheFile, newcache)
+    newdata = {", ".join(map(str, k)): v for k, v in data.items()}
+    writeYAML(cacheFile, newdata)

@@ -38,7 +38,7 @@ from . import LibraryIO
 from . import LibraryLogic
 from . import __version__
 from datetime import datetime
-
+from .Utilities.Profile import profile
 
 ###############################################################################
 # Execute Steps in Config
@@ -186,6 +186,7 @@ def argUpdatedGlobalParameters(args):
 # Tensile
 # - below entry points call here
 ################################################################################
+@profile
 def Tensile(userArgs):
     global globalParameters
 
@@ -276,7 +277,7 @@ def Tensile(userArgs):
     config["UseCache"] = useCache
     globalParameters["ConfigPath"] = configPaths
 
-    capabilitiesCache, cacheFile = LibraryIO.readAsmCapsCache(config, args)
+    capabilitiesCache = LibraryIO.initAsmCapsCache(args.AsmCacheFile)
 
     # assign global parameters
     if "GlobalParameters" in config:
@@ -285,7 +286,7 @@ def Tensile(userArgs):
         assignGlobalParameters({}, capabilitiesCache)
 
     if globalParameters["CacheAsmCaps"]:
-        LibraryIO.writeAsmCapsCache(cacheFile, globalParameters["AsmCaps"])
+        LibraryIO.writeAsmCapsCache(args.AsmCacheFile, globalParameters["AsmCaps"])
 
     globalParameters["OutputPath"] = ensurePath(os.path.abspath(args.output_path))
     globalParameters["WorkingPath"] = globalParameters["OutputPath"]
