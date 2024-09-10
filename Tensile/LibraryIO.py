@@ -22,14 +22,13 @@
 #
 ################################################################################
 
-from .Common import printExit, printWarning, versionIsCompatible, globalParameters
+from .Common import printExit, printWarning, versionIsCompatible
 from .SolutionStructs import Solution, ProblemSizes, ProblemType
 from . import __version__
 from . import Common
 from . import SolutionLibrary
 from .Utilities.ConditionalImports import yamlLoader, yamlDumper
 
-from argparse import Namespace
 from typing import NamedTuple, Optional
 
 import os

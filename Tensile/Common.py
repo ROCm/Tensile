@@ -2367,7 +2367,7 @@ def populateCapabilities(
 
 ################################################################################
 ################################################################################
-def assignGlobalParameters( config, capabilitiesCache: Optional[dict] ):
+def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   """
   Assign Global Parameters
   Each global parameter has a default parameter, and the user
@@ -2501,7 +2501,7 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] ):
     globalParameters["IgnoreAsmCapCache"] = config["IgnoreAsmCapCache"]
     
   globalParameters["CacheAsmCaps"] = True if capabilitiesCache is not None else False
-  globalParameters["AsmCaps"] = capabilitiesCache
+  globalParameters["AsmCaps"] = capabilitiesCache if globalParameters["CacheAsmCaps"] else {}
   globalParameters["ArchCaps"] = {}
   populateCapabilities(globalParameters, CACHED_ASM_CAPS)
 
