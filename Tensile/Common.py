@@ -2334,7 +2334,7 @@ def populateCapabilities(
         globalParameters: A dictionary containing global parameters of the
             application, including the HipClang version and supported ISA versions.
         cachedAsmCaps: A dictionary to be populated with the assembler
-            capabilities for each ISA version if not None.
+            capabilities for each ISA version.
 
     Note:
         This function modifies `globalParameters` and `cachedAsmCaps` in place.
