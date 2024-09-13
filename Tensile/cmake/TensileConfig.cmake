@@ -216,7 +216,7 @@ function(TensileCreateLibraryFiles
   endif()
 
   set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
-  if (WIN32 OR EXISTS ${VIRTUALENV_BIN_DIR}/${VIRTUALENV_PYTHON_EXENAME})
+  if (WIN32 OR (VIRTUALENV_BIN_DIR AND VIRTUALENV_PYTHON_EXENAME))
     set(CommandLine ${VIRTUALENV_BIN_DIR}/${VIRTUALENV_PYTHON_EXENAME} ${CommandLine})
   endif()
   message(STATUS "Tensile_CREATE_COMMAND: ${CommandLine}")
