@@ -1,6 +1,6 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.41.0
+## Tensile 4.41.0 to ROCm 6.2
 ### Additions
 - new tuning script to summarize rocBLAS log file
 - new environment variable to test fixed grid size with Stream-K kernels
