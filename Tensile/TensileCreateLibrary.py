@@ -518,8 +518,7 @@ def collectFilesToWrite(
     validKernelCount = 0
 
     for err, src, header, kernelName, filename in results:
-        if len(src.strip()) == 0:
-            continue
+        if not src.strip(): continue
 
         kernPath = pathJoin(kernelName)
         if filename:
