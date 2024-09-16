@@ -495,7 +495,7 @@ def collectFilesToWrite(
     lazyLoading: bool,
     mergeFiles: bool,
     numMergedFiles: int,
-) -> Tuple[ProcessedKernelLookup, ProcessedKernelLookup]:
+) -> ProcessedKernelLookup:
     """Collects and organizes kernel files to be written based on the provided results.
 
     Args:
@@ -515,12 +515,9 @@ def collectFilesToWrite(
     pathJoin = lambda x: os.path.join(os.path.normcase(outputPath), x)
 
     filesToWrite = collections.defaultdict(list)
-    kernelsWithBuildErrs = collections.defaultdict(int)
     validKernelCount = 0
 
     for err, src, header, kernelName, filename in results:
-        if err:
-            kernelsWithBuildErrs[kernelName] = err
         if len(src.strip()) == 0:
             continue
 
@@ -539,7 +536,7 @@ def collectFilesToWrite(
         kernelSuffix = "0" if numMergedFiles > 1 else ""
         filesToWrite[pathJoin(f"Kernels{kernelSuffix}")] = []
 
-    return filesToWrite, kernelsWithBuildErrs
+    return filesToWrite
 
 
 def generateKernelSourceAndHeaderFiles(
@@ -816,7 +813,8 @@ def writeKernels(
 
     filterProcessingErrors(kernels, solutions, results, errorTolerant)
 
-    filesToWrite, kernelsWithBuildErrors = collectFilesToWrite(
+    kernelsWithBuildErrors = {kernelName: err for err, _, _, kernelName, _ in results if err}
+    filesToWrite = collectFilesToWrite(
         results,
         Path(outputPath),
         params["LazyLibraryLoading"],
