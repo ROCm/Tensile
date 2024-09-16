@@ -740,9 +740,7 @@ def test_generateKernelSourceAndHeaderFiles_generic():
         (0, '#include "Kernels3.h"', "#pragma thrice", "src3", None),
     ]
 
-    filesToWrite = tcl.collectFilesToWrite(
-        results, Path(outputPath), True, True, 1
-    )
+    filesToWrite = tcl.collectFilesToWrite(results, Path(outputPath), True, True, 1)
 
     kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
 
@@ -767,9 +765,7 @@ def test_generateKernelSourceAndHeaderFiles_noLazyMergeFallbackNames():
         (0, '#include "Kernels3.h"', "#pragma thrice", "src3", None),
     ]
 
-    filesToWrite= tcl.collectFilesToWrite(
-        results, Path(outputPath), False, False, 1
-    )
+    filesToWrite = tcl.collectFilesToWrite(results, Path(outputPath), False, False, 1)
 
     kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
 
@@ -793,9 +789,7 @@ def test_generateKernelSourceAndHeaderFiles_mergeWithNonEmptyAsm():
         (0, "A3", "#pragma 3", "asm3", None),
     ]
 
-    filesToWrite = tcl.collectFilesToWrite(
-        results, Path(outputPath), False, True, 1
-    )
+    filesToWrite = tcl.collectFilesToWrite(results, Path(outputPath), False, True, 1)
 
     kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
 
@@ -826,9 +820,7 @@ def test_generateKernelSourceAndHeaderFiles_noMerge_WithNonEmptyAsm():
         (0, "A3", "#pragma 3", "asm3", None),
     ]
 
-    filesToWrite = tcl.collectFilesToWrite(
-        results, Path(outputPath), False, False, 1
-    )
+    filesToWrite = tcl.collectFilesToWrite(results, Path(outputPath), False, False, 1)
 
     kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
 
@@ -856,9 +848,7 @@ def test_generateKernelSourceAndHeaderFiles_lazyMerge3Src():
         (0, '#include "Kernels3.h"', "#pragma thrice", "src3", "kfile3"),
     ]
 
-    filesToWrite = tcl.collectFilesToWrite(
-        results, Path(outputPath), True, True, 1
-    )
+    filesToWrite = tcl.collectFilesToWrite(results, Path(outputPath), True, True, 1)
 
     kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
 
@@ -887,9 +877,7 @@ def test_generateKernelSourceAndHeaderFiles_noLazyMerge3Src():
         (0, '#include "Kernels3.h"', "#pragma thrice", "src3", "kfile3"),
     ]
 
-    filesToWrite= tcl.collectFilesToWrite(
-        results, Path(outputPath), False, False, 1
-    )
+    filesToWrite = tcl.collectFilesToWrite(results, Path(outputPath), False, False, 1)
 
     kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
 
