@@ -40,7 +40,7 @@ from . import LibraryIO
 from . import LibraryLogic
 from . import __version__
 from datetime import datetime
-
+from .Utilities.Profile import profile
 
 ###############################################################################
 # Execute Steps in Config
@@ -131,7 +131,8 @@ def addCommonArguments(argParser):
     argParser.add_argument("--client-build-path", default=None)
     argParser.add_argument("--client-lock", default=None)
     argParser.add_argument("--prebuilt-client", default=None)
-
+    argParser.add_argument("--asm-cache", dest="AsmCacheFile", action="store", type=str, \
+        help="Path to ASM cache YAML file. If it does not exist, generate the cache. If it does exist, use the cache file")
     argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
 
 
@@ -187,6 +188,7 @@ def argUpdatedGlobalParameters(args):
 # Tensile
 # - below entry points call here
 ################################################################################
+@profile
 def Tensile(userArgs):
     global globalParameters
 
@@ -276,11 +278,16 @@ def Tensile(userArgs):
     config["UseCache"] = useCache
     globalParameters["ConfigPath"] = configPaths
 
+    capabilitiesCache = LibraryIO.initAsmCapsCache(args.AsmCacheFile)
+
     # assign global parameters
     if "GlobalParameters" in config:
-        assignGlobalParameters(config["GlobalParameters"])
+        assignGlobalParameters(config["GlobalParameters"], capabilitiesCache)
     else:
-        assignGlobalParameters({})
+        assignGlobalParameters({}, capabilitiesCache)
+
+    if globalParameters["CacheAsmCaps"]:
+        LibraryIO.writeAsmCapsCache(args.AsmCacheFile, globalParameters["AsmCaps"])
 
     globalParameters["OutputPath"] = ensurePath(os.path.abspath(args.output_path))
     globalParameters["WorkingPath"] = globalParameters["OutputPath"]

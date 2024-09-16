@@ -2344,6 +2344,8 @@ def populateCapabilities(
     )
     supportedISA = globalParameters["SupportedISA"]
     to_remove = []
+   
+    emptyCache = not bool(globalParameters["AsmCaps"])
 
     for v in supportedISA + [(0, 0, 0)]:
         if v[0] == 12 and not (
@@ -2352,7 +2354,10 @@ def populateCapabilities(
             printWarning(f"ISA {v} isn't supported for ROCm stack {compilerVer}, skipping...")
             to_remove.append(v)
             continue
-        globalParameters["AsmCaps"][v] = GetAsmCaps(v, compilerVer)
+
+        if emptyCache or not globalParameters["CacheAsmCaps"]:
+            globalParameters["AsmCaps"][v] = GetAsmCaps(v, compilerVer)
+
         globalParameters["ArchCaps"][v] = GetArchCaps(v)
 
     # Efficiently remove unsupported ISA versions after iterating
@@ -2362,7 +2367,7 @@ def populateCapabilities(
 
 ################################################################################
 ################################################################################
-def assignGlobalParameters( config ):
+def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   """
   Assign Global Parameters
   Each global parameter has a default parameter, and the user
@@ -2495,7 +2500,8 @@ def assignGlobalParameters( config ):
   if "IgnoreAsmCapCache" in config:
     globalParameters["IgnoreAsmCapCache"] = config["IgnoreAsmCapCache"]
     
-  globalParameters["AsmCaps"] = {}
+  globalParameters["CacheAsmCaps"] = True if capabilitiesCache is not None else False
+  globalParameters["AsmCaps"] = capabilitiesCache if globalParameters["CacheAsmCaps"] else {}
   globalParameters["ArchCaps"] = {}
   populateCapabilities(globalParameters, CACHED_ASM_CAPS)
 
