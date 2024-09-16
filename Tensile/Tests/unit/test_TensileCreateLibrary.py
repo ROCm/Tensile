@@ -693,8 +693,6 @@ def test_processKernelSource(setupSolutionsAndKernels):
 
     kernels = tcl.markDuplicateKernels(kernels, kernelWriterAssembly)
 
-    print("Kernel names:", [k["KernelLanguage"] for k in kernels])
-
     fn = functools.partial(
         tcl.processKernelSource,
         kernelWriterSource=kernelWriterSource,
@@ -729,7 +727,7 @@ def test_processKernelSource(setupSolutionsAndKernels):
     assert results == expected, "Assembly files shouldn't have any header or source content"
 
 
-def test_generateKernelSourceAndHeaderFiles_checkBuildErrorsAsmKernels():
+def test_generateKernelSourceAndHeaderFiles_generic():
     outputPath = Path("no-commit-kernel-build-files")
     outputPath.mkdir(exist_ok=True)
 
@@ -741,12 +739,8 @@ def test_generateKernelSourceAndHeaderFiles_checkBuildErrorsAsmKernels():
         (0, '#include "Kernels2.h"', "#pragma twice", "src2", None),
         (0, '#include "Kernels3.h"', "#pragma thrice", "src3", None),
     ]
-    expectedWithBuildErrors = {
-        "asm1": -2,
-        "src1": -2,
-    }
 
-    filesToWrite, kernelsWithBuildErrors = tcl.collectFilesToWrite(
+    filesToWrite = tcl.collectFilesToWrite(
         results, Path(outputPath), True, True, 1
     )
 
@@ -758,9 +752,6 @@ def test_generateKernelSourceAndHeaderFiles_checkBuildErrorsAsmKernels():
     assert (
         kernelFiles[0] == "no-commit-kernel-build-files/Kernels.cpp"
     ), "Cpp source file doesn't match"
-    assert (
-        kernelsWithBuildErrors == expectedWithBuildErrors
-    ), "Kernels with build errors don't match expectation"
 
 
 def test_generateKernelSourceAndHeaderFiles_noLazyMergeFallbackNames():
@@ -776,7 +767,7 @@ def test_generateKernelSourceAndHeaderFiles_noLazyMergeFallbackNames():
         (0, '#include "Kernels3.h"', "#pragma thrice", "src3", None),
     ]
 
-    filesToWrite, kernelsWithBuildErrors = tcl.collectFilesToWrite(
+    filesToWrite= tcl.collectFilesToWrite(
         results, Path(outputPath), False, False, 1
     )
 
@@ -802,7 +793,7 @@ def test_generateKernelSourceAndHeaderFiles_mergeWithNonEmptyAsm():
         (0, "A3", "#pragma 3", "asm3", None),
     ]
 
-    filesToWrite, kernelsWithBuildErrors = tcl.collectFilesToWrite(
+    filesToWrite = tcl.collectFilesToWrite(
         results, Path(outputPath), False, True, 1
     )
 
@@ -835,7 +826,7 @@ def test_generateKernelSourceAndHeaderFiles_noMerge_WithNonEmptyAsm():
         (0, "A3", "#pragma 3", "asm3", None),
     ]
 
-    filesToWrite, kernelsWithBuildErrors = tcl.collectFilesToWrite(
+    filesToWrite = tcl.collectFilesToWrite(
         results, Path(outputPath), False, False, 1
     )
 
@@ -865,7 +856,7 @@ def test_generateKernelSourceAndHeaderFiles_lazyMerge3Src():
         (0, '#include "Kernels3.h"', "#pragma thrice", "src3", "kfile3"),
     ]
 
-    filesToWrite, kernelsWithBuildErrors = tcl.collectFilesToWrite(
+    filesToWrite = tcl.collectFilesToWrite(
         results, Path(outputPath), True, True, 1
     )
 
@@ -896,7 +887,7 @@ def test_generateKernelSourceAndHeaderFiles_noLazyMerge3Src():
         (0, '#include "Kernels3.h"', "#pragma thrice", "src3", "kfile3"),
     ]
 
-    filesToWrite, kernelsWithBuildErrors = tcl.collectFilesToWrite(
+    filesToWrite= tcl.collectFilesToWrite(
         results, Path(outputPath), False, False, 1
     )
 
