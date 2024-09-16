@@ -416,7 +416,7 @@ def createLibraryLogicList(schedulePrefix, architectureName, deviceNames, logicT
 
 def initAsmCapsCache(cacheFile: str) -> Optional[dict]:
     """
-    If requested and exists, reads an asm cache from disk.
+    If requested and exists, reads an assembler capabilities cache from disk.
 
     Arguments:
       cacheFile: Cache file (YAML format).
