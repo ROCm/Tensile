@@ -13,12 +13,12 @@ The experimental kernel selection provides an early access to the latest develop
 
 Here are the two implemented experimental libraries:
 
-- **Grid experimental kernel selection:** Divides the GEMM space into a grid and assigns the kernels with the highest computational granularity. 
+- **Grid experimental kernel selection**: Divides the GEMM space into a grid and assigns the kernels with the highest computational granularity.
     Supported on:
     - MI200
     - FP16
     - NN and NT transposition types
-- **Decision trees experimental kernel selection:** Selects high-performance kernels using a pretrained decision tree.
+- **Decision trees experimental kernel selection**: Selects high-performance kernels using a pretrained decision tree.
     Supported on:
     - MI200
     - FP16

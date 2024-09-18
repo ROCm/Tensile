@@ -8,7 +8,7 @@
 Tensile documentation
 ********************************************************************
 
-Tensile is a tool for creating a benchmark-driven backend library for General Matrix-Matrix Multiplication (GEMM), GEMM-like problems (such as batched GEMM), N-dimensional tensor contractions, and anything else that multiplies two multi-dimensional objects together on an AMD GPU.
+Tensile is a tool for creating a benchmark-driven backend library for General Matrix-Matrix Multiplication (GEMM), GEMM-like problems such as batched GEMM, N-dimensional tensor contractions, and anything else that multiplies two multidimensional objects together on an AMD GPU.
 
 The code is open source and hosted at: https://github.com/ROCm/Tensile
 

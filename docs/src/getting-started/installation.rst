@@ -30,14 +30,14 @@ Here are the steps to install dependencies for Ubuntu distributions. For other d
 
 1. Install dependencies:
 
-.. code-block::
+   .. code-block::
 
     apt-get install libyaml python3-yaml \
         libomp-dev libboost-program-options-dev libboost-filesystem-dev
 
 2. Install one of the following, depending on your preferred Tensile data format. If both are installed, ``msgpack`` is preferred:
 
-.. code-block::
+   .. code-block::
 
    apt-get install libmsgpack-dev    # If using the msgpack backend
 
