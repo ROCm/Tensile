@@ -4,6 +4,12 @@ root: src/index
 subtrees:
   - entries:
     - file: src/getting-started
+      entries:
+        - file: src/getting-started/examples
+          entries:
+            - file: src/getting-started/examples/TensileCreateLibrary
+              entries:
+                - file: src/getting-started/examples/TensileCreateLibrary/01-Basic_Usage
     - file: src/concepts
       entries:
         - file: src/concepts/benchmarking
@@ -13,12 +19,12 @@ subtrees:
     - file: src/api-reference
       entries:
         - file: src/api-reference/Common
-        - file: src/api-reference/EmbeddedData        
+        - file: src/api-reference/EmbeddedData
         - file: src/api-reference/TensileCreateLibrary
-        - file: src/api-reference/Utilities        
+        - file: src/api-reference/Utilities
     - file: src/cli-reference
-      entries: 
-        - file: src/cli-reference/TensileCreateLibrary                    
+      entries:
+        - file: src/cli-reference/TensileCreateLibrary
     - file: src/general-reference
       entries:
         - file: src/general-reference/environment-variables
