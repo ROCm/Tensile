@@ -68,7 +68,7 @@ def ParallelMap(
     message: str = "",
     enable: bool = True,
     multiArg: bool = True,
-):
+) -> list:
     """Executes a function over a list of objects in parallel or sequentially.
 
     This function is generally equivalent to ``list(map(function, objects))``. However, it provides

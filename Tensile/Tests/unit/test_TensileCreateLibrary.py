@@ -693,8 +693,6 @@ def test_processKernelSource(setupSolutionsAndKernels):
 
     kernels = tcl.markDuplicateKernels(kernels, kernelWriterAssembly)
 
-    print("Kernel names:", [k["KernelLanguage"] for k in kernels])
-
     fn = functools.partial(
         tcl.processKernelSource,
         kernelWriterSource=kernelWriterSource,
@@ -729,7 +727,32 @@ def test_processKernelSource(setupSolutionsAndKernels):
     assert results == expected, "Assembly files shouldn't have any header or source content"
 
 
-def test_buildKernelSourceAndHeaderFiles():
+def test_generateKernelSourceAndHeaderFiles_generic():
+    outputPath = Path("no-commit-kernel-build-files")
+    outputPath.mkdir(exist_ok=True)
+
+    results: List[tcl.ProcessedKernelResult] = [
+        (-2, "", "", "asm1", None),
+        (0, "", "", "asm2", None),
+        (0, "", "", "asm3", None),
+        (-2, '#include "Kernels1.h"', "#pragma once", "src1", None),
+        (0, '#include "Kernels2.h"', "#pragma twice", "src2", None),
+        (0, '#include "Kernels3.h"', "#pragma thrice", "src3", None),
+    ]
+
+    filesToWrite = tcl.collectFilesToWrite(results, Path(outputPath), True, True, 1)
+
+    kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
+
+    # Undocumented internal logic of generateKernelSourceAndHeaderFiles
+    assert len(kernelFiles) == 1, "Only one file should be created when mergeFiles == True"
+
+    assert (
+        kernelFiles[0] == "no-commit-kernel-build-files/Kernels.cpp"
+    ), "Cpp source file doesn't match"
+
+
+def test_generateKernelSourceAndHeaderFiles_noLazyMergeFallbackNames():
     outputPath = Path("no-commit-kernel-build-files")
     outputPath.mkdir(exist_ok=True)
 
@@ -738,25 +761,134 @@ def test_buildKernelSourceAndHeaderFiles():
         (0, "", "", "asm2", None),
         (0, "", "", "asm3", None),
         (-2, '#include "Kernels1.h"', "#pragma once", "src1", None),
-        (0, '#include "Kernels2.h"', "#pragma twice", "src2", None),
+        (0, '#include "Kernels2.h"', "#pragma twice", "src2", "kfile2"),
         (0, '#include "Kernels3.h"', "#pragma thrice", "src3", None),
     ]
-    expectedWithBuildErrors = {
-        "asm1": -2,
-        "src1": -2,
-    }
 
-    kernelFiles, kernelsWithBuildErrors = tcl.buildKernelSourceAndHeaderFiles(results, outputPath)
+    filesToWrite = tcl.collectFilesToWrite(results, Path(outputPath), False, False, 1)
 
-    # Undocumented internal logic of buildKernelSourceAndHeaderFiles
-    assert len(kernelFiles) == 1, "Only one file should be created for Assembly only kernels"
+    kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
 
     assert (
-        kernelFiles[0] == "no-commit-kernel-build-files/Kernels.cpp"
-    ), "Cpp source file doesn't match"
+        len(kernelFiles) == 3
+    ), "3 files should be created. Since some filenames are present and some not, we use the kernel name directly as a fallback, e.g., src1"
+    assert kernelFiles == [
+        "no-commit-kernel-build-files/src1.cpp",
+        "no-commit-kernel-build-files/kfile2.cpp",
+        "no-commit-kernel-build-files/src3.cpp",
+    ]
+
+
+def test_generateKernelSourceAndHeaderFiles_mergeWithNonEmptyAsm():
+    outputPath = Path("no-commit-kernel-build-files")
+    outputPath.mkdir(exist_ok=True)
+
+    results = [
+        (-2, "A1", "#pragma 1", "asm1", None),
+        (0, "A2", "#pragma 2", "asm2", "afile2"),
+        (0, "A3", "#pragma 3", "asm3", None),
+    ]
+
+    filesToWrite = tcl.collectFilesToWrite(results, Path(outputPath), False, True, 1)
+
+    kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
+
     assert (
-        kernelsWithBuildErrors == expectedWithBuildErrors
-    ), "Kernels with build errors don't match expectation"
+        len(kernelFiles) == 2
+    ), "2 files should be created. Since one filename is present and merge files is True => Kernels.cpp will be created."
+    assert kernelFiles == [
+        "no-commit-kernel-build-files/Kernels.cpp",
+        "no-commit-kernel-build-files/afile2.cpp",
+    ]
+    with open(outputPath / "Kernels.cpp", "r") as f:
+        contents = f.readlines()
+        assert contents[-1] == "A1A3"
+        print(contents[-2])
+        assert contents[-2] == '#include "no-commit-kernel-build-files/Kernels.h"\n'
+    with open(outputPath / "Kernels.h", "r") as f:
+        contents = f.readlines()
+        assert contents[-1] == "#pragma 1#pragma 3"
+
+
+def test_generateKernelSourceAndHeaderFiles_noMerge_WithNonEmptyAsm():
+    outputPath = Path("no-commit-kernel-build-files")
+    outputPath.mkdir(exist_ok=True)
+
+    results = [
+        (-2, "A1", "#pragma 1", "asm1", None),
+        (0, "A2", "#pragma 2", "asm2", "afile2"),
+        (0, "A3", "#pragma 3", "asm3", None),
+    ]
+
+    filesToWrite = tcl.collectFilesToWrite(results, Path(outputPath), False, False, 1)
+
+    kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
+
+    assert (
+        len(kernelFiles) == 3
+    ), "3 files should be created. Since some filenames are present and some not (src kernels), we use the kernel name directly as a fallback, e.g., src1"
+    assert kernelFiles == [
+        "no-commit-kernel-build-files/asm1.cpp",
+        "no-commit-kernel-build-files/afile2.cpp",
+        "no-commit-kernel-build-files/asm3.cpp",
+    ]
+
+
+def test_generateKernelSourceAndHeaderFiles_lazyMerge3Src():
+
+    outputPath = Path("no-commit-kernel-build-files")
+    outputPath.mkdir(exist_ok=True)
+
+    results = [
+        (0, "", "", "asm1", None),
+        (0, "", "", "asm2", None),
+        (0, "", "", "asm3", "blah.asm"),
+        (0, '#include "Kernels1.h"', "#pragma once", "src1", "kfile1"),
+        (0, '#include "Kernels2.h"', "#pragma twice", "src2", "kfile2"),
+        (0, '#include "Kernels3.h"', "#pragma thrice", "src3", "kfile3"),
+    ]
+
+    filesToWrite = tcl.collectFilesToWrite(results, Path(outputPath), True, True, 1)
+
+    kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
+
+    assert (
+        len(kernelFiles) == 4
+    ), "4 files should be created because they have file names AND some source code AND lazy loading/merge files is True"
+    assert kernelFiles == [
+        "no-commit-kernel-build-files/kfile1.cpp",
+        "no-commit-kernel-build-files/kfile2.cpp",
+        "no-commit-kernel-build-files/kfile3.cpp",
+        "no-commit-kernel-build-files/Kernels.cpp",
+    ]
+
+
+def test_generateKernelSourceAndHeaderFiles_noLazyMerge3Src():
+
+    outputPath = Path("no-commit-kernel-build-files")
+    outputPath.mkdir(exist_ok=True)
+
+    results = [
+        (0, "", "", "asm1", None),
+        (0, "", "", "asm2", None),
+        (0, "", "", "asm3", "blah.asm"),
+        (0, '#include "Kernels1.h"', "#pragma once", "src1", "kfile1"),
+        (0, '#include "Kernels2.h"', "#pragma twice", "src2", "kfile2"),
+        (0, '#include "Kernels3.h"', "#pragma thrice", "src3", "kfile3"),
+    ]
+
+    filesToWrite = tcl.collectFilesToWrite(results, Path(outputPath), False, False, 1)
+
+    kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
+
+    assert (
+        len(kernelFiles) == 3
+    ), "3 files should be created because they have file names AND some source code, but lazy loading/merge files is False"
+    assert kernelFiles == [
+        "no-commit-kernel-build-files/kfile1.cpp",
+        "no-commit-kernel-build-files/kfile2.cpp",
+        "no-commit-kernel-build-files/kfile3.cpp",
+    ]
 
 
 def test_filterBuildErrors():
