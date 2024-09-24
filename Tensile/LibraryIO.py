@@ -171,7 +171,8 @@ class LibraryLogic(NamedTuple):
 
 def parseLibraryLogicFile(filename):
     """Wrapper function to read and parse a library logic file."""
-    return parseLibraryLogicData(readYAML(filename), filename)
+    data = readYAML(filename)
+    return parseLibraryLogicData(data, filename)
 
 
 def parseLibraryLogicData(data, srcFile="?"):

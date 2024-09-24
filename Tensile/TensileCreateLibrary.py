@@ -609,7 +609,6 @@ def markDuplicateKernels(
 
 def filterProcessingErrors(
     kernels: List[Solution],
-    solutions: List[Solution],
     results: List[Any],
     printLevel: int,
     errorTolerant: bool,
@@ -758,7 +757,6 @@ def writeKernels(
     outputPath: str,
     cxxCompiler: str,
     params: Dict[str, Any],
-    solutions: List[Solution],
     kernels: List[Solution],
     kernelHelperObjs: List[KernelWriterBase],
     kernelWriterSource: KernelWriterSource,
@@ -803,7 +801,7 @@ def writeKernels(
     )
     results = Common.ParallelMap(processKernelSource, list(kIter), "Generating kernels")
 
-    filterProcessingErrors(kernels, solutions, results, params["PrintLevel"], errorTolerant)
+    filterProcessingErrors(kernels, results, params["PrintLevel"], errorTolerant)
 
     kernelFiles, kernelsWithBuildErrors = buildKernelSourceAndHeaderFiles(results, outputPath)
 
@@ -841,18 +839,17 @@ def writeKernels(
     Common.popWorkingPath()  # outputPath.upper()
     Common.popWorkingPath()  # build_tmp
 
-    return codeObjectFiles, kernels, solutions
+    return codeObjectFiles, kernels
 
 
 ##############################################################################
 # Min Naming / Solution and Kernel Writers
 ##############################################################################
-def getKernelWriters(solutions: List[Solution], kernels: List[Solution], removeTemporaries):
+def getKernelWriters(kernels: List[Solution], removeTemporaries):
 
     # if any kernels are assembly, append every ISA supported
     kernelSerialNaming = Solution.getSerialNaming(kernels)
 
-    solutionMinNaming = Solution.getMinNaming(solutions)
     kernelMinNaming = Solution.getMinNaming(kernels)
     kernelWriterSource = KernelWriterSource(kernelMinNaming, kernelSerialNaming, removeTemporaries)
     kernelWriterAssembly = KernelWriterAssembly(
@@ -863,7 +860,6 @@ def getKernelWriters(solutions: List[Solution], kernels: List[Solution], removeT
         kernelWriterSource,
         kernelWriterAssembly,
         kernelMinNaming,
-        solutionMinNaming,
     )
 
 
@@ -889,7 +885,7 @@ def copyStaticFiles(outputPath=None):
 
 
 def buildObjectFileNames(
-    kernelWriterSource, kernelWriterAssembly, solutions, kernels, kernelHelperObjs
+    kernelWriterSource, kernelWriterAssembly, kernels, kernelHelperObjs
 ):
 
     # Build lists of output object names
@@ -897,21 +893,20 @@ def buildObjectFileNames(
     asmKernelNames = []
     kernelHelperObjNames = []
 
-    solutionFiles = []
     sourceKernelFiles = []
     asmKernelFiles = []
     sourceLibFiles = []
     asmLibFiles = []
 
-    sourceKernels = list([k for k in kernels if k["KernelLanguage"] == "Source"])
-    asmKernels = list([k for k in kernels if k["KernelLanguage"] == "Assembly"])
+    sourceKernels = [k for k in kernels if k["KernelLanguage"] == "Source"]
+    asmKernels = [k for k in kernels if k["KernelLanguage"] == "Assembly"]
 
     # Build a list of kernel object names.
     for kernel in sourceKernels:
-        sourceKernelNames += [kernelWriterSource.getKernelFileBase(kernel)]
+        sourceKernelNames.append(kernelWriterSource.getKernelFileBase(kernel))
 
     for kernel in asmKernels:
-        asmKernelNames += [kernelWriterAssembly.getKernelFileBase(kernel)]
+        asmKernelNames.append(kernelWriterAssembly.getKernelFileBase(kernel))
 
     kernelHelperObjNames = [ko.getKernelName() for ko in kernelHelperObjs]
 
@@ -1044,7 +1039,6 @@ def buildObjectFileNames(
             asmLibFiles += ["%s_%s.co" % (asmKernelName, str(arch)) for arch in archs]
 
     return (
-        solutionFiles,
         sourceKernelFiles,
         asmKernelFiles,
         sourceLibFiles,
@@ -1054,14 +1048,12 @@ def buildObjectFileNames(
 
 def buildObjectFilePaths(
     prefixDir,
-    solutionFiles,
     sourceKernelFiles,
     asmKernelFiles,
     sourceLibFiles,
     asmLibFiles,
     masterLibraries,
 ):
-    solutionPaths = []
     sourceKernelPaths = []
     asmKernelPaths = []
     sourceLibPaths = []
@@ -1076,13 +1068,13 @@ def buildObjectFilePaths(
         sourceKernelDir = prefixDir
 
     for sourceKernelFile in sourceKernelFiles:
-        sourceKernelPaths += [os.path.join(sourceKernelDir, sourceKernelFile)]
+        sourceKernelPaths.append(os.path.join(sourceKernelDir, sourceKernelFile))
 
     # Build full paths for asm kernel files
     asmKernelDir = os.path.join(prefixDir, "assembly")
 
     for asmKernelFile in asmKernelFiles:
-        asmKernelPaths += [os.path.join(asmKernelDir, asmKernelFile)]
+        asmKernelPaths.append(os.path.join(asmKernelDir, asmKernelFile))
 
     # Build full paths for source and asm library files
     libDir = os.path.join(prefixDir, "library")
@@ -1092,7 +1084,7 @@ def buildObjectFilePaths(
         libMetadataPaths = [os.path.join(libDir, "TensileLibrary" + libraryExt)]
 
     for sourceLibFile in sourceLibFiles:
-        sourceLibPaths += [os.path.join(libDir, sourceLibFile)]
+        sourceLibPaths.append(os.path.join(libDir, sourceLibFile))
 
     # Use set because of duplicate fallback libraries
     newMetadataPaths = set()
@@ -1104,7 +1096,7 @@ def buildObjectFilePaths(
                 )
             else:
                 newMetadataPaths.add(os.path.join(libDir, "TensileLibrary_" + arch + libraryExt))
-            for name, placeholder in lib.lazyLibraries.items():
+            for name in lib.lazyLibraries.keys():
                 newMetadataPaths.add(os.path.join(libDir, name + libraryExt))
 
     libMetadataPaths += list(newMetadataPaths)
@@ -1112,10 +1104,9 @@ def buildObjectFilePaths(
     for asmLibFile in asmLibFiles:
         # Asm lib files are enumerated in the form of
         # KernelName_gfxXXXXX.co
-        asmLibPaths += [os.path.join(libDir, asmLibFile)]
+        asmLibPaths.append(os.path.join(libDir, asmLibFile))
 
     return (
-        solutionPaths,
         sourceKernelPaths,
         asmKernelPaths,
         sourceLibPaths,
@@ -1127,42 +1118,34 @@ def buildObjectFilePaths(
 ################################################################################
 # Write CMake
 ################################################################################
-def writeCMake(outputPath, solutionFiles, kernelFiles, libraryStaticFiles, masterLibraries):
+def writeCMake(outputPath, kernelFiles, libraryStaticFiles, masterLibraries):
     tPrint(1, "# Writing Custom CMake")
 
     # Build output file paths, using relative CMake symbol
     cmakeSrcDir = "${CMAKE_SOURCE_DIR}"
     (
-        solutionPaths,
         sourceKernelPaths,
-        asmKernelPaths,
-        sourceLibPaths,
-        asmLibPaths,
         _,
-    ) = buildObjectFilePaths(cmakeSrcDir, solutionFiles, kernelFiles, [], [], [], masterLibraries)
+        _,
+        _,
+        _,
+    ) = buildObjectFilePaths(cmakeSrcDir, kernelFiles, [], [], [], masterLibraries)
 
-    # Build full paths the static library files
-    staticFilePaths = []
-    for staticFile in libraryStaticFiles:
-        staticFilePaths += [os.path.join(cmakeSrcDir, staticFile)]
 
-    # Proceed to generate cmake file
-    generatedFile = open(os.path.join(os.path.normcase(outputPath), "Generated.cmake"), "w")
-    generatedFile.write(CMakeHeader)
+    with open(os.path.join(os.path.normcase(outputPath), "Generated.cmake"), "w") as cmake:
+        cmake.write(CMakeHeader)
 
-    # write TensileClient_KERNELS symbol
-    generatedFile.write("set( TensileClient_KERNELS\n")
-    for kernelFile in sourceKernelPaths:
-        generatedFile.write("  %s\n" % (kernelFile))
-    generatedFile.write("  )\n")
+        # write TensileClient_KERNELS symbol
+        cmake.write("set( TensileClient_KERNELS\n")
+        for kernelFile in sourceKernelPaths:
+            cmake.write("  %s\n" % (kernelFile))
+        cmake.write("  )\n")
 
-    # write TensileClient_SOURCE symbol
-    generatedFile.write("set( TensileClient_SOURCE\n")
-    for fileName in libraryStaticFiles:
-        generatedFile.write("  ${CMAKE_SOURCE_DIR}/%s\n" % fileName)
-    generatedFile.write("  )\n\n")
-
-    generatedFile.close()
+        # write TensileClient_SOURCE symbol
+        cmake.write("set( TensileClient_SOURCE\n")
+        for fileName in libraryStaticFiles:
+            cmake.write("  ${CMAKE_SOURCE_DIR}/%s\n" % fileName)
+        cmake.write("  )\n\n")
 
 
 ################################################################################
@@ -1397,8 +1380,7 @@ def writeBenchmarkClientFiles(
         copyStaticFiles(libraryWorkingPath)
 
     kernels, kernelsBetaOnly, _ = generateKernelObjectsFromSolutions(solutions)
-    kernelWriterSource, kernelWriterAssembly, kernelMinNaming, _ = getKernelWriters(
-        solutions,
+    kernelWriterSource, kernelWriterAssembly, kernelMinNaming = getKernelWriters(
         kernels,
         removeTemporaries,
     )
@@ -1653,6 +1635,37 @@ def writeMasterFile(
     LibraryIO.write(str(libraryPath / name), Utils.state(lib), format)
 
 
+def writeManifest(manifestFile, outputPath, kernelWriterSource, kernelWriterAssembly, kernels, kernelHelperObjs, masterLibraries):
+
+    staticFiles = copyStaticFiles(outputPath)
+
+    sourceKernelFiles, asmKernelFiles, sourceLibFiles, asmLibFiles = (
+        buildObjectFileNames(
+            kernelWriterSource,
+            kernelWriterAssembly,
+            kernels,
+            kernelHelperObjs,
+        )
+    )
+
+    _, _, sourceLibPaths, asmLibPaths, libMetadataPaths = buildObjectFilePaths(
+        outputPath,
+        sourceKernelFiles,
+        asmKernelFiles,
+        sourceLibFiles,
+        asmLibFiles,
+        masterLibraries,
+    )
+
+    toFile(Path(manifestFile), libMetadataPaths + sourceLibPaths + asmLibPaths)
+    if globalParameters["GenerateManifestAndExit"]:
+        exit(0)
+
+    writeCMake(outputPath, sourceKernelFiles, staticFiles, masterLibraries)
+
+    return sourceLibPaths, asmLibPaths
+
+
 ################################################################################
 # Tensile Create Library
 ################################################################################
@@ -1734,49 +1747,20 @@ def TensileCreateLibrary():
 
     kernels, kernelHelperObjs, _ = generateKernelObjectsFromSolutions(solutions)
 
+    # Free some memory -- past this point, solutions are not needed
+    del solutions
+
     # if any kernels are assembly, append every ISA supported
-    kernelWriterSource, kernelWriterAssembly, kernelMinNaming, _ = getKernelWriters(
-        solutions, kernels, removeTemporaries
+    kernelWriterSource, kernelWriterAssembly, kernelMinNaming = getKernelWriters(
+        kernels, removeTemporaries
     )
 
-    staticFiles = copyStaticFiles(outputPath)
+    sourceLibPaths, asmLibPaths = writeManifest(manifestFile, outputPath, kernelWriterSource, kernelWriterAssembly, kernels, kernelHelperObjs, masterLibraries)
 
-    (solutionFiles, sourceKernelFiles, asmKernelFiles, sourceLibFiles, asmLibFiles) = (
-        buildObjectFileNames(
-            kernelWriterSource,
-            kernelWriterAssembly,
-            solutions,
-            kernels,
-            kernelHelperObjs,
-        )
-    )
-
-    (_, _, _, sourceLibPaths, asmLibPaths, libMetadataPaths) = buildObjectFilePaths(
-        outputPath,
-        solutionFiles,
-        sourceKernelFiles,
-        asmKernelFiles,
-        sourceLibFiles,
-        asmLibFiles,
-        masterLibraries,
-    )
-
-    toFile(Path(manifestFile), libMetadataPaths + sourceLibPaths + asmLibPaths)
-    if args["GenerateManifestAndExit"]:
-        return
-
-    if not args["GenerateSourcesAndExit"]:
-        writeCMake(outputPath, solutionFiles, sourceKernelFiles, staticFiles, masterLibraries)
-
-    # Make sure to copy the library static files.
-    for fileName in staticFiles:
-        shutil.copy(os.path.join(globalParameters["SourcePath"], fileName), outputPath)
-
-    codeObjectFiles, kernels, solutions = writeKernels(
+    codeObjectFiles, kernels = writeKernels(
         outputPath,
         cxxCompiler,
         args,
-        solutions,
         kernels,
         kernelHelperObjs,
         kernelWriterSource,

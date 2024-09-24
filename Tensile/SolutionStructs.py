@@ -4794,41 +4794,34 @@ class Solution(collections.abc.Mapping):
 
   ########################################
   # Get Name Min
-  @ staticmethod
+  @staticmethod
   def getNameMin(state, requiredParameters):
-    if isCustomKernelConfig(state):
-      return state["CustomKernelName"]
+      if isCustomKernelConfig(state):
+          return state["CustomKernelName"]
 
-    name = ""
-    first = True
-    # put problem first
-    if "ProblemType" in state:
-      name += str(state["ProblemType"]) + "_"
-    if "MacroTile0" in state \
-        and "MacroTile1" in state \
-        and "DepthU" in state:
-      name += "%s%ux%ux%u_" \
-          % ( Solution.getParameterNameAbbreviation("MacroTile"), \
-          state["MacroTile0"], state["MacroTile1"], state["DepthU"] )
-    if "MatrixInstM" in state:
-      name += "%s%ux%ux%ux%u_" \
-          % ( Solution.getParameterNameAbbreviation("MatrixInstruction"), \
-          state["MatrixInstM"], state["MatrixInstN"], state["MatrixInstK"], state["MatrixInstB"])
-    if "LdcEqualsLdd" in state:
-      if state["LdcEqualsLdd"]:
-        name += "SE_"
-      else:
-        name += "SN_"
-    for key in sorted(state.keys()):
-      if key in requiredParameters and key[0] != '_':
-        if requiredParameters[key] and key != "CustomKernelName":
-          if not first:
-            name += "_"
-          else:
-            first = False
-          name += "%s%s" % ( Solution.getParameterNameAbbreviation(key), \
-              Solution.getParameterValueAbbreviation(key, state[key]) )
-    return name
+      name_parts = []
+
+      # Put problem first
+      if "ProblemType" in state:
+          name_parts.append(f"{state['ProblemType']}_")
+
+      if all(key in state for key in ["MacroTile0", "MacroTile1", "DepthU"]):
+          name_parts.append(f"{Solution.paramNameAbbr('MacroTile')}"
+                            f"{state['MacroTile0']}x{state['MacroTile1']}x{state['DepthU']}_")
+
+      if "MatrixInstM" in state:
+          name_parts.append(f"{Solution.paramNameAbbr('MatrixInstruction')}"
+                            f"{state['MatrixInstM']}x{state['MatrixInstN']}x{state['MatrixInstK']}x{state['MatrixInstB']}_")
+
+      if "LdcEqualsLdd" in state:
+          name_parts.append("SE_" if state["LdcEqualsLdd"] else "SN_")
+
+      for key in sorted(state.keys()):
+          if key in requiredParameters and key[0] != '_' and requiredParameters[key] and key != "CustomKernelName":
+              name_parts.append(f"{Solution.paramNameAbbr(key)}"
+                                f"{Solution.paramValueAbbr(key, state[key])}")
+
+      return ''.join(name_parts)
 
   ########################################
   # create a dictionary of lists of parameter values
@@ -4886,14 +4879,14 @@ class Solution(collections.abc.Mapping):
     return s
 
   ########################################
-  @ staticmethod
-  def getParameterNameAbbreviation(name):
+  @staticmethod
+  def paramNameAbbr(name):
     return parameterNameAbbreviations[name]
 
 
   ########################################
   @ staticmethod
-  def getParameterValueAbbreviation( key, value ):
+  def paramValueAbbr(key, value):
     if key == 'ISA':
       return str(value[0]) + str(value[1]) + ('%x' % value[2])
     elif isinstance(value, str):
@@ -4915,7 +4908,7 @@ class Solution(collections.abc.Mapping):
     elif isinstance(value, list):
       abbrev = ""
       for i in range(0, len(value)):
-        abbrev += Solution.getParameterValueAbbreviation(key, value[i])
+        abbrev += Solution.paramValueAbbr(key, value[i])
         if i < len(value)-1:
           abbrev += "_"
       return abbrev
