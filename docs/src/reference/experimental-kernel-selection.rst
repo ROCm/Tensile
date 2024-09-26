@@ -1,6 +1,6 @@
 .. meta::
-  :description: Tensile documentation and API reference
-  :keywords: Tensile, GEMM, Tensor, ROCm, API, Documentation
+  :description: Tensile is a tool for creating a benchmark-driven backend library for GEMM
+  :keywords: Tensile kernel selection, Tensile solution selection, GEMM, Tensor, ROCm
 
 .. _experimental-kernel-selection:
 
