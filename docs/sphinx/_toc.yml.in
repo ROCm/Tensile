@@ -7,28 +7,27 @@ subtrees:
   - file: src/getting-started/installation
 
 - caption: Reference
-  maxdepth: -1
   entries:
   - file: src/reference/environment-variables
   - file: src/reference/experimental-kernel-selection
-    subtrees:
-    - caption: API reference
-      entries:
-      - file: src/api-reference/common
-      - file: src/api-reference/embedded_data
-      - file: src/api-reference/tensile_create_library
-      - file: src/api-reference/utilities
 
-- caption: How to
+- caption: API reference
   entries:
-  - file: src/how-to/programmers-guide
-  - file: src/how-to/contribution-guidelines
+  - file: src/api-reference/common
+  - file: src/api-reference/embedded_data
+  - file: src/api-reference/tensile_create_library
+  - file: src/api-reference/utilities
 
 - caption: CLI reference
   entries:
   - file: src/api-reference/cli-reference
     entries:
     - file: src/cli-reference/tensile_create_library_cli
+
+- caption: How to
+  entries:
+  - file: src/how-to/programmers-guide
+  - file: src/how-to/contribution-guidelines
 
 - caption: Conceptual
   entries:

@@ -1,6 +1,6 @@
 .. meta::
   :description: Tensile is a tool for creating a benchmark-driven backend library for GEMM
-  :keywords: Tensile documentation, GEMM, Tensor, ROCm, Tensile API
+  :keywords: Tensile documentation, GEMM, Tensor, Tensile API
 
 .. _index:
 
@@ -31,20 +31,21 @@ The code is open source and hosted at: https://github.com/ROCm/Tensile
     * :ref:`environment-variables`
     * :ref:`experimental-kernel-selection`
 
+    * API reference
+
+      * :ref:`common-api-reference`
+      * :ref:`embeddeddata-api-reference`
+      * :ref:`tensilecreatelibrary-api-reference`
+      * :ref:`utilities-api-reference`
+
+    * :ref:`CLI reference`
+
+      * :ref:`tensilecreatelibrary-cli-reference`
+
   .. grid-item-card:: How to
 
     * :ref:`programmers-guide`
     * :ref:`contribution-guidelines`
-
-  .. grid-item-card:: API reference
-
-    * :ref:`common-api-reference`
-    * :ref:`embeddeddata-api-reference`
-    * :ref:`tensilecreatelibrary-api-reference`
-    * :ref:`utilities-api-reference`
-    * :ref:`cli-reference`
-
-      * :ref:`tensilecreatelibrary-cli-reference`
 
 To contribute to the documentation, refer to
 `Contributing to ROCm <https://rocm.docs.amd.com/en/latest/contribute/contributing.html>`_.

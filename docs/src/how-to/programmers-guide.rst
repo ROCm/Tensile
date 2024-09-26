@@ -1,6 +1,6 @@
 .. meta::
   :description: Tensile is a tool for creating a benchmark-driven backend library for GEMM
-  :keywords: Tensile developers guide, Tensile contributors guide, Tensile programmers guide, GEMM, Tensor, ROCm, API, Documentation
+  :keywords: Tensile developers guide, Tensile contributors guide, Tensile programmers guide, GEMM, Tensor
 .. highlight:: none
 
 .. _programmers-guide:
