@@ -218,6 +218,9 @@ def parseLibraryLogicData(data, srcFile="?"):
         solutions.append(solutionObject)
 
     newLibrary = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data, solutions)
+    for name, lib in newLibrary.lazyLibraries.items():
+        for sol in lib.solutions.values():
+            sol.originalSolution["codeObjectFile"] = name
 
     return LibraryLogic(data["ScheduleName"], data["ArchitectureName"], problemType, solutions, \
             data.get("ExactLogic"), newLibrary)
