@@ -4814,7 +4814,7 @@ class Solution(collections.abc.Mapping):
                             f"{state['MatrixInstM']}x{state['MatrixInstN']}x{state['MatrixInstK']}x{state['MatrixInstB']}")
 
       if "LdcEqualsLdd" in state:
-          name_parts.append("SE_" if state["LdcEqualsLdd"] else "SN")
+          name_parts.append("SE" if state["LdcEqualsLdd"] else "SN")
 
       for key in sorted(state.keys()):
           if key in requiredParameters and key[0] != '_' and requiredParameters[key] and key != "CustomKernelName":
