@@ -31,6 +31,7 @@ if __name__ == "__main__":
     exit(1)
 
 import collections
+import functools
 import itertools
 import os
 import re
@@ -43,6 +44,9 @@ import warnings
 from io import TextIOWrapper
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List, Optional, Set, Tuple, Union
+
+from joblib import Parallel
+import tqdm
 
 from . import Common, LibraryIO, Utils
 from .Common import (
@@ -401,9 +405,17 @@ def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath, removeTempo
         kernelFiles,
         itertools.repeat(removeTemporaries),
     )
-    coFiles = Common.ParallelMap(buildSourceCodeObjectFile, args, "Compiling source kernels")
 
-    return itertools.chain.from_iterable(coFiles)
+    coFiles = []
+    for k in Utils.tqdm(kernelFiles, "Compiling source kernels"):
+        coFile = buildSourceCodeObjectFile(CxxCompiler, outputPath, k, removeTemporaries)
+        coFiles.append(coFile)
+
+    return coFiles
+
+    # coFiles = buildSourceCodeObjectFile, args, "Compiling source kernels")
+
+    # return itertools.chain.from_iterable(coFiles)
 
 
 ################################################################################
@@ -795,8 +807,11 @@ def writeKernels(
         itertools.repeat(kernelWriterSource),
         itertools.repeat(kernelWriterAssembly),
     )
-    results = Common.ParallelMap(processKernelSource, list(kIter), "Generating kernels")
-
+    
+    results = []
+    for k in Utils.tqdm(kernels, "Generating kernels"):
+        result = processKernelSource(k, kernelWriterSource, kernelWriterAssembly)
+        results.append(result)
 
     filterProcessingErrors(kernels, results, params["PrintLevel"], errorTolerant)
 
@@ -1038,9 +1053,13 @@ def parseLibraryLogicFiles(logicFiles: List[str]) -> List[LibraryIO.LibraryLogic
     Returns:
         List of library logic tuples.
     """
-    return Common.ParallelMap(
-        LibraryIO.parseLibraryLogicFile, logicFiles, "Reading logic files", multiArg=False
-    )
+    libraryLogics = []
+    for f in logicFiles:
+        print(f)
+        logic = LibraryIO.parseLibraryLogicFile(f)
+        libraryLogics.append(logic)
+
+    return libraryLogics
 
 
 def makeMasterLibraries2(
@@ -1115,6 +1134,25 @@ def findLogicFiles(
 ################################################################################
 # Tensile Create Library
 ################################################################################
+def run(removeTemporaries, outputPath, cxxCompiler, args, logicFiles):
+
+    libraryLogics = parseLibraryLogicFiles(logicFiles)
+    solns = list(generateSolutions(libraryLogics))
+    kernels = list((s.getKernels() for s in solns))
+    kernelHelperObjs = generateKernelObjectsFromSolutions(kernels)
+    kernelWriterSource, kernelWriterAssembly = getKernelWriters(kernels, removeTemporaries)
+
+    writeKernels(
+        outputPath,
+        cxxCompiler,
+        args,
+        kernels,
+        kernelHelperObjs,
+        kernelWriterSource,
+        kernelWriterAssembly,
+        removeTemporaries=removeTemporaries,
+    )
+
 @profile
 def TensileCreateLibrary():
 
@@ -1144,22 +1182,16 @@ def TensileCreateLibrary():
     logicArchs = {name for name in (getArchitectureName(gfxName) for gfxName in logicArchs) if name}
 
     logicFiles = findLogicFiles(Path(logicPath), logicArchs)
-    libraryLogics = parseLibraryLogicFiles(logicFiles)
-    solns = list(generateSolutions(libraryLogics))
-    kernels = list((s.getKernels() for s in solns))
-    kernelHelperObjs = generateKernelObjectsFromSolutions(kernels)
-    kernelWriterSource, kernelWriterAssembly = getKernelWriters(kernels, removeTemporaries)
 
-    writeKernels(
-        outputPath,
-        cxxCompiler,
-        args,
-        kernels,
-        kernelHelperObjs,
-        kernelWriterSource,
-        kernelWriterAssembly,
-        removeTemporaries=removeTemporaries,
-    )
+    parallelFunc = functools.partial(run, removeTemporaries, outputPath, cxxCompiler, args)
+    # parallelFunc(logicFiles[0:10])
+
+    def chunks(lst, n):
+        """Yield successive n-sized chunks from lst."""
+        for i in range(0, len(lst), n):
+            yield lst[i:i + n]
+
+    Common.ParallelMap(parallelFunc, list(chunks(logicFiles, 10)), "Running TCL...", multiArg=False)
 
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)
