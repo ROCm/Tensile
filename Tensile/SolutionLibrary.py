@@ -465,7 +465,7 @@ class MasterSolutionLibrary:
             rv.lazyLibraries[placeholderName] = lazyLibrary
             placeholderLibrary.filenamePrefix = placeholderName
 
-        return rv
+        return (rv, placeholderName)
 
     @classmethod
     def BenchmarkingLibrary(cls, solutions):
