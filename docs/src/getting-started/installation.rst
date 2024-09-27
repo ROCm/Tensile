@@ -13,15 +13,15 @@ You can obtain Tensile as part of ROCm installation or choose to install Tensile
 Install ROCm
 ============
 
-1. Install ROCm for your platform. For installation instructions, refer to `Linux <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/tutorial/quick-start.html>`_ or Windows `Windows <https://rocm.docs.amd.com/projects/install-on-windows/en/latest/index.html>`_ installation guide.
+Install ROCm for your platform. For installation instructions, refer to `Linux <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/tutorial/quick-start.html>`_ or Windows `Windows <https://rocm.docs.amd.com/projects/install-on-windows/en/latest/index.html>`_ installation guide.
 
-   .. tip::
+.. tip::
 
-      If using Bash, we recommend you to set ``PATH=/opt/rocm/bin/:$PATH`` in your ``~/.bashrc`` and refresh your shell, using ``source ~/.bashrc``.
-      Alternatively, export the path for your current shell session only, using ``export PATH=/opt/rocm/bin/:$PATH``.
+   If using Bash, we recommend you to set ``PATH=/opt/rocm/bin/:$PATH`` in your ``~/.bashrc`` and refresh your shell using ``source ~/.bashrc``.
+   Alternatively, export the path for your current shell session only, using ``export PATH=/opt/rocm/bin/:$PATH``.
 
 Install OS dependencies
-=======================
+=========================
 
 Here are the steps to install dependencies for Ubuntu distributions. For other distributions, use the appropriate package manager.
 
@@ -39,11 +39,11 @@ Here are the steps to install dependencies for Ubuntu distributions. For other d
 
    .. code-block::
 
-   apt-get install libmsgpack-dev    # If using the msgpack backend
+      apt-get install libmsgpack-dev    # If using the msgpack backend
 
-   # OR
+      # OR
 
-   apt-get install libtinfo-dev      # If using the YAML backend
+      apt-get install libtinfo-dev      # If using the YAML backend
 
 3. Install build tools. For additional installation methods for the latest versions of CMake, see the `CMake installation <https://cliutils.gitlab.io/modern-cmake/chapters/intro/installing.html>`_ page.
 
@@ -79,7 +79,7 @@ Option 2: Install with git
   git clone git@github.com:ROCm/Tensile.git && cd Tensile
   pip3 install .
 
-You can now run Tensile's Python applications—see :ref:`quick-start`.
+You can now run Tensile's Python applications.
 
 Running benchmark
 ===================

@@ -88,7 +88,7 @@ Labels
    ============= =======
 
 ============================
-Coding Style and Conventions
+Coding style and conventions
 ============================
 
 -------------------
