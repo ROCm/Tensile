@@ -44,9 +44,7 @@ from io import TextIOWrapper
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List, Optional, Set, Tuple, Union
 
-from Tensile.Tensile import LibraryLogic
-
-from . import ClientExecutable, Common, EmbeddedData, LibraryIO, Utils
+from . import Common, LibraryIO, Utils
 from .Common import (
     HR,
     CHeader,
@@ -880,8 +878,14 @@ def copyStaticFiles(outputPath=None):
 ################################################################################
 # Generate Kernel Objects From Solutions
 ################################################################################
-def generateKernelObjectsFromSolutions(kernels: List[Solution])
-    return (k.getHelperKernelObjects() for k in kernels)
+def generateKernelObjectsFromSolutions(kernels: List[Solution]):
+    helpers = itertools.chain(k.getHelperKernelObjects() for k in kernels)
+    for h in helpers:
+        for ko in h:
+            # print(h)
+            ko.getKernelName()
+    list(dict.fromkeys(helpers))
+    return helpers
 
 
 def addNewLibrary(
@@ -1065,7 +1069,7 @@ def makeMasterLibraries2(
     return masterLibraries
 
 
-def generateSolutions(libraryLogics: List[LibraryIO.LibraryLogic]) -> Generator[Solution]:
+def generateSolutions(libraryLogics: List[LibraryIO.LibraryLogic]):
     """Generates a list of solutions.
 
     Args:
@@ -1075,7 +1079,10 @@ def generateSolutions(libraryLogics: List[LibraryIO.LibraryLogic]) -> Generator[
     Returns:
         A solution list.
     """
-    return (l for ll in libraryLogics for l in ll.solutions)
+    tmp = (l for ll in libraryLogics for l in ll.solutions)
+    return list(dict.fromkeys(tmp))
+ 
+    # return (l for ll in libraryLogics for l in ll.solutions)
 
 
 def findLogicFiles(
@@ -1138,8 +1145,8 @@ def TensileCreateLibrary():
 
     logicFiles = findLogicFiles(Path(logicPath), logicArchs)
     libraryLogics = parseLibraryLogicFiles(logicFiles)
-    solns = generateSolutions(libraryLogics)                                                      # Mutates kernels internally
-    kernels = (s.getKernels() for s in solns)
+    solns = list(generateSolutions(libraryLogics))
+    kernels = list((s.getKernels() for s in solns))
     kernelHelperObjs = generateKernelObjectsFromSolutions(kernels)
     kernelWriterSource, kernelWriterAssembly = getKernelWriters(kernels, removeTemporaries)
 

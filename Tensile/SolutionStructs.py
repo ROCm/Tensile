@@ -4828,8 +4828,7 @@ class Solution(collections.abc.Mapping):
   @staticmethod
   def getSerialNaming(objs):
     data = {}
-    for objIdx in range(0, len(objs)):
-      obj = objs[objIdx]
+    for obj in objs:
       for paramName in sorted(obj.keys()):
         if paramName in list(validParameters.keys()):
           paramValue = obj[paramName]
@@ -4845,6 +4844,7 @@ class Solution(collections.abc.Mapping):
       maxObjs *= len(data[paramName])
     numDigits = len(str(maxObjs))
     return [ data, numDigits ]
+
 
   ########################################
   # Get Name Serial
