@@ -1191,7 +1191,7 @@ def TensileCreateLibrary():
         for i in range(0, len(lst), n):
             yield lst[i:i + n]
 
-    Common.ParallelMap(parallelFunc, list(chunks(logicFiles, 10)), "Running TCL...", multiArg=False)
+    Common.ParallelMap(parallelFunc, list(chunks(logicFiles, 1)), "Running TCL...", multiArg=False)
 
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)
