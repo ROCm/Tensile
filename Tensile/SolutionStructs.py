@@ -4803,25 +4803,25 @@ class Solution(collections.abc.Mapping):
 
       # Put problem first
       if "ProblemType" in state:
-          name_parts.append(f"{state['ProblemType']}_")
+          name_parts.append(f"{state['ProblemType']}")
 
       if all(key in state for key in ["MacroTile0", "MacroTile1", "DepthU"]):
           name_parts.append(f"{Solution.paramNameAbbr('MacroTile')}"
-                            f"{state['MacroTile0']}x{state['MacroTile1']}x{state['DepthU']}_")
+                            f"{state['MacroTile0']}x{state['MacroTile1']}x{state['DepthU']}")
 
       if "MatrixInstM" in state:
           name_parts.append(f"{Solution.paramNameAbbr('MatrixInstruction')}"
-                            f"{state['MatrixInstM']}x{state['MatrixInstN']}x{state['MatrixInstK']}x{state['MatrixInstB']}_")
+                            f"{state['MatrixInstM']}x{state['MatrixInstN']}x{state['MatrixInstK']}x{state['MatrixInstB']}")
 
       if "LdcEqualsLdd" in state:
-          name_parts.append("SE_" if state["LdcEqualsLdd"] else "SN_")
+          name_parts.append("SE_" if state["LdcEqualsLdd"] else "SN")
 
       for key in sorted(state.keys()):
           if key in requiredParameters and key[0] != '_' and requiredParameters[key] and key != "CustomKernelName":
               name_parts.append(f"{Solution.paramNameAbbr(key)}"
                                 f"{Solution.paramValueAbbr(key, state[key])}")
 
-      return ''.join(name_parts)
+      return '_'.join(name_parts)
 
   ########################################
   # create a dictionary of lists of parameter values
