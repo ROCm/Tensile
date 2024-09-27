@@ -799,6 +799,7 @@ def writeKernels(
     )
     results = Common.ParallelMap(processKernelSource, list(kIter), "Generating kernels")
 
+
     filterProcessingErrors(kernels, results, params["PrintLevel"], errorTolerant)
 
     kernelFiles, kernelsWithBuildErrors = buildKernelSourceAndHeaderFiles(results, outputPath)
@@ -852,11 +853,7 @@ def getKernelWriters(kernels: List[Solution], removeTemporaries):
         kernelMinNaming, kernelSerialNaming, removeTemporaries
     )
 
-    return (
-        kernelWriterSource,
-        kernelWriterAssembly,
-        kernelMinNaming,
-    )
+    return (kernelWriterSource, kernelWriterAssembly)
 
 
 ################################################################################
@@ -883,20 +880,8 @@ def copyStaticFiles(outputPath=None):
 ################################################################################
 # Generate Kernel Objects From Solutions
 ################################################################################
-def generateKernelObjectsFromSolutions(
-    kernels: List[Solution],
-) -> Tuple[List[Solution], List[KernelWriterBase], List[str]]:
-    # create solution writer and kernel writer
-    # kernels = []
-    kernelHelperObjs = []
-
-    for k in kernels:
-        k.getKernels()
-        solutionHelperKernels = k.getHelperKernelObjects()
-        kernelHelperObjs += solutionHelperKernels
-
-    kernelHelperObjs = list(dict.fromkeys(kernelHelperObjs))
-    return kernelHelperObjs
+def generateKernelObjectsFromSolutions(kernels: List[Solution])
+    return (k.getHelperKernelObjects() for k in kernels)
 
 
 def addNewLibrary(
@@ -1079,28 +1064,8 @@ def makeMasterLibraries2(
 
     return masterLibraries
 
-def generateLogicData(
-    logicFiles: List[str]
-):
-    """Generates a dictionary of master solution libraries.
 
-    Args:
-        logicFiles: List of paths to logic files.
-        version: User provided version for the library.
-        printLevel: Level of debug printing requested.
-        separate: Separate libraries by architecture.
-
-    Returns:
-        For separate architectures, a dictionary of architecture
-        separated master solution libraries; otherwise, a single
-        master solution library for all architectures.
-    """
-    return parseLibraryLogicFiles(logicFiles)
-
-
-def generateSolutions(
-    libraryLogics: List[LibraryIO.LibraryLogic], separate: bool
-) -> Generator[Solution]:
+def generateSolutions(libraryLogics: List[LibraryIO.LibraryLogic]) -> Generator[Solution]:
     """Generates a list of solutions.
 
     Args:
@@ -1113,80 +1078,9 @@ def generateSolutions(
     return (l for ll in libraryLogics for l in ll.solutions)
 
 
-
-################################################################################
-# Write Benchmark Client Files
-################################################################################
-def writeBenchmarkClientFiles(
-    libraryWorkingPath, tensileSourcePath, kernels, cxxCompiler, removeTemporaries=False
-):
-
-    if not globalParameters["GenerateSourcesAndExit"]:
-        copyStaticFiles(libraryWorkingPath)
-
-    kernelsBetaOnly= generateKernelObjectsFromSolutions(kernels)
-    kernelWriterSource, kernelWriterAssembly, kernelMinNaming = getKernelWriters(
-        kernels,
-        removeTemporaries,
-    )
-
-    # write solution, kernels and CMake
-    codeObjectFiles, kernels= writeKernels(
-        libraryWorkingPath,
-        cxxCompiler,
-        globalParameters,
-        kernels,
-        kernelsBetaOnly,
-        kernelWriterSource,
-        kernelWriterAssembly,
-        errorTolerant=True,
-        removeTemporaries=removeTemporaries,
-    )
-
-    newLibraryDir = ensurePath(os.path.join(libraryWorkingPath, "library"))
-    newLibraryFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")
-    newLibrary = MasterSolutionLibrary.BenchmarkingLibrary(kernels)
-    newLibrary.applyNaming(kernelMinNaming)
-
-    LibraryIO.writeYAML(newLibraryFile, Utils.state(newLibrary))
-
-    return (codeObjectFiles, newLibrary)
-
-
-################################################################################
-# Write Master Solution Index CSV
-################################################################################
-def writeMasterSolutionIndexCSV(outputPath, masterLibraries):
-    libraryPath = os.path.join(outputPath, "library")
-    ensurePath(libraryPath)
-    try:
-        with open(os.path.join(libraryPath, "TensileMasterSolutionIndex.csv"), "w") as indexFile:
-            indexFile.write(
-                "architectureName,libraryName,libraryIndex,solutionIndex,solutionName\n"
-            )
-            for arch, lib in masterLibraries.items():
-                for lazylibname, lazylibvals in lib.lazyLibraries.items():
-                    for solidx, solution in lazylibvals.solutions.items():
-                        line = ",".join(
-                            str(x)
-                            for x in [
-                                arch,
-                                lazylibname,
-                                solidx,
-                                solution.index,
-                                solution.name,
-                            ]
-                        )
-                        indexFile.write("%s\n" % (line))
-    except IOError as err:
-        tPrint(1, "Error writing MasterSolutionIndex %s" % err)
-
-
 def findLogicFiles(
     path: Path,
     logicArchs: Set[str],
-    lazyLoading: bool,
-    experimentalDir: str,
     extraMatchers: Set[str] = {"hip"},
 ) -> List[str]:
     """Recursively searches the provided path for logic files.
@@ -1202,165 +1096,12 @@ def findLogicFiles(
     """
     isMatch = lambda file: any((arch in file.stem for arch in logicArchs.union(extraMatchers)))
     isExperimental = lambda path: not experimentalDir in str(path)
-
     extensions = ["*.yaml", "*.yml"]
     logicFiles = filter(isMatch, (file for ext in extensions for file in path.rglob(ext)))
-    if not lazyLoading:
-        if not experimentalDir:
-            printWarning(
-                "Configuration parameter `ExperimentalLogicDir` is an empty string, "
-                "logic files may be filtered incorrectly."
-            )
-        logicFiles = filter(isExperimental, logicFiles)
 
     return list(str(l) for l in logicFiles)
 
 
-def sanityCheck(
-    srcLibPaths: List[str],
-    asmLibPaths: List[str],
-    codeObjectPaths: List[str],
-    genSourcesAndExit: bool,
-):
-    """Verifies that generated code object paths match associated library paths.
-
-    Args:
-        srcLibPaths: Source library paths (.hsaco).
-        asmLibPaths: Assembly library paths (.co).
-        coPaths: Code object paths containing generated kernels; should contain all assembly
-            and source library paths.
-        genSourcesAndExit: Flag identifying whether only source file should be generated.
-
-    Raises:
-        ValueError: If code object paths do not match library paths.
-    """
-    libPaths = set([Path(p).resolve() for p in srcLibPaths + asmLibPaths])
-    coPaths = set([Path(p).resolve() for p in codeObjectPaths])
-
-    tPrint(2, "Library paths:\n    " + "\n    ".join(map(str, libPaths)))
-    tPrint(2, "Code object paths:\n    " + "\n    ".join(map(str, coPaths)))
-
-    extraCodeObjects = coPaths - libPaths
-    if extraCodeObjects:
-        raise ValueError(
-            f"Sanity check failed; unexpected code object files: "
-            f"{[p.name for p in extraCodeObjects]}"
-        )
-
-    if not genSourcesAndExit:
-        extraLibs = libPaths - coPaths
-        if extraLibs:
-            raise ValueError(
-                f"Sanity check failed; missing expected code object files: "
-                f"{[p.name for p  in extraLibs]}"
-            )
-
-
-def generateClientConfig(
-    outputPath: Path,
-    masterFile: Path,
-    codeObjectFiles: List[str],
-    configFile: str = "best-solution.ini",
-) -> None:
-    """Generates a client config file.
-
-    Generates a client config file corresponding to a master library file and code-object parameters
-    created by a TensileCreateLibrary invocation. Also sets best-solution-mode to True.
-
-    Args:
-        outputPath: The path to the tensile output directory where output files are written.
-        masterFile: Path to the master library file (.dat or .yaml).
-        codeObjectFiles: List of code object files created by TensileCreateLibrary.
-        configFile: Name of config file written to the output directory.
-    """
-    iniFile = outputPath / configFile
-
-    def param(key, value):
-        f.write(f"{key}={value}\n")
-
-    with open(iniFile, "w") as f:
-        if not masterFile.is_file():
-            warnings.warn(
-                UserWarning(f"{masterFile} does not exist. best-solution.ini may be invalid.")
-            )
-
-        param("library-file", masterFile)
-        for coFile in codeObjectFiles:
-            codeObject: Path = outputPath / coFile
-            if not codeObject.is_file():
-                warnings.warn(
-                    UserWarning(f"{codeObject} does not exist. best-solution.ini may be invalid.")
-                )
-
-            param("code-object", outputPath / coFile)
-
-        param("best-solution", True)
-
-
-def generateLazyMasterFileList(
-    masterFileList: List[Tuple[str, MasterSolutionLibrary]]
-) -> List[Tuple[str, MasterSolutionLibrary]]:
-    """Generates a list of tuples that represent the name and the state associated with the lazy master libraries.
-
-    This function takes a list of MasterSolutionLibraries and traverses each lazy libraries.
-    It collects the items (i.e. the name and corresponding master file) and adds them to list
-    of master files.
-
-    Args:
-        masterLibraries: A list of name / master solution library pairs.
-
-    Returns:
-        List of pairs of master solutions libraries and the corresponding name.
-    """
-    return [t for _, lib in masterFileList for t in lib.lazyLibraries.items()]
-
-
-def generateMasterFileList(
-    masterLibraries: dict, archs: List[str], lazy: bool
-) -> List[Tuple[str, MasterSolutionLibrary]]:
-    """Generates a list of tuples that represent the name and the state associated with the master libraries.
-
-    This function takes a dictionary with keys corresponding to a target architecture and values
-    corresponding to the master solution library for that architecture. The function generates a
-    tuple consisting of a MasterSolutionLibrary and the associated name. When not separating architectures,
-    the key full will appear in masterLibraries indicating that all libraries are combinded into a
-    single master library.
-
-    Args:
-        masterLibraries: A dictionary of architecture name / master solution library pairs.
-        archs: A list of supported architectures.
-        lazy: If True, add lazy library master files.
-
-    Returns:
-        List of pairs of master solutions libraries and the corresponding name.
-    """
-    if "full" in masterLibraries.keys():
-        return [("TensileLibrary", masterLibraries["full"])]
-
-    baseName = "TensileLibrary_lazy_" if lazy else "TensileLibrary_"
-    result = [
-        (baseName + arch, masterLibrary)
-        for arch, masterLibrary in masterLibraries.items()
-        if arch in archs
-    ]
-
-    return result + generateLazyMasterFileList(result) if lazy else result
-
-
-def writeMasterFile(
-    libraryPath: Path, format: str, naming: dict, name: str, lib: MasterSolutionLibrary
-) -> None:
-    """Writes a master file to disk as a .yaml or .dat file.
-
-    Args:
-        libraryPath: Path to library subdirectory located in the tensile output directory.
-        format: Output format of written file (.dat or .yaml).
-        naming: Kernel minimum naming.
-        name: Name of the masterfile.
-        lib: Master solution library data.
-    """
-    lib.applyNaming(naming)
-    LibraryIO.write(str(libraryPath / name), Utils.state(lib), format)
 
 
 
@@ -1392,33 +1133,15 @@ def TensileCreateLibrary():
     if not os.path.exists(logicPath):
         printExit("LogicPath %s doesn't exist" % logicPath)
 
-    # CLI uses `;` delimiters, CMake uses `_` delimiters
     logicArchs = splitDelimitedString(args["Architecture"], {";", "_"})
     logicArchs = {name for name in (getArchitectureName(gfxName) for gfxName in logicArchs) if name}
 
-    if not (lazyLoading and mergeFiles and separateArchs):
-        printExit(
-            "--lazy-library-loading requires --merge-files and --separate-architectures enabled"
-        )
-
-    logicFiles = findLogicFiles(
-        Path(logicPath),
-        logicArchs,
-        lazyLoading=lazyLoading,
-        experimentalDir=globalParameters["ExperimentalLogicDir"],
-    )
-
-    libraryLogics = generateLogicData(logicFiles)
-
-    kernels = generateSolutions(libraryLogics, args["SeparateArchitectures"])
-
-    # Mutates kernels internally
+    logicFiles = findLogicFiles(Path(logicPath), logicArchs)
+    libraryLogics = parseLibraryLogicFiles(logicFiles)
+    solns = generateSolutions(libraryLogics)                                                      # Mutates kernels internally
+    kernels = (s.getKernels() for s in solns)
     kernelHelperObjs = generateKernelObjectsFromSolutions(kernels)
-
-    # if any kernels are assembly, append every ISA supported
-    kernelWriterSource, kernelWriterAssembly, kernelMinNaming = getKernelWriters(
-        kernels, removeTemporaries
-    )
+    kernelWriterSource, kernelWriterAssembly = getKernelWriters(kernels, removeTemporaries)
 
     writeKernels(
         outputPath,
@@ -1431,19 +1154,8 @@ def TensileCreateLibrary():
         removeTemporaries=removeTemporaries,
     )
 
-    archs = [
-        gfxName(arch)
-        for arch in globalParameters["SupportedISA"]
-        if globalParameters["AsmCaps"][arch]["SupportedISA"]
-    ]
-
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)
-
-    masterFileList = generateMasterFileList(masterLibraries, archs, lazyLoading)
-
-    for name, lib in masterFileList:
-        writeMasterFile(newLibraryDir, libraryFormat, kernelMinNaming, name, lib)
 
     if removeTemporaries:
         buildTmp = Path(outputPath).parent / "build_tmp"
