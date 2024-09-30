@@ -2,7 +2,7 @@
   :description: Tensile is a tool for creating a benchmark-driven backend library for GEMM
   :keywords: Tensile supported problems, GEMM, Tensor
 
-.. _supported_problems:
+.. _supported-problems:
 
 ===================
 Supported problems
@@ -10,7 +10,6 @@ Supported problems
 
 This document discusses the types of problems supported by Tensile.
 
-.. _problem_types:
 
 Problem types
 ===============

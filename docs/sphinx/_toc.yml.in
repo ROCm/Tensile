@@ -13,17 +13,13 @@ subtrees:
 
 - caption: Concepts
   entries:
-  - file: src/concepts/benchmarking
-  - file: src/concepts/tuning
-  - file: src/concepts/kernels
-  - file: src/concepts/library-creation
+  - file: src/concepts/supported-problems
 
 - caption: Reference
   entries:
   - file: src/cli-reference/cli-reference
     entries:
     - file: src/cli-reference/tensile-create-library-cli
-    - file: src/cli-reference/TensileCreateLibrary
   - file: src/api-reference/api-reference
     entries:
     - file: src/api-reference/common
@@ -32,4 +28,3 @@ subtrees:
     - file: src/api-reference/utilities
   - file: src/reference/environment-variables
   - file: src/reference/experimental-kernel-selection
-  - file: license

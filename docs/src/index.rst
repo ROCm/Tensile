@@ -26,10 +26,7 @@ The code is open source and hosted at: https://github.com/ROCm/Tensile
 
   .. grid-item-card:: Concepts
 
-    * :ref:`benchmarking`
-    * :ref:`tuning`
-    * :ref:`kernels`
-    * :ref:`library-creation`
+    * :ref:`supported-problems`
 
   .. grid-item-card:: Reference
 
