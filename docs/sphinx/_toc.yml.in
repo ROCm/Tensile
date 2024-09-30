@@ -6,36 +6,29 @@ subtrees:
   entries:
   - file: src/getting-started/installation
 
-- caption: Reference
-  entries:
-  - file: src/reference/environment-variables
-  - file: src/reference/experimental-kernel-selection
-
-- caption: API reference
-  entries:
-  - file: src/api-reference/common
-  - file: src/api-reference/embedded_data
-  - file: src/api-reference/tensile_create_library
-  - file: src/api-reference/utilities
-
-- caption: CLI reference
-  entries:
-  - file: src/api-reference/cli-reference
-    entries:
-    - file: src/cli-reference/tensile_create_library_cli
-
 - caption: How to
   entries:
   - file: src/how-to/programmers-guide
   - file: src/how-to/contribution-guidelines
 
-- caption: Conceptual
+- caption: Concepts
   entries:
   - file: src/concepts/benchmarking
   - file: src/concepts/tuning
   - file: src/concepts/kernels
   - file: src/concepts/library-creation
 
-- caption: About
+- caption: Reference
   entries:
+  - file: src/cli-reference/cli-reference
+    entries:
+    - file: src/cli-reference/tensile-create-library-cli
+  - file: src/api-reference/api-reference
+    entries:
+    - file: src/api-reference/common
+    - file: src/api-reference/embedded-data
+    - file: src/api-reference/tensile-create-library-api
+    - file: src/api-reference/utilities
+  - file: src/reference/environment-variables
+  - file: src/reference/experimental-kernel-selection
   - file: license
