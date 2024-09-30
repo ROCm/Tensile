@@ -99,6 +99,7 @@ function(TensileCreateLibraryFiles
        GENERATE_PACKAGE
        SEPARATE_ARCHITECTURES
        LAZY_LIBRARY_LOADING
+       KEEP_BUILD_TMP
        )
 
   # Single value settings
@@ -167,6 +168,10 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--no-short-file-names")
   endif()
 
+  if(Tensile_KEEP_BUILD_TMP)
+    set(Options ${Options} "--keep-build-tmp")
+  endif()
+
   if(Tensile_VERBOSE)
     set(Options ${Options} "--verbose=${Tensile_VERBOSE}")
   else()
@@ -210,10 +215,9 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--architecture=${archString}")
   endif()
 
-  if (WIN32)
-    set(CommandLine ${VIRTUALENV_BIN_DIR}/${VIRTUALENV_PYTHON_EXENAME} ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
-  else()
-    set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
+  set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
+  if (WIN32 OR (VIRTUALENV_BIN_DIR AND VIRTUALENV_PYTHON_EXENAME))
+    set(CommandLine ${VIRTUALENV_BIN_DIR}/${VIRTUALENV_PYTHON_EXENAME} ${CommandLine})
   endif()
   message(STATUS "Tensile_CREATE_COMMAND: ${CommandLine}")
 

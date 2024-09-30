@@ -23,6 +23,7 @@ subtrees:
   - file: src/cli-reference/cli-reference
     entries:
     - file: src/cli-reference/tensile-create-library-cli
+    - file: src/cli-reference/TensileCreateLibrary
   - file: src/api-reference/api-reference
     entries:
     - file: src/api-reference/common

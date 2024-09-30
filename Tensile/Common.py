@@ -57,13 +57,6 @@ class DeveloperWarning(Warning):
     This warning can be safely ignored when running any Tensile applications as a user.
     """
 
-def showwarning(message, category, filename, lineno, file=None, line=None):
-    msg = f"{category.__name__}: {message}"
-    if TENSILE_TERM_COLORS:
-        msg = f"[yellow]{msg}[/yellow]"
-    print(msg)
-
-warnings.showwarning = showwarning
 
 # print level
 # 0 - user wants no printing
@@ -254,9 +247,10 @@ globalParameters["SupportedISA"] = [(8,0,3),
                                     (9,4,0), (9,4,1), (9,4,2),
                                     (10,1,0), (10,1,1), (10,1,2), (10,3,0), (10,3,1),
                                     (11,0,0), (11,0,1), (11,0,2),
+                                    (11,5,1),
                                     (12,0,0), (12,0,1)] # assembly kernels writer supports these architectures
 
-globalParameters["CleanupBuildFiles"] = False                     # cleanup build files (e.g. kernel assembly) once no longer needed
+globalParameters["KeepBuildTmp"] = True                           # Do not remove build artifacts during the build process or build_tmp after build completes
 globalParameters["GenerateManifestAndExit"] = False               # Output manifest file with list of expected library objects and exit
 globalParameters["VerifyManifest"] = False                        # Verify manifest file against generated library files and exit.
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory
@@ -280,11 +274,7 @@ globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))    
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source") # path to Tensile/Source/
 globalParameters["HipClangVersion"] = "0.0.0"
 
-# default runtime is selected based on operating system, user can override
-if os.name == "nt":
-  globalParameters["RuntimeLanguage"] = "HIP" #"OCL"
-else:
-  globalParameters["RuntimeLanguage"] = "HIP"
+globalParameters["RuntimeLanguage"] = "HIP"
 
 globalParameters["CodeObjectVersion"] = "default"
 globalParameters["CxxCompiler"] = "amdclang++" if os.name != "nt" else "clang++"
@@ -334,6 +324,7 @@ architectureMap = {
   'gfx1010':'navi10', 'gfx1011':'navi12', 'gfx1012':'navi14',
   'gfx1030':'navi21', 'gfx1031':'navi22', 'gfx1032':'navi23', 'gfx1034':'navi24', 'gfx1035':'rembrandt',
   'gfx1100':'navi31', 'gfx1101':'navi32', 'gfx1102':'navi33',
+  'gfx1151':'gfx1151',
   'gfx1200':'gfx1200',
   'gfx1201':'gfx1201'
 }
@@ -2353,6 +2344,8 @@ def populateCapabilities(
     )
     supportedISA = globalParameters["SupportedISA"]
     to_remove = []
+   
+    emptyCache = not bool(globalParameters["AsmCaps"])
 
     for v in supportedISA + [(0, 0, 0)]:
         if v[0] == 12 and not (
@@ -2361,7 +2354,10 @@ def populateCapabilities(
             printWarning(f"ISA {v} isn't supported for ROCm stack {compilerVer}, skipping...")
             to_remove.append(v)
             continue
-        globalParameters["AsmCaps"][v] = GetAsmCaps(v, compilerVer)
+
+        if emptyCache or not globalParameters["CacheAsmCaps"]:
+            globalParameters["AsmCaps"][v] = GetAsmCaps(v, compilerVer)
+
         globalParameters["ArchCaps"][v] = GetArchCaps(v)
 
     # Efficiently remove unsupported ISA versions after iterating
@@ -2371,7 +2367,7 @@ def populateCapabilities(
 
 ################################################################################
 ################################################################################
-def assignGlobalParameters( config ):
+def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   """
   Assign Global Parameters
   Each global parameter has a default parameter, and the user
@@ -2398,6 +2394,9 @@ def assignGlobalParameters( config ):
         tPrint(3, " %24s: %8s (overridden)" % (key, configValue))
     else:
       tPrint(3, " %24s: %8s (unspecified)" % (key, defaultValue))
+
+  if "KeepBuildTmp" in config:
+    globalParameters["KeepBuildTmp"] = config["KeepBuildTmp"] 
 
   globalParameters["ROCmPath"] = "/opt/rocm"
   if "ROCM_PATH" in os.environ:
@@ -2501,7 +2500,8 @@ def assignGlobalParameters( config ):
   if "IgnoreAsmCapCache" in config:
     globalParameters["IgnoreAsmCapCache"] = config["IgnoreAsmCapCache"]
     
-  globalParameters["AsmCaps"] = {}
+  globalParameters["CacheAsmCaps"] = True if capabilitiesCache is not None else False
+  globalParameters["AsmCaps"] = capabilitiesCache if globalParameters["CacheAsmCaps"] else {}
   globalParameters["ArchCaps"] = {}
   populateCapabilities(globalParameters, CACHED_ASM_CAPS)
 
@@ -2525,7 +2525,10 @@ def assignGlobalParameters( config ):
       config["NumMergedFiles"] = 1
       printWarning("--num-merged-files and --no-merge-files specified, ignoring --num-merged-files")
 
+  rejectGlobalParameters = {"LogicPath", "OutputPath", "EmbedLibraryKey", "Version", "BuildClient", "ClientConfig", "WriteMasterSolutionIndex"}
   for key in config:
+    if key in rejectGlobalParameters:
+      continue
     value = config[key]
     if key not in globalParameters:
       printWarning("Global parameter %s = %s unrecognized." % ( key, value ), DeveloperWarning)

@@ -66,8 +66,8 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
     parser.add_argument("OutputPath", help="Build path for library files.")
     parser.add_argument(
         "RuntimeLanguage",
-        help="Runtime langauge for generated library.",
-        choices=["OCL", "HIP", "HSA"],
+        help="Runtime language for generated library.",
+        choices=["HIP", "HSA"],
     )
 
     # Optional arguments
@@ -182,6 +182,13 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
         help="Verify manifest file against generated library files and exit.",
     )
     parser.add_argument(
+        "--keep-build-tmp",
+        dest="KeepBuildTmp",
+        action="store_true",
+        default=False,
+        help="Do not remove the temporary build directory (may required hundreds of GBs of space)",
+    )
+    parser.add_argument(
         "--library-format",
         dest="LibraryFormat",
         choices=["yaml", "msgpack"],
@@ -287,6 +294,7 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
         "ClientConfig": args.ClientConfig,
         "IgnoreAsmCapCache": args.IgnoreAsmCapCache,
         "WriteMasterSolutionIndex": args.WriteMasterSolutionIndex,
+        "KeepBuildTmp": args.KeepBuildTmp,
     }
 
     if args.CmakeCxxCompiler:
@@ -296,7 +304,7 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
     if args.GenerateSourcesAndExit:
         # Generated sources are preserved and go into output directory
         arguments["WorkingPath"] = arguments["OutputPath"]
-    if args.PrintLevel == 0:
+    if args.PrintLevel <= 0:
         warnings.filterwarnings("ignore", category=DeveloperWarning)
 
     for k, v in args.GlobalParameters:

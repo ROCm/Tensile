@@ -34,19 +34,6 @@
 
 #include <cstddef>
 
-// OpenCL
-#if Tensile_RUNTIME_LANGUAGE_OCL
-#include "CL/cl.h"
-#define TensileStatus cl_int
-#define tensileStatusSuccess CL_SUCCESS
-#define tensileStatusFailure -1
-#define tensileStatusAssertFailure -2
-#define TensileComplexFloat cl_float2
-#define TensileComplexDouble cl_double2
-#define TensileHalf cl_half
-
-// HIP
-#else
 #include <hip/hip_runtime.h>
 #define TensileStatus hipError_t
 #define tensileStatusSuccess hipSuccess
@@ -186,7 +173,6 @@ using tensile_double_complex = tensile_complex<double>;
 
 #define TensileComplexFloat tensile_float_complex
 #define TensileComplexDouble tensile_double_complex
-#endif // HIP
 
 #define TensileInt8x4 uint32_t
 #define TensileInt32 int32_t

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2022-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -369,7 +369,12 @@ TEST(DecisionTree, DecisionTreeBatch)
     using SizeInRange = Predicates::Contraction::SizeInRange;
     using Range       = Predicates::Contraction::Range;
     using And         = Predicates::And<ContractionProblem>;
-    using BForest     = BasicForest<Key,
+    // Create a Key4 aliase specific to this test because this test uses four features which
+    // requires a size four Key type; whereas previous tests only use three features.
+    using Key4 = std::array<float, 4>;
+    using DTree4
+        = Tree<Key4, std::shared_ptr<ContractionLibrary>, std::shared_ptr<ContractionSolution>>;
+    using BForest = BasicForest<Key4,
                                 ContractionProblem,
                                 std::shared_ptr<ContractionLibrary>,
                                 std::shared_ptr<ContractionSolution>>;
@@ -410,9 +415,9 @@ TEST(DecisionTree, DecisionTreeBatch)
     features.push_back(boundSize);
 
     // Make trees library
-    std::vector<DTree> region1trees;
+    std::vector<DTree4> region1trees;
 
-    DTree region1tree0{{
+    DTree4 region1tree0{{
         {0, 5000.f, IDX_RETURN_FALSE, IDX_RETURN_TRUE}, // YES for freeSizeA > 5000
     }};
     region1tree0.value = region1Library0;
@@ -426,9 +431,9 @@ TEST(DecisionTree, DecisionTreeBatch)
     region1dtreelib->forest = region1forest;
 
     // Make trees library
-    std::vector<DTree> region2trees;
+    std::vector<DTree4> region2trees;
 
-    DTree region2tree0{{
+    DTree4 region2tree0{{
         {0, 5000.f, IDX_RETURN_TRUE, IDX_RETURN_FALSE}, // YES for freeSizeA <= 5000
     }};
     region2tree0.value = region2Library0;
