@@ -188,7 +188,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath, remove
             for src, dst in (
                 zip(origCOFiles, newCOFiles)
                 if globalParameters["PrintLevel"] == 0
-                else Utils.tqdm(zip(origCOFiles, newCOFiles), desc="Relocating code objects")
+                else zip(origCOFiles, newCOFiles)
             ):
                 shutil.copyfile(src, dst)
             coFiles += newCOFiles
@@ -407,7 +407,7 @@ def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath, removeTempo
     )
 
     coFiles = []
-    for k in Utils.tqdm(kernelFiles, "Compiling source kernels"):
+    for k in kernelFiles:
         coFile = buildSourceCodeObjectFile(CxxCompiler, outputPath, k, removeTemporaries)
         coFiles.append(coFile)
 
@@ -651,7 +651,7 @@ def filterProcessingErrors(
     for kernIdx, res in (
         enumerate(results)
         if globalParameters["PrintLevel"] == 0
-        else Utils.tqdm(enumerate(results), desc="Filtering processing errors")
+        else enumerate(results)
     ):
         (err, src, header, kernelName, filename) = res
         if err == -2:
@@ -809,7 +809,7 @@ def writeKernels(
     )
     
     results = []
-    for k in Utils.tqdm(kernels, "Generating kernels"):
+    for k in kernels:
         result = processKernelSource(k, kernelWriterSource, kernelWriterAssembly)
         results.append(result)
 
