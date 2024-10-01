@@ -22,13 +22,14 @@
 #
 ################################################################################
 
-from .Common import assignParameterRequired, assignParameterWithDefault, \
+from .Common import IsaVersion, assignParameterRequired, assignParameterWithDefault, \
                     defaultProblemType, defaultSolution, \
                     globalParameters, \
                     tPrint, printExit, printWarning, \
                     validActivationFormats, validConvolutionConfig, \
                     validMFMA, validWMMA, validParameters, validWeightFormats, \
-                    validGEMMTypes, HPATypes, parameterNameAbbreviations
+                    validGEMMTypes, HPATypes, parameterNameAbbreviations, \
+                    Capabilities
 from .DataType import DataType
 from .Utils import roundUpToNearestMultiple
 
@@ -1718,8 +1719,10 @@ def isExtractableIndex(ks, index, tc='x'):
 class Solution(collections.abc.Mapping):
 
   ########################################
-  def __init__(self, config):
+  # def __init__(self, config, codeObjVer: str, isaVer: IsaVersion, asmCaps: AsmCapabilities):
+  def __init__(self, config, caps: Capabilities):
     self._name = None
+    self._caps = caps
 
     state = {}
     # problem type
@@ -1732,19 +1735,19 @@ class Solution(collections.abc.Mapping):
     for key in defaultSolution:
       assignParameterWithDefault(state, key, config, defaultSolution)
 
-    if 'ISA' not in state:
-      if 'ISA' in config:
-        state['ISA'] = config['ISA']
-      elif config['KernelLanguage'] == 'Assembly':
-        state['ISA'] = list(globalParameters["CurrentISA"])
-      else:
-        state['ISA'] = [0,0,0]
+    # if 'ISA' in config:
+    assert "ISA" in config
+    self.isa = config["ISA"]
+    # elif config['KernelLanguage'] == 'Assembly':
+      # self.isa = list(isaVer)
+    # else:
+      # C++ kernels don't have an ISA?
+      # self.isa = [0, 0, 0]
 
-    if "CodeObjectVersion" not in state:
-      if "CodeObjectVersion" in config:
-        state["CodeObjectVersion"] = config["CodeObjectVersion"]
-      else:
-        state["CodeObjectVersion"] = globalParameters["CodeObjectVersion"]
+    if "CodeObjectVersion" in config:
+      state["CodeObjectVersion"] = config["CodeObjectVersion"]
+    else:
+      state["CodeObjectVersion"] = globalParameters["CodeObjectVersion"]
 
     # assign parameters without defaults
     for key in config:
@@ -1760,7 +1763,8 @@ class Solution(collections.abc.Mapping):
     if state["ProblemType"].convolution:
         for (key,value) in state["ProblemType"].convolution.solutionParms.items():
             state[key]=value
-    Solution.assignDerivedParameters(state)
+
+    Solution.assignDerivedParameters(state, caps)
     self._name = config["CustomKernelName"] if isCustomKernelConfig(config) else None
     self._state = state
     self.initHelperKernelObjects()
@@ -1879,17 +1883,17 @@ class Solution(collections.abc.Mapping):
 
 
   @staticmethod
-  def getMIOutputInfo(state):
+  def getMIOutputInfo(state, caps: Capabilities):
     outputVectorWidth = 4
     RegsPerOut = 1
 
     isa = tuple(state["ISA"])
-    if globalParameters["AsmCaps"][isa]['HasMFMA']:
+    if caps.Asm[isa]['HasMFMA']:
       if state["ProblemType"]["DataType"].MIOutputTypeNameAbbrev() == 'f64':
         outputVectorWidth, RegsPerOut = 1, 2
       else:
         outputVectorWidth, RegsPerOut = 4, 1
-    elif globalParameters["AsmCaps"][isa]['HasWMMA']:
+    elif caps.Asm[isa]['HasWMMA']:
       outputVectorWidth, RegsPerOut = 1, 1
     else:
       print("WARNING: unexpected code flow")
@@ -1900,7 +1904,7 @@ class Solution(collections.abc.Mapping):
   ########################################
   # assign tile sizes
   @staticmethod
-  def assignProblemIndependentDerivedParameters(state):
+  def assignProblemIndependentDerivedParameters(state, caps: Capabilities):
 
     if "AssignedProblemIndependentDerivedParameters" in state:
       if state["AssignedProblemIndependentDerivedParameters"]:
@@ -1935,7 +1939,7 @@ class Solution(collections.abc.Mapping):
       state["MatrixInstBM"]        = state["MIBlock"][4]
       state["MatrixInstBN"]        = state["MIBlock"][5]
 
-      state["MIOutputVectorWidth"], state["MIRegPerOut"] = Solution.getMIOutputInfo(state)
+      state["MIOutputVectorWidth"], state["MIRegPerOut"] = Solution.getMIOutputInfo(state, caps)
 
       if state["MatrixInstM"] == 4:
         state["ThreadTile0"] = state["MIWaveTile"][0] * state["MIOutputVectorWidth"]
@@ -2184,7 +2188,7 @@ class Solution(collections.abc.Mapping):
   #       The KernelWriterAssembly will modify the LWO for the last load.  This allows
   #       flexibility in the unroll factors for example.
   @staticmethod
-  def setGlobalLoadTileDimFractional(state, tc, depthU, glvwOrig):
+  def setGlobalLoadTileDimFractional(state, tc, depthU, glvwOrig, caps: Capabilities):
     isa = tuple(state["ISA"])
 
     assert(depthU > 0)
@@ -2211,10 +2215,10 @@ class Solution(collections.abc.Mapping):
     # and a possible opportunity to handle the lsc
     grvw = glvwOrig
     minGrvw = 2 if state["ProblemType"]["DataType"].isHalf() and \
-                globalParameters["ArchCaps"][isa]["HasEccHalf"] else 1
+                caps.Arch[isa]["HasEccHalf"] else 1
     # TODO- check this for int8 and fractional load
     # minGrvw = 4 if state["ProblemType"]["DataType"].isInt8() and \
-    #             globalParameters["ArchCaps"][isa]["HasEccHalf"] else 1
+    #             caps.Arch[isa]["HasEccHalf"] else 1
     bestVw = -1
     while grvw >= minGrvw:
       # Per instruction across the entire group:
@@ -2324,8 +2328,9 @@ class Solution(collections.abc.Mapping):
 
 
   @staticmethod
-  def parameterWrapper(state):
+  def parameterWrapper(state, caps: Capabilities):
     isa = tuple(state["ISA"])
+
     if len(state["MatrixInstruction"]) == 9:
       waves = state["MatrixInstruction"][7]* state["MatrixInstruction"][8]
       state["ThreadTile"][0] = state["MatrixInstruction"][5]
@@ -2338,7 +2343,7 @@ class Solution(collections.abc.Mapping):
 
     if state["MatrixInstruction"] != [] and len(state["MatrixInstruction"]) == 4:
       state["MFMA_BF16_1K"] = False
-      if globalParameters["AsmCaps"][isa]["HasMFMA"]:
+      if caps.Asm[isa]["HasMFMA"]:
         miDataType = state["ProblemType"]["DataType"] if (not state["EnableF32XdlMathOp"]) else state["ProblemType"]["F32XdlMathOp"]
         # check if requested MFMA instruction is not in the list of valid instructions
         if not (state["ProblemType"]["DataType"].toChar() in validMFMA and \
@@ -2352,17 +2357,17 @@ class Solution(collections.abc.Mapping):
 
         # check if requested instruction is available on current architecture
         if state["ProblemType"]["DataType"].toChar() == 'B':
-          if state["MatrixInstruction"] in validMFMA["B"] and not globalParameters["AsmCaps"][isa]["HasMFMA_bf16_original"]:
+          if state["MatrixInstruction"] in validMFMA["B"] and not caps.Asm[isa]["HasMFMA_bf16_original"]:
             reject(state, "MatrixInstruction %s not available on %s" % (state["MatrixInstruction"], isa))
-          if state["MatrixInstruction"] in validMFMA["B1k"] and not globalParameters["AsmCaps"][isa]["HasMFMA_bf16_1k"]:
+          if state["MatrixInstruction"] in validMFMA["B1k"] and not caps.Asm[isa]["HasMFMA_bf16_1k"]:
             reject(state, "MatrixInstruction %s not available on %s" % (state["MatrixInstruction"], isa))
         elif state["ProblemType"]["DataType"].toChar() == 'I8':
-          if globalParameters["AsmCaps"][isa]["HasMFMA_i8_908"] and state["MatrixInstruction"] not in validMFMA["I8_908"]:
+          if caps.Asm[isa]["HasMFMA_i8_908"] and state["MatrixInstruction"] not in validMFMA["I8_908"]:
             reject(state, "MatrixInstruction %s not available on %s" % (state["MatrixInstruction"], isa))
-          if globalParameters["AsmCaps"][isa]["HasMFMA_i8_940"] and state["MatrixInstruction"] not in validMFMA["I8_940"]:
+          if caps.Asm[isa]["HasMFMA_i8_940"] and state["MatrixInstruction"] not in validMFMA["I8_940"]:
             reject(state, "MatrixInstruction %s not available on %s" % (state["MatrixInstruction"], isa))
 
-      elif globalParameters["AsmCaps"][isa]["HasWMMA"]:
+      elif caps.Asm[isa]["HasWMMA"]:
         if state["MatrixInstruction"] not in validWMMA:
           reject(state, "MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
 
@@ -2400,7 +2405,7 @@ class Solution(collections.abc.Mapping):
       # set MIInputPerThread
       isa = tuple(state["ISA"])
       state['MIInputPerThread'] = state["MatrixInstruction"][0] * state["MatrixInstruction"][2] * state["MatrixInstruction"][3] // state["WavefrontSize"]
-      if (not globalParameters["AsmCaps"][isa]['HasMFMA']) and globalParameters["AsmCaps"][isa]['HasWMMA']:
+      if (not caps.Asm[isa]['HasMFMA']) and caps.Asm[isa]['HasWMMA']:
         state['MIInputPerThread'] = state["MatrixInstruction"][2]
 
     else:
@@ -2427,7 +2432,7 @@ class Solution(collections.abc.Mapping):
   ########################################
   # determine can we use VgprForLocalReadPacking
   @staticmethod
-  def isVgprForLocalReadPackingDoable(state):
+  def isVgprForLocalReadPackingDoable(state, caps: Capabilities):
     isa = tuple(state["ISA"])
     rejectComment = ""
     doable = True
@@ -2436,7 +2441,7 @@ class Solution(collections.abc.Mapping):
       rejectComment = "VgprForLocalReadPacking is for MatrixInstruction only"
       doable = False
     # only for HasEccHalf
-    if not globalParameters["ArchCaps"][isa]["HasEccHalf"]:
+    if not caps.Arch[isa]["HasEccHalf"]:
       rejectComment = "VgprForLocalReadPacking is for EccHalf only"
       doable = False
     # only for SIA=3 + PLR>=1
@@ -2493,7 +2498,7 @@ class Solution(collections.abc.Mapping):
     if numBytes < 4:
       # Does not work with TLU = True and numBytes < 4 (not supported)
       if state["ProblemType"]["TLU%c"%tc]:
-        doable, _ = Solution.isVgprForLocalReadPackingDoable(state)
+        doable, _ = Solution.isVgprForLocalReadPackingDoable(state, caps)
         if numBytes * state["VectorWidth%s"%tc] >= 4 and doable:
           # use pack logic (with v_perm) same as local read (only if VgprForLocalReadPacking is doable)
           # numBytes * VW should be 4 or larger
@@ -2782,13 +2787,13 @@ class Solution(collections.abc.Mapping):
   ########################################
   # determine auto LdsPad and LdsBlockSizePerPad
   @staticmethod
-  def ldsPaddingAuto(state, isa):
+  def ldsPaddingAuto(state, isa, caps: Capabilities):
     # LDS padding
     # Resolve -1 before isDirectToLdsDoable check
     numBytes = state["ProblemType"]["DataType"].numBytes()
     optPad = state["LocalReadVectorWidth"]
     readRegs = state["LocalReadVectorWidth"]*numBytes//4
-    if (not globalParameters["AsmCaps"][isa]['HasWMMA']) and readRegs > 4:
+    if (not caps.Asm[isa]['HasWMMA']) and readRegs > 4:
       reject(state, "LocalReadVectorWidth=%u results in attemping to read LDS larger than b128, reject")
 
     autoAdjusted = {"LdsPadA": False, "LdsPadB": False, "LdsBlockSizePerPadA": False, "LdsBlockSizePerPadB": False}
@@ -2919,7 +2924,10 @@ class Solution(collections.abc.Mapping):
   ########################################
   # assign all derived parameters
   @staticmethod
-  def assignDerivedParameters(state):
+  def assignDerivedParameters(state, caps: Capabilities):
+  # def assignDerivedParameters(state):
+
+    # print("GLOBAL PARAMETERS:", globalParameters)
     isa = tuple(state["ISA"])
 
     state["EnableF32XdlMathOp"] = False #ignore the F32 xDL MathOp by default.
@@ -2929,9 +2937,9 @@ class Solution(collections.abc.Mapping):
        and (state["ProblemType"]["DataType"].isSingle()):
       state["EnableF32XdlMathOp"] = True
 
-    Solution.parameterWrapper(state)
+    Solution.parameterWrapper(state, caps)
 
-    Solution.assignProblemIndependentDerivedParameters(state)
+    Solution.assignProblemIndependentDerivedParameters(state, caps)
 
     if "AssignedDerivedParameters" in state:
       if state["AssignedDerivedParameters"]:
@@ -2971,7 +2979,7 @@ class Solution(collections.abc.Mapping):
     if state["StreamK"] != 0:
       if state["MIWaveGroup"][0] * state["MIWaveGroup"][1] != 4:
         reject(state, "Stream-K requries MIWaveGroup0*MIWaveGroup1=4")
-      if state["EnableMatrixInstruction"] and globalParameters["AsmCaps"][isa]["HasWMMA"]:
+      if state["EnableMatrixInstruction"] and caps.Asm[isa]["HasWMMA"]:
         reject(state, "Stream-K untested with WMMA")
       if state["GlobalSplitU"] > 1:
         reject(state, "Cannot enable both Stream-K and GSU")
@@ -3001,8 +3009,8 @@ class Solution(collections.abc.Mapping):
       # Since StaggerU defaults to 32, override it to 0 if not supported.
       state["StaggerU"] = 0
 
-    def supportsPreloadKernelArguments():
-      if not globalParameters["AsmCaps"][isa]["KernargPreloading"]:
+    def supportsPreloadKernelArguments(caps: Capabilities):
+      if not caps.Asm[isa]["KernargPreloading"]:
         # force to disable preloading (instead of rejecting kernel)
         state["PreloadKernelArguments"] = 0
         return False, f"{isa} doesn't support preloading."
@@ -3034,7 +3042,7 @@ class Solution(collections.abc.Mapping):
       
       return True, ""
 
-    pkaSupported, pkaMsg = supportsPreloadKernelArguments()
+    pkaSupported, pkaMsg = supportsPreloadKernelArguments(caps)
     if state["PreloadKernelArguments"] == -1:
       if pkaSupported:
         state["PreloadKernelArguments"] = 1
@@ -3078,29 +3086,29 @@ class Solution(collections.abc.Mapping):
       tPrint(3, "\nSet SIA=2, force PrefetchLocalRead=1, ExpandPointerSwap=1, 1LDSBuffer=1")
 
     if "MemoryModifierFormat" not in state or state["MemoryModifierFormat"] not in validParameters["MemoryModifierFormat"]:
-      if globalParameters["AsmCaps"][isa]["HasGLCModifier"]:
+      if caps.Asm[isa]["HasGLCModifier"]:
         state["MemoryModifierFormat"] = "GLC"
       else:
         state["MemoryModifierFormat"] = "SC0"
 
     if ("ForceStoreSC1" not in state) or (state["ForceStoreSC1"] == "Auto") or \
        (state["ForceStoreSC1"] not in validParameters["ForceStoreSC1"]):
-      state["ForceStoreSC1"] = globalParameters["ArchCaps"][isa]["ForceStoreSC1"]
+      state["ForceStoreSC1"] = caps.Arch[isa]["ForceStoreSC1"]
 
-    if not globalParameters["AsmCaps"][isa]["HasNTModifier"]:
+    if not caps.Asm[isa]["HasNTModifier"]:
       # force to disable nt flag if it is not supported by arch
       for ch in ["A", "B", "C", "D"]:
         if state["NonTemporal%s"%ch] >= 4:
           state["NonTemporal%s"%ch] -= 4
 
-    if state["WavefrontSize"] == 32 and not globalParameters["ArchCaps"][isa]["HasWave32"]:
+    if state["WavefrontSize"] == 32 and not caps.Arch[isa]["HasWave32"]:
       reject(state, "WavefrontSize=32 not supported for ISA {}".format(isa))
 
     if state["WavefrontSize"] == 32 and state["KernelLanguage"] == "Source":
       reject(state, "WavefrontSize=32 not yet supported for source kernels.")
 
     if state["EnableMatrixInstruction"]:
-      if not (globalParameters["AsmCaps"][isa]["HasMFMA"] or globalParameters["AsmCaps"][isa]["HasWMMA"]):
+      if not (caps.Asm[isa]["HasMFMA"] or caps.Asm[isa]["HasWMMA"]):
         reject(state, f"isa {isa} doesn't support matrix instruction")
         return
       if not (state["ProblemType"]["DataType"].isSingle() \
@@ -3112,7 +3120,7 @@ class Solution(collections.abc.Mapping):
               or state["ProblemType"]["DataType"].isInt8()):
         reject(state, "didn't support Matrix Instruction with type %s" % str(state["ProblemType"]["DataType"]))
         return
-      if (not globalParameters["AsmCaps"][isa]["HasMFMA"] and globalParameters["AsmCaps"][isa]["HasWMMA"] and (state["WavefrontSize"] == 64)):
+      if (not caps.Asm[isa]["HasMFMA"] and caps.Asm[isa]["HasWMMA"] and (state["WavefrontSize"] == 64)):
         reject(state, "WMMA only suppport on WGP mode, wave size = 32")
         return
       if not state["MIBlock"] or len(state["MIBlock"]) != 6:
@@ -3124,14 +3132,14 @@ class Solution(collections.abc.Mapping):
       if not state["MIWaveTile"] or len(state["MIWaveTile"]) != 2:
         reject(state, "invalid MIWaveTile")
         return
-      if globalParameters["AsmCaps"][isa]["HasMFMA"]:
+      if caps.Asm[isa]["HasMFMA"]:
         if not state["ProblemType"]["HighPrecisionAccumulate"] \
            and state["ProblemType"]["DataType"].numRegisters() < 1 :
           reject(state, "Matrix instructions for half, bf16, f8, b8 (or i8) types are natively accumulated" + \
            " in fp32 (or i32) precision. Please add the following config:" + \
            "\n - HighPrecisionAccumulate: True")
           return
-      if globalParameters["AsmCaps"][isa]["HasWMMA"]:
+      if caps.Asm[isa]["HasWMMA"]:
         if state["ProblemType"]["DataType"].numRegisters() >=1:
           reject(state, "WMMA only supports half, bf16 and i8 types")
           return
@@ -3431,7 +3439,7 @@ class Solution(collections.abc.Mapping):
       # Vector-width must be at least 2 for Half (since unroll loop uses packed operations?)
       if (not state["EnableMatrixInstruction"]) and state["VectorWidth"] < 2:
         reject(state, "VectorWidth must be >= 2 for half")
-      if globalParameters["ArchCaps"][isa]["HasEccHalf"]:
+      if caps.Arch[isa]["HasEccHalf"]:
         if not state["ProblemType"]["HighPrecisionAccumulate"] and state["AssertFree0ElementMultiple"] % 2 != 0:
           # beta-on-edge has AF0EM requirement except for HPA kernels
           reject(state, "Archs with HasEccHalf require AF0EM%2==0 except for HPA kernels")
@@ -3553,7 +3561,7 @@ class Solution(collections.abc.Mapping):
       if state["GlobalSplitUAtomicAdd"]:
         # use atomic_add for SingleBuffer algorithm
         # limit to f32 + BufferStore + VAW=1 only
-        if not globalParameters["AsmCaps"][isa]["HasAtomicAdd"]:
+        if not caps.Asm[isa]["HasAtomicAdd"]:
           reject(state, "GlobalSplitUAtomicAdd is not supported by this arch")
         if state["GlobalSplitUAlgorithm"] != 'SingleBuffer':
           reject(state, "GlobalSplitUAtomicAdd only compatible with SingleBuffer aloghrithm")
@@ -3612,7 +3620,7 @@ class Solution(collections.abc.Mapping):
         if state["AssertFree0ElementMultiple"] < 2:
           reject(state, "Assembly GSU half requires AF0EM>=2 (for atomics on edge tiles)")
 
-        if state["EnableMatrixInstruction"] and globalParameters["AsmCaps"][isa]['HasWMMA']:
+        if state["EnableMatrixInstruction"] and caps.Asm[isa]['HasWMMA']:
           reject(state, "Half WMMA doesn't support single buffer GSU")
           return
 
@@ -3703,9 +3711,9 @@ class Solution(collections.abc.Mapping):
       totalElementsB = totalElementsCoalescedB * totalElementsPerpB
 
       if state["FractionalLoad"]:
-        if not Solution.setGlobalLoadTileDimFractional(state, "A", depthU, GlobalLoadVectorWidthAorig):
+        if not Solution.setGlobalLoadTileDimFractional(state, "A", depthU, GlobalLoadVectorWidthAorig, caps):
           validDepthU = False
-        if not Solution.setGlobalLoadTileDimFractional(state, "B", depthU, GlobalLoadVectorWidthBorig):
+        if not Solution.setGlobalLoadTileDimFractional(state, "B", depthU, GlobalLoadVectorWidthBorig, caps):
           validDepthU = False
       else:
         GlobalLoadVectorWidthA = GlobalLoadVectorWidthAorig
@@ -3730,7 +3738,7 @@ class Solution(collections.abc.Mapping):
       if validDepthU and state["KernelLanguage"] == "Assembly" \
         and (state["ProblemType"]["DataType"].isHalf() \
               or state["ProblemType"]["DataType"].isBFloat16()):
-        if globalParameters["ArchCaps"][isa]["HasEccHalf"]:
+        if caps.Arch[isa]["HasEccHalf"]:
           if state["GlobalLoadVectorWidthA"] <= 1 or state["GlobalLoadVectorWidthB"] <= 1:
             reject(state, "HalfEcc requires GLVWA > 1")
 
@@ -3981,7 +3989,7 @@ class Solution(collections.abc.Mapping):
 
     # LDS padding
     # Resolve -1 before isDirectToLdsDoable check
-    Solution.ldsPaddingAuto(state, isa)
+    Solution.ldsPaddingAuto(state, isa, caps)
 
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
@@ -4195,23 +4203,23 @@ class Solution(collections.abc.Mapping):
 
     # check if need to use lds init Acc vgprs
     state["LdsInitCVgprs"] = False
-    if globalParameters["ArchCaps"][isa]["HasAccCD"] and \
+    if caps.Arch[isa]["HasAccCD"] and \
          state["EnableMatrixInstruction"] and state["StorePriorityOpt"] and \
          state["ProblemType"]["DataType"].isDouble():
       state["LdsInitCVgprs"] = True
 
     # force MIArchVgpr when using WMMA
-    if state["EnableMatrixInstruction"] and globalParameters["AsmCaps"][isa]["HasWMMA"]:
+    if state["EnableMatrixInstruction"] and caps.Asm[isa]["HasWMMA"]:
       state["MIArchVgpr"] = True
 
     if state["MIArchVgpr"]:
       if not state["EnableMatrixInstruction"]:
         reject(state, "MIArchVgpr only support for MatrixInstruction")
         return
-      if not (globalParameters["AsmCaps"][isa]["HasMFMA_vgpr"] or globalParameters["AsmCaps"][isa]["HasWMMA"]):
+      if not (caps.Asm[isa]["HasMFMA_vgpr"] or caps.Asm[isa]["HasWMMA"]):
         reject(state, "MIArchVgpr is not supported by this arch")
         return
-      if globalParameters["AsmCaps"][isa]["HasMFMA"]:
+      if caps.Asm[isa]["HasMFMA"]:
         if not (state["ProblemType"]["ComputeDataType"].isDouble() or \
                 state["ProblemType"]["ComputeDataType"].isSingle() or \
                 (state["ProblemType"]["ComputeDataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]) or \
@@ -4219,7 +4227,7 @@ class Solution(collections.abc.Mapping):
                 state["ProblemType"]["ComputeDataType"].isComplex()):
           reject(state, "MIArchVgpr now only support fp64, fp64c, fp32, fp32c, fp16, int8 MatrixInstruction.")
           return
-      if state["ProblemType"]["ComputeDataType"].isSingleComplex() and (not globalParameters["AsmCaps"][isa]["v_fma_f32"]):
+      if state["ProblemType"]["ComputeDataType"].isSingleComplex() and (not caps.Asm[isa]["v_fma_f32"]):
         reject(state, "MIArchVgpr + fp32c requires v_fma_f32.")
         return
 
@@ -4694,7 +4702,7 @@ class Solution(collections.abc.Mapping):
 
     # reject check for VgprForLocalReadPacking
     if state["VgprForLocalReadPacking"]:
-      doable, rejectComment = Solution.isVgprForLocalReadPackingDoable(state)
+      doable, rejectComment = Solution.isVgprForLocalReadPackingDoable(state, caps)
       if not doable:
         reject(state, rejectComment)
         return

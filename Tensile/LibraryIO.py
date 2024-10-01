@@ -22,7 +22,7 @@
 #
 ################################################################################
 
-from .Common import printExit, printWarning, versionIsCompatible
+from .Common import Capabilities, printExit, printWarning, versionIsCompatible
 from .SolutionStructs import Solution, ProblemSizes, ProblemType
 from . import __version__
 from . import Common
@@ -169,13 +169,13 @@ class LibraryLogic(NamedTuple):
     library: SolutionLibrary.MasterSolutionLibrary
 
 
-def parseLibraryLogicFile(filename):
-    """Wrapper function to read and parse a library logic file."""
-    data = readYAML(filename)
-    return parseLibraryLogicData(data, filename)
+# def parseLibraryLogicFile(filename):
+#     """Wrapper function to read and parse a library logic file."""
+#     data = readYAML(filename)
+#     return parseLibraryLogicData(data, filename)
 
 
-def parseLibraryLogicData(data, srcFile="?"):
+def parseLibraryLogicData(data, caps: Capabilities, srcFile="?"):
     """Parses the data of a library logic file."""
     if type(data) is list:
         data = parseLibraryLogicList(data, srcFile)
@@ -210,7 +210,7 @@ def parseLibraryLogicData(data, srcFile="?"):
         # force redo the deriving of parameters, make sure old version logic yamls can be validated
         solutionState["AssignedProblemIndependentDerivedParameters"] = False
         solutionState["AssignedDerivedParameters"] = False
-        solutionObject = Solution(solutionState)
+        solutionObject = Solution(solutionState, caps)
 
         if solutionObject["ProblemType"] != problemType:
             printExit("ProblemType in library logic file {} doesn't match solution: {} != {}" \

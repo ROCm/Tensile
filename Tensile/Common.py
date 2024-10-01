@@ -29,7 +29,7 @@ from collections import OrderedDict
 
 from copy import deepcopy
 from .AsmCaps import CACHED_ASM_CAPS
-from typing import Any, NamedTuple, Optional, Tuple, Dict
+from typing import Any, NamedTuple, Optional, Union, Tuple, Dict
 
 import math
 import os.path
@@ -41,8 +41,14 @@ import warnings
 startTime = time.time()
 
 ParallelMap = Parallel.ParallelMap
-
 IsaVersion = Tuple[int, int, int]
+CapabilitiesMap = Dict[str, Any]
+
+class Capabilities(NamedTuple):
+  Asm: Dict[IsaVersion, CapabilitiesMap]
+  Arch: Dict[IsaVersion, CapabilitiesMap]
+  AsmIsCached: bool
+
 
 class CompilerVersion(NamedTuple):
     major: int
@@ -2027,7 +2033,7 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
       return exePath
   return None
 
-def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion) -> Dict[IsaVersion, dict]:
+def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion) -> dict:
   """ Determine assembler capabilities by testing short instructions sequences """
   if globalParameters["AssemblerPath"] is not None:
 
@@ -2154,7 +2160,7 @@ def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion) -> Dict
     printWarning("Assembler not present, asm caps loaded from cache are unverified")
     return CACHED_ASM_CAPS[isaVersion]
 
-def GetArchCaps(isaVersion):
+def GetArchCaps(isaVersion) -> dict:
   rv = {}
   rv["HasEccHalf"]         = (isaVersion==(9,0,6) or isaVersion==(9,0,8) or isaVersion==(9,0,10) or \
                               isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
@@ -2321,7 +2327,7 @@ def which(p):
 
 
 def populateCapabilities(
-    globalParameters: Dict[str, Any], cachedAsmCaps: Dict[IsaVersion, dict]
+    capabilities: Capabilities, cachedAsmCaps: Dict[IsaVersion, dict]
 ):
     """Populates the assembler and archiecture capabilities based on the compiler and ISA.
 
@@ -2345,7 +2351,7 @@ def populateCapabilities(
     supportedISA = globalParameters["SupportedISA"]
     to_remove = []
    
-    emptyCache = not bool(globalParameters["AsmCaps"])
+    emptyCache = not bool(capabilities.Asm)
 
     for v in supportedISA + [(0, 0, 0)]:
         if v[0] == 12 and not (
@@ -2355,10 +2361,10 @@ def populateCapabilities(
             to_remove.append(v)
             continue
 
-        if emptyCache or not globalParameters["CacheAsmCaps"]:
-            globalParameters["AsmCaps"][v] = GetAsmCaps(v, compilerVer)
+        if emptyCache or not capabilities.AsmIsCached:
+            capabilities.Asm[v] = GetAsmCaps(v, compilerVer)
 
-        globalParameters["ArchCaps"][v] = GetArchCaps(v)
+        capabilities.Arch[v] = GetArchCaps(v)
 
     # Efficiently remove unsupported ISA versions after iterating
     for v in to_remove:
@@ -2373,8 +2379,6 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   Each global parameter has a default parameter, and the user
   can override them, overriding happens here
   """
-
-  global globalParameters
 
   # Minimum Required Version
   if "MinimumRequiredVersion" in config:
@@ -2500,15 +2504,17 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   if "IgnoreAsmCapCache" in config:
     globalParameters["IgnoreAsmCapCache"] = config["IgnoreAsmCapCache"]
     
-  globalParameters["CacheAsmCaps"] = True if capabilitiesCache is not None else False
-  globalParameters["AsmCaps"] = capabilitiesCache if globalParameters["CacheAsmCaps"] else {}
-  globalParameters["ArchCaps"] = {}
-  populateCapabilities(globalParameters, CACHED_ASM_CAPS)
+  cacheAsm = True if capabilitiesCache is not None else False
+  asmCaps = capabilitiesCache if "CacheAsmCaps" in globalParameters else {}
+  archCaps = {}
+  capabilities = Capabilities(asmCaps, archCaps, cacheAsm)
+
+  populateCapabilities(capabilities, CACHED_ASM_CAPS)
 
   if globalParameters["PrintLevel"] >= 2:
     printCapTable(globalParameters)
 
-  if globalParameters["AsmCaps"] != CACHED_ASM_CAPS and globalParameters["PrintLevel"] >= 1:
+  if capabilities.Asm != CACHED_ASM_CAPS and globalParameters["PrintLevel"] >= 1:
     import pprint
     printWarning("ASM Caps differ from cache. New caps:")
     print("####################")
@@ -2516,7 +2522,7 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
     pprint.pprint(globalParameters["AsmCaps"])
     print("####################")
 
-  globalParameters["SupportedISA"] = list([i for i in globalParameters["SupportedISA"] if globalParameters["AsmCaps"][i]["SupportedISA"]])
+  globalParameters["SupportedISA"] = list([i for i in globalParameters["SupportedISA"] if capabilities.Asm[i]["SupportedISA"]])
 
   validParameters["ISA"] = [(0,0,0), *globalParameters["SupportedISA"]]
 
@@ -2533,6 +2539,8 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
     if key not in globalParameters:
       printWarning("Global parameter %s = %s unrecognized." % ( key, value ), DeveloperWarning)
     globalParameters[key] = value
+  
+  return capabilities
 
 def setupRestoreClocks():
   import atexit

@@ -31,7 +31,9 @@ if __name__ == "__main__":
     exit(1)
 import gc
 import collections
+from copy import deepcopy
 import functools
+import glob
 import itertools
 import os
 import re
@@ -41,6 +43,7 @@ import subprocess
 import sys
 import time
 import warnings
+import ray
 from io import TextIOWrapper
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List, Optional, Set, Tuple, Union
@@ -54,6 +57,7 @@ from .Common import (
     HR,
     CHeader,
     CMakeHeader,
+    Capabilities,
     assignGlobalParameters,
     ensurePath,
     getArchitectureName,
@@ -881,7 +885,7 @@ def writeAssemblyKernels(
 ##############################################################################
 # Min Naming / Solution and Kernel Writers
 ##############################################################################
-def getKernelWriters(kernels: List[Solution], removeTemporaries):
+def getKernelWriters(kernels: List[Solution], removeTemporaries, assemblerPath, capabilities):
 
     # if any kernels are assembly, append every ISA supported
     kernelSerialNaming = Solution.getSerialNaming(kernels)
@@ -889,7 +893,7 @@ def getKernelWriters(kernels: List[Solution], removeTemporaries):
     kernelMinNaming = Solution.getMinNaming(kernels)
     kernelWriterSource = KernelWriterSource(kernelMinNaming, kernelSerialNaming, removeTemporaries)
     kernelWriterAssembly = KernelWriterAssembly(
-        kernelMinNaming, kernelSerialNaming, removeTemporaries
+        kernelMinNaming, kernelSerialNaming, assemblerPath, capabilities, removeTemporaries
     )
 
     return kernelWriterSource, kernelWriterAssembly, kernelMinNaming
@@ -1076,7 +1080,9 @@ def makeMasterLibrariesWithFallbacks(
 
 
 
-def parseLibraryLogicFiles(logicFiles: List[str]) -> List[LibraryIO.LibraryLogic]:
+def parseLibraryLogicFiles(
+    logicFiles: List[str], caps: Capabilities
+) -> List[LibraryIO.LibraryLogic]:
     """Load and parse logic (yaml) files.
 
     Given a list of paths to yaml files containing library logic, load the files
@@ -1091,7 +1097,8 @@ def parseLibraryLogicFiles(logicFiles: List[str]) -> List[LibraryIO.LibraryLogic
     """
     libraryLogics = []
     for f in logicFiles:
-        logic = LibraryIO.parseLibraryLogicFile(f)
+        yamlDict = LibraryIO.readYAML(f)
+        logic = LibraryIO.parseLibraryLogicData(yamlDict, caps)
         libraryLogics.append(logic)
 
     return libraryLogics
@@ -1214,6 +1221,97 @@ def run(removeTemporaries, outputPath, cxxCompiler, args, logicFiles):
         kernelWriterAssembly,
         removeTemporaries=removeTemporaries,
     )
+################################################################################
+# Tensile Create Library
+################################################################################
+# @ray.remote
+# def run(removeTemporaries, outputPath, cxxCompiler, args, logicFiles):
+
+#     libraryLogics = parseLibraryLogicFiles(logicFiles)
+#     solns = list(generateSolutions(libraryLogics))
+#     kernels = list((s.getKernels() for s in solns))
+#     kernelHelperObjs = generateKernelObjectsFromSolutions(kernels)
+#     kernelWriterSource, kernelWriterAssembly = getKernelWriters(kernels, removeTemporaries)
+
+#     tPrint(1, "Writing kernels...")
+#     writeKernels(
+#         outputPath,
+#         cxxCompiler,
+#         args,
+#         kernels,
+#         kernelHelperObjs,
+#         kernelWriterSource,
+#         kernelWriterAssembly,
+#         removeTemporaries=removeTemporaries,
+#     )
+
+
+@ray.remote
+class GlobalVariableActor:
+    def __init__(self, global_args, removeTemporaries, outputPath, cxxCompiler, capabilities):
+        self._global_args = global_args
+        self._removeTemporaries = removeTemporaries
+        self._outputPath = outputPath
+        self._cxxCompiler = cxxCompiler
+        self._capabilities = capabilities
+
+    def global_args(self):
+        return self._global_args
+
+    def remove_temporaries(self):
+        return self._removeTemporaries
+
+    def output_path(self):
+        return self._outputPath
+
+    def cxx_compiler(self):
+        return self._cxxCompiler
+
+    def capabilities(self):
+        return self._capabilities
+
+
+@ray.remote
+class Actor:
+    def __init__(self, global_var_actor):
+        self._global_var_actor = global_var_actor
+
+    def run(self, logicFiles):
+        # from . import Common
+
+        # Common.globalParameters.clear()
+        # Common.globalParameters.update(newGlobalParameters)
+        # print("GLOBAL PARAMS IN RUN FUNCTION:", globalParameters)
+        # global globalParameters
+
+        args = ray.get(self._global_var_actor.global_args.remote())
+        print("GLOBAL PARAMS IN RUN FUNCTION:", args)
+        assemblerPath = args["AssemblerPath"]
+        outputPath = ray.get(self._global_var_actor.output_path.remote())
+        cxxCompiler = ray.get(self._global_var_actor.cxx_compiler.remote())
+        removeTemporaries = ray.get(self._global_var_actor.remove_temporaries.remote())
+        capabilities = ray.get(self._global_var_actor.capabilities.remote())
+
+        libraryLogics = parseLibraryLogicFiles(logicFiles, capabilities)
+        solns = list(generateSolutions(libraryLogics))
+        kernels = list((s.getKernels() for s in solns))
+        kernelHelperObjs = generateKernelObjectsFromSolutions(kernels)
+        kernelWriterSource, kernelWriterAssembly = getKernelWriters(
+            kernels, removeTemporaries, assemblerPath, capabilities
+        )
+
+        # tPrint(1, "Writing kernels...")
+        writeKernels(
+            outputPath,
+            cxxCompiler,
+            args,
+            kernels,
+            kernelHelperObjs,
+            kernelWriterSource,
+            kernelWriterAssembly,
+            removeTemporaries=removeTemporaries,
+        )
+
 
     # srcKernels = [k for k in kernels if k["KernelLanguage"] != "Assembly"]
     # print([f for f in logicFiles if "hip" in f])
@@ -1266,6 +1364,8 @@ def multifit(weights, num_bins):
 @profile
 def TensileCreateLibrary():
 
+    ray.init()
+
     args = parseArguments()
 
     lazyLoading = args["LazyLibraryLoading"]
@@ -1280,6 +1380,16 @@ def TensileCreateLibrary():
     cpuThreads = args["CpuThreads"]
 
     globalParameters["PrintLevel"] = args["PrintLevel"]
+
+    gp1 = deepcopy(globalParameters)
+
+    capabilities = assignGlobalParameters(args)
+    # inspected
+    import deepdiff
+
+    out = deepdiff.DeepDiff(gp1, globalParameters).pretty()
+    print(out)
+    # exit(1)
 
     ensurePath(outputPath)
     outputPath = os.path.abspath(outputPath)
@@ -1308,7 +1418,13 @@ def TensileCreateLibrary():
     print(len(logicFiles))
     print(len(batchedLogicFiles))
 
-    parallelFunc = functools.partial(run, removeTemporaries, outputPath, cxxCompiler, args)
+    # parallelFunc = functools.partial(run.remote, removeTemporaries, outputPath, cxxCompiler, args)
+    # parallelFunc(logicFiles[0:10])
+
+    def chunks(lst, n):
+        """Yield successive n-sized chunks from lst."""
+        for i in range(0, len(lst), n):
+            yield lst[i : i + n]
 
     for i in range(0, numPasses):
         print("pass ", i)
