@@ -49,6 +49,8 @@ def runCompileCommand(platform, project, jobName, boolean debug=false) {
 
             git clone --depth=1 https://github.com/ROCm/\$repo_name.git ../\$repo_name
 
+            pip3 install -r requirements-dev.txt
+
             #TENSILE_PROFILE=ON Tensile/bin/TensileCreateLibrary \
             #  \$PWD/../\$repo_name/\$logic_path \
             #  _build \
