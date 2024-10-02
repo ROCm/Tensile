@@ -25,11 +25,12 @@
 from . import __version__
 from . import Parallel
 from .Utilities.ConditionalImports import print, TENSILE_TERM_COLORS
+from .Utilities.String import splitDelimitedString
 from collections import OrderedDict
 
 from copy import deepcopy
 from .AsmCaps import CACHED_ASM_CAPS
-from typing import Any, NamedTuple, Optional, Union, Tuple, Dict
+from typing import Any, NamedTuple, Optional, Union, Tuple, Dict, List, Set
 
 import math
 import os.path
@@ -37,6 +38,8 @@ import subprocess
 import sys
 import time
 import warnings
+
+INDEX_CHARS: str =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
 
 startTime = time.time()
 
@@ -49,6 +52,22 @@ class Capabilities(NamedTuple):
   Arch: Dict[IsaVersion, CapabilitiesMap]
   AsmIsCached: bool
 
+class RocmPaths(NamedTuple):
+  Base: str
+  Bin: str
+  Smi: str
+  AgentEnumerator: str
+  Assembler: str
+  CxxCompiler: str
+  CCompiler: str
+  Bundler: str
+  CmakeCxxCompiler: Optional[str]
+  CmakeCCompiler: Optional[str]
+
+class ArchInfo(NamedTuple):
+  Archs: Set[str]
+  CurrentIsa: IsaVersion
+  SupportedIsas: List[IsaVersion]
 
 class CompilerVersion(NamedTuple):
     major: int
@@ -2021,7 +2040,7 @@ def printExit(message):
 ################################################################################
 def isExe( filePath ):
   return os.path.isfile(filePath) and os.access(filePath, os.X_OK)
-def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
+def locateExe( defaultPath: str, exeName: str ): # /opt/rocm/bin, hip-clang
   # look in defaultPath first
   exePath = os.path.join(defaultPath, exeName)
   if isExe(exePath):
@@ -2031,7 +2050,7 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
     exePath = os.path.join(path, exeName)
     if isExe(exePath):
       return exePath
-  return None
+  raise ValueError("Cannot locate executable %s" % exeName)
 
 def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion) -> dict:
   """ Determine assembler capabilities by testing short instructions sequences """
@@ -2237,14 +2256,14 @@ def gfxName(arch):
     name = str(arch[0]) + str(arch[1]) + ('%x' % arch[2])
     return 'gfx' + ''.join(map(str,name))
 
-def detectGlobalCurrentISA():
+def detectGlobalCurrentISA(currentIsa, rocmPaths: RocmPaths, supportedIsas):
   """
   Returns returncode if detection failure
   """
   global globalParameters
 
-  if globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
-    process = subprocess.run([globalParameters["ROCmAgentEnumeratorPath"]], stdout=subprocess.PIPE)
+  if currentIsa == (0,0,0) and rocmPaths.AgentEnumerator:
+    process = subprocess.run([rocmPaths.AgentEnumerator], stdout=subprocess.PIPE)
     if os.name == "nt":
       line = ""
       for line_in in process.stdout.decode().splitlines():
@@ -2253,20 +2272,21 @@ def detectGlobalCurrentISA():
           break # determine if hipinfo will support multiple arch
       arch = gfxArch(line.strip())
       if arch is not None:
-        if arch in globalParameters["SupportedISA"]:
+        if arch in archInfo.SupportedIsas:
           tPrint(1, "# Detected local GPU with ISA: " + gfxName(arch))
-          globalParameters["CurrentISA"] = arch
+          currentIsa = arch
     else:
       for line in process.stdout.decode().split("\n"):
         arch = gfxArch(line.strip())
         if arch is not None:
-          if arch in globalParameters["SupportedISA"]:
-            tPrint(1, "# Detected local GPU with ISA: " + gfxName(arch))
-            globalParameters["CurrentISA"] = arch
-    if (process.returncode):
-      printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
-    return process.returncode
-  return 0
+          if arch in supportedIsas:
+            currentIsa = arch
+            tPrint(1, "# Detected local GPU with ISA: " + str(currentIsa))
+    # if (process.returncode):
+    #   printWarning("%s exited with code %u" % (rocmPaths.AgentEnumerator, process.returncode))
+    # return process.returncode
+  return currentIsa
+  # return 0
 
 def restoreDefaultGlobalParameters():
   """
@@ -2310,24 +2330,27 @@ def printCapTable(parameters):
 
   printTable([headerRow] + asmCapRows + archCapRows)
 
-def which(p):
+def which(p, rocmBinPath: str):
     if supportedCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
         return os.environ['CMAKE_CXX_COMPILER']
     if os.name == "nt":
         exes = [p+x for x in ['.exe', '', '.bat']]  # bat may be front end for file with no extension
     else:
         exes = [p+x for x in ['', '.exe', '.bat']]
-    system_path = os.environ['PATH'].split(os.pathsep)
-    for dirname in system_path+[globalParameters["ROCmBinPath"]]:
+    searchPaths = [rocmBinPath]
+    searchPaths .extend(os.environ['PATH'].split(os.pathsep))
+    searchPaths.append(rocmBinPath)
+    for dirname in searchPaths:
         for exe in exes:
             candidate = os.path.join(os.path.expanduser(dirname), exe)
             if os.path.isfile(candidate):
                 return candidate
-    return None
+    raise ValueError(f"Cannot locate executable {rocmBinPath}/{p}")
+    # return None
 
 
 def populateCapabilities(
-    capabilities: Capabilities, cachedAsmCaps: Dict[IsaVersion, dict]
+    capabilities: Capabilities, archInfo: ArchInfo, cachedAsmCaps: Dict[IsaVersion, dict]
 ):
     """Populates the assembler and archiecture capabilities based on the compiler and ISA.
 
@@ -2348,7 +2371,7 @@ def populateCapabilities(
     compilerVer = CompilerVersion(
         *[int(c) for c in globalParameters["HipClangVersion"].split(".")[:2]]
     )
-    supportedISA = globalParameters["SupportedISA"]
+    supportedISA = archInfo.SupportedIsas
     to_remove = []
    
     emptyCache = not bool(capabilities.Asm)
@@ -2402,79 +2425,89 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   if "KeepBuildTmp" in config:
     globalParameters["KeepBuildTmp"] = config["KeepBuildTmp"] 
 
-  globalParameters["ROCmPath"] = "/opt/rocm"
+  # Path management section
+  rocmPath = "/opt/rocm"
   if "ROCM_PATH" in os.environ:
-    globalParameters["ROCmPath"] = os.environ.get("ROCM_PATH")
+    rocmPath = os.environ["ROCM_PATH"]
   if "TENSILE_ROCM_PATH" in os.environ:
-    globalParameters["ROCmPath"] = os.environ.get("TENSILE_ROCM_PATH")
+    rocmPath = os.environ["TENSILE_ROCM_PATH"]
   if os.name == "nt" and "HIP_DIR" in os.environ:
-    globalParameters["ROCmPath"] = os.environ.get("HIP_DIR") # windows has no ROCM
-  globalParameters["CmakeCxxCompiler"] = None
-  if "CMAKE_CXX_COMPILER" in os.environ:
-    globalParameters["CmakeCxxCompiler"] = os.environ.get("CMAKE_CXX_COMPILER")
-  if "CMAKE_C_COMPILER" in os.environ:
-    globalParameters["CmakeCCompiler"] = os.environ.get("CMAKE_C_COMPILER")
+    rocmPath = os.environ.get("HIP_DIR") # windows has no ROCM
 
-  globalParameters["ROCmBinPath"] = os.path.join(globalParameters["ROCmPath"], "bin")
+  rocmBinPath = os.path.join(rocmPath, "bin")
 
-  # ROCm Agent Enumerator Path
-  if os.name == "nt":
-    globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "hipinfo.exe")
-  else:
-    globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm_agent_enumerator")
+  rocmSmiPath = locateExe(rocmBinPath, "rocm-smi")
 
-  if "CxxCompiler" in config:
-    globalParameters["CxxCompiler"] = config["CxxCompiler"]
-    # Pair the CCompiler with CxxCompiler
-    if globalParameters["CxxCompiler"] == "hipcc":
-       globalParameters["CCompiler"] = "hipcc"
-    else:
-        if supportedCompiler(globalParameters["CxxCompiler"]):
-          globalParameters["CCompiler"] = "clang" if os.name == "nt" else "amdclang"
-        else: # unkown c++ compiler so set c compile rto be the same
-          globalParameters["CCompiler"] = globalParameters["CxxCompiler"]
-
-  if "CCompiler" in config:
-    globalParameters["CCompiler"] = config["CCompiler"]    
-
-  if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
-    globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
-  elif globalParameters["AssemblerPath"] is None and supportedCompiler(globalParameters["CxxCompiler"]):
-    if os.name == "nt":
-      globalParameters["AssemblerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang++.exe")
-    else:
-      bin_path = "llvm/bin" if globalParameters["CxxCompiler"] == "hipcc" else "bin"
-      compiler = "clang++" if globalParameters["CxxCompiler"] == "hipcc" else "amdclang++"
-      globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], bin_path), compiler)
-
-  globalParameters["ROCmSMIPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm-smi")
-
-  globalParameters["ExtractKernelPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "hip/bin"), "extractkernel")
-
-  if "TENSILE_ROCM_OFFLOAD_BUNDLER_PATH" in os.environ:
-    globalParameters["ClangOffloadBundlerPath"] = os.environ.get("TENSILE_ROCM_OFFLOAD_BUNDLER_PATH")
-  else:
-    if os.name == "nt":
-      globalParameters["ClangOffloadBundlerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang-offload-bundler.exe")
-    else:
-      globalParameters["ClangOffloadBundlerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang-offload-bundler")
-
+  rocmAgentEnumeratorPath = locateExe(rocmBinPath, "rocm_agent_enumerator" if os.name != "nt" else "hipinfo.exe")
   if "ROCmAgentEnumeratorPath" in config:
-    globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
+    rocmAgentEnumeratorPath = config["ROCmAgentEnumeratorPath"]
+
+  cmakeCxxCompiler = os.environ.get("CMAKE_CXX_COMPILER")
+  cmakeCCompiler = os.environ.get("CMAKE_C_COMPILER")
+
+  cxxCompiler = config.get("CxxCompiler")
+  if not (compilerIsSupported := supportedCompiler(cxxCompiler)):
+    printWarning(f"Using an unsupported compiler: {cxxCompiler}")
+
+  cCompiler = config.get("CCompiler")
+  if cCompiler is None:
+    if cxxCompiler == "hipcc":
+      cCompiler = "hipcc"
+    elif compilerIsSupported:
+      cCompiler = "clang" if os.name == "nt" else "amdclang"
+    else:
+      cCompiler = cxxCompiler
+
+  assemblerPath = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
+  if assemblerPath is None and compilerIsSupported:
+    if os.name == "nt":
+      assemblerPath = locateExe(globalParameters["ROCmBinPath"], "clang++.exe")
+    else:
+      assemblerPath = locateExe(rocmBinPath, "clang++" if cxxCompiler == "hipcc" else "amdclang++")
+
+  clangOffloadBundler = os.environ.get("TENSILE_ROCM_OFFLOAD_BUNDLER_PATH")
+  if clangOffloadBundler is None:
+    if os.name == "nt":
+      clangOffloadBundler = locateExe(rocmBinPath, "clang-offload-bundler.exe")
+    else:
+      clangOffloadBundler = locateExe(os.path.join(rocmPath, "llvm", "bin"), "clang-offload-bundler")
+
+  rocmPaths = RocmPaths(
+    rocmPath, 
+    rocmBinPath, 
+    rocmSmiPath, 
+    rocmAgentEnumeratorPath, 
+    assemblerPath, 
+    cxxCompiler, 
+    cCompiler, 
+    clangOffloadBundler, 
+    cmakeCxxCompiler, 
+    cmakeCCompiler
+  ) 
 
   # read current gfx version
-  returncode = detectGlobalCurrentISA()
-  if globalParameters["CurrentISA"] == (0,0,0):
-    printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
-  if returncode:
-    if os.name == "nt":
-      globalParameters["CurrentISA"] = (9,0,6)
-      printWarning("Failed to detect ISA so forcing (gfx906) on windows")
+  supportedIsas = globalParameters["SupportedISA"]
+
+  currentIsa = (0,0,0)
+  currentIsa = detectGlobalCurrentISA(currentIsa, rocmPaths, supportedIsas)
+  if currentIsa == (0,0,0):
+    printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % supportedIsas)
+  # if returncode:
+  #   if os.name == "nt":
+  #     currentIsa = (9,0,6)
+  #     printWarning("Failed to detect ISA so forcing (gfx906) on windows")
   isasWithDisabledHWMonitor = ((9,4,1), (9,4,2), (11,0,0), (11,0,1), (11,0,2), (12,0,0), (12,0,1))
-  if globalParameters["CurrentISA"] in isasWithDisabledHWMonitor:
+  if currentIsa in isasWithDisabledHWMonitor:
     isaString = ', '.join(map(gfxName, isasWithDisabledHWMonitor))
     printWarning(f"HardwareMonitor currently disabled for {isaString}")
     globalParameters["HardwareMonitor"] = False
+
+  separatedArchs = splitDelimitedString(config["Architecture"], {";", "_"})
+  for a in separatedArchs:
+    if gfxArch(a) not in supportedIsas:
+      printWarning("Architecture %s is not supported by ROCm %s" % (a, globalParameters['HipClangVersion']))
+
+  archInfo = ArchInfo(separatedArchs, currentIsa, supportedIsas)
 
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
@@ -2501,6 +2534,7 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   except (subprocess.CalledProcessError, OSError) as e:
       printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))
 
+  # Assembler/architecture capability detection
   if "IgnoreAsmCapCache" in config:
     globalParameters["IgnoreAsmCapCache"] = config["IgnoreAsmCapCache"]
     
@@ -2509,7 +2543,7 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   archCaps = {}
   capabilities = Capabilities(asmCaps, archCaps, cacheAsm)
 
-  populateCapabilities(capabilities, CACHED_ASM_CAPS)
+  populateCapabilities(capabilities, archInfo, CACHED_ASM_CAPS)
 
   if globalParameters["PrintLevel"] >= 2:
     printCapTable(globalParameters)
@@ -2522,9 +2556,9 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
     pprint.pprint(globalParameters["AsmCaps"])
     print("####################")
 
-  globalParameters["SupportedISA"] = list([i for i in globalParameters["SupportedISA"] if capabilities.Asm[i]["SupportedISA"]])
+  supportedIsas = list([i for i in supportedIsas if capabilities.Asm[i]["SupportedISA"]])
 
-  validParameters["ISA"] = [(0,0,0), *globalParameters["SupportedISA"]]
+  validParameters["ISA"] = [(0,0,0), *supportedIsas]
 
   if "MergeFiles" in config and "NumMergedFiles" in config:
     if not config["MergeFiles"] and config["NumMergedFiles"] > 1:
@@ -2540,7 +2574,20 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
       printWarning("Global parameter %s = %s unrecognized." % ( key, value ), DeveloperWarning)
     globalParameters[key] = value
   
-  return capabilities
+  # del globalParameters["ROCmPath"]
+  # del globalParameters["ROCmBinPath"]
+  del globalParameters["ROCmAgentEnumeratorPath"]
+  del globalParameters["CxxCompiler"]
+  del globalParameters["CCompiler"]
+  del globalParameters["CmakeCxxCompiler"]
+  # del globalParameters["CmakeCCompiler"]
+  del globalParameters["AssemblerPath"]
+  del globalParameters["SupportedISA"]
+  del globalParameters["CurrentISA"]
+  del globalParameters["IndexChars"]
+  # del globalParameters["ClangOffloadBundlerPath"]
+
+  return archInfo, capabilities, rocmPaths
 
 def setupRestoreClocks():
   import atexit

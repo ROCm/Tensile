@@ -46,12 +46,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   # Init
   ##############################################################################
-  def __init__( self, kernelMinNaming, kernelSerialNaming, capabilities, removeTemporaries=True ):
+  def __init__( self, kernelMinNaming, kernelSerialNaming, capabilities, archInfo, removeTemporaries=True ):
     self.kernelMinNaming = kernelMinNaming
     self.kernelSerialNaming = kernelSerialNaming
     self.overflowedResources = 0
     self.removeTemporaries = removeTemporaries
     self.caps = capabilities
+    self.version = archInfo.CurrentIsa
 
   @property
   def asmCaps(self):
@@ -213,8 +214,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   def makeSchedule(self, kernel, tensorParametersA, tensorParametersB, localWriteEndIter, uDu=0, skipGlobalReadInc=False, firstIter=False, lastLoop=False, lastLc=False):
 
-    currentIsa = globalParameters["CurrentISA"]
-    maxVmcnt = globalParameters["AsmCaps"][currentIsa]["MaxVmcnt"]
+    maxVmcnt = self.asmCaps["MaxVmcnt"]
 
     self.unrollLoopHeaderCode = Code.Module()
     # schedule of work for each local_read iteration:
@@ -3861,9 +3861,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.language = globalParameters["RuntimeLanguage"]
     else:
       self.language = "ASM"
-    self.indexChars = []
-    for i in range(0, len(globalParameters["IndexChars"])):
-      self.indexChars.append(globalParameters["IndexChars"][i])
+    self.indexChars = list(Common.INDEX_CHARS)
     self.indexChars[kernel["ProblemType"]["Index0"]] \
         = "0" + self.indexChars[kernel["ProblemType"]["Index0"]]
     self.indexChars[kernel["ProblemType"]["Index1"]] \
@@ -5386,10 +5384,10 @@ for codeObjectFileName in codeObjectFileNames:
         # ISA version, such as 803
         self.kernel = kernel
         self.language = "ASM"
-        self.version = globalParameters["CurrentISA"]
+        # self.version = globalParameters["CurrentISA"]
         if "ISA" in kernel:
           self.version = tuple(kernel["ISA"])
-        if not globalParameters["AsmCaps"][self.version]["SupportedISA"]:
+        if not self.asmCaps["SupportedISA"]:
           defaultIsa = (9,0,0)
           print("warning: ISA:", self.version, " is not supported; overriding with ", defaultIsa)
           self.version = defaultIsa

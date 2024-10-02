@@ -25,7 +25,7 @@
 from . import Code
 from .DataType import DataType
 from .SolutionStructs import isPackedIndex
-from .Common import globalParameters, printExit, roundUp
+from .Common import globalParameters, printExit, roundUp, INDEX_CHARS
 from .KernelWriter import KernelWriter
 
 ################################################################################
@@ -36,9 +36,9 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Make OpenCL Kernel String
   ##############################################################################
-  def __init__( self, kernelMinNaming, kernelSerialNaming, removeTemporaries=True ):
+  def __init__( self, kernelMinNaming, kernelSerialNaming, capabilities, archInfo, removeTemporaries=True ):
     super(KernelWriterSource, self).__init__( \
-        kernelMinNaming, kernelSerialNaming, removeTemporaries)
+        kernelMinNaming, kernelSerialNaming, capabilities, archInfo, removeTemporaries)
     self.language = globalParameters["RuntimeLanguage"]
 
     self.endLine = "\n"
@@ -724,8 +724,8 @@ class KernelWriterSource(KernelWriter):
 
     # determine chars for fast access
     self.indexChars = []
-    for i in range(0, len(globalParameters["IndexChars"])):
-      self.indexChars.append(globalParameters["IndexChars"][i])
+    for i in range(0, len(INDEX_CHARS)):
+      self.indexChars.append(INDEX_CHARS[i])
     self.indexChars[kernel["ProblemType"]["Index0"]] \
         = "0" + self.indexChars[kernel["ProblemType"]["Index0"]]
     self.indexChars[kernel["ProblemType"]["Index1"]] \
@@ -818,7 +818,7 @@ class KernelWriterSource(KernelWriter):
       for tc in ('A','B'):
         for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
           (freeDim, sumDim) = zp[:2]
-          freeDimChar = globalParameters["IndexChars"][freeDim]
+          freeDimChar = INDEX_CHARS[freeDim]
           sumChar = self.indexChars[sumDim]
           if sumDim == idx:
             s += ",%s  int padStart%s%s%s" % (self.endLine, tc, freeDimChar, sumChar)
@@ -987,7 +987,7 @@ class KernelWriterSource(KernelWriter):
       for tc in ('A', 'B'):
         for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
           (freeDim, sumDim, padStart, padEnd) = zp
-          freeDimChar = globalParameters["IndexChars"][freeDim]
+          freeDimChar = INDEX_CHARS[freeDim]
           sumChar = self.indexChars[sumDim]
           kStr += self.endLine
           kStr += "  unsigned int padStart%s%s%s = %u;" % (tc, freeDimChar, sumChar, padStart) + self.endLine
@@ -995,7 +995,7 @@ class KernelWriterSource(KernelWriter):
 
     self.magicSumChars = []
     if kernel["PackSummationDims"]:
-      self.magicSumChars += [globalParameters["IndexChars"][c] for \
+      self.magicSumChars += [INDEX_CHARS[c] for \
           c in kernel["ProblemType"]["IndicesSummation"][1:]]
 
     self.magicNonSumChars = kernel["PackedC0IdxChars"][:-1] + kernel["PackedC1IdxChars"][:-1]
@@ -1297,7 +1297,7 @@ class KernelWriterSource(KernelWriter):
             else:
               # if another free dim or a packed batch dim
               if kernel["MagicDivAlg"]:
-                c = globalParameters["IndexChars"][lastIdx]
+                c = INDEX_CHARS[lastIdx]
                 if kernel["MagicDivAlg"]==1:
                   kStr += "  unsigned int %s = MAGIC_DIV1(%s, magicNumberSize%s, magicShiftSize%s);%s" \
                           % (gro, lastGro, c, c, self.endLine)
@@ -1452,7 +1452,7 @@ class KernelWriterSource(KernelWriter):
               # subtract pad - this both helps efficiently detect OOB on the summation start and also
               # corrects the valid offsets for the start pad.
               (freeDim,sumDim) = zp[:2]
-              freeDimChar = globalParameters["IndexChars"][freeDim]
+              freeDimChar = INDEX_CHARS[freeDim]
               freeDimChar2 = self.indexChars[freeDim]
               sumChar = self.indexChars[sumDim]
               kStr += self.indent + gro + " -= padStart%s%s%s;"%(tc,freeDimChar, sumChar) + self.endLine
@@ -1967,7 +1967,7 @@ class KernelWriterSource(KernelWriter):
       for (zp,tc) in ((zpA,'A'), (zpB,'B')):
         if zp:
           (freeDim,sumDim) = zp[:2]
-          freeDimChar = globalParameters["IndexChars"][freeDim]
+          freeDimChar = INDEX_CHARS[freeDim]
           freeDimChar2 = self.indexChars[freeDim]
           sumChar = self.indexChars[sumDim]
           kStr += "%sunsigned int elementEdge%s%s = stride%s%s * size%s + stride%s%s*(size%s - 1) - padStart%s%s%s - padEnd%s%s%s;" \
@@ -2358,7 +2358,7 @@ class KernelWriterSource(KernelWriter):
                 kStr += " || "
               guarded = 1
               (freeDim, sumDim) = zp[:2]
-              freeDimChar = globalParameters["IndexChars"][freeDim]
+              freeDimChar = INDEX_CHARS[freeDim]
               sumChar = self.indexChars[sumDim]
               assert self.unrollIncIsDepthU
               if kernel["PackSummationDims"]:
@@ -2755,7 +2755,7 @@ class KernelWriterSource(KernelWriter):
         # then div to remove the extracted bits for next iteration
         #kStr += "printf(\"pre: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalC1J:%%u\\n\", serial, wg0I, wg1J, globalC0I, globalC1J);%s" % (self.endLine)
         if kernel["MagicDivAlg"]:
-          c = globalParameters["IndexChars"][lastIndex]
+          c = INDEX_CHARS[lastIndex]
           if kernel["MagicDivAlg"]==1:
             kStr += "MAGIC_DIV1(globalC%s, magicNumberSize%s, magicShiftSize%s);%s" \
                     % (self.indexChars[lastIndex], c, c, self.endLine)

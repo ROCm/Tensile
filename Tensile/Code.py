@@ -302,8 +302,6 @@ class WaitCnt (Module):
     main_args = []
     wait_store = False
     if self.lgkmcnt != -1:
-      currentIsa    = globalParameters["CurrentISA"]
-      assert currentIsa == self.version, f"ISAs don't match {currentIsa} != {self.version}"
       maxLgkmcnt    = self.caps.Asm[self.version]["MaxLgkmcnt"]
       seperateVscnt = self.caps.Arch[self.version]["SeparateVscnt"]
       wait_store    = True

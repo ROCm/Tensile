@@ -23,7 +23,7 @@
 ################################################################################
 
 from . import Code
-from .Common import Capabilities, gfxName, globalParameters, getCOVFromParam, tPrint, printExit, printWarning, roundUp
+from .Common import Capabilities, ArchInfo, gfxName, globalParameters, getCOVFromParam, tPrint, printExit, printWarning, roundUp, INDEX_CHARS
 from .Component import Component
 from .KernelWriter import KernelWriter
 from .SolutionStructs import isPackedIndex
@@ -72,9 +72,9 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Init
   ##############################################################################
-  def __init__(self, kernelMinNaming, kernelSerialNaming, assemblerPath: str, caps: Capabilities ,removeTemporaries=True):
+  def __init__(self, kernelMinNaming, kernelSerialNaming, assemblerPath: str, caps: Capabilities, archInfo: ArchInfo, removeTemporaries=True):
     super(KernelWriterAssembly, self).__init__( \
-        kernelMinNaming, kernelSerialNaming, caps, removeTemporaries)
+        kernelMinNaming, kernelSerialNaming, caps, archInfo, removeTemporaries)
 
     self.assembler = assemblerPath
 
@@ -354,12 +354,12 @@ class KernelWriterAssembly(KernelWriter):
     See above definitions for how these are mapped to Free or Sum sizes
     based on the problem definition.
     """
-    idxChar= globalParameters["IndexChars"][idx]
+    idxChar= INDEX_CHARS[idx]
     return sgpr("Size%s"%idxChar)
 
   def loopChar(self, kernel, loopIdx):
     loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]
-    return globalParameters["IndexChars"][loopDim]
+    return INDEX_CHARS[loopDim]
 
   def loopSizeRef(self, kernel, loopIdx):
     loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]
@@ -614,7 +614,7 @@ class KernelWriterAssembly(KernelWriter):
     for tc in ('A', 'B'):
       for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
         (freeDim, sumDim, padStart, padEnd) = zp
-        sumDimChar  = globalParameters["IndexChars"][sumDim]
+        sumDimChar  = INDEX_CHARS[sumDim]
         # These will eventually be read as kernel args:
         self.defineSgpr("ElementEdge%s%s"%(tc, sumDimChar),1)
         if kernel["PackSummationDims"]:
@@ -843,7 +843,8 @@ class KernelWriterAssembly(KernelWriter):
     self.combineLocalAddresses = 0
 
     # ISA version, such as 803
-    self.version = globalParameters["CurrentISA"]
+    assert self.version is not None, "Self.version is None!"
+    # self.version = globalParameters["CurrentISA"]
     if "ISA" in kernel:
       self.version = tuple(kernel["ISA"])
     if not self.asmCaps["SupportedISA"]:
@@ -1637,8 +1638,8 @@ class KernelWriterAssembly(KernelWriter):
             for sPara in range(0, int(tP["nrcv"]/tP["nrcvpi"])):
               for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
                 (freeDim, sumDim) = zp[:2]
-                freeDimChar = globalParameters["IndexChars"][freeDim]
-                sumDimChar  = globalParameters["IndexChars"][sumDim]
+                freeDimChar = INDEX_CHARS[freeDim]
+                sumDimChar  = INDEX_CHARS[sumDim]
                 zpName = "GlobalReadOffset%s_ZP%s%s_%d_%d_%d_%d" % \
                           (tc, freeDimChar, sumDimChar, para, sPara, perp, sPerp)
 
@@ -1829,7 +1830,7 @@ class KernelWriterAssembly(KernelWriter):
 
     self.sumMagicParms = []
     if kernel["PackSummationDims"]:
-      self.magicSumChars = [globalParameters["IndexChars"][c] for c in kernel["ProblemType"]["IndicesSummation"][1:]]
+      self.magicSumChars = [INDEX_CHARS[c] for c in kernel["ProblemType"]["IndicesSummation"][1:]]
 
       self.sumMagicParms=["%s"%idxChar for idxChar in self.magicSumChars]
       if kernel["PackSummationDims"] and kernel["GlobalSplitU"] > 1 and self.sumMagicParms:
@@ -1923,7 +1924,7 @@ class KernelWriterAssembly(KernelWriter):
 
     self.sumMagicParms = []
     if kernel["PackSummationDims"]:
-      self.magicSumChars = [globalParameters["IndexChars"][c] for c in kernel["ProblemType"]["IndicesSummation"][1:]]
+      self.magicSumChars = [INDEX_CHARS[c] for c in kernel["ProblemType"]["IndicesSummation"][1:]]
       self.sumMagicParms=["%s"%idxChar for idxChar in self.magicSumChars]
       if kernel["PackSummationDims"] and kernel["GlobalSplitU"] > 1 and self.sumMagicParms:
           self.sumMagicParms.append("%s_GsuRemainder"%self.unrollChar)
@@ -1944,8 +1945,8 @@ class KernelWriterAssembly(KernelWriter):
         for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
           (freeDim, sumDim, padStart, padEnd) = zp
           if sumDim == idx:
-            freeDimChar = globalParameters["IndexChars"][freeDim]
-            sumDimChar  = globalParameters["IndexChars"][sumDim]
+            freeDimChar = INDEX_CHARS[freeDim]
+            sumDimChar  = INDEX_CHARS[sumDim]
             # These will eventually be read as kernel args:
             self.defineSgpr("PadStart%s%s%s"%(tc, freeDimChar, sumDimChar),1, kernarg=True)
             self.defineSgpr("PadEnd%s%s%s"%(tc, freeDimChar, sumDimChar),1, kernarg=True)
@@ -2789,7 +2790,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment1("Size Assignments")
     problemType = kernel["ProblemType"]
     for idx in range(max(problemType["IndexAssignmentsA"] + problemType["IndexAssignmentsB"])+1):
-      idxChar= globalParameters["IndexChars"][idx]
+      idxChar= INDEX_CHARS[idx]
       if idx in problemType["IndicesFree"] or idx in problemType["IndicesBatch"]:
         idxType="Free"
       elif idx in problemType["IndicesSummation"]:
@@ -2945,14 +2946,14 @@ class KernelWriterAssembly(KernelWriter):
           needAdd = 1
         kStr += inst("_v_sub_u32", \
                 dest,
-                sgpr("Size%s"%globalParameters["IndexChars"][indices[i]]), \
+                sgpr("Size%s"%INDEX_CHARS[indices[i]]), \
                 "1", \
-                "mirror %s%s 1"%(tc, globalParameters["IndexChars"][indices[i]]))
+                "mirror %s%s 1"%(tc, INDEX_CHARS[indices[i]]))
         kStr += inst("v_mul_lo_u32", \
                 dest,
                 dest, \
                 self.strideRef(tc, indices[i]), \
-                "mirror %s%s 2"%(tc, globalParameters["IndexChars"][indices[i]]))
+                "mirror %s%s 2"%(tc, INDEX_CHARS[indices[i]]))
 
         if needAdd:
           writeDirectToAddr = 0 # safety net, once we write address can't directly overwrite it later
@@ -3017,14 +3018,14 @@ class KernelWriterAssembly(KernelWriter):
             if isMirrorIdx:
               kStr += inst("_v_sub_i32", \
                 "v[\\vgprTmp+0]",
-                sgpr("Size%s"%globalParameters["IndexChars"][idx]), \
+                sgpr("Size%s"%INDEX_CHARS[idx]), \
                 offset, \
-                "mirror %s%s 1"%(tc, globalParameters["IndexChars"][indices[i]]))
+                "mirror %s%s 1"%(tc, INDEX_CHARS[indices[i]]))
               kStr += inst("_v_sub_i32", \
                 "v[\\vgprTmp+0]",
                 "v[\\vgprTmp+0]", \
                 "1", \
-                "mirror %s%s 2"%(tc, globalParameters["IndexChars"][indices[i]]))
+                "mirror %s%s 2"%(tc, INDEX_CHARS[indices[i]]))
               offset = "v[\\vgprTmp+0]"
 
             # offset * stride
@@ -3585,8 +3586,8 @@ class KernelWriterAssembly(KernelWriter):
     for tc in ('A', 'B'):
       for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
         (freeDim, sumDim) = zp[:2]
-        freeDimChar = globalParameters["IndexChars"][freeDim]
-        sumDimChar  = globalParameters["IndexChars"][sumDim]
+        freeDimChar = INDEX_CHARS[freeDim]
+        sumDimChar  = INDEX_CHARS[sumDim]
         kStr += inst("s_lshl_b32", \
                      sgpr("PadStart%s%s%s"%(tc, freeDimChar, sumDimChar)), \
                      sgpr("PadStart%s%s%s"%(tc, freeDimChar, sumDimChar)), \
@@ -3731,7 +3732,7 @@ class KernelWriterAssembly(KernelWriter):
     #assert(kernel["LdcEqualsLdd"])
     kStr += inst("v_mov_b32", vgpr(tmpV0), vgpr(packedCoordVgpr),  "copy coord1 then unpack")
     for i,idx in enumerate(packedC1[:-1]):
-      idxChar= globalParameters["IndexChars"][idx]
+      idxChar= INDEX_CHARS[idx]
       kStr += self.comment1("extract %s"%self.sizeRef(idx))
       kStr += "V_MAGIC_DIV %s, %s, %s, %s, %s\n" % \
                (tmpV1, vgpr(tmpV0), sgpr("MagicNumberSize%s"%idxChar), \
@@ -4595,16 +4596,16 @@ class KernelWriterAssembly(KernelWriter):
             kStr += "\n"
             for p in range(0, numExtraPackedOffsetsPerTile):
               groIdx  = tP["PackedIndices"][p+1]
-              groChar = globalParameters["IndexChars"][tP["PackedIndices"][p+1]]
+              groChar = INDEX_CHARS[tP["PackedIndices"][p+1]]
               groVgpr = vgpr(tP["vgprPackedOffsets"] + l*numExtraPackedOffsetsPerTile + p)
-              pChar = globalParameters["IndexChars"][tP["PackedIndices"][p]]
+              pChar = INDEX_CHARS[tP["PackedIndices"][p]]
               kStr += "V_MAGIC_DIV %s, %s, %s, %s, %s\n" \
                   % (tmpV, lastGroVgpr, sgpr("MagicNumberSize%s"%pChar), \
                   sgpr("MagicShiftSize%s"%pChar), sgpr("MagicAbitSize%s"%pChar) if kernel["MagicDivAlg"]==2 else "0")
               kStr += inst("v_mov_b32", groVgpr, vgpr(tmpV), "extract gro%s%s_%u (%s)"%(tc,groChar,l,groVgpr))
               kStr += inst("v_mul_lo_u32", vgpr(tmpV), groVgpr, sgpr("SizesFree+%u"%lastGroIdx), "remainder part 1")
               kStr += inst("_v_sub_u32", lastGroVgpr, lastGroVgpr, vgpr(tmpV), \
-                  "remove extracted bits from gro%s%s_%u (%s)"%(tc, globalParameters["IndexChars"][lastGroIdx], l, lastGroVgpr))
+                  "remove extracted bits from gro%s%s_%u (%s)"%(tc, INDEX_CHARS[lastGroIdx], l, lastGroVgpr))
               lastGroVgpr = groVgpr
               lastGroIdx = groIdx
           self.vgprPool.checkIn(tmpV)
@@ -4937,8 +4938,8 @@ class KernelWriterAssembly(KernelWriter):
         zpr.state = ZeroPadReg.State.CalculatedAddr
         kStr += self.comment1(zpr.regName)
         (freeDim,sumDim) = zpr.zp[:2]
-        freeDimChar = globalParameters["IndexChars"][freeDim]
-        sumDimChar  = globalParameters["IndexChars"][sumDim]
+        freeDimChar = INDEX_CHARS[freeDim]
+        sumDimChar  = INDEX_CHARS[sumDim]
         assert(iaToGpr[freeDim] != None)
         kStr += inst("v_mul_lo_u32", \
                   vgpr(zpr.regName), \
@@ -5156,8 +5157,8 @@ class KernelWriterAssembly(KernelWriter):
     # this causes small offsets (<pad) to result in large negative offsets and thus report as OOB
     for i,zp in enumerate(kernel["ProblemType"]["ZeroPad%s"%tc]):
       (freeDim,sumDim) = zp[:2]
-      freeDimChar = globalParameters["IndexChars"][freeDim]
-      sumDimChar  = globalParameters["IndexChars"][sumDim]
+      freeDimChar = INDEX_CHARS[freeDim]
+      sumDimChar  = INDEX_CHARS[sumDim]
       # override the const pre-pad with an SGPR based on the leading/trailing items:
       prePad = sgpr(prePadSgpr)
       if i==0:
@@ -6626,8 +6627,8 @@ class KernelWriterAssembly(KernelWriter):
       if zpA:
         tc = 'A'
         (freeDim,sumDim) = zpA[:2]
-        freeDimChar = globalParameters["IndexChars"][freeDim]
-        sumDimChar  = globalParameters["IndexChars"][sumDim]
+        freeDimChar = INDEX_CHARS[freeDim]
+        sumDimChar  = INDEX_CHARS[sumDim]
         elementEdge = "ElementEdge%s%s" % (tc,sumDimChar)
         tmpSgpr = self.getTmpSgpr(1).idx()
         kStr += "\n"
@@ -11730,7 +11731,7 @@ class KernelWriterAssembly(KernelWriter):
         #   - tmp+0 may be the incoming packed coordinate 0, used on replay too
         #   - tmp+1 is DIV output
         #   - tmp+2 is scratch
-        idxChar= globalParameters["IndexChars"][idx]
+        idxChar= INDEX_CHARS[idx]
         kStr += kw.comment1("extract %s"%kw.sizeRef(idx))
         assert(tmpVgpr+1 != packedBits) # bad since we still need packedBits below for remainder (can't overwrite here)
         kStr += "V_MAGIC_DIV %s, %s, %s, %s, %s\n" % \

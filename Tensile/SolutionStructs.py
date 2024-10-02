@@ -29,7 +29,7 @@ from .Common import IsaVersion, assignParameterRequired, assignParameterWithDefa
                     validActivationFormats, validConvolutionConfig, \
                     validMFMA, validWMMA, validParameters, validWeightFormats, \
                     validGEMMTypes, HPATypes, parameterNameAbbreviations, \
-                    Capabilities
+                    Capabilities, INDEX_CHARS
 from .DataType import DataType
 from .Utils import roundUpToNearestMultiple
 
@@ -1115,7 +1115,7 @@ class ProblemType(Mapping):
 
   ########################################
   def __str__(self):
-    indexChars = globalParameters["IndexChars"]
+    indexChars = INDEX_CHARS
     # C dimensions
     name = "C"
     for i in range(0, self["NumIndicesC"]):
@@ -3255,7 +3255,7 @@ class Solution(collections.abc.Mapping):
     # grid size [0,1]
     state["PackedC0IdxChars"] = []
     state["PackedC0IndicesX"] = []
-    indexChars = globalParameters["IndexChars"]
+    indexChars = INDEX_CHARS
     # Pack all the dimensions (batch and free) of A into grid[0]
 
     if problemType["Index0"] in problemType["IndexAssignmentsA"]:

@@ -96,7 +96,7 @@ class SignatureDefault(Signature):
         tWord = ".amdhsa_user_sgpr_kernarg_segment_ptr"
         kStr += "  %s 1%s" % (tWord, writer.endLine)
 
-        supportsPreload = globalParameters["AsmCaps"][writer.version]["KernargPreloading"]
+        supportsPreload = writer.asmCaps["KernargPreloading"]
 
         numPreloaded = 0
         numUserSgprs = 2

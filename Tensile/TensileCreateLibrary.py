@@ -30,6 +30,8 @@ if __name__ == "__main__":
     )
     exit(1)
 import gc
+
+import chunk
 import collections
 from copy import deepcopy
 import functools
@@ -55,9 +57,12 @@ from joblib import Parallel
 from . import Common, LibraryIO, Utils
 from .Common import (
     HR,
+    ArchInfo,
     CHeader,
     CMakeHeader,
     Capabilities,
+    IsaVersion,
+    RocmPaths,
     assignGlobalParameters,
     ensurePath,
     getArchitectureName,
@@ -77,7 +82,6 @@ from .SolutionStructs import Solution
 from .TensileCreateLib.KernelFileContext import KernelFileContextManager
 from .TensileCreateLib.ParseArguments import parseArguments
 from .Utilities.Profile import profile
-from .Utilities.String import splitDelimitedString
 from .Utilities.toFile import toFile
 
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
@@ -196,23 +200,23 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath, remove
     return coFiles
 
 
-def splitArchs():
+def splitArchs(caps: Capabilities, archInfo: ArchInfo):
     # Helper for architecture
     def isSupported(arch):
-        return (
-            globalParameters["AsmCaps"][arch]["SupportedISA"]
-            and globalParameters["AsmCaps"][arch]["SupportedSource"]
-        )
+        return caps.Asm[arch]["SupportedISA"] and caps.Asm[arch]["SupportedSource"]
 
-    if ";" in globalParameters["Architecture"]:
-        wantedArchs = globalParameters["Architecture"].split(";")
-    else:
-        wantedArchs = globalParameters["Architecture"].split("_")
+    # if ";" in ArchInfo.:
+    #     wantedArchs = inputArchs.split(";")
+    # else:
+    #     wantedArchs = inputArchs.split("_")
     archs = []
     cmdlineArchs = []
 
-    if "all" in wantedArchs:
-        for arch in globalParameters["SupportedISA"]:
+    # print("WANTED ARCHES", wantedArchs)
+    # print("GLOBAL ARCHES", globalParameters["SupportedISA"])
+
+    if "all" in archInfo.Archs:
+        for arch in archInfo.SupportedIsas:
             if isSupported(arch):
                 if arch == (9, 0, 6) or arch == (9, 0, 8) or arch == (9, 0, 10):
                     if arch == (9, 0, 10):
@@ -224,20 +228,22 @@ def splitArchs():
                     archs += [gfxName(arch)]
                     cmdlineArchs += [gfxName(arch)]
     else:
-        for arch in wantedArchs:
+        for arch in archInfo.Archs:
             archs += [re.sub(":", "-", arch)]
             cmdlineArchs += [arch]
     return archs, cmdlineArchs
 
 
-def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile, removeTemporaries):
+def buildSourceCodeObjectFile(
+    CxxCompiler, outputPath, kernelFile, caps: Capabilities, rocmPaths: RocmPaths, archInfo: ArchInfo, removeTemporaries
+):
     buildPath = ensurePath(os.path.join(globalParameters["WorkingPath"], "code_object_tmp"))
     destDir = ensurePath(os.path.join(outputPath, "library"))
     (_, filename) = os.path.split(kernelFile)
     (base, _) = os.path.splitext(filename)
 
-    if "CmakeCxxCompiler" in globalParameters and globalParameters["CmakeCxxCompiler"] is not None:
-        os.environ["CMAKE_CXX_COMPILER"] = globalParameters["CmakeCxxCompiler"]
+    if rocmPaths.CmakeCxxCompiler is not None:
+        os.environ["CMAKE_CXX_COMPILER"] = rocmPaths.CmakeCxxCompiler
 
     objectFilename = base + ".o"
     soFilename = base + ".so"
@@ -245,7 +251,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile, removeTempora
     coFilenames = []
 
     if supportedCompiler(CxxCompiler):
-        archs, cmdlineArchs = splitArchs()
+        archs, cmdlineArchs = splitArchs(caps, archInfo)
 
         archFlags = ["--offload-arch=" + arch for arch in cmdlineArchs]
 
@@ -278,7 +284,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile, removeTempora
             ]
             compileArgs = (
                 launcher
-                + [which(CxxCompiler)]
+                + [which(CxxCompiler, rocmPaths.Bin)]
                 + hipFlags
                 + archFlags
                 + [kernelFile, "-c", "-o", os.path.join(buildPath, objectFilename)]
@@ -286,7 +292,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile, removeTempora
         else:
             compileArgs = (
                 launcher
-                + [which(CxxCompiler)]
+                + [which(CxxCompiler, rocmPaths.Bin)]
                 + hipFlags
                 + archFlags
                 + [kernelFile, "-c", "-o", os.path.join(buildPath, objectFilename)]
@@ -317,7 +323,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile, removeTempora
             outflag = "-output"
 
         infile = os.path.join(buildPath, objectFilename)
-        bundler = globalParameters["ClangOffloadBundlerPath"]
+        bundler = rocmPaths.Bundler
         if bundler is None:
             raise ValueError(
                 "No bundler available; set TENSILE_ROCM_OFFLOAD_BUNDLER_PATH to point to clang-offload-bundler."
@@ -400,7 +406,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile, removeTempora
     return destCOsList
 
 
-def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath, removeTemporaries):
+def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath, caps, rocmPaths, archInfo, removeTemporaries):
     args = zip(
         itertools.repeat(CxxCompiler),
         itertools.repeat(outputPath),
@@ -410,7 +416,7 @@ def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath, removeTempo
 
     coFiles = []
     for k in kernelFiles:
-        coFile = buildSourceCodeObjectFile(CxxCompiler, outputPath, k, removeTemporaries)
+        coFile = buildSourceCodeObjectFile(CxxCompiler, outputPath, k, caps, rocmPaths, archInfo, removeTemporaries)
         coFiles.append(coFile)
 
     return coFiles
@@ -443,6 +449,7 @@ def prepAsm(
 
     assemblerFileName = asmPath / f"asm-new.{'sh' if isLinux else 'bat'}"
 
+    print(type(kernelWriterAssembly))
     with open(assemblerFileName, "w") as assemblerFile:
         if isLinux:
             assemblerFile.write("#!/bin/sh {log}\n".format(log="-x" if printLevel >= 3 else ""))
@@ -772,6 +779,10 @@ def writeSourceKernels(
     kernels: List[Solution],
     kernelHelperObjs: List[KernelWriterBase],
     kernelWriterSource: KernelWriterSource,
+    kernelWriterAssembly: KernelWriterAssembly,
+    caps: Capabilities,
+    rocmPaths: RocmPaths,
+    archInfo: ArchInfo,
     errorTolerant: bool = False,
     removeTemporaries: bool = True,
 ):
@@ -885,15 +896,24 @@ def writeAssemblyKernels(
 ##############################################################################
 # Min Naming / Solution and Kernel Writers
 ##############################################################################
-def getKernelWriters(kernels: List[Solution], removeTemporaries, assemblerPath, capabilities):
+def getKernelWriters(
+    kernels: List[Solution], removeTemporaries, assemblerPath, capabilities, archInfo 
+):
 
     # if any kernels are assembly, append every ISA supported
     kernelSerialNaming = Solution.getSerialNaming(kernels)
 
     kernelMinNaming = Solution.getMinNaming(kernels)
-    kernelWriterSource = KernelWriterSource(kernelMinNaming, kernelSerialNaming, removeTemporaries)
+    kernelWriterSource = KernelWriterSource(
+        kernelMinNaming, kernelSerialNaming, capabilities, archInfo, removeTemporaries
+    )
     kernelWriterAssembly = KernelWriterAssembly(
-        kernelMinNaming, kernelSerialNaming, assemblerPath, capabilities, removeTemporaries
+        kernelMinNaming,
+        kernelSerialNaming,
+        assemblerPath,
+        capabilities,
+        archInfo,
+        removeTemporaries,
     )
 
     return kernelWriterSource, kernelWriterAssembly, kernelMinNaming
@@ -998,6 +1018,29 @@ def makeMasterLibraries(
 
     return {"full": fullMasterLibrary} if fullMasterLibrary is not None else masterLibraries
 
+
+def addFallback(masterLibraries: Dict[str, MasterSolutionLibrary]) -> None:
+    """Adds fallback library.
+
+    Given a master solution library, add a fallback and if the corresponding
+    architecture is unsupported, replace the library altogether with a fallback.
+
+    Args:
+        masterLibraries: A dictionary containing the master solution libraries.
+    """
+    archs, _ = splitArchs(caps)
+
+    for key, value in masterLibraries.items():
+        if key != "fallback":
+            value.insert(masterLibraries["fallback"])
+
+    for archName in archs:
+        archName = archName.split("-", 1)[0]
+        if archName not in masterLibraries:
+            tPrint(1, "Using fallback for arch: " + archName)
+            masterLibraries[archName] = masterLibraries["fallback"]
+
+    masterLibraries.pop("fallback")
 
 
 def applyNaming(masterLibraries: Dict[str, MasterSolutionLibrary]) -> None:
@@ -1225,92 +1268,110 @@ def run(removeTemporaries, outputPath, cxxCompiler, args, logicFiles):
 # Tensile Create Library
 ################################################################################
 # @ray.remote
-# def run(removeTemporaries, outputPath, cxxCompiler, args, logicFiles):
+def run(
+    removeTemporaries,
+    outputPath,
+    cxxCompiler,
+    args,
+    capabilities: Capabilities,
+    rocmPaths: RocmPaths,
+    archInfo: ArchInfo,
+    logicFiles,
+):
+    libraryLogics = parseLibraryLogicFiles(logicFiles, capabilities)
 
-#     libraryLogics = parseLibraryLogicFiles(logicFiles)
-#     solns = list(generateSolutions(libraryLogics))
-#     kernels = list((s.getKernels() for s in solns))
-#     kernelHelperObjs = generateKernelObjectsFromSolutions(kernels)
-#     kernelWriterSource, kernelWriterAssembly = getKernelWriters(kernels, removeTemporaries)
+    solns = list(generateSolutions(libraryLogics))
+    kernels = list((s.getKernels() for s in solns))
 
-#     tPrint(1, "Writing kernels...")
-#     writeKernels(
-#         outputPath,
-#         cxxCompiler,
-#         args,
-#         kernels,
-#         kernelHelperObjs,
-#         kernelWriterSource,
-#         kernelWriterAssembly,
-#         removeTemporaries=removeTemporaries,
-#     )
+    kernelHelperObjs = generateKernelObjectsFromSolutions(kernels)
 
+    kernelWriterSource, kernelWriterAssembly = getKernelWriters(
+        kernels, removeTemporaries, rocmPaths.Assembler, capabilities, archInfo
+    )
 
-@ray.remote
-class GlobalVariableActor:
-    def __init__(self, global_args, removeTemporaries, outputPath, cxxCompiler, capabilities):
-        self._global_args = global_args
-        self._removeTemporaries = removeTemporaries
-        self._outputPath = outputPath
-        self._cxxCompiler = cxxCompiler
-        self._capabilities = capabilities
-
-    def global_args(self):
-        return self._global_args
-
-    def remove_temporaries(self):
-        return self._removeTemporaries
-
-    def output_path(self):
-        return self._outputPath
-
-    def cxx_compiler(self):
-        return self._cxxCompiler
-
-    def capabilities(self):
-        return self._capabilities
+    writeKernels(
+        outputPath,
+        cxxCompiler,
+        args,
+        kernels,
+        kernelHelperObjs,
+        kernelWriterSource,
+        kernelWriterAssembly,
+        capabilities,
+        rocmPaths,
+        archInfo,
+        removeTemporaries=removeTemporaries,
+    )
 
 
-@ray.remote
-class Actor:
-    def __init__(self, global_var_actor):
-        self._global_var_actor = global_var_actor
+# @ray.remote
+# class GlobalVariableActor:
+#     def __init__(self, global_args, removeTemporaries, outputPath, cxxCompiler, capabilities):
+#         self._global_args = global_args
+#         self._removeTemporaries = removeTemporaries
+#         self._outputPath = outputPath
+#         self._cxxCompiler = cxxCompiler
+#         self._capabilities = capabilities
 
-    def run(self, logicFiles):
-        # from . import Common
+#     def global_args(self):
+#         return self._global_args
 
-        # Common.globalParameters.clear()
-        # Common.globalParameters.update(newGlobalParameters)
-        # print("GLOBAL PARAMS IN RUN FUNCTION:", globalParameters)
-        # global globalParameters
+#     def remove_temporaries(self):
+#         return self._removeTemporaries
 
-        args = ray.get(self._global_var_actor.global_args.remote())
-        print("GLOBAL PARAMS IN RUN FUNCTION:", args)
-        assemblerPath = args["AssemblerPath"]
-        outputPath = ray.get(self._global_var_actor.output_path.remote())
-        cxxCompiler = ray.get(self._global_var_actor.cxx_compiler.remote())
-        removeTemporaries = ray.get(self._global_var_actor.remove_temporaries.remote())
-        capabilities = ray.get(self._global_var_actor.capabilities.remote())
+#     def output_path(self):
+#         return self._outputPath
 
-        libraryLogics = parseLibraryLogicFiles(logicFiles, capabilities)
-        solns = list(generateSolutions(libraryLogics))
-        kernels = list((s.getKernels() for s in solns))
-        kernelHelperObjs = generateKernelObjectsFromSolutions(kernels)
-        kernelWriterSource, kernelWriterAssembly = getKernelWriters(
-            kernels, removeTemporaries, assemblerPath, capabilities
-        )
+#     def cxx_compiler(self):
+#         return self._cxxCompiler
 
-        # tPrint(1, "Writing kernels...")
-        writeKernels(
-            outputPath,
-            cxxCompiler,
-            args,
-            kernels,
-            kernelHelperObjs,
-            kernelWriterSource,
-            kernelWriterAssembly,
-            removeTemporaries=removeTemporaries,
-        )
+#     def capabilities(self):
+#         return self._capabilities
+
+
+# @ray.remote
+# class Actor:
+#     def __init__(self, global_var_actor):
+#         self._global_var_actor = global_var_actor
+
+#     def run(self, logicFiles):
+#         # from . import Common
+
+#         # Common.globalParameters.clear()
+#         # Common.globalParameters.update(newGlobalParameters)
+#         # print("GLOBAL PARAMS IN RUN FUNCTION:", globalParameters)
+#         # global globalParameters
+
+#         args = ray.get(self._global_var_actor.global_args.remote())
+#         # print("GLOBAL PARAMS IN RUN FUNCTION:", args)
+#         # assemblerPath = args["AssemblerPath"]
+#         # isaVersion = args["CurrentISA"]
+#         outputPath = ray.get(self._global_var_actor.output_path.remote())
+#         cxxCompiler = ray.get(self._global_var_actor.cxx_compiler.remote())
+#         removeTemporaries = ray.get(self._global_var_actor.remove_temporaries.remote())
+#         capabilities = ray.get(self._global_var_actor.capabilities.remote())
+
+#         libraryLogics = parseLibraryLogicFiles(logicFiles, capabilities)
+#         solns = list(generateSolutions(libraryLogics))
+#         kernels = list((s.getKernels() for s in solns))
+#         kernelHelperObjs = generateKernelObjectsFromSolutions(kernels)
+#         kernelWriterSource, kernelWriterAssembly = getKernelWriters(
+#             kernels, removeTemporaries, assemblerPath, capabilities, isaVersion
+#         )
+#         print(type(kernelWriterAssembly))
+
+#         # tPrint(1, "Writing kernels...")
+#         writeKernels(
+#             outputPath,
+#             cxxCompiler,
+#             args,
+#             kernels,
+#             kernelHelperObjs,
+#             kernelWriterSource,
+#             kernelWriterAssembly,
+#             capabilities,
+#             removeTemporaries=removeTemporaries,
+#         )
 
 
     # srcKernels = [k for k in kernels if k["KernelLanguage"] != "Assembly"]
@@ -1364,15 +1425,9 @@ def multifit(weights, num_bins):
 @profile
 def TensileCreateLibrary():
 
-    ray.init()
-
     args = parseArguments()
 
-    lazyLoading = args["LazyLibraryLoading"]
-    separateArchs = args["SeparateArchitectures"]
-    mergeFiles = args["MergeFiles"]
     cxxCompiler = args["CxxCompiler"]
-    libraryFormat = args["LibraryFormat"]
     logicPath = args["LogicPath"]
     outputPath = args["OutputPath"]
     removeTemporaries = not args["KeepBuildTmp"]
@@ -1383,7 +1438,7 @@ def TensileCreateLibrary():
 
     gp1 = deepcopy(globalParameters)
 
-    capabilities = assignGlobalParameters(args)
+    archInfo, capabilities, rocmPaths = assignGlobalParameters(args)
     # inspected
     import deepdiff
 
@@ -1418,10 +1473,8 @@ def TensileCreateLibrary():
     print(len(logicFiles))
     print(len(batchedLogicFiles))
 
-    # parallelFunc = functools.partial(run.remote, removeTemporaries, outputPath, cxxCompiler, args)
-    # parallelFunc(logicFiles[0:10])
-
-    def chunks(lst, n):
+    parallelFunc = functools.partial(run, removeTemporaries, outputPath, cxxCompiler, args, capabilities, rocmPaths, archInfo)
+    def chunk(lst, n):
         """Yield successive n-sized chunks from lst."""
         for i in range(0, len(lst), n):
             yield lst[i : i + n]
@@ -1431,6 +1484,32 @@ def TensileCreateLibrary():
         start = cpuThreads * i
         stop = cpuThreads * (i+1)
         results = Common.ParallelMap(parallelFunc, batchedLogicFiles[start:stop], cpuThreads / numPasses, "Running TCL...", multiArg=False)
+
+    # RAY
+    # tasks = [
+    #     run.remote(
+    #         removeTemporaries,
+    #         outputPath,
+    #         cxxCompiler,
+    #         args,
+    #         capabilities,
+    #         rocmPaths,
+    #         archInfo,
+    #         archInfo.CurrentIsa,
+    #         lf,
+    #     )
+    #     for lf in chunks(logicFiles, 5)
+    # ]
+
+    # ray.get(tasks)
+    # global_actor_var = GlobalVariableActor.remote(
+    #     globalParameters, removeTemporaries, outputPath, cxxCompiler, capabilities
+    # )
+    # actor = Actor.remote(global_actor_var)
+    # tasks = [actor.run.remote(lf) for lf in chunks(logicFiles, 15)]
+    # ray.get(tasks)
+    # for lf in chunks(logicFiles, 1):
+    # run.remote(removeTemporaries, outputPath, cxxCompiler, args, lf)
 
         for result in results:
             print(type(result))
