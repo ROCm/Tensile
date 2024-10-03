@@ -4796,32 +4796,39 @@ class Solution(collections.abc.Mapping):
   # Get Name Min
   @staticmethod
   def getNameMin(state, requiredParameters):
-      if isCustomKernelConfig(state):
-          return state["CustomKernelName"]
+    if isCustomKernelConfig(state):
+      return state["CustomKernelName"]
 
-      name_parts = []
-
-      # Put problem first
-      if "ProblemType" in state:
-          name_parts.append(f"{state['ProblemType']}")
-
-      if all(key in state for key in ["MacroTile0", "MacroTile1", "DepthU"]):
-          name_parts.append(f"{Solution.paramNameAbbr('MacroTile')}"
-                            f"{state['MacroTile0']}x{state['MacroTile1']}x{state['DepthU']}")
-
-      if "MatrixInstM" in state:
-          name_parts.append(f"{Solution.paramNameAbbr('MatrixInstruction')}"
-                            f"{state['MatrixInstM']}x{state['MatrixInstN']}x{state['MatrixInstK']}x{state['MatrixInstB']}")
-
-      if "LdcEqualsLdd" in state:
-          name_parts.append("SE" if state["LdcEqualsLdd"] else "SN")
-
-      for key in sorted(state.keys()):
-          if key in requiredParameters and key[0] != '_' and requiredParameters[key] and key != "CustomKernelName":
-              name_parts.append(f"{Solution.paramNameAbbr(key)}"
-                                f"{Solution.paramValueAbbr(key, state[key])}")
-
-      return '_'.join(name_parts)
+    name = ""
+    first = True
+    # put problem first
+    if "ProblemType" in state:
+      name += str(state["ProblemType"]) + "_"
+    if "MacroTile0" in state \
+        and "MacroTile1" in state \
+        and "DepthU" in state:
+      name += "%s%ux%ux%u_" \
+          % ( Solution.paramNameAbbr("MacroTile"), \
+          state["MacroTile0"], state["MacroTile1"], state["DepthU"] )
+    if "MatrixInstM" in state:
+      name += "%s%ux%ux%ux%u_" \
+          % ( Solution.paramNameAbbr("MatrixInstruction"), \
+          state["MatrixInstM"], state["MatrixInstN"], state["MatrixInstK"], state["MatrixInstB"])
+    if "LdcEqualsLdd" in state:
+      if state["LdcEqualsLdd"]:
+        name += "SE_"
+      else:
+        name += "SN_"
+    for key in sorted(state.keys()):
+      if key in requiredParameters and key[0] != '_':
+        if requiredParameters[key] and key != "CustomKernelName":
+          if not first:
+            name += "_"
+          else:
+            first = False
+          name += "%s%s" % ( Solution.paramNameAbbr(key), \
+              Solution.paramValueAbbr(key, state[key]) )
+    return name
 
   ########################################
   # create a dictionary of lists of parameter values
