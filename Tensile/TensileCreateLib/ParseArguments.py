@@ -207,6 +207,14 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
         "number of cores, up to a maximum of 64.",
     )
     parser.add_argument(
+        "--passes",
+        dest="NumPasses",
+        default=1,
+        type=int,
+        help="Number of passes to process kernels (default 1). "
+             "Increase passses to reduce memory overhead."
+    )
+    parser.add_argument(
         "--verbose",
         "-v",
         dest="PrintLevel",
@@ -295,6 +303,7 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
         "IgnoreAsmCapCache": args.IgnoreAsmCapCache,
         "WriteMasterSolutionIndex": args.WriteMasterSolutionIndex,
         "KeepBuildTmp": args.KeepBuildTmp,
+        "NumPasses": args.NumPasses,  
     }
 
     if args.CmakeCxxCompiler:

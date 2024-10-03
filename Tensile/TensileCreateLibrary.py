@@ -29,7 +29,7 @@ if __name__ == "__main__":
         "This file can no longer be run as a script.  Run 'Tensile/bin/TensileCreateLibrary' instead."
     )
     exit(1)
-
+import gc
 import collections
 import functools
 import itertools
@@ -46,7 +46,6 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List, Optional, Set, Tuple, Union
 
 from joblib import Parallel
-import tqdm
 
 from . import Common, LibraryIO, Utils
 from .Common import (
@@ -187,8 +186,6 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath, remove
 
             for src, dst in (
                 zip(origCOFiles, newCOFiles)
-                if globalParameters["PrintLevel"] == 0
-                else zip(origCOFiles, newCOFiles)
             ):
                 shutil.copyfile(src, dst)
             coFiles += newCOFiles
@@ -650,8 +647,6 @@ def filterProcessingErrors(
     removeResults = []
     for kernIdx, res in (
         enumerate(results)
-        if globalParameters["PrintLevel"] == 0
-        else enumerate(results)
     ):
         (err, src, header, kernelName, filename) = res
         if err == -2:
@@ -851,6 +846,7 @@ def writeKernels(
     Common.popWorkingPath()  # outputPath.upper()
     Common.popWorkingPath()  # build_tmp
 
+    return True
 
 ##############################################################################
 # Min Naming / Solution and Kernel Writers
@@ -897,7 +893,6 @@ def generateKernelObjectsFromSolutions(kernels: List[Solution]):
     helpers = itertools.chain(k.getHelperKernelObjects() for k in kernels)
     for h in helpers:
         for ko in h:
-            # print(h)
             ko.getKernelName()
     list(dict.fromkeys(helpers))
     return helpers
@@ -1055,7 +1050,6 @@ def parseLibraryLogicFiles(logicFiles: List[str]) -> List[LibraryIO.LibraryLogic
     """
     libraryLogics = []
     for f in logicFiles:
-        print(f)
         logic = LibraryIO.parseLibraryLogicFile(f)
         libraryLogics.append(logic)
 
@@ -1153,6 +1147,23 @@ def run(removeTemporaries, outputPath, cxxCompiler, args, logicFiles):
         removeTemporaries=removeTemporaries,
     )
 
+    return kernels
+
+# weights are assumed reverse sorted
+def multifit(weights, num_bins):
+    bins = [0] * num_bins
+    result = [[] for _ in range(0, num_bins)]
+    
+    def find_min_bin(bins):
+        return bins.index(min(bins))
+    
+    for weight in weights:
+        min_bin_index = find_min_bin(bins)
+        bins[min_bin_index] += weight[0]
+        result[min_bin_index].append(weight[1])
+    
+    return result
+
 @profile
 def TensileCreateLibrary():
 
@@ -1166,6 +1177,8 @@ def TensileCreateLibrary():
     logicPath = args["LogicPath"]
     outputPath = args["OutputPath"]
     removeTemporaries = not args["KeepBuildTmp"]
+    numPasses = args["NumPasses"]
+    cpuThreads = args["CpuThreads"]
 
     globalParameters["PrintLevel"] = args["PrintLevel"]
 
@@ -1180,19 +1193,23 @@ def TensileCreateLibrary():
 
     logicArchs = splitDelimitedString(args["Architecture"], {";", "_"})
     logicArchs = {name for name in (getArchitectureName(gfxName) for gfxName in logicArchs) if name}
+    logicFiles = sorted([(os.path.getsize(f), f) for f in findLogicFiles(Path(logicPath), logicArchs)], reverse=True)
+    batchedLogicFiles = multifit(logicFiles, numPasses*cpuThreads)
 
-    logicFiles = findLogicFiles(Path(logicPath), logicArchs)
+    print(len(logicFiles))
+    print(len(batchedLogicFiles))
 
     parallelFunc = functools.partial(run, removeTemporaries, outputPath, cxxCompiler, args)
-    # parallelFunc(logicFiles[0:10])
 
-    def chunks(lst, n):
-        """Yield successive n-sized chunks from lst."""
-        for i in range(0, len(lst), n):
-            yield lst[i:i + n]
+    for i in range(0, numPasses):
+        start = cpuThreads * i
+        stop = cpuThreads * (i+1)
+        results = Common.ParallelMap(parallelFunc, batchedLogicFiles[start:stop], "Running TCL...", multiArg=False)
 
-    Common.ParallelMap(parallelFunc, list(chunks(logicFiles, 1)), "Running TCL...", multiArg=False)
-
+        for result in results:
+            print(type(result))
+        #del results
+        
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)
 
