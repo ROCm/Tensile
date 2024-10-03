@@ -83,6 +83,7 @@ from .TensileCreateLib.KernelFileContext import KernelFileContextManager
 from .TensileCreateLib.ParseArguments import parseArguments
 from .Utilities.Profile import profile
 from .Utilities.toFile import toFile
+from .Utilities.String import splitDelimitedString
 
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
 TENSILE_LIBRARY_DIR = "library"
@@ -897,7 +898,7 @@ def writeAssemblyKernels(
 # Min Naming / Solution and Kernel Writers
 ##############################################################################
 def getKernelWriters(
-    kernels: List[Solution], removeTemporaries, assemblerPath, capabilities, archInfo 
+    kernels: List[Solution], removeTemporaries, rocmPaths, capabilities, archInfo 
 ):
 
     # if any kernels are assembly, append every ISA supported
@@ -905,12 +906,12 @@ def getKernelWriters(
 
     kernelMinNaming = Solution.getMinNaming(kernels)
     kernelWriterSource = KernelWriterSource(
-        kernelMinNaming, kernelSerialNaming, capabilities, archInfo, removeTemporaries
+        kernelMinNaming, kernelSerialNaming, capabilities, archInfo, rocmPaths, removeTemporaries
     )
     kernelWriterAssembly = KernelWriterAssembly(
         kernelMinNaming,
         kernelSerialNaming,
-        assemblerPath,
+        rocmPaths.Assembler,
         capabilities,
         archInfo,
         removeTemporaries,
@@ -1140,6 +1141,8 @@ def parseLibraryLogicFiles(
     """
     libraryLogics = []
     for f in logicFiles:
+        tPrint(1, f)
+        tPrint(1, type(f))
         yamlDict = LibraryIO.readYAML(f)
         logic = LibraryIO.parseLibraryLogicData(yamlDict, caps)
         libraryLogics.append(logic)
@@ -1167,6 +1170,7 @@ def findLogicFiles(
     path: Path,
     logicArchs: Set[str],
     extraMatchers: Set[str] = {"hip"},
+    experimentalDir: str = "experimental",
 ) -> List[str]:
     """Recursively searches the provided path for logic files.
 
@@ -1180,9 +1184,10 @@ def findLogicFiles(
         A list of Path objects representing the found YAML files.
     """
     isMatch = lambda file: any((arch in file.stem for arch in logicArchs.union(extraMatchers)))
-    isExperimental = lambda path: not experimentalDir in str(path)
+    isNotExperimental = lambda path: not experimentalDir in str(path)
     extensions = ["*.yaml", "*.yml"]
     logicFiles = filter(isMatch, (file for ext in extensions for file in path.rglob(ext)))
+    logicFiles = filter(isNotExperimental, logicFiles)
 
     return list(str(l) for l in logicFiles)
 
@@ -1286,7 +1291,7 @@ def run(
     kernelHelperObjs = generateKernelObjectsFromSolutions(kernels)
 
     kernelWriterSource, kernelWriterAssembly = getKernelWriters(
-        kernels, removeTemporaries, rocmPaths.Assembler, capabilities, archInfo
+        kernels, removeTemporaries, rocmPaths, capabilities, archInfo
     )
 
     writeKernels(
@@ -1462,16 +1467,19 @@ def TensileCreateLibrary():
         printExit("LogicPath %s doesn't exist" % logicPath)
 
     # converts logicArchs from gfx to common name, e.g., aldebaran, aquavanjaram
-    logicArchs = splitDelimitedString(args["Architecture"], {";", "_"})
-    logicArchs = {name for name in (getArchitectureName(gfxName) for gfxName in logicArchs) if name}
-
+    logicArchs: Set[str] = {name for name in (getArchitectureName(gfxName) for gfxName in archInfo.Archs) if name}
     logicFiles = sorted(
         [(os.path.getsize(f), f) for f in findLogicFiles(Path(logicPath), logicArchs)], reverse=True
     )
     batchedLogicFiles = multifit(logicFiles, numPasses * cpuThreads)
 
-    print(len(logicFiles))
-    print(len(batchedLogicFiles))
+    tPrint(1, archInfo.Archs)
+    # tPrint(1, list(Path(logicPath).rglob('**/*.yaml')))
+    logicFiles = findLogicFiles(Path(logicPath), logicArchs)
+    tPrint(1, len(logicFiles))
+
+    # print(len(logicFiles))
+    # print(len(batchedLogicFiles))
 
     parallelFunc = functools.partial(run, removeTemporaries, outputPath, cxxCompiler, args, capabilities, rocmPaths, archInfo)
     def chunk(lst, n):

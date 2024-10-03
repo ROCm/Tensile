@@ -36,10 +36,11 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Make OpenCL Kernel String
   ##############################################################################
-  def __init__( self, kernelMinNaming, kernelSerialNaming, capabilities, archInfo, removeTemporaries=True ):
+  def __init__( self, kernelMinNaming, kernelSerialNaming, capabilities, archInfo, rocmPaths, removeTemporaries=True ):
     super(KernelWriterSource, self).__init__( \
         kernelMinNaming, kernelSerialNaming, capabilities, archInfo, removeTemporaries)
     self.language = globalParameters["RuntimeLanguage"]
+    self.rocmPaths = rocmPaths
 
     self.endLine = "\n"
     self.endLinePP =  "\\" + self.endLine
@@ -377,7 +378,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "  } while (assumed != old);%s" % (self.endLine)
       kStr += "}%s" % (self.endLine)
       """
-      if globalParameters["CxxCompiler"] == "hipcc" or globalParameters["CxxCompiler"] == "amdclang++":
+      if self.rocmPaths.CxxCompiler == "hipcc" or self.rocmPaths == "amdclang++":
         kStr += self.endLine
         kStr += "__device__ inline int atomicAddType(int *fPtr, int operand)%s" % (self.endLine)
         kStr += "{%s" % (self.endLine)

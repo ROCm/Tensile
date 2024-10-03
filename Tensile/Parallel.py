@@ -109,10 +109,6 @@ def ParallelMap(
     inputs = list(zip(objects, itertools.repeat(globalParameters)))
     pcall = pcallWithGlobalParamsMultiArg if multiArg else pcallWithGlobalParamsSingleArg
 
-<<<<<<< HEAD
     return joblib.Parallel(n_jobs=threadCount, return_as="generator_unordered")(
-=======
-    return joblib.Parallel(n_jobs=threadCount, return_as="generator")(
->>>>>>> 0dce9eee8... draft: more global removal stuff
         joblib.delayed(pcall)(function, a, params) for a, params in inputs
     )
