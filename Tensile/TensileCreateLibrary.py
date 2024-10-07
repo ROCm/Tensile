@@ -47,6 +47,8 @@ from typing import Any, Callable, Dict, Generator, List, Optional, Set, Tuple, U
 
 from joblib import Parallel
 
+#from viztracer import log_sparse
+
 from . import Common, LibraryIO, Utils
 from .Common import (
     HR,
@@ -81,14 +83,11 @@ TENSILE_LIBRARY_DIR = "library"
 ProcessedKernelResult = Tuple[int, str, str, str, Optional[str]]
 
 
-def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly) -> ProcessedKernelResult:
+def processKernelSource(kernel, kernelWriter) -> ProcessedKernelResult:
     """Generate source for a single kernel.
     Returns (error, source, header, kernelName).
     """
     try:
-        kernelWriter = (
-            kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
-        )
         # get kernel name
         kernelName = kernelWriter.getKernelFileBase(kernel)
         (err, src) = kernelWriter.getSourceFileString(kernel)
@@ -109,12 +108,12 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly) -> Pro
 def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath, removeTemporaries):
     destDir = ensurePath(os.path.join(outputPath, "library"))
     asmDir = kernelWriterAssembly.getAssemblyDirectory()
-    assemblyKernels = list([k for k in kernels if k["KernelLanguage"] == "Assembly"])
-    if len(assemblyKernels) == 0:
+    
+    if len(kernels) == 0:
         return []
 
     archs = collections.defaultdict(list)
-    for k in assemblyKernels:
+    for k in kernels:
         archs[tuple(k["ISA"])].append(k)
     coFiles = []
     for arch, archKernels in archs.items():
@@ -127,7 +126,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath, remove
             ]
         )
 
-        numObjectFiles = len([1 for k in archKernels if k["KernelLanguage"] == "Assembly"])
+        numObjectFiles = len(kernels)
 
         if numObjectFiles == 0:
             continue
@@ -297,6 +296,8 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile, removeTempora
             out = subprocess.check_output(compileArgs, stderr=subprocess.STDOUT)
             tPrint(3, out)
         except subprocess.CalledProcessError as err:
+            with open(kernelFile, "r") as f, open("test.cpp", "w") as o:
+                o.write(f.read())
             print(err.output)
             raise
 
@@ -590,7 +591,7 @@ def generateKernelSourceAndHeaderFiles(
 
 
 def markDuplicateKernels(
-    kernels: List[Solution], kernelWriterAssembly: KernelWriterAssembly
+    kernels: List[Solution], kernelWriter
 ) -> List[Solution]:
     """Marks duplicate assembly kernels based on their generated base file names.
 
@@ -615,11 +616,11 @@ def markDuplicateKernels(
     visited = set()
     count = 0
     for kernel in kernels:
-        if kernel["KernelLanguage"] == "Assembly":
-            curr = kernelWriterAssembly.getKernelFileBase(kernel)
-            kernel.duplicate = curr in visited
-            count += kernel.duplicate
-            visited.add(curr)
+        #if kernel["KernelLanguage"] == "Assembly":
+        curr = kernelWriter.getKernelFileBase(kernel)
+        kernel.duplicate = curr in visited
+        count += kernel.duplicate
+        visited.add(curr)
     if count:
         printWarning(f"Found {count} duplicate kernels, these will be ignored")
     return kernels
@@ -678,7 +679,7 @@ def filterProcessingErrors(
 def filterBuildErrors(
     kernels: List[Solution],
     kernelsWithBuildErrors: Dict[str, int],
-    writerSelectionFn: Callable[[str], Union[KernelWriterSource, KernelWriterAssembly]],
+    kernelWriter: Any,
     ignoreErr: bool,
 ) -> List[Solution]:
     """Filters a list of kernels based on build errors and error tolerance.
@@ -701,7 +702,7 @@ def filterBuildErrors(
         )
 
     def noBuildError(kernel):
-        kernelName = writerSelectionFn(kernel["KernelLanguage"]).getKernelName(kernel)
+        kernelName = kernelWriter.getKernelName(kernel)
         return kernelName not in kernelsWithBuildErrors
 
     return list(filter(noBuildError, kernels))
@@ -717,7 +718,7 @@ def getKernelSourceAndHeaderCode(ko: KernelWriterBase) -> Tuple[int, List[str], 
         Tuple of data: (error code, source code, header code, kernel name)
     """
     name = ko.getKernelName()
-    err, src = ko.getSourceFileString()
+    err, src = ko.getSourceFileString() # why are we doing this twice?
     hdr = ko.getHeaderFileString()
     return err, [CHeader, src], [CHeader, hdr], name
 
@@ -764,14 +765,13 @@ def writeKernelHelpers(
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
-def writeKernels(
+def writeSourceKernels(
     outputPath: str,
     cxxCompiler: str,
     params: Dict[str, Any],
     kernels: List[Solution],
     kernelHelperObjs: List[KernelWriterBase],
     kernelWriterSource: KernelWriterSource,
-    kernelWriterAssembly: KernelWriterAssembly,
     errorTolerant: bool = False,
     removeTemporaries: bool = True,
 ):
@@ -789,6 +789,57 @@ def writeKernels(
 
     tPrint(1, "# Writing Kernels...")
 
+
+    results = [processKernelSource(k, kernelWriterSource) for k in kernels]
+
+    filesToWrite = collectFilesToWrite(
+        results,
+        Path(outputPath),
+        params["LazyLibraryLoading"],
+        params["MergeFiles"],
+        params["NumMergedFiles"],
+    )
+
+    kernelFiles = generateKernelSourceAndHeaderFiles(filesToWrite)
+
+    outPath = Path(outputPath)
+    with KernelFileContextManager(
+        params["LazyLibraryLoading"],
+        params["MergeFiles"],
+        params["NumMergedFiles"],
+        outPath,
+        kernelFiles,
+    ) as (srcFile, hdrFile):
+        for ko in kernelHelperObjs:
+            writeKernelHelpers(ko, srcFile, hdrFile, outPath, kernelFiles)
+
+    codeObjectFiles = []
+    #if not globalParameters["GenerateSourcesAndExit"]:
+    #    codeObjectFiles += buildSourceCodeObjectFiles(
+    #        cxxCompiler, kernelFiles, outputPath, removeTemporaries
+    #    )
+     
+    stop = time.time()
+    tPrint(1, "# Kernel Building elapsed time = %.1f secs" % (stop - start))
+
+    Common.popWorkingPath()  # outputPath.upper()
+    Common.popWorkingPath()  # build_tmp
+
+
+def writeAssemblyKernels(
+    outputPath: str,
+    cxxCompiler: str,
+    params: Dict[str, Any],
+    kernels: List[Solution],
+    kernelHelperObjs: List[KernelWriterBase],
+    kernelWriterAssembly: KernelWriterAssembly,
+    errorTolerant: bool = False,
+    removeTemporaries: bool = True,
+):
+    start = time.time()
+    Common.pushWorkingPath("build_tmp")
+    Common.pushWorkingPath(os.path.basename(outputPath).upper())
+
     ## TODO: This may be unused
     if not params["MergeFiles"] or params["NumMergedFiles"] > 1 or params["LazyLibraryLoading"]:
         ensurePath(os.path.join(outputPath, "Kernels"))
@@ -803,54 +854,17 @@ def writeKernels(
         params["PrintLevel"],
     )
 
-    kernels = markDuplicateKernels(kernels, kernelWriterAssembly)
-
-    kIter = zip(
-        kernels,
-        itertools.repeat(kernelWriterSource),
-        itertools.repeat(kernelWriterAssembly),
-    )
-    
-    results = []
-    for k in kernels:
-        result = processKernelSource(k, kernelWriterSource, kernelWriterAssembly)
-        results.append(result)
+    kernels = markDuplicateKernels(kernels, kernelWriterAssembly)  
+    results = [processKernelSource(k, kernelWriterAssembly) for k in kernels]
 
     filterProcessingErrors(kernels, results, errorTolerant)
-
     kernelsWithBuildErrors = {kernelName: err for err, _, _, kernelName, _ in results if err}
-    filesToWrite = collectFilesToWrite(
-        results,
-        Path(outputPath),
-        params["LazyLibraryLoading"],
-        params["MergeFiles"],
-        params["NumMergedFiles"],
-    )
-
-    kernelFiles = generateKernelSourceAndHeaderFiles(filesToWrite)
-
-    writerSelector = lambda lang: kernelWriterAssembly if lang == "Assembly" else kernelWriterSource
     kernelsToBuild = filterBuildErrors(
-        kernels, kernelsWithBuildErrors, writerSelector, errorTolerant
+        kernels, kernelsWithBuildErrors, kernelWriterAssembly, errorTolerant
     )
 
-    outPath = Path(outputPath)
-    with KernelFileContextManager(
-        params["LazyLibraryLoading"],
-        params["MergeFiles"],
-        params["NumMergedFiles"],
-        outPath,
-        kernelFiles,
-    ) as (srcFile, hdrFile):
-        for ko in kernelHelperObjs:
-            writeKernelHelpers(ko, srcFile, hdrFile, outPath, kernelFiles)
-
-    codeObjectFiles = []
     if not globalParameters["GenerateSourcesAndExit"]:
-        codeObjectFiles += buildSourceCodeObjectFiles(
-            cxxCompiler, kernelFiles, outputPath, removeTemporaries
-        )
-        codeObjectFiles += getAssemblyCodeObjectFiles(
+        codeObjectFiles = getAssemblyCodeObjectFiles(
             kernelsToBuild,
             kernelWriterAssembly,
             outputPath,
@@ -863,7 +877,9 @@ def writeKernels(
     Common.popWorkingPath()  # outputPath.upper()
     Common.popWorkingPath()  # build_tmp
 
-    return True
+
+
+
 
 ##############################################################################
 # Min Naming / Solution and Kernel Writers
@@ -982,29 +998,6 @@ def makeMasterLibraries(
     return {"full": fullMasterLibrary} if fullMasterLibrary is not None else masterLibraries
 
 
-def addFallback(masterLibraries: Dict[str, MasterSolutionLibrary]) -> None:
-    """Adds fallback library.
-
-    Given a master solution library, add a fallback and if the corresponding
-    architecture is unsupported, replace the library altogether with a fallback.
-
-    Args:
-        masterLibraries: A dictionary containing the master solution libraries.
-    """
-    archs, _ = splitArchs()
-
-    for key, value in masterLibraries.items():
-        if key != "fallback":
-            value.insert(masterLibraries["fallback"])
-
-    for archName in archs:
-        archName = archName.split("-", 1)[0]
-        if archName not in masterLibraries:
-            tPrint(1, "Using fallback for arch: " + archName)
-            masterLibraries[archName] = masterLibraries["fallback"]
-
-    masterLibraries.pop("fallback")
-
 
 def applyNaming(masterLibraries: Dict[str, MasterSolutionLibrary]) -> None:
     """Assigns the solution code object file name for lazy libraries.
@@ -1073,30 +1066,7 @@ def parseLibraryLogicFiles(logicFiles: List[str]) -> List[LibraryIO.LibraryLogic
     return libraryLogics
 
 
-def makeMasterLibraries2(
-    logicFiles: List[LibraryIO.LibraryLogic], version: str, separate: bool
-) -> Dict[str, MasterSolutionLibrary]:
-    """Generates a dictionary of master solution libraries.
 
-    Args:
-        logicFiles: List of paths to logic files.
-        version: User provided version for the library.
-        printLevel: Level of debug printing requested.
-        separate: Separate libraries by architecture.
-
-    Returns:
-        For separate architectures, a dictionary of architecture
-        separated master solution libraries; otherwise, a single
-        master solution library for all architectures.
-    """
-    masterLibraries = makeMasterLibraries(logicFiles, separate)
-    if separate and "fallback" in masterLibraries:
-        addFallback(masterLibraries)
-    applyNaming(masterLibraries)
-    for lib in masterLibraries.values():
-        lib.version = version
-
-    return masterLibraries
 
 
 def generateSolutions(libraryLogics: List[LibraryIO.LibraryLogic]):
@@ -1147,22 +1117,35 @@ def findLogicFiles(
 ################################################################################
 def run(removeTemporaries, outputPath, cxxCompiler, args, logicFiles):
 
+    print("processing on: ", os.getpid())
+
     libraryLogics = parseLibraryLogicFiles(logicFiles)
     solns = list(generateSolutions(libraryLogics))
     kernels = list((s.getKernels() for s in solns))
     kernelHelperObjs = generateKernelObjectsFromSolutions(kernels)
     kernelWriterSource, kernelWriterAssembly = getKernelWriters(kernels, removeTemporaries)
-
-    writeKernels(
+    asmKernels = [k for k in kernels if k["KernelLanguage"] == "Assembly"]
+    writeAssemblyKernels(
         outputPath,
         cxxCompiler,
         args,
-        kernels,
+        asmKernels,
         kernelHelperObjs,
-        kernelWriterSource,
         kernelWriterAssembly,
         removeTemporaries=removeTemporaries,
     )
+
+    # srcKernels = [k for k in kernels if k["KernelLanguage"] != "Assembly"]
+    # print([f for f in logicFiles if "hip" in f])
+    # writeSourceKernels(
+    #     outputPath,
+    #     cxxCompiler,
+    #     args,
+    #     srcKernels,
+    #     kernelHelperObjs,
+    #     kernelWriterSource,
+    #     removeTemporaries=removeTemporaries,
+    # )    
 
     return kernels
 
@@ -1178,6 +1161,9 @@ def multifit(weights, num_bins):
         min_bin_index = find_min_bin(bins)
         bins[min_bin_index] += weight[0]
         result[min_bin_index].append(weight[1])
+    
+    for bin in bins:
+        print("size: ", bin)
     
     return result
 
@@ -1203,7 +1189,13 @@ def TensileCreateLibrary():
     outputPath = os.path.abspath(outputPath)
     copyStaticFiles(outputPath)
 
-    assignGlobalParameters(args)
+    cacheFile = Path(outputPath).parent / "asm-cache.yaml"
+    capabilitiesCache = LibraryIO.initAsmCapsCache(cacheFile)
+
+    assignGlobalParameters(args, capabilitiesCache)
+
+    if globalParameters["CacheAsmCaps"]:
+        LibraryIO.writeAsmCapsCache(cacheFile, globalParameters["AsmCaps"])
 
     if not os.path.exists(logicPath):
         printExit("LogicPath %s doesn't exist" % logicPath)
@@ -1219,13 +1211,14 @@ def TensileCreateLibrary():
     parallelFunc = functools.partial(run, removeTemporaries, outputPath, cxxCompiler, args)
 
     for i in range(0, numPasses):
+        print("pass ", i)
         start = cpuThreads * i
         stop = cpuThreads * (i+1)
-        results = Common.ParallelMap(parallelFunc, batchedLogicFiles[start:stop], "Running TCL...", multiArg=False)
+        results = Common.ParallelMap(parallelFunc, batchedLogicFiles[start:stop], cpuThreads / numPasses, "Running TCL...", multiArg=False)
 
         for result in results:
             print(type(result))
-        #del results
+        del results
         
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)

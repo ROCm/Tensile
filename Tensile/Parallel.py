@@ -65,6 +65,7 @@ def pcallWithGlobalParamsSingleArg(f, arg, newGlobalParameters):
 def ParallelMap(
     function: Callable,
     objects: Any,
+    numProcs: int = 0,
     message: str = "",
     enable: bool = True,
     multiArg: bool = True,
@@ -93,7 +94,7 @@ def ParallelMap(
     from . import Utils
     from .Common import globalParameters
 
-    threadCount = CPUThreadCount(enable)
+    threadCount = numProcs if numProcs else CPUThreadCount(enable)
 
     message += (
         f": {threadCount} thread(s)" + f", {len(objects)} tasks"
@@ -108,6 +109,6 @@ def ParallelMap(
     inputs = list(zip(objects, itertools.repeat(globalParameters)))
     pcall = pcallWithGlobalParamsMultiArg if multiArg else pcallWithGlobalParamsSingleArg
 
-    return joblib.Parallel(n_jobs=threadCount, return_as="list")(
+    return joblib.Parallel(n_jobs=threadCount, return_as="generator_unordered")(
         joblib.delayed(pcall)(function, a, params) for a, params in inputs
     )
