@@ -439,7 +439,7 @@ class MasterSolutionLibrary:
         lazyLibrary = None
         if placeholder in libraryOrder:
             placeholderIndex = libraryOrder.index(placeholder) + 1
-            lazyLibrary = MasterSolutionLibrary.FromOriginalState(origData, origSolutions,
+            lazyLibrary, _ = MasterSolutionLibrary.FromOriginalState(origData, origSolutions,
                                                                   solutionClass,
                                                                   libraryOrder[placeholderIndex:])
             libraryOrder = libraryOrder[0:placeholderIndex]
@@ -465,7 +465,7 @@ class MasterSolutionLibrary:
             rv.lazyLibraries[placeholderName] = lazyLibrary
             placeholderLibrary.filenamePrefix = placeholderName
 
-        return (rv, placeholderName)
+        return rv, placeholderName
 
     @classmethod
     def BenchmarkingLibrary(cls, solutions):
@@ -536,6 +536,7 @@ class MasterSolutionLibrary:
             lazyLibrary = {}
             for name, lib in self.lazyLibraries.items():
                 lib.solutions, reIndexMap = self._remapSolutionIndicesStartingFrom(lib.library, lib.solutions, startingIndex)
+                
                 lib.library.remapSolutionIndices(reIndexMap)
                 lazyLibrary[name] = lib
             self.lazyLibraries = lazyLibrary

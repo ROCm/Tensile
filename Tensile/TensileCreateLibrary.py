@@ -185,9 +185,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath, remove
                 os.path.join(destDir, k + "_" + archName + ".co") for k in assemblyKernelNames
             ]
 
-            for src, dst in (
-                zip(origCOFiles, newCOFiles)
-            ):
+            for src, dst in zip(origCOFiles, newCOFiles):
                 shutil.copyfile(src, dst)
             coFiles += newCOFiles
 
@@ -654,9 +652,7 @@ def filterProcessingErrors(
     """
     removeKernels = []
     removeResults = []
-    for kernIdx, res in (
-        enumerate(results)
-    ):
+    for kernIdx, res in enumerate(results):
         (err, src, header, kernelName, filename) = res
         if err == -2:
             if not errorTolerant:
@@ -881,6 +877,7 @@ def writeAssemblyKernels(
 
 
 
+
 ##############################################################################
 # Min Naming / Solution and Kernel Writers
 ##############################################################################
@@ -895,7 +892,7 @@ def getKernelWriters(kernels: List[Solution], removeTemporaries):
         kernelMinNaming, kernelSerialNaming, removeTemporaries
     )
 
-    return (kernelWriterSource, kernelWriterAssembly)
+    return kernelWriterSource, kernelWriterAssembly, kernelMinNaming
 
 
 ################################################################################
@@ -1044,6 +1041,40 @@ def makeSolutions(
     )
     return itertools.chain(gen1, gen2)
 
+def addFallback(masterLibraries: Dict[str, MasterSolutionLibrary]) -> None:
+    """Adds fallback library.
+
+    Given a master solution library, add a fallback and if the corresponding
+    architecture is unsupported, replace the library altogether with a fallback.
+
+    Args:
+        masterLibraries: A dictionary containing the master solution libraries.
+    """
+    archs, _ = splitArchs()
+
+    for key, value in masterLibraries.items():
+        if key != "fallback":
+            value.insert(masterLibraries["fallback"])
+
+    for archName in archs:
+        archName = archName.split("-", 1)[0]
+        if archName not in masterLibraries:
+            tPrint(1, "Using fallback for arch: " + archName)
+            masterLibraries[archName] = masterLibraries["fallback"]
+
+    masterLibraries.pop("fallback")
+
+def makeMasterLibrariesWithFallbacks(
+    logicFiles: List[LibraryIO.LibraryLogic], version: str, separate: bool
+) -> Dict[str, MasterSolutionLibrary]:
+    """Generates a dictionary of master solution libraries."""
+    masterLibraries = makeMasterLibraries(logicFiles, separate)
+    if separate and "fallback" in masterLibraries:
+        addFallback(masterLibraries)
+    applyNaming(masterLibraries)
+    return masterLibraries
+
+
 
 def parseLibraryLogicFiles(logicFiles: List[str]) -> List[LibraryIO.LibraryLogic]:
     """Load and parse logic (yaml) files.
@@ -1066,9 +1097,6 @@ def parseLibraryLogicFiles(logicFiles: List[str]) -> List[LibraryIO.LibraryLogic
     return libraryLogics
 
 
-
-
-
 def generateSolutions(libraryLogics: List[LibraryIO.LibraryLogic]):
     """Generates a list of solutions.
 
@@ -1081,7 +1109,7 @@ def generateSolutions(libraryLogics: List[LibraryIO.LibraryLogic]):
     """
     tmp = (l for ll in libraryLogics for l in ll.solutions)
     return list(dict.fromkeys(tmp))
- 
+
     # return (l for ll in libraryLogics for l in ll.solutions)
 
 
@@ -1109,7 +1137,54 @@ def findLogicFiles(
     return list(str(l) for l in logicFiles)
 
 
+def generateLazyMasterFileList(
+    masterFileList: List[Tuple[str, MasterSolutionLibrary]]
+) -> List[Tuple[str, MasterSolutionLibrary]]:
+    """Generates a list of tuples that represent the name and the state associated with the lazy master libraries.
 
+    This function takes a list of MasterSolutionLibraries and traverses each lazy libraries.
+    It collects the items (i.e. the name and corresponding master file) and adds them to list
+    of master files.
+
+    Args:
+        masterLibraries: A list of name / master solution library pairs.
+
+    Returns:
+        List of pairs of master solutions libraries and the corresponding name.
+    """
+    return [t for _, lib in masterFileList for t in lib.lazyLibraries.items()]
+
+
+def generateMasterFileList(
+    masterLibraries: dict, archs: List[str], lazy: bool
+) -> List[Tuple[str, MasterSolutionLibrary]]:
+    """Generates a list of tuples that represent the name and the state associated with the master libraries.
+
+    This function takes a dictionary with keys corresponding to a target architecture and values
+    corresponding to the master solution library for that architecture. The function generates a
+    tuple consisting of a MasterSolutionLibrary and the associated name. When not separating architectures,
+    the key full will appear in masterLibraries indicating that all libraries are combinded into a
+    single master library.
+
+    Args:
+        masterLibraries: A dictionary of architecture name / master solution library pairs.
+        archs: A list of supported architectures.
+        lazy: If True, add lazy library master files.
+
+    Returns:
+        List of pairs of master solutions libraries and the corresponding name.
+    """
+    if "full" in masterLibraries.keys():
+        return [("TensileLibrary", masterLibraries["full"])]
+
+    baseName = "TensileLibrary_lazy_" if lazy else "TensileLibrary_"
+    result = [
+        (baseName + arch, masterLibrary)
+        for arch, masterLibrary in masterLibraries.items()
+        if arch in archs
+    ]
+
+    return result + generateLazyMasterFileList(result) if lazy else result
 
 
 ################################################################################
@@ -1120,10 +1195,15 @@ def run(removeTemporaries, outputPath, cxxCompiler, args, logicFiles):
     print("processing on: ", os.getpid())
 
     libraryLogics = parseLibraryLogicFiles(logicFiles)
+
+    masterLibraries = makeMasterLibrariesWithFallbacks(
+        libraryLogics, args["Version"], args["SeparateArchitectures"]
+    )
+
     solns = list(generateSolutions(libraryLogics))
     kernels = list((s.getKernels() for s in solns))
     kernelHelperObjs = generateKernelObjectsFromSolutions(kernels)
-    kernelWriterSource, kernelWriterAssembly = getKernelWriters(kernels, removeTemporaries)
+    kernelWriterSource, kernelWriterAssembly, kernelMinNaming = getKernelWriters(kernels, removeTemporaries)
     asmKernels = [k for k in kernels if k["KernelLanguage"] == "Assembly"]
     writeAssemblyKernels(
         outputPath,
@@ -1146,17 +1226,32 @@ def run(removeTemporaries, outputPath, cxxCompiler, args, logicFiles):
     #     kernelWriterSource,
     #     removeTemporaries=removeTemporaries,
     # )    
+    archs = [
+        gfxName(arch)
+        for arch in globalParameters["SupportedISA"]
+        if globalParameters["AsmCaps"][arch]["SupportedISA"]
+    ]
+    # print("Library LOGICS", libraryLogics)
+    masterFileList = generateMasterFileList(masterLibraries, archs, args["LazyLibraryLoading"])
+
+    newLibraryDir = Path(outputPath) / "library"
+    newLibraryDir.mkdir(exist_ok=True)
+
+    for name, lib in masterFileList:
+        lib.applyNaming(kernelMinNaming)
+        LibraryIO.write(str(newLibraryDir / name), Utils.state(lib), args["LibraryFormat"])
 
     return kernels
+
 
 # weights are assumed reverse sorted
 def multifit(weights, num_bins):
     bins = [0] * num_bins
     result = [[] for _ in range(0, num_bins)]
-    
+
     def find_min_bin(bins):
         return bins.index(min(bins))
-    
+
     for weight in weights:
         min_bin_index = find_min_bin(bins)
         bins[min_bin_index] += weight[0]
@@ -1166,6 +1261,7 @@ def multifit(weights, num_bins):
         print("size: ", bin)
     
     return result
+
 
 @profile
 def TensileCreateLibrary():
@@ -1200,10 +1296,14 @@ def TensileCreateLibrary():
     if not os.path.exists(logicPath):
         printExit("LogicPath %s doesn't exist" % logicPath)
 
+    # converts logicArchs from gfx to common name, e.g., aldebaran, aquavanjaram
     logicArchs = splitDelimitedString(args["Architecture"], {";", "_"})
     logicArchs = {name for name in (getArchitectureName(gfxName) for gfxName in logicArchs) if name}
-    logicFiles = sorted([(os.path.getsize(f), f) for f in findLogicFiles(Path(logicPath), logicArchs)], reverse=True)
-    batchedLogicFiles = multifit(logicFiles, numPasses*cpuThreads)
+
+    logicFiles = sorted(
+        [(os.path.getsize(f), f) for f in findLogicFiles(Path(logicPath), logicArchs)], reverse=True
+    )
+    batchedLogicFiles = multifit(logicFiles, numPasses * cpuThreads)
 
     print(len(logicFiles))
     print(len(batchedLogicFiles))
