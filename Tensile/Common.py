@@ -39,13 +39,22 @@ import sys
 import time
 import warnings
 
-INDEX_CHARS: str =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
-
-startTime = time.time()
 
 ParallelMap = Parallel.ParallelMap
 IsaVersion = Tuple[int, int, int]
 CapabilitiesMap = Dict[str, Any]
+
+INDEX_CHARS: str =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
+SUPPORTED_ISA: List[IsaVersion]  = [(8,0,3),
+                                    (9,0,0), (9,0,6), (9,0,8), (9,0,10),
+                                    (9,4,0), (9,4,1), (9,4,2),
+                                    (10,1,0), (10,1,1), (10,1,2), (10,3,0), (10,3,1),
+                                    (11,0,0), (11,0,1), (11,0,2),
+                                    (11,5,1),
+                                    (12,0,0), (12,0,1)] # assembly kernels writer supports these architectures
+
+startTime = time.time()
+
 
 class Capabilities(NamedTuple):
   Asm: Dict[IsaVersion, CapabilitiesMap]
@@ -267,13 +276,6 @@ globalParameters["MergeFiles"] = True             # F=store every solution and k
 globalParameters["NumMergedFiles"] = 1            # The number of files that kernels should be split between when merging
 
 globalParameters["MaxFileName"] = 64              # If a file name would be longer than this, shorten it with a hash.
-globalParameters["SupportedISA"] = [(8,0,3),
-                                    (9,0,0), (9,0,6), (9,0,8), (9,0,10),
-                                    (9,4,0), (9,4,1), (9,4,2),
-                                    (10,1,0), (10,1,1), (10,1,2), (10,3,0), (10,3,1),
-                                    (11,0,0), (11,0,1), (11,0,2),
-                                    (11,5,1),
-                                    (12,0,0), (12,0,1)] # assembly kernels writer supports these architectures
 
 globalParameters["KeepBuildTmp"] = True                           # Do not remove build artifacts during the build process or build_tmp after build completes
 globalParameters["GenerateManifestAndExit"] = False               # Output manifest file with list of expected library objects and exit
@@ -414,7 +416,7 @@ validWeightFormats = ('KCYX', "KYXC", "CKYX", "CYXK",  'KCZYX', 'CKZYX', 'CZYXK'
 validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 48, 96, 192, 384, 768 ]
 validMacroTiles = []
 validISA = [(0,0,0)]
-validISA.extend(globalParameters["SupportedISA"])
+validISA.extend(SUPPORTED_ISA)
 depthUs = list(range(-16, 0))
 depthUs.extend(list(range(2,globalParameters["MaxDepthU"]+1,1)))
 for i in validMacroTileSides:
@@ -2052,77 +2054,79 @@ def locateExe( defaultPath: str, exeName: str ): # /opt/rocm/bin, hip-clang
       return exePath
   raise ValueError("Cannot locate executable %s" % exeName)
 
-def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion) -> dict:
-  """ Determine assembler capabilities by testing short instructions sequences """
-  if globalParameters["AssemblerPath"] is not None:
+def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion, assemblerPath: Optional[str]) -> dict:
+  """Determine assembler capabilities by testing short instructions sequences """
+  if assemblerPath is not None:
+
+    tryAssemblerPartial = lambda isaVersion, asm: tryAssembler(isaVersion, asm, assemblerPath)
 
     derivedAsmCaps = {}
-    derivedAsmCaps["SupportedISA"]          = tryAssembler(isaVersion, "")
-    derivedAsmCaps["HasExplicitCO"]         = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,1")
-    derivedAsmCaps["HasExplicitNC"]         = tryAssembler(isaVersion, "v_add_nc_u32 v0,v0,1")
+    derivedAsmCaps["SupportedISA"]          = tryAssemblerPartial(isaVersion, "")
+    derivedAsmCaps["HasExplicitCO"]         = tryAssemblerPartial(isaVersion, "v_add_co_u32 v0,vcc,v0,1")
+    derivedAsmCaps["HasExplicitNC"]         = tryAssemblerPartial(isaVersion, "v_add_nc_u32 v0,v0,1")
 
     # Syntax of DirectToLds loads has changed: destination vgpr should be omitted
     # Old syntax should be removed in a future update as it is no longer supported
-    derivedAsmCaps["HasDirectToLdsDest"]    = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds") \
-                                           or tryAssembler(isaVersion, "buffer_load_b32 v40, v36, s[24:27], s28 offen offset:0 lds")
-    derivedAsmCaps["HasDirectToLdsNoDest"]  = tryAssembler(isaVersion, "buffer_load_dword v36, s[24:27], s28 offen offset:0 lds") \
-                                           or tryAssembler(isaVersion, "buffer_load_b32 v36, s[24:27], s28 offen offset:0 lds")
+    derivedAsmCaps["HasDirectToLdsDest"]    = tryAssemblerPartial(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds") \
+                                           or tryAssemblerPartial(isaVersion, "buffer_load_b32 v40, v36, s[24:27], s28 offen offset:0 lds")
+    derivedAsmCaps["HasDirectToLdsNoDest"]  = tryAssemblerPartial(isaVersion, "buffer_load_dword v36, s[24:27], s28 offen offset:0 lds") \
+                                           or tryAssemblerPartial(isaVersion, "buffer_load_b32 v36, s[24:27], s28 offen offset:0 lds")
 
-    derivedAsmCaps["HasAddLshl"]            = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
-    derivedAsmCaps["HasLshlOr"]             = tryAssembler(isaVersion, "v_lshl_or_b32 v47, v36, 0x2, v34")
-    derivedAsmCaps["HasSMulHi"]             = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
+    derivedAsmCaps["HasAddLshl"]            = tryAssemblerPartial(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
+    derivedAsmCaps["HasLshlOr"]             = tryAssemblerPartial(isaVersion, "v_lshl_or_b32 v47, v36, 0x2, v34")
+    derivedAsmCaps["HasSMulHi"]             = tryAssemblerPartial(isaVersion, "s_mul_hi_u32 s47, s36, s34")
 
-    derivedAsmCaps["HasWMMA"]               = tryAssembler(isaVersion, "v_wmma_f32_16x16x16_f16 v[0:3], v[8:15], v[16:23], v[0:3]")
-    derivedAsmCaps["HasMFMA"]               = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]") \
-                                           or tryAssembler(isaVersion, "v_mfma_f32_32x32x1_2b_f32 a[0:31], v0, v1, a[0:31]")
-    derivedAsmCaps["HasMFMA_constSrc"]      = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, 0") \
-                                           or tryAssembler(isaVersion, "v_mfma_f32_32x32x1_2b_f32 a[0:31], v0, v1, 0")
-    derivedAsmCaps["HasMFMA_vgpr"]          = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 v[0:31], v32, v33, v[0:31]") \
-                                           or tryAssembler(isaVersion, "v_mfma_f32_32x32x1_2b_f32 v[0:31], v0, v1, v[0:31]")
-    derivedAsmCaps["HasMFMA_f64"]           = tryAssembler(isaVersion, "v_mfma_f64_16x16x4f64 v[0:7], v[32:33], v[36:37], v[0:7]") \
-                                           or tryAssembler(isaVersion, "v_mfma_f64_16x16x4_f64 v[0:7], v[32:33], v[36:37], v[0:7]")
-    derivedAsmCaps["HasMFMA_bf16_original"] = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
-    derivedAsmCaps["HasMFMA_bf16_1k"]       = tryAssembler(isaVersion, "v_mfma_f32_32x32x4bf16_1k a[0:31], v[32:33], v[36:37], a[0:31]")
-    derivedAsmCaps["HasMFMA_xf32"]          = tryAssembler(isaVersion, "v_mfma_f32_32x32x4_xf32 a[0:15], v[32:33], v[36:37], a[0:15]")
-    derivedAsmCaps["HasMFMA_f8"]            = tryAssembler(isaVersion, "v_mfma_f32_16x16x32_fp8_fp8 a[0:3], v[2:3], v[4:5], a[0:3]")
-    derivedAsmCaps["HasMFMA_b8"]            = tryAssembler(isaVersion, "v_mfma_f32_16x16x32_bf8_bf8 a[0:3], v[2:3], v[4:5], a[0:3]")
-    derivedAsmCaps["HasMFMA_i8_908"]        = tryAssembler(isaVersion, "v_mfma_i32_32x32x8i8 a[0:15], v2, v3, a[0:15]")
-    derivedAsmCaps["HasMFMA_i8_940"]        = tryAssembler(isaVersion, "v_mfma_i32_32x32x16_i8 a[0:15], v[2:3], v[4:5], a[0:15]")
+    derivedAsmCaps["HasWMMA"]               = tryAssemblerPartial(isaVersion, "v_wmma_f32_16x16x16_f16 v[0:3], v[8:15], v[16:23], v[0:3]")
+    derivedAsmCaps["HasMFMA"]               = tryAssemblerPartial(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]") \
+                                           or tryAssemblerPartial(isaVersion, "v_mfma_f32_32x32x1_2b_f32 a[0:31], v0, v1, a[0:31]")
+    derivedAsmCaps["HasMFMA_constSrc"]      = tryAssemblerPartial(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, 0") \
+                                           or tryAssemblerPartial(isaVersion, "v_mfma_f32_32x32x1_2b_f32 a[0:31], v0, v1, 0")
+    derivedAsmCaps["HasMFMA_vgpr"]          = tryAssemblerPartial(isaVersion, "v_mfma_f32_32x32x2bf16 v[0:31], v32, v33, v[0:31]") \
+                                           or tryAssemblerPartial(isaVersion, "v_mfma_f32_32x32x1_2b_f32 v[0:31], v0, v1, v[0:31]")
+    derivedAsmCaps["HasMFMA_f64"]           = tryAssemblerPartial(isaVersion, "v_mfma_f64_16x16x4f64 v[0:7], v[32:33], v[36:37], v[0:7]") \
+                                           or tryAssemblerPartial(isaVersion, "v_mfma_f64_16x16x4_f64 v[0:7], v[32:33], v[36:37], v[0:7]")
+    derivedAsmCaps["HasMFMA_bf16_original"] = tryAssemblerPartial(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
+    derivedAsmCaps["HasMFMA_bf16_1k"]       = tryAssemblerPartial(isaVersion, "v_mfma_f32_32x32x4bf16_1k a[0:31], v[32:33], v[36:37], a[0:31]")
+    derivedAsmCaps["HasMFMA_xf32"]          = tryAssemblerPartial(isaVersion, "v_mfma_f32_32x32x4_xf32 a[0:15], v[32:33], v[36:37], a[0:15]")
+    derivedAsmCaps["HasMFMA_f8"]            = tryAssemblerPartial(isaVersion, "v_mfma_f32_16x16x32_fp8_fp8 a[0:3], v[2:3], v[4:5], a[0:3]")
+    derivedAsmCaps["HasMFMA_b8"]            = tryAssemblerPartial(isaVersion, "v_mfma_f32_16x16x32_bf8_bf8 a[0:3], v[2:3], v[4:5], a[0:3]")
+    derivedAsmCaps["HasMFMA_i8_908"]        = tryAssemblerPartial(isaVersion, "v_mfma_i32_32x32x8i8 a[0:15], v2, v3, a[0:15]")
+    derivedAsmCaps["HasMFMA_i8_940"]        = tryAssemblerPartial(isaVersion, "v_mfma_i32_32x32x16_i8 a[0:15], v[2:3], v[4:5], a[0:15]")
 
-    derivedAsmCaps["v_mac_f16"]             = tryAssembler(isaVersion, "v_mac_f16 v47, v36, v34")
+    derivedAsmCaps["v_mac_f16"]             = tryAssemblerPartial(isaVersion, "v_mac_f16 v47, v36, v34")
 
-    derivedAsmCaps["v_fma_f16"]             = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
-    derivedAsmCaps["v_fmac_f16"]            = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34")
+    derivedAsmCaps["v_fma_f16"]             = tryAssemblerPartial(isaVersion, "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
+    derivedAsmCaps["v_fmac_f16"]            = tryAssemblerPartial(isaVersion, "v_fma_f16 v47, v36, v34")
 
-    derivedAsmCaps["v_pk_fma_f16"]          = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0]")
-    derivedAsmCaps["v_pk_fmac_f16"]         = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34")
+    derivedAsmCaps["v_pk_fma_f16"]          = tryAssemblerPartial(isaVersion, "v_pk_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0]")
+    derivedAsmCaps["v_pk_fmac_f16"]         = tryAssemblerPartial(isaVersion, "v_pk_fma_f16 v47, v36, v34")
 
-    derivedAsmCaps["v_mad_mix_f32"]         = tryAssembler(isaVersion, "v_mad_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
-    derivedAsmCaps["v_fma_mix_f32"]         = tryAssembler(isaVersion, "v_fma_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
+    derivedAsmCaps["v_mad_mix_f32"]         = tryAssemblerPartial(isaVersion, "v_mad_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
+    derivedAsmCaps["v_fma_mix_f32"]         = tryAssemblerPartial(isaVersion, "v_fma_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
 
-    derivedAsmCaps["v_dot2_f32_f16"]        = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
-    derivedAsmCaps["v_dot2c_f32_f16"]       = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34") \
-                                           or tryAssembler(isaVersion, "v_dot2acc_f32_f16 v47, v36, v34")
+    derivedAsmCaps["v_dot2_f32_f16"]        = tryAssemblerPartial(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
+    derivedAsmCaps["v_dot2c_f32_f16"]       = tryAssemblerPartial(isaVersion, "v_dot2c_f32_f16 v47, v36, v34") \
+                                           or tryAssemblerPartial(isaVersion, "v_dot2acc_f32_f16 v47, v36, v34")
 
-    derivedAsmCaps["v_dot4_i32_i8"]         = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34")
-    derivedAsmCaps["v_dot4c_i32_i8"]        = tryAssembler(isaVersion, "v_dot4c_i32_i8 v47, v36, v34")
-    derivedAsmCaps["VOP3v_dot4_i32_i8"]     = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34, v47")
+    derivedAsmCaps["v_dot4_i32_i8"]         = tryAssemblerPartial(isaVersion, "v_dot4_i32_i8 v47, v36, v34")
+    derivedAsmCaps["v_dot4c_i32_i8"]        = tryAssemblerPartial(isaVersion, "v_dot4c_i32_i8 v47, v36, v34")
+    derivedAsmCaps["VOP3v_dot4_i32_i8"]     = tryAssemblerPartial(isaVersion, "v_dot4_i32_i8 v47, v36, v34, v47")
 
-    derivedAsmCaps["v_mac_f32"]             = tryAssembler(isaVersion, "v_mac_f32 v20, v21, v22")
-    derivedAsmCaps["v_fma_f32"]             = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")
-    derivedAsmCaps["v_fmac_f32"]            = tryAssembler(isaVersion, "v_fmac_f32 v20, v21, v22")
+    derivedAsmCaps["v_mac_f32"]             = tryAssemblerPartial(isaVersion, "v_mac_f32 v20, v21, v22")
+    derivedAsmCaps["v_fma_f32"]             = tryAssemblerPartial(isaVersion, "v_fma_f32 v20, v21, v22, v23")
+    derivedAsmCaps["v_fmac_f32"]            = tryAssemblerPartial(isaVersion, "v_fmac_f32 v20, v21, v22")
 
-    derivedAsmCaps["v_fma_f64"]             = tryAssembler(isaVersion, "v_fma_f64 v[20:21], v[22:23], v[24:25], v[20:21]")
+    derivedAsmCaps["v_fma_f64"]             = tryAssemblerPartial(isaVersion, "v_fma_f64 v[20:21], v[22:23], v[24:25], v[20:21]")
 
-    derivedAsmCaps["v_mov_b64"]             = tryAssembler(isaVersion, "v_mov_b64 v[20:21], v[22:23]")
+    derivedAsmCaps["v_mov_b64"]             = tryAssemblerPartial(isaVersion, "v_mov_b64 v[20:21], v[22:23]")
 
-    derivedAsmCaps["HasAtomicAdd"]          = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
-    derivedAsmCaps["HasGLCModifier"]        = tryAssembler(isaVersion, "buffer_load_dwordx4 v[10:13], v[0], s[0:3], 0, offen offset:0, glc")
-    derivedAsmCaps["HasNTModifier"]         = tryAssembler(isaVersion, "buffer_load_dwordx4 v[10:13], v[0], s[0:3], 0, offen offset:0, nt")
+    derivedAsmCaps["HasAtomicAdd"]          = tryAssemblerPartial(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
+    derivedAsmCaps["HasGLCModifier"]        = tryAssemblerPartial(isaVersion, "buffer_load_dwordx4 v[10:13], v[0], s[0:3], 0, offen offset:0, glc")
+    derivedAsmCaps["HasNTModifier"]         = tryAssemblerPartial(isaVersion, "buffer_load_dwordx4 v[10:13], v[0], s[0:3], 0, offen offset:0, nt")
 
-    if tryAssembler(isaVersion, "s_waitcnt vmcnt(63)"):
+    if tryAssemblerPartial(isaVersion, "s_waitcnt vmcnt(63)"):
       derivedAsmCaps["MaxVmcnt"] = 63
-    elif tryAssembler(isaVersion, "s_waitcnt vmcnt(15)"):
+    elif tryAssemblerPartial(isaVersion, "s_waitcnt vmcnt(15)"):
       derivedAsmCaps["MaxVmcnt"] = 15
     else:
       derivedAsmCaps["MaxVmcnt"] = 0
@@ -2130,7 +2134,7 @@ def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion) -> dict
     # TODO- Need to query the max cap, just like vmcnt as well?
     derivedAsmCaps["MaxLgkmcnt"] = 15
 
-    derivedAsmCaps["KernargPreloading"] = tryAssembler(isaVersion, """
+    derivedAsmCaps["KernargPreloading"] = tryAssemblerPartial(isaVersion, """
       TestKernel:
       s_endpgm
       .amdhsa_kernel TestKernel
@@ -2197,7 +2201,7 @@ def GetArchCaps(isaVersion) -> dict:
 
   return rv
 
-def tryAssembler(isaVersion, asmString, debug=False, *options):
+def tryAssembler(isaVersion, asmString, assemblerPath: str, debug=False, *options):
   """
   Try to assemble the asmString for the specified target processor
   Success is defined as assembler returning no error code or stderr/stdout
@@ -2209,10 +2213,9 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
   if isaVersion[0] >= 10:
     options += ['-mwavefrontsize64']
 
-  assembler = globalParameters['AssemblerPath']
-  if assembler is None:
+  if assemblerPath is None:
     raise ValueError('No assembler available; set TENSILE_ROCM_ASSEMBLER_PATH to point to ROCm Clang.')
-  args = [assembler, '-x', 'assembler',
+  args = [assemblerPath, '-x', 'assembler',
           '-target', 'amdgcn-amdhsa',
           '-mcpu='+gfxName(isaVersion),
           *options,
@@ -2350,7 +2353,7 @@ def which(p, rocmBinPath: str):
 
 
 def populateCapabilities(
-    capabilities: Capabilities, archInfo: ArchInfo, cachedAsmCaps: Dict[IsaVersion, dict]
+    capabilities: Capabilities, rocmPaths: RocmPaths, archInfo: ArchInfo, cachedAsmCaps: Dict[IsaVersion, dict]
 ):
     """Populates the assembler and archiecture capabilities based on the compiler and ISA.
 
@@ -2385,7 +2388,7 @@ def populateCapabilities(
             continue
 
         if emptyCache or not capabilities.AsmIsCached:
-            capabilities.Asm[v] = GetAsmCaps(v, compilerVer)
+            capabilities.Asm[v] = GetAsmCaps(v, compilerVer, rocmPaths.Assembler)
 
         capabilities.Arch[v] = GetArchCaps(v)
 
@@ -2402,6 +2405,7 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   Each global parameter has a default parameter, and the user
   can override them, overriding happens here
   """
+  global globalParameters
 
   # Minimum Required Version
   if "MinimumRequiredVersion" in config:
@@ -2486,7 +2490,7 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   ) 
 
   # read current gfx version
-  supportedIsas = globalParameters["SupportedISA"]
+  supportedIsas = SUPPORTED_ISA
 
   currentIsa = (0,0,0)
   currentIsa = detectGlobalCurrentISA(currentIsa, rocmPaths, supportedIsas)
@@ -2538,12 +2542,12 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   if "IgnoreAsmCapCache" in config:
     globalParameters["IgnoreAsmCapCache"] = config["IgnoreAsmCapCache"]
     
-  cacheAsm = True if capabilitiesCache is not None else False
-  asmCaps = capabilitiesCache if "CacheAsmCaps" in globalParameters else {}
+  asmIsCached = True if capabilitiesCache is not None else False
+  asmCaps = capabilitiesCache if asmIsCached else {}
   archCaps = {}
-  capabilities = Capabilities(asmCaps, archCaps, cacheAsm)
+  capabilities = Capabilities(asmCaps, archCaps, asmIsCached)
 
-  populateCapabilities(capabilities, archInfo, CACHED_ASM_CAPS)
+  populateCapabilities(capabilities, rocmPaths, archInfo, CACHED_ASM_CAPS)
 
   if globalParameters["PrintLevel"] >= 2:
     printCapTable(globalParameters)
@@ -2576,15 +2580,17 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   
   # del globalParameters["ROCmPath"]
   # del globalParameters["ROCmBinPath"]
-  del globalParameters["ROCmAgentEnumeratorPath"]
+  # del globalParameters["ROCmAgentEnumeratorPath"]
   del globalParameters["CxxCompiler"]
   del globalParameters["CCompiler"]
   del globalParameters["CmakeCxxCompiler"]
   # del globalParameters["CmakeCCompiler"]
   del globalParameters["AssemblerPath"]
-  del globalParameters["SupportedISA"]
+  # del globalParameters["SupportedISA"]
   del globalParameters["CurrentISA"]
   del globalParameters["IndexChars"]
+  # del globalParameters["AsmCaps"]
+  # del globalParameters["ArchCaps"]
   # del globalParameters["ClangOffloadBundlerPath"]
 
   return archInfo, capabilities, rocmPaths

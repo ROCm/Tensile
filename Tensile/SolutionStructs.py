@@ -22,14 +22,13 @@
 #
 ################################################################################
 
-from .Common import IsaVersion, assignParameterRequired, assignParameterWithDefault, \
+from .Common import Capabilities, INDEX_CHARS, assignParameterRequired, assignParameterWithDefault, \
                     defaultProblemType, defaultSolution, \
                     globalParameters, \
                     tPrint, printExit, printWarning, \
                     validActivationFormats, validConvolutionConfig, \
                     validMFMA, validWMMA, validParameters, validWeightFormats, \
-                    validGEMMTypes, HPATypes, parameterNameAbbreviations, \
-                    Capabilities, INDEX_CHARS
+                    validGEMMTypes, HPATypes, parameterNameAbbreviations
 from .DataType import DataType
 from .Utils import roundUpToNearestMultiple
 
@@ -1719,10 +1718,8 @@ def isExtractableIndex(ks, index, tc='x'):
 class Solution(collections.abc.Mapping):
 
   ########################################
-  # def __init__(self, config, codeObjVer: str, isaVer: IsaVersion, asmCaps: AsmCapabilities):
   def __init__(self, config, caps: Capabilities):
     self._name = None
-    self._caps = caps
 
     state = {}
     # problem type
@@ -1735,19 +1732,19 @@ class Solution(collections.abc.Mapping):
     for key in defaultSolution:
       assignParameterWithDefault(state, key, config, defaultSolution)
 
-    # if 'ISA' in config:
-    assert "ISA" in config
-    self.isa = config["ISA"]
-    # elif config['KernelLanguage'] == 'Assembly':
-      # self.isa = list(isaVer)
-    # else:
-      # C++ kernels don't have an ISA?
-      # self.isa = [0, 0, 0]
+    if 'ISA' not in state:
+      if 'ISA' in config:
+        state['ISA'] = config['ISA']
+      elif config['KernelLanguage'] == 'Assembly':
+        state['ISA'] = list(globalParameters["CurrentISA"])
+      else:
+        state['ISA'] = [0,0,0]
 
-    if "CodeObjectVersion" in config:
-      state["CodeObjectVersion"] = config["CodeObjectVersion"]
-    else:
-      state["CodeObjectVersion"] = globalParameters["CodeObjectVersion"]
+    if "CodeObjectVersion" not in state:
+      if "CodeObjectVersion" in config:
+        state["CodeObjectVersion"] = config["CodeObjectVersion"]
+      else:
+        state["CodeObjectVersion"] = globalParameters["CodeObjectVersion"]
 
     # assign parameters without defaults
     for key in config:
@@ -1763,10 +1760,10 @@ class Solution(collections.abc.Mapping):
     if state["ProblemType"].convolution:
         for (key,value) in state["ProblemType"].convolution.solutionParms.items():
             state[key]=value
-
     Solution.assignDerivedParameters(state, caps)
     self._name = config["CustomKernelName"] if isCustomKernelConfig(config) else None
     self._state = state
+    self._caps = caps
     self.initHelperKernelObjects()
     
   # these keys are copied from ProblemType to internal that may be overridden
@@ -1883,7 +1880,7 @@ class Solution(collections.abc.Mapping):
 
 
   @staticmethod
-  def getMIOutputInfo(state, caps: Capabilities):
+  def getMIOutputInfo(state, caps):
     outputVectorWidth = 4
     RegsPerOut = 1
 
@@ -1904,7 +1901,7 @@ class Solution(collections.abc.Mapping):
   ########################################
   # assign tile sizes
   @staticmethod
-  def assignProblemIndependentDerivedParameters(state, caps: Capabilities):
+  def assignProblemIndependentDerivedParameters(state, caps):
 
     if "AssignedProblemIndependentDerivedParameters" in state:
       if state["AssignedProblemIndependentDerivedParameters"]:
@@ -2330,7 +2327,6 @@ class Solution(collections.abc.Mapping):
   @staticmethod
   def parameterWrapper(state, caps: Capabilities):
     isa = tuple(state["ISA"])
-
     if len(state["MatrixInstruction"]) == 9:
       waves = state["MatrixInstruction"][7]* state["MatrixInstruction"][8]
       state["ThreadTile"][0] = state["MatrixInstruction"][5]
@@ -2432,7 +2428,7 @@ class Solution(collections.abc.Mapping):
   ########################################
   # determine can we use VgprForLocalReadPacking
   @staticmethod
-  def isVgprForLocalReadPackingDoable(state, caps: Capabilities):
+  def isVgprForLocalReadPackingDoable(state):
     isa = tuple(state["ISA"])
     rejectComment = ""
     doable = True
@@ -2498,7 +2494,7 @@ class Solution(collections.abc.Mapping):
     if numBytes < 4:
       # Does not work with TLU = True and numBytes < 4 (not supported)
       if state["ProblemType"]["TLU%c"%tc]:
-        doable, _ = Solution.isVgprForLocalReadPackingDoable(state, caps)
+        doable, _ = Solution.isVgprForLocalReadPackingDoable(state)
         if numBytes * state["VectorWidth%s"%tc] >= 4 and doable:
           # use pack logic (with v_perm) same as local read (only if VgprForLocalReadPacking is doable)
           # numBytes * VW should be 4 or larger
@@ -2925,9 +2921,6 @@ class Solution(collections.abc.Mapping):
   # assign all derived parameters
   @staticmethod
   def assignDerivedParameters(state, caps: Capabilities):
-  # def assignDerivedParameters(state):
-
-    # print("GLOBAL PARAMETERS:", globalParameters)
     isa = tuple(state["ISA"])
 
     state["EnableF32XdlMathOp"] = False #ignore the F32 xDL MathOp by default.
@@ -3009,7 +3002,7 @@ class Solution(collections.abc.Mapping):
       # Since StaggerU defaults to 32, override it to 0 if not supported.
       state["StaggerU"] = 0
 
-    def supportsPreloadKernelArguments(caps: Capabilities):
+    def supportsPreloadKernelArguments():
       if not caps.Asm[isa]["KernargPreloading"]:
         # force to disable preloading (instead of rejecting kernel)
         state["PreloadKernelArguments"] = 0
@@ -3042,7 +3035,7 @@ class Solution(collections.abc.Mapping):
       
       return True, ""
 
-    pkaSupported, pkaMsg = supportsPreloadKernelArguments(caps)
+    pkaSupported, pkaMsg = supportsPreloadKernelArguments()
     if state["PreloadKernelArguments"] == -1:
       if pkaSupported:
         state["PreloadKernelArguments"] = 1
@@ -4702,7 +4695,7 @@ class Solution(collections.abc.Mapping):
 
     # reject check for VgprForLocalReadPacking
     if state["VgprForLocalReadPacking"]:
-      doable, rejectComment = Solution.isVgprForLocalReadPackingDoable(state, caps)
+      doable, rejectComment = Solution.isVgprForLocalReadPackingDoable(state)
       if not doable:
         reject(state, rejectComment)
         return

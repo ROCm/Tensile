@@ -38,6 +38,7 @@ import functools
 import glob
 import itertools
 import os
+from platform import architecture
 import re
 import shlex
 import shutil
@@ -45,6 +46,7 @@ import subprocess
 import sys
 import time
 import warnings
+from matplotlib.pylab import f
 import ray
 from io import TextIOWrapper
 from pathlib import Path
@@ -115,6 +117,7 @@ def processKernelSource(kernel, kernelWriter) -> ProcessedKernelResult:
 
 
 def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath, removeTemporaries):
+    tPrint(0, outputPath)
     destDir = ensurePath(os.path.join(outputPath, "library"))
     asmDir = kernelWriterAssembly.getAssemblyDirectory()
     
@@ -206,15 +209,8 @@ def splitArchs(caps: Capabilities, archInfo: ArchInfo):
     def isSupported(arch):
         return caps.Asm[arch]["SupportedISA"] and caps.Asm[arch]["SupportedSource"]
 
-    # if ";" in ArchInfo.:
-    #     wantedArchs = inputArchs.split(";")
-    # else:
-    #     wantedArchs = inputArchs.split("_")
     archs = []
     cmdlineArchs = []
-
-    # print("WANTED ARCHES", wantedArchs)
-    # print("GLOBAL ARCHES", globalParameters["SupportedISA"])
 
     if "all" in archInfo.Archs:
         for arch in archInfo.SupportedIsas:
@@ -422,10 +418,6 @@ def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath, caps, rocmP
 
     return coFiles
 
-    # coFiles = buildSourceCodeObjectFile, args, "Compiling source kernels")
-
-    # return itertools.chain.from_iterable(coFiles)
-
 
 ################################################################################
 def prepAsm(
@@ -450,7 +442,6 @@ def prepAsm(
 
     assemblerFileName = asmPath / f"asm-new.{'sh' if isLinux else 'bat'}"
 
-    print(type(kernelWriterAssembly))
     with open(assemblerFileName, "w") as assemblerFile:
         if isLinux:
             assemblerFile.write("#!/bin/sh {log}\n".format(log="-x" if printLevel >= 3 else ""))
@@ -845,6 +836,9 @@ def writeAssemblyKernels(
     kernels: List[Solution],
     kernelHelperObjs: List[KernelWriterBase],
     kernelWriterAssembly: KernelWriterAssembly,
+    caps: Capabilities,
+    rocmPaths: RocmPaths,
+    archInfo: ArchInfo,
     errorTolerant: bool = False,
     removeTemporaries: bool = True,
 ):
@@ -853,18 +847,18 @@ def writeAssemblyKernels(
     Common.pushWorkingPath(os.path.basename(outputPath).upper())
 
     ## TODO: This may be unused
-    if not params["MergeFiles"] or params["NumMergedFiles"] > 1 or params["LazyLibraryLoading"]:
-        ensurePath(os.path.join(outputPath, "Kernels"))
+    # if not params["MergeFiles"] or params["NumMergedFiles"] > 1 or params["LazyLibraryLoading"]:
+    ensurePath(os.path.join(outputPath, "Kernels"))
 
     ## This uses global state from "WorkingPath"
-    prepAsm(
-        kernelWriterAssembly,
-        os.name != "nt",
-        # Use globalParameters here, not params
-        Path(globalParameters["WorkingPath"]),
-        globalParameters["CurrentISA"],
-        params["PrintLevel"],
-    )
+    # prepAsm(
+    #     kernelWriterAssembly,
+    #     os.name != "nt",
+    #     # Use globalParameters here, not params
+    #     Path(globalParameters["WorkingPath"]),
+    #     globalParameters["CurrentISA"],
+    #     params["PrintLevel"],
+    # )
 
     kernels = markDuplicateKernels(kernels, kernelWriterAssembly)  
     results = [processKernelSource(k, kernelWriterAssembly) for k in kernels]
@@ -875,7 +869,7 @@ def writeAssemblyKernels(
         kernels, kernelsWithBuildErrors, kernelWriterAssembly, errorTolerant
     )
 
-    if not globalParameters["GenerateSourcesAndExit"]:
+    if not params["GenerateSourcesAndExit"]:
         codeObjectFiles = getAssemblyCodeObjectFiles(
             kernelsToBuild,
             kernelWriterAssembly,
@@ -1000,27 +994,22 @@ def makeMasterLibraries(
     nextSolIndex = {}
     fullMasterLibrary = None
 
-    for logic in logicList:
-        (_, architectureName, _, solutionsForSchedule, _, newLibrary) = logic
+    for _, gfxName, _, _, _, lib in logicList:
         if separate:
-            if architectureName in masterLibraries:
-                nextSolIndex[architectureName] = masterLibraries[architectureName].merge(
-                    newLibrary, nextSolIndex[architectureName]
-                )
+            if gfxName in masterLibraries:
+                nextSolIndex[gfxName] = masterLibraries[gfxName].merge(lib, nextSolIndex[gfxName])
             else:
-                nextSolIndex[architectureName] = addNewLibrary(
-                    masterLibraries, newLibrary, architectureName
-                )
+                nextSolIndex[gfxName] = addNewLibrary(masterLibraries, lib, gfxName)
         else:
             if fullMasterLibrary:
-                fullMasterLibrary.merge(newLibrary)
+                fullMasterLibrary.merge(lib)
             else:
-                fullMasterLibrary = newLibrary
+                fullMasterLibrary = lib 
 
     return {"full": fullMasterLibrary} if fullMasterLibrary is not None else masterLibraries
 
 
-def addFallback(masterLibraries: Dict[str, MasterSolutionLibrary]) -> None:
+def addFallback(masterLibraries: Dict[str, MasterSolutionLibrary], caps, archInfo) -> None:
     """Adds fallback library.
 
     Given a master solution library, add a fallback and if the corresponding
@@ -1029,7 +1018,7 @@ def addFallback(masterLibraries: Dict[str, MasterSolutionLibrary]) -> None:
     Args:
         masterLibraries: A dictionary containing the master solution libraries.
     """
-    archs, _ = splitArchs(caps)
+    archs, _ = splitArchs(caps, archInfo)
 
     for key, value in masterLibraries.items():
         if key != "fallback":
@@ -1113,12 +1102,12 @@ def addFallback(masterLibraries: Dict[str, MasterSolutionLibrary]) -> None:
     masterLibraries.pop("fallback")
 
 def makeMasterLibrariesWithFallbacks(
-    logicFiles: List[LibraryIO.LibraryLogic], version: str, separate: bool
+    logicFiles: List[LibraryIO.LibraryLogic], caps: Capabilities, archInfo: ArchInfo, separate: bool
 ) -> Dict[str, MasterSolutionLibrary]:
     """Generates a dictionary of master solution libraries."""
     masterLibraries = makeMasterLibraries(logicFiles, separate)
     if separate and "fallback" in masterLibraries:
-        addFallback(masterLibraries)
+        addFallback(masterLibraries, caps, archInfo)
     applyNaming(masterLibraries)
     return masterLibraries
 
@@ -1141,8 +1130,7 @@ def parseLibraryLogicFiles(
     """
     libraryLogics = []
     for f in logicFiles:
-        tPrint(1, f)
-        tPrint(1, type(f))
+        tPrint(0, f)
         yamlDict = LibraryIO.readYAML(f)
         logic = LibraryIO.parseLibraryLogicData(yamlDict, caps)
         libraryLogics.append(logic)
@@ -1242,36 +1230,6 @@ def generateMasterFileList(
     return result + generateLazyMasterFileList(result) if lazy else result
 
 
-################################################################################
-# Tensile Create Library
-################################################################################
-def run(removeTemporaries, outputPath, cxxCompiler, args, logicFiles):
-
-    print("processing on: ", os.getpid())
-
-    libraryLogics = parseLibraryLogicFiles(logicFiles)
-
-    masterLibraries = makeMasterLibrariesWithFallbacks(
-        libraryLogics, args["Version"], args["SeparateArchitectures"]
-    )
-
-    solns = list(generateSolutions(libraryLogics))
-    kernels = list((s.getKernels() for s in solns))
-    kernelHelperObjs = generateKernelObjectsFromSolutions(kernels)
-    kernelWriterSource, kernelWriterAssembly, kernelMinNaming = getKernelWriters(kernels, removeTemporaries)
-    asmKernels = [k for k in kernels if k["KernelLanguage"] == "Assembly"]
-    writeAssemblyKernels(
-        outputPath,
-        cxxCompiler,
-        args,
-        asmKernels,
-        kernelHelperObjs,
-        kernelWriterAssembly,
-        removeTemporaries=removeTemporaries,
-    )
-################################################################################
-# Tensile Create Library
-################################################################################
 # @ray.remote
 def run(
     removeTemporaries,
@@ -1283,6 +1241,7 @@ def run(
     archInfo: ArchInfo,
     logicFiles,
 ):
+    print("processing on: ", os.getpid())
     libraryLogics = parseLibraryLogicFiles(logicFiles, capabilities)
 
     solns = list(generateSolutions(libraryLogics))
@@ -1290,94 +1249,23 @@ def run(
 
     kernelHelperObjs = generateKernelObjectsFromSolutions(kernels)
 
-    kernelWriterSource, kernelWriterAssembly = getKernelWriters(
+    kernelWriterSource, kernelWriterAssembly, kernelMinNaming = getKernelWriters(
         kernels, removeTemporaries, rocmPaths, capabilities, archInfo
     )
+    asmKernels = [k for k in kernels if k["KernelLanguage"] == "Assembly"]
 
-    writeKernels(
+    writeAssemblyKernels(
         outputPath,
         cxxCompiler,
         args,
-        kernels,
+        asmKernels,
         kernelHelperObjs,
-        kernelWriterSource,
         kernelWriterAssembly,
         capabilities,
         rocmPaths,
         archInfo,
         removeTemporaries=removeTemporaries,
     )
-
-
-# @ray.remote
-# class GlobalVariableActor:
-#     def __init__(self, global_args, removeTemporaries, outputPath, cxxCompiler, capabilities):
-#         self._global_args = global_args
-#         self._removeTemporaries = removeTemporaries
-#         self._outputPath = outputPath
-#         self._cxxCompiler = cxxCompiler
-#         self._capabilities = capabilities
-
-#     def global_args(self):
-#         return self._global_args
-
-#     def remove_temporaries(self):
-#         return self._removeTemporaries
-
-#     def output_path(self):
-#         return self._outputPath
-
-#     def cxx_compiler(self):
-#         return self._cxxCompiler
-
-#     def capabilities(self):
-#         return self._capabilities
-
-
-# @ray.remote
-# class Actor:
-#     def __init__(self, global_var_actor):
-#         self._global_var_actor = global_var_actor
-
-#     def run(self, logicFiles):
-#         # from . import Common
-
-#         # Common.globalParameters.clear()
-#         # Common.globalParameters.update(newGlobalParameters)
-#         # print("GLOBAL PARAMS IN RUN FUNCTION:", globalParameters)
-#         # global globalParameters
-
-#         args = ray.get(self._global_var_actor.global_args.remote())
-#         # print("GLOBAL PARAMS IN RUN FUNCTION:", args)
-#         # assemblerPath = args["AssemblerPath"]
-#         # isaVersion = args["CurrentISA"]
-#         outputPath = ray.get(self._global_var_actor.output_path.remote())
-#         cxxCompiler = ray.get(self._global_var_actor.cxx_compiler.remote())
-#         removeTemporaries = ray.get(self._global_var_actor.remove_temporaries.remote())
-#         capabilities = ray.get(self._global_var_actor.capabilities.remote())
-
-#         libraryLogics = parseLibraryLogicFiles(logicFiles, capabilities)
-#         solns = list(generateSolutions(libraryLogics))
-#         kernels = list((s.getKernels() for s in solns))
-#         kernelHelperObjs = generateKernelObjectsFromSolutions(kernels)
-#         kernelWriterSource, kernelWriterAssembly = getKernelWriters(
-#             kernels, removeTemporaries, assemblerPath, capabilities, isaVersion
-#         )
-#         print(type(kernelWriterAssembly))
-
-#         # tPrint(1, "Writing kernels...")
-#         writeKernels(
-#             outputPath,
-#             cxxCompiler,
-#             args,
-#             kernels,
-#             kernelHelperObjs,
-#             kernelWriterSource,
-#             kernelWriterAssembly,
-#             capabilities,
-#             removeTemporaries=removeTemporaries,
-#         )
-
 
     # srcKernels = [k for k in kernels if k["KernelLanguage"] != "Assembly"]
     # print([f for f in logicFiles if "hip" in f])
@@ -1390,12 +1278,13 @@ def run(
     #     kernelWriterSource,
     #     removeTemporaries=removeTemporaries,
     # )    
+
     archs = [
         gfxName(arch)
-        for arch in globalParameters["SupportedISA"]
-        if globalParameters["AsmCaps"][arch]["SupportedISA"]
+        for arch in archInfo.SupportedIsas 
+        if capabilities.Asm[arch]["SupportedISA"]
     ]
-    # print("Library LOGICS", libraryLogics)
+    masterLibraries = makeMasterLibrariesWithFallbacks(libraryLogics, capabilities, archInfo, args["SeparateArchitectures"]) 
     masterFileList = generateMasterFileList(masterLibraries, archs, args["LazyLibraryLoading"])
 
     newLibraryDir = Path(outputPath) / "library"
@@ -1441,16 +1330,6 @@ def TensileCreateLibrary():
 
     globalParameters["PrintLevel"] = args["PrintLevel"]
 
-    gp1 = deepcopy(globalParameters)
-
-    archInfo, capabilities, rocmPaths = assignGlobalParameters(args)
-    # inspected
-    import deepdiff
-
-    out = deepdiff.DeepDiff(gp1, globalParameters).pretty()
-    print(out)
-    # exit(1)
-
     ensurePath(outputPath)
     outputPath = os.path.abspath(outputPath)
     copyStaticFiles(outputPath)
@@ -1458,10 +1337,16 @@ def TensileCreateLibrary():
     cacheFile = Path(outputPath).parent / "asm-cache.yaml"
     capabilitiesCache = LibraryIO.initAsmCapsCache(cacheFile)
 
-    assignGlobalParameters(args, capabilitiesCache)
+    # Below code can be removed after deepcopy removal is complete
+    gp1 = deepcopy(globalParameters)
+    archInfo, capabilities, rocmPaths = assignGlobalParameters(args, capabilitiesCache)
+    import deepdiff
+    out = deepdiff.DeepDiff(gp1, globalParameters).pretty()
+    print("Altered Global Parameters: ")
+    print(out)
 
-    if globalParameters["CacheAsmCaps"]:
-        LibraryIO.writeAsmCapsCache(cacheFile, globalParameters["AsmCaps"])
+    if capabilities.AsmIsCached:
+        LibraryIO.writeAsmCapsCache(cacheFile, capabilities.Asm)
 
     if not os.path.exists(logicPath):
         printExit("LogicPath %s doesn't exist" % logicPath)
@@ -1474,12 +1359,8 @@ def TensileCreateLibrary():
     batchedLogicFiles = multifit(logicFiles, numPasses * cpuThreads)
 
     tPrint(1, archInfo.Archs)
-    # tPrint(1, list(Path(logicPath).rglob('**/*.yaml')))
     logicFiles = findLogicFiles(Path(logicPath), logicArchs)
     tPrint(1, len(logicFiles))
-
-    # print(len(logicFiles))
-    # print(len(batchedLogicFiles))
 
     parallelFunc = functools.partial(run, removeTemporaries, outputPath, cxxCompiler, args, capabilities, rocmPaths, archInfo)
     def chunk(lst, n):
@@ -1492,6 +1373,10 @@ def TensileCreateLibrary():
         start = cpuThreads * i
         stop = cpuThreads * (i+1)
         results = Common.ParallelMap(parallelFunc, batchedLogicFiles[start:stop], cpuThreads / numPasses, "Running TCL...", multiArg=False)
+
+        for result in results:
+            print(type(result))
+        del results
 
     # RAY
     # tasks = [
@@ -1510,18 +1395,6 @@ def TensileCreateLibrary():
     # ]
 
     # ray.get(tasks)
-    # global_actor_var = GlobalVariableActor.remote(
-    #     globalParameters, removeTemporaries, outputPath, cxxCompiler, capabilities
-    # )
-    # actor = Actor.remote(global_actor_var)
-    # tasks = [actor.run.remote(lf) for lf in chunks(logicFiles, 15)]
-    # ray.get(tasks)
-    # for lf in chunks(logicFiles, 1):
-    # run.remote(removeTemporaries, outputPath, cxxCompiler, args, lf)
-
-        for result in results:
-            print(type(result))
-        del results
         
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)

@@ -844,7 +844,6 @@ class KernelWriterAssembly(KernelWriter):
 
     # ISA version, such as 803
     assert self.version is not None, "Self.version is None!"
-    # self.version = globalParameters["CurrentISA"]
     if "ISA" in kernel:
       self.version = tuple(kernel["ISA"])
     if not self.asmCaps["SupportedISA"]:

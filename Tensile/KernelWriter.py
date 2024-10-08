@@ -2934,7 +2934,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
           for iter in range(0,numGroups):
             #Mac Code
             #place holder for future work Instruction class for generting MAC instruction
-            #FMAInstruction = MacInstruction(globalParameters["CurrentISA"])
             subIterCode = Code.Module()
             waitCode = Code.Module()
             macIterCodeGrp = Code.Module()
@@ -3709,6 +3708,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   def initKernel(self, kernel, tensorParametersA, tensorParametersB ):
 
     self.staggerU = kernel["StaggerU"]
+
     if self.staggerU:
       assert (kernel["KernelLanguage"]=="Source" or kernel["BufferLoad"])
     self.tPA = tensorParametersA
@@ -5384,7 +5384,6 @@ for codeObjectFileName in codeObjectFileNames:
         # ISA version, such as 803
         self.kernel = kernel
         self.language = "ASM"
-        # self.version = globalParameters["CurrentISA"]
         if "ISA" in kernel:
           self.version = tuple(kernel["ISA"])
         if not self.asmCaps["SupportedISA"]:
