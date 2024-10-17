@@ -27,6 +27,7 @@ from __future__ import print_function
 import Tensile.Common as Common
 
 import os
+import subprocess
 
 def test_gfxArch():
     assert Common.gfxArch('gfx9') is None
@@ -61,5 +62,70 @@ def test_paths():
     Common.popWorkingPath()
     assert Common.globalParameters["WorkingPath"] == expectedWorkingPath
 
+def test_rocm_path():
+    configs = {"IgnoreAsmCapCache": True,
+               "PrintLevel": 0}
+    Common.assignGlobalParameters(configs)
+    assert os.path.isdir(Common.globalParameters["ROCmPath"])
 
+def test_rocm_bin_path():
+    configs = {"IgnoreAsmCapCache": True,
+               "PrintLevel": 0}
+    Common.assignGlobalParameters(configs)
+    assert os.path.isdir(Common.globalParameters["ROCmBinPath"])
 
+def test_llvm_bin_path():
+    configs = {"IgnoreAsmCapCache": True,
+               "PrintLevel": 0}
+    Common.assignGlobalParameters(configs)
+    assert os.path.isdir(Common.globalParameters["LlvmBinPath"])
+
+def test_agent_enumerator():
+    configs = {"IgnoreAsmCapCache": True,
+               "PrintLevel": 0}
+    Common.assignGlobalParameters(configs)
+    assert Common.globalParameters["ROCmAgentEnumeratorPath"] != None
+    # The output should look something like
+    # gfx000
+    # gfx1100
+    process = subprocess.run([Common.globalParameters["ROCmAgentEnumeratorPath"]], stdout=subprocess.PIPE)
+    assert process.returncode == 0
+    lines = process.stdout.decode().split("\n")
+    assert "gfx" in lines[0]
+
+def test_smi():
+    configs = {"IgnoreAsmCapCache": True,
+               "PrintLevel": 0}
+    Common.assignGlobalParameters(configs)
+    assert Common.globalParameters["ROCmSMIPath"] != None
+    # Get the version, should look something like
+    # ROCM-SMI version: 2.2.0+unknown
+    # ROCM-SMI-LIB version: 7.2.0
+    process = subprocess.run([Common.globalParameters["ROCmSMIPath"], "-V"], stdout=subprocess.PIPE)
+    assert process.returncode == 0
+    lines = process.stdout.decode().split("\n")
+    assert "ROCM-SMI" in lines[0]
+
+def test_assembler():
+    configs = {"IgnoreAsmCapCache": True,
+               "PrintLevel": 0}
+    Common.assignGlobalParameters(configs)
+    assert Common.globalParameters["AssemblerPath"] != None
+    # Get the version, should look something like
+    # clang version 17.0.6
+    process = subprocess.run([Common.globalParameters["AssemblerPath"], "-v"], stderr=subprocess.PIPE)
+    assert process.returncode == 0
+    lines = process.stderr.decode().split("\n")
+    assert "clang" in lines[0]
+
+def test_offload_bundler():
+    configs = {"IgnoreAsmCapCache": True,
+               "PrintLevel": 0}
+    Common.assignGlobalParameters(configs)
+    assert Common.globalParameters["ClangOffloadBundlerPath"] != None
+    # Get the version, should look something like
+    # clang-offload-bundler version 17.0.6
+    process = subprocess.run([Common.globalParameters["ClangOffloadBundlerPath"], "--version"], stdout=subprocess.PIPE)
+    assert process.returncode == 0
+    lines = process.stdout.decode().split("\n")
+    assert "clang-offload-bundler" in lines[0]
