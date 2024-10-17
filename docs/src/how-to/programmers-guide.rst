@@ -187,7 +187,7 @@ To enable profiling, use the ``@profile`` decorator, which must be imported from
 External CI
 ============
 
-`Azure Pipelines <https://dev.azure.com/ROCm-CI/ROCm-CI/_build?definitionId=256>` are run for every pull request and commit targeting the develop and mainline branches.
+`Azure Pipelines <https://dev.azure.com/ROCm-CI/ROCm-CI/_build?definitionId=256>`_ are run for every pull request and commit targeting the develop and mainline branches.
 The pipeline packages up the wheel file and runs pre_checkin tests on a gfx942 system.
 `Click <https://dev.azure.com/ROCm-CI/ROCm-CI/_build?definitionId=256>` on the job corresponding to the pull request or commit to view execution logs.
 
