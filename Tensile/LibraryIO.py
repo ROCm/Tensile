@@ -430,8 +430,10 @@ def initAsmCapsCache(cacheFile: str) -> Optional[dict]:
         return None
     
     cacheExists = os.path.exists(cacheFile)
-    
-    cache  = readYAML(cacheFile) if cacheExists else {}
+    if not cacheExists:
+        return {}
+
+    cache  = readYAML(cacheFile)
     toTuple = lambda s: tuple(int(i.strip()) for i in s.split(","))
     newcache = {toTuple(k): v for k,v in cache.items()}
 
