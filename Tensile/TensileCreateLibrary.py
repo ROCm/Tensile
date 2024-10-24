@@ -46,8 +46,7 @@ import subprocess
 import sys
 import time
 import warnings
-from matplotlib.pylab import f
-import ray
+# import ray
 from io import TextIOWrapper
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List, Optional, Set, Tuple, Union
@@ -1078,28 +1077,6 @@ def makeSolutions(
     )
     return itertools.chain(gen1, gen2)
 
-def addFallback(masterLibraries: Dict[str, MasterSolutionLibrary]) -> None:
-    """Adds fallback library.
-
-    Given a master solution library, add a fallback and if the corresponding
-    architecture is unsupported, replace the library altogether with a fallback.
-
-    Args:
-        masterLibraries: A dictionary containing the master solution libraries.
-    """
-    archs, _ = splitArchs()
-
-    for key, value in masterLibraries.items():
-        if key != "fallback":
-            value.insert(masterLibraries["fallback"])
-
-    for archName in archs:
-        archName = archName.split("-", 1)[0]
-        if archName not in masterLibraries:
-            tPrint(1, "Using fallback for arch: " + archName)
-            masterLibraries[archName] = masterLibraries["fallback"]
-
-    masterLibraries.pop("fallback")
 
 def makeMasterLibrariesWithFallbacks(
     logicFiles: List[LibraryIO.LibraryLogic], caps: Capabilities, archInfo: ArchInfo, separate: bool
@@ -1292,6 +1269,7 @@ def run(
 
     for name, lib in masterFileList:
         lib.applyNaming(kernelMinNaming)
+        tPrint(1, f"Writing MSLibrary: {name}")
         LibraryIO.write(str(newLibraryDir / name), Utils.state(lib), args["LibraryFormat"])
 
     return kernels

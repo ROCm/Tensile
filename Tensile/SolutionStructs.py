@@ -2428,7 +2428,7 @@ class Solution(collections.abc.Mapping):
   ########################################
   # determine can we use VgprForLocalReadPacking
   @staticmethod
-  def isVgprForLocalReadPackingDoable(state):
+  def isVgprForLocalReadPackingDoable(state, caps):
     isa = tuple(state["ISA"])
     rejectComment = ""
     doable = True
@@ -2461,7 +2461,7 @@ class Solution(collections.abc.Mapping):
   ########################################
   # determine can we use DirectToVgpr
   @staticmethod
-  def isDirectToVgprDoable(state, tc):
+  def isDirectToVgprDoable(state, tc, caps):
     MIindex = 0 if tc == 'A' else 1
     numBytes = state["ProblemType"]["DataType"].numBytes()
     # Does not support DirectToVgprA+DirectToVgprB+PrefetchGlobalRead=2
@@ -2494,7 +2494,7 @@ class Solution(collections.abc.Mapping):
     if numBytes < 4:
       # Does not work with TLU = True and numBytes < 4 (not supported)
       if state["ProblemType"]["TLU%c"%tc]:
-        doable, _ = Solution.isVgprForLocalReadPackingDoable(state)
+        doable, _ = Solution.isVgprForLocalReadPackingDoable(state, caps)
         if numBytes * state["VectorWidth%s"%tc] >= 4 and doable:
           # use pack logic (with v_perm) same as local read (only if VgprForLocalReadPacking is doable)
           # numBytes * VW should be 4 or larger
@@ -3970,12 +3970,12 @@ class Solution(collections.abc.Mapping):
     # Determine if we can load directly-to-Vgpr
     # need to check after state["LocalReadVectorWidth"] = -1 is resolved
     if state["DirectToVgprA"]:
-      if not Solution.isDirectToVgprDoable(state, 'A'):
+      if not Solution.isDirectToVgprDoable(state, 'A', caps):
         return  # rejected
       # disable DTL
       state["DirectToLdsA"] = False
     if state["DirectToVgprB"]:
-      if not  Solution.isDirectToVgprDoable(state, 'B'):
+      if not  Solution.isDirectToVgprDoable(state, 'B', caps):
         return  # rejected
       # disable DTL
       state["DirectToLdsB"] = False
@@ -4695,7 +4695,7 @@ class Solution(collections.abc.Mapping):
 
     # reject check for VgprForLocalReadPacking
     if state["VgprForLocalReadPacking"]:
-      doable, rejectComment = Solution.isVgprForLocalReadPackingDoable(state)
+      doable, rejectComment = Solution.isVgprForLocalReadPackingDoable(state, caps)
       if not doable:
         reject(state, rejectComment)
         return
