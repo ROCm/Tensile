@@ -31,6 +31,7 @@ from . import Common
 from . import Contractions
 from .SolutionStructs import Solution as OriginalSolution
 from .Utils import state
+from .Common import tPrint
 
 class SingleSolutionLibrary:
     Tag = "Single"
@@ -275,9 +276,11 @@ class MasterSolutionLibrary:
                 archLiteral = archString.group(0)
                 archval = (int(archLiteral, 16) << 18)
         # Check for duplicate architecture values
+        tPrint(1, f"architecture value {archval} for {architectureName} and {archLiteral}")
         if archval >= 0 and not archval in cls.ArchitectureSet:
             cls.ArchitectureSet.add(archval)
         else:
+            tPrint(1, f"ERROR: Duplicate architecture value {archval} for {architectureName}")
             raise RuntimeError("ERROR in architecture solution index mapping.")
         return archval
 

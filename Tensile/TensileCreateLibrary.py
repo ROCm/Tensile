@@ -993,6 +993,7 @@ def makeMasterLibraries(
     nextSolIndex = {}
     fullMasterLibrary = None
 
+    tPrint(1, "logicList: " + str(len(logicList[0])))
     for _, gfxName, _, _, _, lib in logicList:
         if separate:
             if gfxName in masterLibraries:
@@ -1106,6 +1107,7 @@ def parseLibraryLogicFiles(
         List of library logic tuples.
     """
     libraryLogics = []
+    # print("parsing logic files", logicFiles)
     for f in logicFiles:
         tPrint(0, f)
         yamlDict = LibraryIO.readYAML(f)
@@ -1256,23 +1258,8 @@ def run(
     #     removeTemporaries=removeTemporaries,
     # )    
 
-    archs = [
-        gfxName(arch)
-        for arch in archInfo.SupportedIsas 
-        if capabilities.Asm[arch]["SupportedISA"]
-    ]
-    masterLibraries = makeMasterLibrariesWithFallbacks(libraryLogics, capabilities, archInfo, args["SeparateArchitectures"]) 
-    masterFileList = generateMasterFileList(masterLibraries, archs, args["LazyLibraryLoading"])
 
-    newLibraryDir = Path(outputPath) / "library"
-    newLibraryDir.mkdir(exist_ok=True)
-
-    for name, lib in masterFileList:
-        lib.applyNaming(kernelMinNaming)
-        tPrint(1, f"Writing MSLibrary: {name}")
-        LibraryIO.write(str(newLibraryDir / name), Utils.state(lib), args["LibraryFormat"])
-
-    return kernels
+    return (libraryLogics, kernelMinNaming)
 
 
 # weights are assumed reverse sorted
@@ -1338,7 +1325,7 @@ def TensileCreateLibrary():
 
     tPrint(1, archInfo.Archs)
     logicFiles = findLogicFiles(Path(logicPath), logicArchs)
-    tPrint(1, len(logicFiles))
+    tPrint(1, logicFiles)
 
     parallelFunc = functools.partial(run, removeTemporaries, outputPath, cxxCompiler, args, capabilities, rocmPaths, archInfo)
     def chunk(lst, n):
@@ -1346,16 +1333,38 @@ def TensileCreateLibrary():
         for i in range(0, len(lst), n):
             yield lst[i : i + n]
 
-    for i in range(0, numPasses):
-        print("pass ", i)
-        start = cpuThreads * i
-        stop = cpuThreads * (i+1)
-        results = Common.ParallelMap(parallelFunc, batchedLogicFiles[start:stop], cpuThreads / numPasses, "Running TCL...", multiArg=False)
+    libraryLogics = []
+    kernelMinNamings = []
+    rvs = Common.ParallelMap(parallelFunc, chunk(logicFiles, 1), cpuThreads, "Running TCL...", multiArg=False)
+    # for i in range(0, numPasses):
+    #     print("pass ", i)
+    #     start = cpuThreads * i
+    #     stop = cpuThreads * (i+1)
+    #     results = Common.ParallelMap(parallelFunc, batchedLogicFiles[start:stop], cpuThreads / numPasses, "Running TCL...", multiArg=False)
 
-        for result in results:
-            print(type(result))
-        del results
+    for libLogic, kminNaming in rvs:
+        libraryLogics.extend(libLogic)
+        kernelMinNamings.append(kminNaming)
+    # del results
 
+    archs = [
+        gfxName(arch)
+        for arch in archInfo.SupportedIsas 
+        if capabilities.Asm[arch]["SupportedISA"]
+    ]
+    masterLibraries = makeMasterLibrariesWithFallbacks(libraryLogics, capabilities, archInfo, args["SeparateArchitectures"]) 
+    masterFileList = generateMasterFileList(masterLibraries, archs, args["LazyLibraryLoading"])
+
+    newLibraryDir = Path(outputPath) / "library"
+    newLibraryDir.mkdir(exist_ok=True)
+
+    # last_inner_list = kernelMinNamings[-1]  # Get the last inner list
+    # assert all(inner_list == last_inner_list for inner_list in kernelMinNamings)
+    # tPrint(1, f"kernelMinNamings: {kernelMinNamings[0]}")
+    for minNaming, (name, lib) in zip(kernelMinNamings, masterFileList):
+        lib.applyNaming(minNaming)
+        tPrint(1, f"Writing MSLibrary: {name}")
+        LibraryIO.write(str(newLibraryDir / name), Utils.state(lib), args["LibraryFormat"])
     # RAY
     # tasks = [
     #     run.remote(
