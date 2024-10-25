@@ -2476,7 +2476,7 @@ def assignGlobalParameters( config ):
   # The following try except block computes the hipcc version
   try:
     if os.name == "nt":
-      compileArgs = ['perl'] + [which('hipcc')] + ['--version']
+      compileArgs = [which('hipcc')] + ['--version']
       output = subprocess.run(compileArgs, check=True, stdout=subprocess.PIPE).stdout.decode()
     else:
       compiler = "hipcc"
