@@ -13,7 +13,7 @@
 - Factor embed library logic into function and test
 - `clang++` as cxx-compiler option for Windows
 - Logic to cope with different compilers
-- `generateManifest` function and rename generateManifest to toFile and move to Utilities
+- `toFile` function to include `generateManifest` and moved to utilities
 - Profiling CI job
 - Support for `amdclang` and use defaults
 - Architecture management functions in `TensileCreateLibrary`
@@ -22,11 +22,13 @@
 - Prediction model for optimal number of Stream-K tiles to run
 - Two-tile algorithm with Stream-K after DP
 - Atomic two-tile Stream-K and clean-up tuning parameters
+- Using glob to find logic files in `TensileCreateLibrary`
+- Function to confirm supported compiler rather than raw logic
 
 ### Changed
 
 - Improved rocBLAS build output by allowing warning suppression, ignoring developer warnings, displaying progress bar and quiet printing
-- Reordered extensions for Windows in which function
+- Reordered extensions for Windows in `which` function
 - updated `amdclang++` and `asm` directories
 - Updated duplicate marking tests with mocks
 - Restored print ordering
@@ -42,11 +44,9 @@
 - Improved warning text
 - Updated clang support for Windows
 - Updated `supportedCompiler` function
-- use conditional choices and defaults
+- Clang support on Windows to require use of conditional choices and defaults
 - Refactored sanity check in `TensileCreateLibrary`
 - Moved client config logic from `TensileCreateLibrary` main into `createClientConfig`
-- use glob to find logic files in TensileCreateLibrary
-- use function to confirm supported compiler rather than raw logic
 - Updated `verifyManifest` in `TensileCreateLibrary`
 - Updated RTD configs
 - Cleaned up CMake to avoid redundant work during client builds
@@ -62,8 +62,10 @@
 
 ### Optimized
 
-- Use analytical grid size prediction model for Stream-K
-- Remapped XCC-based workgroup for Stream-K kernels
+To optimize the performance of Stream-K kernels:
+
+- Introduced analytical grid size prediction model
+- Remapped XCC-based workgroup
 
 ### Resolved issues
 
