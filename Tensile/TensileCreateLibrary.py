@@ -1258,8 +1258,7 @@ def run(
     #     removeTemporaries=removeTemporaries,
     # )    
 
-
-    return (libraryLogics, kernelMinNaming)
+    return libraryLogics, kernels
 
 
 # weights are assumed reverse sorted
@@ -1334,54 +1333,32 @@ def TensileCreateLibrary():
             yield lst[i : i + n]
 
     libraryLogics = []
-    kernelMinNamings = []
+    kernels = []
     rvs = Common.ParallelMap(parallelFunc, chunk(logicFiles, 1), cpuThreads, "Running TCL...", multiArg=False)
-    # for i in range(0, numPasses):
-    #     print("pass ", i)
-    #     start = cpuThreads * i
-    #     stop = cpuThreads * (i+1)
-    #     results = Common.ParallelMap(parallelFunc, batchedLogicFiles[start:stop], cpuThreads / numPasses, "Running TCL...", multiArg=False)
 
-    for libLogic, kminNaming in rvs:
+    for libLogic, kernel in rvs:
         libraryLogics.extend(libLogic)
-        kernelMinNamings.append(kminNaming)
-    # del results
+        kernels.extend(kernel)
 
     archs = [
         gfxName(arch)
         for arch in archInfo.SupportedIsas 
         if capabilities.Asm[arch]["SupportedISA"]
     ]
-    masterLibraries = makeMasterLibrariesWithFallbacks(libraryLogics, capabilities, archInfo, args["SeparateArchitectures"]) 
+
+    masterLibraries = makeMasterLibrariesWithFallbacks(libraryLogics, capabilities, archInfo, args["SeparateArchitectures"])
     masterFileList = generateMasterFileList(masterLibraries, archs, args["LazyLibraryLoading"])
 
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)
 
-    # last_inner_list = kernelMinNamings[-1]  # Get the last inner list
-    # assert all(inner_list == last_inner_list for inner_list in kernelMinNamings)
-    # tPrint(1, f"kernelMinNamings: {kernelMinNamings[0]}")
-    for minNaming, (name, lib) in zip(kernelMinNamings, masterFileList):
-        lib.applyNaming(minNaming)
+    kernelMinNamingSolo = Solution.getMinNaming(kernels)
+
+    tPrint(1, f"kernelMinNamings: {kernelMinNamingSolo}")
+    for name, lib in masterFileList:
+        lib.applyNaming(kernelMinNamingSolo)
         tPrint(1, f"Writing MSLibrary: {name}")
         LibraryIO.write(str(newLibraryDir / name), Utils.state(lib), args["LibraryFormat"])
-    # RAY
-    # tasks = [
-    #     run.remote(
-    #         removeTemporaries,
-    #         outputPath,
-    #         cxxCompiler,
-    #         args,
-    #         capabilities,
-    #         rocmPaths,
-    #         archInfo,
-    #         archInfo.CurrentIsa,
-    #         lf,
-    #     )
-    #     for lf in chunks(logicFiles, 5)
-    # ]
-
-    # ray.get(tasks)
         
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)
