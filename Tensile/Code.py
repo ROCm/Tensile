@@ -23,7 +23,7 @@
 ################################################################################
 
 from __future__ import print_function
-from .Common import globalParameters, printExit
+from .Common import Capabilities, globalParameters, printExit
 import ctypes
 # Global to print module names around strings
 printModuleNames = 0
@@ -285,10 +285,11 @@ class WaitCnt (Module):
   If lgkmcnt=vmcnt= -1 then the waitcnt is a nop and
   an instruction with a comment is returned.
   """
-  def __init__(self, version,lgkmcnt=-1,vmcnt=-1,comment=""):
+  def __init__(self, version, caps: Capabilities, lgkmcnt=-1,vmcnt=-1,comment=""):
     super().__init__("wait")
 
     self.version = version
+    self.caps = caps
     self.lgkmcnt = lgkmcnt
     self.vmcnt   = vmcnt
     self.comment = "lgkmcnt={} vmcnt={}".format(lgkmcnt, vmcnt) + comment
@@ -301,9 +302,8 @@ class WaitCnt (Module):
     main_args = []
     wait_store = False
     if self.lgkmcnt != -1:
-      currentIsa    = globalParameters["CurrentISA"]
-      maxLgkmcnt    = globalParameters["AsmCaps"][currentIsa]["MaxLgkmcnt"]
-      seperateVscnt = globalParameters["ArchCaps"][currentIsa]["SeparateVscnt"]
+      maxLgkmcnt    = self.caps.Asm[self.version]["MaxLgkmcnt"]
+      seperateVscnt = self.caps.Arch[self.version]["SeparateVscnt"]
       wait_store    = True
       main_args += ["lgkmcnt(%u)" % (min(self.lgkmcnt,maxLgkmcnt))]
 

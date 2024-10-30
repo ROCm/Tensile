@@ -537,10 +537,10 @@ class Solution:
 
     @classmethod
     def FromSolutionStruct(cls, solution):
-        return cls.FromOriginalState(solution._state)
+        return cls.FromOriginalState(solution._state, solution._caps)
 
     @classmethod
-    def FromOriginalState(cls, d, deviceInfo=None):
+    def FromOriginalState(cls, d, caps: Common.Capabilities, deviceInfo=None):
         rv = cls()
 
 
@@ -578,7 +578,7 @@ class Solution:
             else:
                 d['ISA'] = [0,0,0]
 
-        rv.originalSolution = OriginalSolution(d)
+        rv.originalSolution = OriginalSolution(d, caps)
         # hacky, can just construct Convolution yet again?
         rv.problemType.convolution = rv.originalSolution["ProblemType"].convolution
 

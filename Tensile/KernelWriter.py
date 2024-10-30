@@ -46,32 +46,34 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   # Init
   ##############################################################################
-  def __init__( self, kernelMinNaming, kernelSerialNaming, removeTemporaries=True ):
+  def __init__( self, kernelMinNaming, kernelSerialNaming, capabilities, archInfo, removeTemporaries=True ):
     self.kernelMinNaming = kernelMinNaming
     self.kernelSerialNaming = kernelSerialNaming
     self.overflowedResources = 0
     self.removeTemporaries = removeTemporaries
+    self.caps = capabilities
+    self.version = archInfo.CurrentIsa
 
   @property
   def asmCaps(self):
     """
     Assembler capabilities for the current ISA version.
     """
-    return globalParameters["AsmCaps"][self.version]
+    return self.caps.Asm[self.version]
 
   @property
   def archCaps(self):
     """
     Architectural capabilities for the current ISA version.
     """
-    return globalParameters["ArchCaps"][self.version]
+    return self.caps.Arch[self.version]
 
-  @property
-  def globalParams(self):
-    """
-    Global parameters for current configuration.
-    """
-    return globalParameters
+  # @property
+  # def globalParams(self):
+  #   """
+  #   Global parameters for current configuration.
+  #   """
+  #   return globalParameters
 
   ##############################################################################
   # returns number of Local Read included in current loop iteration
@@ -212,8 +214,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   def makeSchedule(self, kernel, tensorParametersA, tensorParametersB, localWriteEndIter, uDu=0, skipGlobalReadInc=False, firstIter=False, lastLoop=False, lastLc=False):
 
-    currentIsa = globalParameters["CurrentISA"]
-    maxVmcnt = globalParameters["AsmCaps"][currentIsa]["MaxVmcnt"]
+    maxVmcnt = self.asmCaps["MaxVmcnt"]
 
     self.unrollLoopHeaderCode = Code.Module()
     # schedule of work for each local_read iteration:
@@ -827,9 +828,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
             if uDu < kernel["DepthULdsDivisor"]-1:
               imod.addComment0("no wait vmcnt except for in the last subLdsLoop")
             else:
-              imod.addCode(Code.WaitCnt(self.version, -1, min(maxVmcnt, readsToWait + readsToWaitDTV + readsToWaitAdjustForStoreC), \
+              imod.addCode(Code.WaitCnt(self.version, self.caps, -1, min(maxVmcnt, readsToWait + readsToWaitDTV + readsToWaitAdjustForStoreC), \
                 "wait for global read before writing to local"))
-              imodNGLL.addCode(Code.WaitCnt(self.version, -1, min(maxVmcnt, readsToWaitNGLL  + readsToWaitDTV + readsToWaitAdjustForStoreC), \
+              imodNGLL.addCode(Code.WaitCnt(self.version, self.caps, -1, min(maxVmcnt, readsToWaitNGLL  + readsToWaitDTV + readsToWaitAdjustForStoreC), \
                 "wait for global read before writing to local"))
           if kernel["StoreCInUnroll"] or kernel["PrefetchGlobalRead"]==2:
             if "s_waitcnt" in str(item) and "__placeholder__" in str(item):
@@ -2933,7 +2934,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
           for iter in range(0,numGroups):
             #Mac Code
             #place holder for future work Instruction class for generting MAC instruction
-            #FMAInstruction = MacInstruction(globalParameters["CurrentISA"])
             subIterCode = Code.Module()
             waitCode = Code.Module()
             macIterCodeGrp = Code.Module()
@@ -2958,13 +2958,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 waitCntVal = waitCntItems[iter] + 1 if (self.perIterLocalWriteCode[u].count()>0) else waitCntItems[iter]
                 # read + write instructions lgkmcnt (1=> for write)
                 # build waitCnt using new lgkmcnt
-                waitCode = Code.WaitCnt(self.version, waitCntVal,-1,"wait for prior local read")
+                waitCode = Code.WaitCnt(self.version, self.caps, waitCntVal,-1,"wait for prior local read")
               subIterCode = self.makeSubIterSchedule(kernel, localReads, \
                        u, pointerLWCode, pointerLRCode, waitCode, macIterCodeGrp)
             else:
                 #last group only pointer + localWrite Code
               if self.enable["Wait"]:
-                waitCode = Code.WaitCnt(self.version, waitCntItems[iter],-1,"wait for prior local read & local writes")
+                waitCode = Code.WaitCnt(self.version, self.caps, waitCntItems[iter],-1,"wait for prior local read & local writes")
               subIterCode.addCode(waitCode)
               subIterCode.addCode(macIterCodeGrp)
             kl.append(subIterCode) # add scheduled "other", local reads, local writes
@@ -3708,6 +3708,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   def initKernel(self, kernel, tensorParametersA, tensorParametersB ):
 
     self.staggerU = kernel["StaggerU"]
+
     if self.staggerU:
       assert (kernel["KernelLanguage"]=="Source" or kernel["BufferLoad"])
     self.tPA = tensorParametersA
@@ -3860,9 +3861,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.language = globalParameters["RuntimeLanguage"]
     else:
       self.language = "ASM"
-    self.indexChars = []
-    for i in range(0, len(globalParameters["IndexChars"])):
-      self.indexChars.append(globalParameters["IndexChars"][i])
+    self.indexChars = list(Common.INDEX_CHARS)
     self.indexChars[kernel["ProblemType"]["Index0"]] \
         = "0" + self.indexChars[kernel["ProblemType"]["Index0"]]
     self.indexChars[kernel["ProblemType"]["Index1"]] \
@@ -4272,7 +4271,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.useInitAccVgprOpt = False
     # enable for the following conditions
     if kernel["EnableMatrixInstruction"] and (kernel["PrefetchGlobalRead"] == 1 or kernel["PrefetchGlobalRead"] == 2) \
-       and globalParameters["AsmCaps"][globalParameters["CurrentISA"]]["HasMFMA_constSrc"] \
+       and self.asmCaps["HasMFMA_constSrc"] \
        and kernel["StreamK"] == 0:
       self.useInitAccVgprOpt = True
     # force to disable for the following conditions
@@ -5385,10 +5384,9 @@ for codeObjectFileName in codeObjectFileNames:
         # ISA version, such as 803
         self.kernel = kernel
         self.language = "ASM"
-        self.version = globalParameters["CurrentISA"]
         if "ISA" in kernel:
           self.version = tuple(kernel["ISA"])
-        if not globalParameters["AsmCaps"][self.version]["SupportedISA"]:
+        if not self.asmCaps["SupportedISA"]:
           defaultIsa = (9,0,0)
           print("warning: ISA:", self.version, " is not supported; overriding with ", defaultIsa)
           self.version = defaultIsa

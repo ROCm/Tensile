@@ -24,7 +24,7 @@
 
 from copy import deepcopy
 
-from .Common import globalParameters, CHeader
+from .Common import globalParameters, CHeader, INDEX_CHARS
 from .KernelWriterBase import KernelWriterBase
 
 class KernelWriterConversion(KernelWriterBase):
@@ -49,8 +49,8 @@ class KernelWriterConversion(KernelWriterBase):
 
     # determine chars for fast access
     self.indexChars = []
-    for i in range(0, len(globalParameters["IndexChars"])):
-      self.indexChars.append(globalParameters["IndexChars"][i])
+    for i in range(0, len(INDEX_CHARS)):
+      self.indexChars.append(INDEX_CHARS[i])
     self.indexChars[self.state["ProblemType"]["Index0"]] = "0" + self.indexChars[self.state["ProblemType"]["Index0"]]
     self.indexChars[self.state["ProblemType"]["Index1"]] = "1" + self.indexChars[self.state["ProblemType"]["Index1"]]
     self.tileChar0 = self.indexChars[self.state["ProblemType"]["Index0"]]
@@ -380,7 +380,7 @@ class KernelWriterConversion(KernelWriterBase):
 
 
   def getKernelName(self):
-    indexChars = globalParameters["IndexChars"]
+    indexChars = INDEX_CHARS
     # C dimensions
     name = "C"
     for i in range(0, self.state["ProblemType"]["NumIndicesC"]):

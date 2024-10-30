@@ -31,6 +31,7 @@ from . import Common
 from . import Contractions
 from .SolutionStructs import Solution as OriginalSolution
 from .Utils import state
+from .Common import tPrint
 
 class SingleSolutionLibrary:
     Tag = "Single"
@@ -275,9 +276,11 @@ class MasterSolutionLibrary:
                 archLiteral = archString.group(0)
                 archval = (int(archLiteral, 16) << 18)
         # Check for duplicate architecture values
+        tPrint(1, f"architecture value {archval} for {architectureName} and {archLiteral}")
         if archval >= 0 and not archval in cls.ArchitectureSet:
             cls.ArchitectureSet.add(archval)
         else:
+            tPrint(1, f"ERROR: Duplicate architecture value {archval} for {architectureName}")
             raise RuntimeError("ERROR in architecture solution index mapping.")
         return archval
 
@@ -439,7 +442,7 @@ class MasterSolutionLibrary:
         lazyLibrary = None
         if placeholder in libraryOrder:
             placeholderIndex = libraryOrder.index(placeholder) + 1
-            lazyLibrary = MasterSolutionLibrary.FromOriginalState(origData, origSolutions,
+            lazyLibrary, _ = MasterSolutionLibrary.FromOriginalState(origData, origSolutions,
                                                                   solutionClass,
                                                                   libraryOrder[placeholderIndex:])
             libraryOrder = libraryOrder[0:placeholderIndex]
@@ -465,7 +468,7 @@ class MasterSolutionLibrary:
             rv.lazyLibraries[placeholderName] = lazyLibrary
             placeholderLibrary.filenamePrefix = placeholderName
 
-        return rv
+        return rv, placeholderName
 
     @classmethod
     def BenchmarkingLibrary(cls, solutions):
@@ -536,6 +539,7 @@ class MasterSolutionLibrary:
             lazyLibrary = {}
             for name, lib in self.lazyLibraries.items():
                 lib.solutions, reIndexMap = self._remapSolutionIndicesStartingFrom(lib.library, lib.solutions, startingIndex)
+                
                 lib.library.remapSolutionIndices(reIndexMap)
                 lazyLibrary[name] = lib
             self.lazyLibraries = lazyLibrary

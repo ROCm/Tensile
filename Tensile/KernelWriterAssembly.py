@@ -23,7 +23,7 @@
 ################################################################################
 
 from . import Code
-from .Common import gfxName, globalParameters, getCOVFromParam, tPrint, printExit, printWarning, roundUp
+from .Common import Capabilities, ArchInfo, gfxName, globalParameters, getCOVFromParam, tPrint, printExit, printWarning, roundUp, INDEX_CHARS
 from .Component import Component
 from .KernelWriter import KernelWriter
 from .SolutionStructs import isPackedIndex
@@ -72,9 +72,12 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Init
   ##############################################################################
-  def __init__( self, kernelMinNaming, kernelSerialNaming, removeTemporaries=True ):
+  def __init__(self, kernelMinNaming, kernelSerialNaming, assemblerPath: str, caps: Capabilities, archInfo: ArchInfo, removeTemporaries=True):
     super(KernelWriterAssembly, self).__init__( \
-        kernelMinNaming, kernelSerialNaming, removeTemporaries)
+        kernelMinNaming, kernelSerialNaming, caps, archInfo, removeTemporaries)
+
+    self.assembler = assemblerPath
+
     self.do = {}
     self.do["PreLoop"]     = True
     self.do["GlobalReadA"] = True
@@ -243,10 +246,9 @@ class KernelWriterAssembly(KernelWriter):
 
     launcher = shlex.split(os.environ.get('Tensile_ASM_COMPILER_LAUNCHER', ''))
 
-    assembler = globalParameters['AssemblerPath']
-    if assembler is None:
+    if self.assembler is None:
       raise ValueError('No assembler available; set TENSILE_ROCM_ASSEMBLER_PATH to point to ROCm Clang.')
-    rv = launcher + [assembler,
+    rv = launcher + [self.assembler,
           '-x', 'assembler',
           '-target', 'amdgcn-amd-amdhsa']
 
@@ -267,10 +269,9 @@ class KernelWriterAssembly(KernelWriter):
     return rv
 
   def getLinkCodeObjectArgs(self, objectFileNames, coFileName, *moreArgs):
-    assembler = globalParameters['AssemblerPath']
-    if assembler is None:
+    if self.assembler is None:
       raise ValueError('No assembler available; set TENSILE_ROCM_ASSEMBLER_PATH to point to ROCm Clang.')
-    rv = [assembler,
+    rv = [self.assembler,
           '-target', 'amdgcn-amd-amdhsa']
     # Add build-id for builds with rocm 5.3+
     compilerVer = globalParameters['HipClangVersion'].split(".")[:2]
@@ -353,12 +354,12 @@ class KernelWriterAssembly(KernelWriter):
     See above definitions for how these are mapped to Free or Sum sizes
     based on the problem definition.
     """
-    idxChar= globalParameters["IndexChars"][idx]
+    idxChar= INDEX_CHARS[idx]
     return sgpr("Size%s"%idxChar)
 
   def loopChar(self, kernel, loopIdx):
     loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]
-    return globalParameters["IndexChars"][loopDim]
+    return INDEX_CHARS[loopDim]
 
   def loopSizeRef(self, kernel, loopIdx):
     loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]
@@ -613,7 +614,7 @@ class KernelWriterAssembly(KernelWriter):
     for tc in ('A', 'B'):
       for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
         (freeDim, sumDim, padStart, padEnd) = zp
-        sumDimChar  = globalParameters["IndexChars"][sumDim]
+        sumDimChar  = INDEX_CHARS[sumDim]
         # These will eventually be read as kernel args:
         self.defineSgpr("ElementEdge%s%s"%(tc, sumDimChar),1)
         if kernel["PackSummationDims"]:
@@ -842,16 +843,16 @@ class KernelWriterAssembly(KernelWriter):
     self.combineLocalAddresses = 0
 
     # ISA version, such as 803
-    self.version = globalParameters["CurrentISA"]
+    assert self.version is not None, "Self.version is None!"
     if "ISA" in kernel:
       self.version = tuple(kernel["ISA"])
-    if not globalParameters["AsmCaps"][self.version]["SupportedISA"]:
+    if not self.asmCaps["SupportedISA"]:
       defaultIsa = (9,0,0)
       print("warning: ISA:", self.version, " is not supported; overriding with ", defaultIsa)
       self.version = defaultIsa
 
     self.doubleVgpr = False
-    if globalParameters["ArchCaps"][self.version]["ArchAccUnifiedRegs"] or (kernel["WavefrontSize"] == 32):
+    if self.archCaps["ArchAccUnifiedRegs"] or (kernel["WavefrontSize"] == 32):
       self.doubleVgpr = True
 
     if kernel["EnableMatrixInstruction"]:
@@ -870,10 +871,10 @@ class KernelWriterAssembly(KernelWriter):
         raise RuntimeError("XF32 MatrixInstruction not supported for {0}".format(self.version))
 
     self.AsmBugs = {}
-    self.AsmBugs["ExplicitCO"] = globalParameters["AsmCaps"][self.version]["HasExplicitCO"]
-    self.AsmBugs["ExplicitNC"] = globalParameters["AsmCaps"][self.version]["HasExplicitNC"]
+    self.AsmBugs["ExplicitCO"] = self.asmCaps["HasExplicitCO"]
+    self.AsmBugs["ExplicitNC"] = self.asmCaps["HasExplicitNC"]
 
-    hasDtl = globalParameters["AsmCaps"][self.version]["HasDirectToLdsDest"] or globalParameters["AsmCaps"][self.version]["HasDirectToLdsNoDest"]
+    hasDtl = self.asmCaps["HasDirectToLdsDest"] or self.asmCaps["HasDirectToLdsNoDest"]
     if not hasDtl:
       if kernel["DirectToLdsA"] or kernel["DirectToLdsB"]:
         printExit("DirectToLds requested, but not available on this architecture ( {} )".format(self.version))
@@ -1086,7 +1087,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # special case for wmma h and b
     if (kernel["EnableMatrixInstruction"]
-            and globalParameters["AsmCaps"][self.version]["HasWMMA"]
+            and self.asmCaps["HasWMMA"]
             and (kernel["ProblemType"]["ComputeDataType"].numRegisters() == 0.5)):
         self.bpeCinternal = 4
         if kernel["_GlobalAccumulation"]: # TODO SK and kernel["_GlobalAccumulation"] != 'PartialsBuffer':
@@ -1636,8 +1637,8 @@ class KernelWriterAssembly(KernelWriter):
             for sPara in range(0, int(tP["nrcv"]/tP["nrcvpi"])):
               for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
                 (freeDim, sumDim) = zp[:2]
-                freeDimChar = globalParameters["IndexChars"][freeDim]
-                sumDimChar  = globalParameters["IndexChars"][sumDim]
+                freeDimChar = INDEX_CHARS[freeDim]
+                sumDimChar  = INDEX_CHARS[sumDim]
                 zpName = "GlobalReadOffset%s_ZP%s%s_%d_%d_%d_%d" % \
                           (tc, freeDimChar, sumDimChar, para, sPara, perp, sPerp)
 
@@ -1828,7 +1829,7 @@ class KernelWriterAssembly(KernelWriter):
 
     self.sumMagicParms = []
     if kernel["PackSummationDims"]:
-      self.magicSumChars = [globalParameters["IndexChars"][c] for c in kernel["ProblemType"]["IndicesSummation"][1:]]
+      self.magicSumChars = [INDEX_CHARS[c] for c in kernel["ProblemType"]["IndicesSummation"][1:]]
 
       self.sumMagicParms=["%s"%idxChar for idxChar in self.magicSumChars]
       if kernel["PackSummationDims"] and kernel["GlobalSplitU"] > 1 and self.sumMagicParms:
@@ -1922,7 +1923,7 @@ class KernelWriterAssembly(KernelWriter):
 
     self.sumMagicParms = []
     if kernel["PackSummationDims"]:
-      self.magicSumChars = [globalParameters["IndexChars"][c] for c in kernel["ProblemType"]["IndicesSummation"][1:]]
+      self.magicSumChars = [INDEX_CHARS[c] for c in kernel["ProblemType"]["IndicesSummation"][1:]]
       self.sumMagicParms=["%s"%idxChar for idxChar in self.magicSumChars]
       if kernel["PackSummationDims"] and kernel["GlobalSplitU"] > 1 and self.sumMagicParms:
           self.sumMagicParms.append("%s_GsuRemainder"%self.unrollChar)
@@ -1943,8 +1944,8 @@ class KernelWriterAssembly(KernelWriter):
         for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
           (freeDim, sumDim, padStart, padEnd) = zp
           if sumDim == idx:
-            freeDimChar = globalParameters["IndexChars"][freeDim]
-            sumDimChar  = globalParameters["IndexChars"][sumDim]
+            freeDimChar = INDEX_CHARS[freeDim]
+            sumDimChar  = INDEX_CHARS[sumDim]
             # These will eventually be read as kernel args:
             self.defineSgpr("PadStart%s%s%s"%(tc, freeDimChar, sumDimChar),1, kernarg=True)
             self.defineSgpr("PadEnd%s%s%s"%(tc, freeDimChar, sumDimChar),1, kernarg=True)
@@ -2298,7 +2299,7 @@ class KernelWriterAssembly(KernelWriter):
     # Use combined add+shift, where available:
     kStr += self.endLine
     kStr += ".macro _v_add_lshl_u32 dst:req, src0:req, src1:req, shiftCnt:req" + self.endLine
-    if globalParameters["AsmCaps"][self.version]["HasAddLshl"]:
+    if self.asmCaps["HasAddLshl"]:
       kStr += r"    v_add_lshl_u32 \dst, \src0, \src1, \shiftCnt" + self.endLine
     else:
       if self.AsmBugs["ExplicitCO"]:
@@ -2311,7 +2312,7 @@ class KernelWriterAssembly(KernelWriter):
     # Use combined shift+add, where available:
     kStr += self.endLine
     kStr += ".macro _v_lshl_add_u32 dst:req, src0:req, src1:req, shiftCnt:req" + self.endLine
-    if globalParameters["AsmCaps"][self.version]["HasAddLshl"]:
+    if self.asmCaps["HasAddLshl"]:
       kStr += r"    v_lshl_add_u32 \dst, \src0, \src1, \shiftCnt" + self.endLine
     else:
       kStr += r"    v_lshlrev_b32 \dst, \shiftCnt, \dst" + self.endLine
@@ -2324,7 +2325,7 @@ class KernelWriterAssembly(KernelWriter):
     # Use combined shift+or, where available:
     kStr += self.endLine
     kStr += ".macro _v_lshl_or_b32 dst:req, src0:req, shiftCnt:req, src1:req" + self.endLine
-    if globalParameters["AsmCaps"][self.version]["HasLshlOr"]:
+    if self.asmCaps["HasLshlOr"]:
       kStr += r"    v_lshl_or_b32 \dst, \src0, \shiftCnt, \src1" + self.endLine
     else:
       kStr += r"    v_lshlrev_b32 \dst, \shiftCnt, \src0" + self.endLine
@@ -2788,7 +2789,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment1("Size Assignments")
     problemType = kernel["ProblemType"]
     for idx in range(max(problemType["IndexAssignmentsA"] + problemType["IndexAssignmentsB"])+1):
-      idxChar= globalParameters["IndexChars"][idx]
+      idxChar= INDEX_CHARS[idx]
       if idx in problemType["IndicesFree"] or idx in problemType["IndicesBatch"]:
         idxType="Free"
       elif idx in problemType["IndicesSummation"]:
@@ -2944,14 +2945,14 @@ class KernelWriterAssembly(KernelWriter):
           needAdd = 1
         kStr += inst("_v_sub_u32", \
                 dest,
-                sgpr("Size%s"%globalParameters["IndexChars"][indices[i]]), \
+                sgpr("Size%s"%INDEX_CHARS[indices[i]]), \
                 "1", \
-                "mirror %s%s 1"%(tc, globalParameters["IndexChars"][indices[i]]))
+                "mirror %s%s 1"%(tc, INDEX_CHARS[indices[i]]))
         kStr += inst("v_mul_lo_u32", \
                 dest,
                 dest, \
                 self.strideRef(tc, indices[i]), \
-                "mirror %s%s 2"%(tc, globalParameters["IndexChars"][indices[i]]))
+                "mirror %s%s 2"%(tc, INDEX_CHARS[indices[i]]))
 
         if needAdd:
           writeDirectToAddr = 0 # safety net, once we write address can't directly overwrite it later
@@ -3016,14 +3017,14 @@ class KernelWriterAssembly(KernelWriter):
             if isMirrorIdx:
               kStr += inst("_v_sub_i32", \
                 "v[\\vgprTmp+0]",
-                sgpr("Size%s"%globalParameters["IndexChars"][idx]), \
+                sgpr("Size%s"%INDEX_CHARS[idx]), \
                 offset, \
-                "mirror %s%s 1"%(tc, globalParameters["IndexChars"][indices[i]]))
+                "mirror %s%s 1"%(tc, INDEX_CHARS[indices[i]]))
               kStr += inst("_v_sub_i32", \
                 "v[\\vgprTmp+0]",
                 "v[\\vgprTmp+0]", \
                 "1", \
-                "mirror %s%s 2"%(tc, globalParameters["IndexChars"][indices[i]]))
+                "mirror %s%s 2"%(tc, INDEX_CHARS[indices[i]]))
               offset = "v[\\vgprTmp+0]"
 
             # offset * stride
@@ -3584,8 +3585,8 @@ class KernelWriterAssembly(KernelWriter):
     for tc in ('A', 'B'):
       for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
         (freeDim, sumDim) = zp[:2]
-        freeDimChar = globalParameters["IndexChars"][freeDim]
-        sumDimChar  = globalParameters["IndexChars"][sumDim]
+        freeDimChar = INDEX_CHARS[freeDim]
+        sumDimChar  = INDEX_CHARS[sumDim]
         kStr += inst("s_lshl_b32", \
                      sgpr("PadStart%s%s%s"%(tc, freeDimChar, sumDimChar)), \
                      sgpr("PadStart%s%s%s"%(tc, freeDimChar, sumDimChar)), \
@@ -3730,7 +3731,7 @@ class KernelWriterAssembly(KernelWriter):
     #assert(kernel["LdcEqualsLdd"])
     kStr += inst("v_mov_b32", vgpr(tmpV0), vgpr(packedCoordVgpr),  "copy coord1 then unpack")
     for i,idx in enumerate(packedC1[:-1]):
-      idxChar= globalParameters["IndexChars"][idx]
+      idxChar= INDEX_CHARS[idx]
       kStr += self.comment1("extract %s"%self.sizeRef(idx))
       kStr += "V_MAGIC_DIV %s, %s, %s, %s, %s\n" % \
                (tmpV1, vgpr(tmpV0), sgpr("MagicNumberSize%s"%idxChar), \
@@ -4594,16 +4595,16 @@ class KernelWriterAssembly(KernelWriter):
             kStr += "\n"
             for p in range(0, numExtraPackedOffsetsPerTile):
               groIdx  = tP["PackedIndices"][p+1]
-              groChar = globalParameters["IndexChars"][tP["PackedIndices"][p+1]]
+              groChar = INDEX_CHARS[tP["PackedIndices"][p+1]]
               groVgpr = vgpr(tP["vgprPackedOffsets"] + l*numExtraPackedOffsetsPerTile + p)
-              pChar = globalParameters["IndexChars"][tP["PackedIndices"][p]]
+              pChar = INDEX_CHARS[tP["PackedIndices"][p]]
               kStr += "V_MAGIC_DIV %s, %s, %s, %s, %s\n" \
                   % (tmpV, lastGroVgpr, sgpr("MagicNumberSize%s"%pChar), \
                   sgpr("MagicShiftSize%s"%pChar), sgpr("MagicAbitSize%s"%pChar) if kernel["MagicDivAlg"]==2 else "0")
               kStr += inst("v_mov_b32", groVgpr, vgpr(tmpV), "extract gro%s%s_%u (%s)"%(tc,groChar,l,groVgpr))
               kStr += inst("v_mul_lo_u32", vgpr(tmpV), groVgpr, sgpr("SizesFree+%u"%lastGroIdx), "remainder part 1")
               kStr += inst("_v_sub_u32", lastGroVgpr, lastGroVgpr, vgpr(tmpV), \
-                  "remove extracted bits from gro%s%s_%u (%s)"%(tc, globalParameters["IndexChars"][lastGroIdx], l, lastGroVgpr))
+                  "remove extracted bits from gro%s%s_%u (%s)"%(tc, INDEX_CHARS[lastGroIdx], l, lastGroVgpr))
               lastGroVgpr = groVgpr
               lastGroIdx = groIdx
           self.vgprPool.checkIn(tmpV)
@@ -4936,8 +4937,8 @@ class KernelWriterAssembly(KernelWriter):
         zpr.state = ZeroPadReg.State.CalculatedAddr
         kStr += self.comment1(zpr.regName)
         (freeDim,sumDim) = zpr.zp[:2]
-        freeDimChar = globalParameters["IndexChars"][freeDim]
-        sumDimChar  = globalParameters["IndexChars"][sumDim]
+        freeDimChar = INDEX_CHARS[freeDim]
+        sumDimChar  = INDEX_CHARS[sumDim]
         assert(iaToGpr[freeDim] != None)
         kStr += inst("v_mul_lo_u32", \
                   vgpr(zpr.regName), \
@@ -5155,8 +5156,8 @@ class KernelWriterAssembly(KernelWriter):
     # this causes small offsets (<pad) to result in large negative offsets and thus report as OOB
     for i,zp in enumerate(kernel["ProblemType"]["ZeroPad%s"%tc]):
       (freeDim,sumDim) = zp[:2]
-      freeDimChar = globalParameters["IndexChars"][freeDim]
-      sumDimChar  = globalParameters["IndexChars"][sumDim]
+      freeDimChar = INDEX_CHARS[freeDim]
+      sumDimChar  = INDEX_CHARS[sumDim]
       # override the const pre-pad with an SGPR based on the leading/trailing items:
       prePad = sgpr(prePadSgpr)
       if i==0:
@@ -6209,7 +6210,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("v_mov_b32", vgpr(tmpAddr), self.LdsOOB, "set out-of-bound addr")
 
       useVgpr = (not kernel["EnableMatrixInstruction"]) or kernel["MIArchVgpr"]
-      if globalParameters["AsmCaps"][self.version]["v_mov_b64"] and (useVgpr or kernel["LdsInitCVgprs"]):
+      if self.asmCaps["v_mov_b64"] and (useVgpr or kernel["LdsInitCVgprs"]):
         # use 64 bit mov
         # (dst of v_mov_b64 is vgpr only (no acc support))
         numCVgprM2 = (numCVgpr//2)*2 # multiple of 2
@@ -6625,8 +6626,8 @@ class KernelWriterAssembly(KernelWriter):
       if zpA:
         tc = 'A'
         (freeDim,sumDim) = zpA[:2]
-        freeDimChar = globalParameters["IndexChars"][freeDim]
-        sumDimChar  = globalParameters["IndexChars"][sumDim]
+        freeDimChar = INDEX_CHARS[freeDim]
+        sumDimChar  = INDEX_CHARS[sumDim]
         elementEdge = "ElementEdge%s%s" % (tc,sumDimChar)
         tmpSgpr = self.getTmpSgpr(1).idx()
         kStr += "\n"
@@ -7280,7 +7281,7 @@ class KernelWriterAssembly(KernelWriter):
     miInputType      =  kernel["ProblemType"]["F32XdlMathOp"] if kernel["EnableF32XdlMathOp"] else kernel["ProblemType"]["DataType"]
 
     # calculate constant
-    is_mfma          = globalParameters["AsmCaps"][self.version]["HasMFMA"]
+    is_mfma          = self.asmCaps["HasMFMA"]
 
     numRegistersIn   = miInputType.numRegisters()
     numRegistersOut  = kernel["MIRegPerOut"]
@@ -7719,7 +7720,7 @@ class KernelWriterAssembly(KernelWriter):
             imod.addInst("s_setprio ","1","Raise priority while processing macs")
             doOnce = True
           if macIdx == kernel["PerformanceWaitLocation"]:
-            imod.addCode(Code.WaitCnt(self.version, kernel["PerformanceWaitCount"],"extra wait for performance"))
+            imod.addCode(Code.WaitCnt(self.version, self.caps, kernel["PerformanceWaitCount"],"extra wait for performance"))
           if macIdx == kernel["PerformanceSyncLocation"]:
             imod.addInst("s_barrier ","extra barrier for performance")
           macIdx += 1
@@ -8434,7 +8435,7 @@ class KernelWriterAssembly(KernelWriter):
     dtlNoDestVgpr = False
     if kernel["DirectToLds%s"%tc]:
       extraFields += " lds"
-      dtlNoDestVgpr = globalParameters["AsmCaps"][self.version]["HasDirectToLdsNoDest"]
+      dtlNoDestVgpr = self.asmCaps["HasDirectToLdsNoDest"]
     
 
     directToLdsLoads = 0
@@ -8926,7 +8927,7 @@ class KernelWriterAssembly(KernelWriter):
     dtlNoDestVgpr = False
     if kernel["DirectToLds%s"%tc]:
       extraFields += " lds"
-      dtlNoDestVgpr = globalParameters["AsmCaps"][self.version]["HasDirectToLdsNoDest"]
+      dtlNoDestVgpr = self.asmCaps["HasDirectToLdsNoDest"]
 
     directToLdsLoads = 0
     instOffset       = 0
@@ -9572,7 +9573,7 @@ class KernelWriterAssembly(KernelWriter):
     # This replaces the vmcnt keywords with the actual number
     # ("Basic_Load"/"OptNLL_Store"/"OrdNLL_E1_Store"/"OrdNLL_B1_Store")
 
-    maxVmcnt = globalParameters["AsmCaps"][self.version]["MaxVmcnt"]
+    maxVmcnt = self.asmCaps["MaxVmcnt"]
 
     # Iterate each PreLoopVmcnt case which needs to replace keyword to number
     for vmcntCase in self.preLoopCaseToReplaceKWList:
@@ -11729,7 +11730,7 @@ class KernelWriterAssembly(KernelWriter):
         #   - tmp+0 may be the incoming packed coordinate 0, used on replay too
         #   - tmp+1 is DIV output
         #   - tmp+2 is scratch
-        idxChar= globalParameters["IndexChars"][idx]
+        idxChar= INDEX_CHARS[idx]
         kStr += kw.comment1("extract %s"%kw.sizeRef(idx))
         assert(tmpVgpr+1 != packedBits) # bad since we still need packedBits below for remainder (can't overwrite here)
         kStr += "V_MAGIC_DIV %s, %s, %s, %s, %s\n" % \
@@ -12344,7 +12345,7 @@ class KernelWriterAssembly(KernelWriter):
           vmcnt = loadsIssued - elementIdx + waitStoreCnt - 1
           vmComment = "{} = {} - {} + {} - 1".format(vmcnt, loadsIssued, elementIdx, waitStoreCnt)
 
-        maxVmcnt = globalParameters["AsmCaps"][self.version]["MaxVmcnt"]
+        maxVmcnt = self.asmCaps["MaxVmcnt"]
         vmcnt = min(vmcnt, maxVmcnt)
         #print "wmvcnt=", vmcnt
         kStr += "\n"
@@ -13996,7 +13997,7 @@ class KernelWriterAssembly(KernelWriter):
 
         if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
           # (H,H,H,H,H,H), internal H
-          if globalParameters["AsmCaps"][self.version]["HasWMMA"] and kernel["EnableMatrixInstructionStore"]:
+          if self.asmCaps["HasWMMA"] and kernel["EnableMatrixInstructionStore"]:
             kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx, rpv, addr0, addr1, offset, ntStr, hi16=0, vb1Tmp=0, soffset=wsOffset)
           else:
             kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx//2, rpv, addr0, addr1, offset, ntStr, hi16=sumIdx%2, vb1Tmp=0, soffset=wsOffset)
@@ -14836,7 +14837,7 @@ class KernelWriterAssembly(KernelWriter):
               vmcnt = loadsIssued - elementIdx + waitStoreCnt - 1
               vmComment = "{} = {} - {} + {} - 1".format(vmcnt, loadsIssued, elementIdx, waitStoreCnt)
 
-            maxVmcnt = globalParameters["AsmCaps"][self.version]["MaxVmcnt"]
+            maxVmcnt = self.asmCaps["MaxVmcnt"]
             vmcnt = min(vmcnt, maxVmcnt)
             #print "wmvcnt=", vmcnt
             kStr += "\n"
@@ -16435,14 +16436,14 @@ class KernelWriterAssembly(KernelWriter):
         imod.addInst("s_barrier", "debug" )
         return imod
 
-    maxLgkmcnt = globalParameters["AsmCaps"][self.version]["MaxLgkmcnt"]
+    maxLgkmcnt = self.asmCaps["MaxLgkmcnt"]
     lgkmcnt = min(lgkmcnt, maxLgkmcnt)
     if lgkmcnt >= 0 and vmcnt >= 0:
       vmcnt = -1 # preserve prior behavior of removing vmcnt here?
-    maxVmcnt = globalParameters["AsmCaps"][self.version]["MaxVmcnt"]
+    maxVmcnt = self.asmCaps["MaxVmcnt"]
     vmcnt = min(vmcnt, maxVmcnt)
 
-    waitcnt = Code.WaitCnt(self.version, lgkmcnt,vmcnt,comment)
+    waitcnt = Code.WaitCnt(self.version, self.caps, lgkmcnt,vmcnt,comment)
     if 0 and lgkmcnt == 0:
       imod = Code.Module("DebugWait")
       imod.addCode(waitcnt)
@@ -16455,7 +16456,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def waitcntCode(self, kernel,lgkmcnt, vmcnt, comment):
     if not self.do["Wait"]: return ""
-    return Code.WaitCnt(self.version, lgkmcnt,vmcnt,comment)
+    return Code.WaitCnt(self.version, self.caps, lgkmcnt,vmcnt,comment)
 
   ##############################################################################
   # return number of store instructions
@@ -16602,7 +16603,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def getWaitcntCodeForDTV(self, kernel, count, waitComment):
     # vmcnt should not go over MaxVmcnt
-    maxVmcnt = globalParameters["AsmCaps"][self.version]["MaxVmcnt"]
+    maxVmcnt = self.asmCaps["MaxVmcnt"]
     count = min(count, maxVmcnt)
     return self.waitcntCode(kernel, -1, count, waitComment)
 
@@ -17024,7 +17025,7 @@ class KernelWriterAssembly(KernelWriter):
     assert(dst1 != src0) # no worky since dst1 overwritten by first mul operations
     assert(dst1 != src1) # no worky since dst1 overwritten by first mul operations
     # the else path below has less restrictions but prefer consistency
-    if globalParameters["AsmCaps"][self.version]["HasSMulHi"]:
+    if self.asmCaps["HasSMulHi"]:
       kStr += inst("s_mul_hi_{}32".format(sign), dst1, src0, src1, comment)
       kStr += inst("s_mul_i32", dst0, src0, src1, comment)
     else:
