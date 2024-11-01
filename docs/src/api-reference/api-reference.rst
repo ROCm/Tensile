@@ -4,6 +4,6 @@
 
 .. _api-reference:
 
-*************
-API Reference
-*************
+**********************
+Tensile API reference
+**********************

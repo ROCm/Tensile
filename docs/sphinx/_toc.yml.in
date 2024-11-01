@@ -4,12 +4,15 @@ root: src/index
 subtrees:
 - caption: Install
   entries:
-  - file: src/getting-started/installation
+  - file: src/install/installation
+    title: Installation
 
 - caption: How to
   entries:
   - file: src/how-to/programmers-guide
+    title: Programmer's guide
   - file: src/how-to/contribution-guidelines
+    title: Contribution guidelines
 
 - caption: Concepts
   entries:
@@ -18,9 +21,11 @@ subtrees:
 - caption: Reference
   entries:
   - file: src/cli-reference/cli-reference
+    title: CLI reference
     entries:
     - file: src/cli-reference/tensile-create-library-cli
   - file: src/api-reference/api-reference
+    title: API reference
     entries:
     - file: src/api-reference/common
     - file: src/api-reference/embedded-data
@@ -28,3 +33,7 @@ subtrees:
     - file: src/api-reference/utilities
   - file: src/reference/environment-variables
   - file: src/reference/experimental-kernel-selection
+
+- caption: About
+  entries:
+  - file: ../license.rst

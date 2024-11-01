@@ -5,7 +5,7 @@
 .. _installation:
 
 ********************************************************************
-Installation
+Tensile installation
 ********************************************************************
 
 You can obtain Tensile as part of ROCm installation or choose to install Tensile from source. This document discusses both the methods to obtain Tensile.

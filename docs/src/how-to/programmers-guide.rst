@@ -6,7 +6,7 @@
 .. _programmers-guide:
 
 ********************************************************************
-Programmer's guide
+Tensile programmer's guide
 ********************************************************************
 
 This document provides necessary information for programmers interested in contributing to the Tensile source code.
