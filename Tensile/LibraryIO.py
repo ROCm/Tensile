@@ -434,9 +434,13 @@ def initAsmCapsCache(cacheFile: str) -> Optional[dict]:
         return {}
 
     cache  = readYAML(cacheFile)
+
+    # gaurd against inconsistent state
+    if not cache:
+        return None
+
     toTuple = lambda s: tuple(int(i.strip()) for i in s.split(","))
     newcache = {toTuple(k): v for k,v in cache.items()}
-
     return newcache
 
 def writeAsmCapsCache(cacheFile: str, data: dict):
