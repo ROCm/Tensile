@@ -46,13 +46,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   # Init
   ##############################################################################
-  def __init__( self, kernelMinNaming, kernelSerialNaming, capabilities, archInfo, removeTemporaries=True ):
+  def __init__( self, kernelMinNaming, kernelSerialNaming, capabilities, archInfo, assemblyDirectory, removeTemporaries=True ):
     self.kernelMinNaming = kernelMinNaming
     self.kernelSerialNaming = kernelSerialNaming
     self.overflowedResources = 0
     self.removeTemporaries = removeTemporaries
     self.caps = capabilities
     self.version = archInfo.CurrentIsa
+    self.assemblyDirectory = assemblyDirectory
 
   @property
   def asmCaps(self):
@@ -5271,7 +5272,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
     return fileString
 
   def getAssemblyDirectory(self):
-      return Common.ensurePath(os.path.join(globalParameters["WorkingPath"], "assembly"))
+      return self.assemblyDirectory
+      #return Common.ensurePath(os.path.join(globalParameters["WorkingPath"], "assembly"))
 
   def byteArrayScriptSource(self):
     return """
@@ -5369,51 +5371,21 @@ for codeObjectFileName in codeObjectFileNames:
 
   def getKernelObjectAssemblyFile(self, kernel):
     asmPath = self.getAssemblyDirectory()
-    # write assembly file to assembly directory
     kernelName = self.getKernelFileBase(kernel)
     fileBase = os.path.join(asmPath, kernelName )
     assemblyFileName = "%s.s" % fileBase
-
-    replacementKernel = self.getReplacementKernelPath(kernel)
-
-    if replacementKernel is not None:
-      self.tPA = tensorParametersA = {}
-      self.tPB = tensorParametersB = {}
-      if isCustomKernelConfig(kernel):
-        kernelFoundMessage = "Custom kernel filename "
-        # ISA version, such as 803
-        self.kernel = kernel
-        self.language = "ASM"
-        if "ISA" in kernel:
-          self.version = tuple(kernel["ISA"])
-        if not self.asmCaps["SupportedISA"]:
-          defaultIsa = (9,0,0)
-          print("warning: ISA:", self.version, " is not supported; overriding with ", defaultIsa)
-          self.version = defaultIsa
-      else:
-        kernelFoundMessage = "replacement_assemblyFilename "
-        self.initKernel(kernel, tensorParametersA, tensorParametersB )
-
-      shutil.copyfile(replacementKernel, assemblyFileName)
-      if globalParameters["PrintLevel"] >= 1:
-        print(kernelFoundMessage + assemblyFileName)
-    else:
-      kernelSource = self.getKernelSource(kernel)
-
-      if globalParameters["PrintLevel"] >= 3:
-        print("write_assemblyFilename %s" % assemblyFileName)
-
-      with open(assemblyFileName, 'w') as assemblyFile:
-        assemblyFile.write(kernelSource)
-
+    kernelSource = self.getKernelSource(kernel)
+    if os.path.exists(assemblyFileName):
+      print(assemblyFileName, " exists potential missed duplicate")
+      return assemblyFileName    
+    tPrint(3, "write_assemblyFilename %s" % assemblyFileName)
+    with open(assemblyFileName, 'w') as assemblyFile:
+      assemblyFile.write(kernelSource)
     return assemblyFileName
 
-  def getAssembledKernelObjectFile(self, kernel):
-    assemblyFileName = self.getKernelObjectAssemblyFile(kernel)
-
+  def buildAssemblyKernelObjectFiles(self, assemblyFileName):
     base, ext = os.path.splitext(assemblyFileName)
     objectFileName = base + '.o'
-
     args = self.getCompileArgs(assemblyFileName, objectFileName)
     tPrint(2, "Assemble command: " + " ".join(args) + " && ")
 
@@ -5428,6 +5400,9 @@ for codeObjectFileName in codeObjectFileNames:
         os.remove(assemblyFileName)
 
     return objectFileName
+
+  def getAssembledKernelObjectFile(self, kernel):
+    return self.buildAssemblyKernelObjectFiles(self.getKernelObjectAssemblyFile(kernel))
 
   def getSingleCodeObjectFile(self, kernel):
     objectFileName = self.getAssembledKernelObjectFile(kernel)

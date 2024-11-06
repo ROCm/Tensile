@@ -72,9 +72,9 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Init
   ##############################################################################
-  def __init__(self, kernelMinNaming, kernelSerialNaming, assemblerPath: str, caps: Capabilities, archInfo: ArchInfo, removeTemporaries=True):
+  def __init__(self, kernelMinNaming, kernelSerialNaming, assemblerPath: str, caps: Capabilities, archInfo: ArchInfo, assemblyDir, removeTemporaries=True):
     super(KernelWriterAssembly, self).__init__( \
-        kernelMinNaming, kernelSerialNaming, caps, archInfo, removeTemporaries)
+        kernelMinNaming, kernelSerialNaming, caps, archInfo, assemblyDir, removeTemporaries)
 
     self.assembler = assemblerPath
 
@@ -243,29 +243,17 @@ class KernelWriterAssembly(KernelWriter):
       isa = self.version
     if wavefrontSize is None:
       wavefrontSize = self.kernel["WavefrontSize"]
-
     launcher = shlex.split(os.environ.get('Tensile_ASM_COMPILER_LAUNCHER', ''))
-
-    if self.assembler is None:
-      raise ValueError('No assembler available; set TENSILE_ROCM_ASSEMBLER_PATH to point to ROCm Clang.')
-    rv = launcher + [self.assembler,
-          '-x', 'assembler',
-          '-target', 'amdgcn-amd-amdhsa']
-
+    rv = launcher + [self.assembler, '-x', 'assembler', '-target', 'amdgcn-amd-amdhsa']
     cov = getCOVFromParam(globalParameters["CodeObjectVersion"])
-    rv += ['-mcode-object-version=%s' % (cov)]
-
+    rv += [f'-mcode-object-version={cov}']
     rv += ['-mcpu=' + gfxName(isa)]
-
     if wavefrontSize == 64:
       rv += ['-mwavefrontsize64']
     else:
       rv += ['-mno-wavefrontsize64']
-
     rv += moreArgs
-
     rv += ['-c', '-o', objectFileName, sourceFileName]
-
     return rv
 
   def getLinkCodeObjectArgs(self, objectFileNames, coFileName, *moreArgs):
