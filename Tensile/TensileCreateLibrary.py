@@ -29,31 +29,23 @@ if __name__ == "__main__":
         "This file can no longer be run as a script.  Run 'Tensile/bin/TensileCreateLibrary' instead."
     )
     exit(1)
-import gc
 
-import chunk
 import collections
 from copy import deepcopy
 import functools
-import glob
 import itertools
 import os
-from platform import architecture
 import re
 import shlex
 import shutil
 import subprocess
-import sys
 import time
-import warnings
 # import ray
 from io import TextIOWrapper
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List, Optional, Set, Tuple, Union
 
 from joblib import Parallel
-
-#from viztracer import log_sparse
 
 from . import Common, LibraryIO, Utils
 from .Common import (
@@ -85,6 +77,7 @@ from .TensileCreateLib.ParseArguments import parseArguments
 from .Utilities.Profile import profile
 from .Utilities.toFile import toFile
 from .Utilities.String import splitDelimitedString
+from .Utilities.RequiredParameters import getRequiredParametersMin
 
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
 TENSILE_LIBRARY_DIR = "library"
@@ -116,7 +109,7 @@ def processKernelSource(kernel, kernelWriter) -> ProcessedKernelResult:
 
 
 def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath, removeTemporaries):
-    tPrint(0, outputPath)
+    # tPrint(0, outputPath)
     destDir = ensurePath(os.path.join(outputPath, "library"))
     asmDir = kernelWriterAssembly.getAssemblyDirectory()
     
@@ -897,12 +890,11 @@ def getKernelWriters(
     # if any kernels are assembly, append every ISA supported
     kernelSerialNaming = Solution.getSerialNaming(kernels)
 
-    kernelMinNaming = Solution.getMinNaming(kernels)
     kernelWriterSource = KernelWriterSource(
-        kernelMinNaming, kernelSerialNaming, capabilities, archInfo, rocmPaths, removeTemporaries
+        getRequiredParametersMin(), kernelSerialNaming, capabilities, archInfo, rocmPaths, removeTemporaries
     )
     kernelWriterAssembly = KernelWriterAssembly(
-        kernelMinNaming,
+        getRequiredParametersMin(),
         kernelSerialNaming,
         rocmPaths.Assembler,
         capabilities,
@@ -910,7 +902,7 @@ def getKernelWriters(
         removeTemporaries,
     )
 
-    return kernelWriterSource, kernelWriterAssembly, kernelMinNaming
+    return kernelWriterSource, kernelWriterAssembly
 
 
 ################################################################################
@@ -972,41 +964,54 @@ def addNewLibrary(
     return archIndex
 
 
-def makeMasterLibraries(
-    logicList: List[LibraryIO.LibraryLogic], separate: bool
-) -> Dict[str, MasterSolutionLibrary]:
-    """Creates a dictionary of master solution libraries.
+# def makeMasterLibraries(
+#     logicList: List[LibraryIO.LibraryLogic], separate: bool
+# ) -> Dict[str, MasterSolutionLibrary]:
+#     """Creates a dictionary of master solution libraries.
 
-    Iterates through a list of LibraryLogic objects creating
-    master solution libraries and modifying the solution
-    indexing as required.
+#     Iterates through a list of LibraryLogic objects creating
+#     master solution libraries and modifying the solution
+#     indexing as required.
 
-    Args:
-        logicFiles: List of LibraryLogic objects.
-        separate: Separate libraries by architecture.
+#     Args:
+#         logicFiles: List of LibraryLogic objects.
+#         separate: Separate libraries by architecture.
 
-    Returns:
-        An architecture separated master solution libraries
-        or a single master solution library for all architectures.
-    """
-    masterLibraries = {}
-    nextSolIndex = {}
-    fullMasterLibrary = None
+#     Returns:
+#         An architecture separated master solution libraries
+#         or a single master solution library for all architectures.
+#     """
+#     masterLibraries = {}
+#     nextSolutionIndex = {}
+#     # fullMasterLibrary = None
 
-    tPrint(1, "logicList: " + str(len(logicList[0])))
-    for _, gfxName, _, _, _, lib in logicList:
-        if separate:
-            if gfxName in masterLibraries:
-                nextSolIndex[gfxName] = masterLibraries[gfxName].merge(lib, nextSolIndex[gfxName])
-            else:
-                nextSolIndex[gfxName] = addNewLibrary(masterLibraries, lib, gfxName)
+#     tPrint(1, "logicList: " + str(len(logicList[0])))
+#     for _, gfxName, _, _, _, lib in logicList:
+#         updateMasterLibrary(gfxName, lib, masterLibraries, nextSolutionIndex)
+#         # if separate:
+#         #     if gfxName in masterLibraries:
+#         #         nextSolIndex[gfxName] = masterLibraries[gfxName].merge(lib, nextSolIndex[gfxName])
+#         #     else:
+#         #         nextSolIndex[gfxName] = addNewLibrary(masterLibraries, lib, gfxName)
+#         # else:
+#         #     if fullMasterLibrary:
+#         #         fullMasterLibrary.merge(lib)
+#         #     else:
+#         #         fullMasterLibrary = lib 
+
+#     return masterLibraries
+#     # return {"full": fullMasterLibrary} if fullMasterLibrary is not None else masterLibraries
+
+def updateMasterLibrary(
+    gfxName: str,
+    masterLib: MasterSolutionLibrary, 
+    masterLibraries: Dict[str, MasterSolutionLibrary], 
+    nextIdx: Dict[str, int], 
+) -> None:
+        if gfxName in masterLibraries:
+            nextIdx[gfxName] = masterLibraries[gfxName].merge(masterLib, nextIdx[gfxName])
         else:
-            if fullMasterLibrary:
-                fullMasterLibrary.merge(lib)
-            else:
-                fullMasterLibrary = lib 
-
-    return {"full": fullMasterLibrary} if fullMasterLibrary is not None else masterLibraries
+            nextIdx[gfxName] = addNewLibrary(masterLibraries, masterLib, gfxName)
 
 
 def addFallback(masterLibraries: Dict[str, MasterSolutionLibrary], caps, archInfo) -> None:
@@ -1079,15 +1084,15 @@ def makeSolutions(
     return itertools.chain(gen1, gen2)
 
 
-def makeMasterLibrariesWithFallbacks(
-    logicFiles: List[LibraryIO.LibraryLogic], caps: Capabilities, archInfo: ArchInfo, separate: bool
-) -> Dict[str, MasterSolutionLibrary]:
-    """Generates a dictionary of master solution libraries."""
-    masterLibraries = makeMasterLibraries(logicFiles, separate)
-    if separate and "fallback" in masterLibraries:
-        addFallback(masterLibraries, caps, archInfo)
-    applyNaming(masterLibraries)
-    return masterLibraries
+# def makeMasterLibrariesWithFallbacks(
+#     logicFiles: List[LibraryIO.LibraryLogic], caps: Capabilities, archInfo: ArchInfo, separate: bool
+# ) -> Dict[str, MasterSolutionLibrary]:
+#     """Generates a dictionary of master solution libraries."""
+#     masterLibraries = makeMasterLibraries(logicFiles, separate)
+#     if separate and "fallback" in masterLibraries:
+#         addFallback(masterLibraries, caps, archInfo)
+#     applyNaming(masterLibraries)
+#     return masterLibraries
 
 
 
@@ -1109,7 +1114,7 @@ def parseLibraryLogicFiles(
     libraryLogics = []
     # print("parsing logic files", logicFiles)
     for f in logicFiles:
-        tPrint(0, f)
+        # tPrint(0, f)
         yamlDict = LibraryIO.readYAML(f)
         logic = LibraryIO.parseLibraryLogicData(yamlDict, caps)
         libraryLogics.append(logic)
@@ -1159,54 +1164,54 @@ def findLogicFiles(
     return list(str(l) for l in logicFiles)
 
 
-def generateLazyMasterFileList(
-    masterFileList: List[Tuple[str, MasterSolutionLibrary]]
-) -> List[Tuple[str, MasterSolutionLibrary]]:
-    """Generates a list of tuples that represent the name and the state associated with the lazy master libraries.
+# def generateLazyMasterFileList(
+#     masterFileList: List[Tuple[str, MasterSolutionLibrary]]
+# ) -> List[Tuple[str, MasterSolutionLibrary]]:
+#     """Generates a list of tuples that represent the name and the state associated with the lazy master libraries.
 
-    This function takes a list of MasterSolutionLibraries and traverses each lazy libraries.
-    It collects the items (i.e. the name and corresponding master file) and adds them to list
-    of master files.
+#     This function takes a list of MasterSolutionLibraries and traverses each lazy libraries.
+#     It collects the items (i.e. the name and corresponding master file) and adds them to list
+#     of master files.
 
-    Args:
-        masterLibraries: A list of name / master solution library pairs.
+#     Args:
+#         masterLibraries: A list of name / master solution library pairs.
 
-    Returns:
-        List of pairs of master solutions libraries and the corresponding name.
-    """
-    return [t for _, lib in masterFileList for t in lib.lazyLibraries.items()]
+#     Returns:
+#         List of pairs of master solutions libraries and the corresponding name.
+#     """
+#     return [t for _, lib in masterFileList for t in lib.lazyLibraries.items()]
 
 
-def generateMasterFileList(
-    masterLibraries: dict, archs: List[str], lazy: bool
-) -> List[Tuple[str, MasterSolutionLibrary]]:
-    """Generates a list of tuples that represent the name and the state associated with the master libraries.
+# def generateMasterFileList(
+#     masterLibraries: dict, archs: List[str], lazy: bool
+# ) -> List[Tuple[str, MasterSolutionLibrary]]:
+#     """Generates a list of tuples that represent the name and the state associated with the master libraries.
 
-    This function takes a dictionary with keys corresponding to a target architecture and values
-    corresponding to the master solution library for that architecture. The function generates a
-    tuple consisting of a MasterSolutionLibrary and the associated name. When not separating architectures,
-    the key full will appear in masterLibraries indicating that all libraries are combinded into a
-    single master library.
+#     This function takes a dictionary with keys corresponding to a target architecture and values
+#     corresponding to the master solution library for that architecture. The function generates a
+#     tuple consisting of a MasterSolutionLibrary and the associated name. When not separating architectures,
+#     the key full will appear in masterLibraries indicating that all libraries are combinded into a
+#     single master library.
 
-    Args:
-        masterLibraries: A dictionary of architecture name / master solution library pairs.
-        archs: A list of supported architectures.
-        lazy: If True, add lazy library master files.
+#     Args:
+#         masterLibraries: A dictionary of architecture name / master solution library pairs.
+#         archs: A list of supported architectures.
+#         lazy: If True, add lazy library master files.
 
-    Returns:
-        List of pairs of master solutions libraries and the corresponding name.
-    """
-    if "full" in masterLibraries.keys():
-        return [("TensileLibrary", masterLibraries["full"])]
+#     Returns:
+#         List of pairs of master solutions libraries and the corresponding name.
+#     """
+#     if "full" in masterLibraries.keys():
+#         return [("TensileLibrary", masterLibraries["full"])]
 
-    baseName = "TensileLibrary_lazy_" if lazy else "TensileLibrary_"
-    result = [
-        (baseName + arch, masterLibrary)
-        for arch, masterLibrary in masterLibraries.items()
-        if arch in archs
-    ]
+#     baseName = "TensileLibrary_lazy_" if lazy else "TensileLibrary_"
+#     result = [
+#         (baseName + arch, masterLibrary)
+#         for arch, masterLibrary in masterLibraries.items()
+#         if arch in archs
+#     ]
 
-    return result + generateLazyMasterFileList(result) if lazy else result
+#     return result + generateLazyMasterFileList(result) if lazy else result
 
 
 # @ray.remote
@@ -1220,7 +1225,8 @@ def run(
     archInfo: ArchInfo,
     logicFiles,
 ):
-    print("processing on: ", os.getpid())
+    procnum = os.getpid()
+    tPrint(0, f"processing on: {procnum}")
     libraryLogics = parseLibraryLogicFiles(logicFiles, capabilities)
 
     solns = list(generateSolutions(libraryLogics))
@@ -1228,7 +1234,7 @@ def run(
 
     kernelHelperObjs = generateKernelObjectsFromSolutions(kernels)
 
-    kernelWriterSource, kernelWriterAssembly, kernelMinNaming = getKernelWriters(
+    kernelWriterSource, kernelWriterAssembly = getKernelWriters(
         kernels, removeTemporaries, rocmPaths, capabilities, archInfo
     )
     asmKernels = [k for k in kernels if k["KernelLanguage"] == "Assembly"]
@@ -1246,19 +1252,19 @@ def run(
         removeTemporaries=removeTemporaries,
     )
 
-    # srcKernels = [k for k in kernels if k["KernelLanguage"] != "Assembly"]
-    # print([f for f in logicFiles if "hip" in f])
-    # writeSourceKernels(
-    #     outputPath,
-    #     cxxCompiler,
-    #     args,
-    #     srcKernels,
-    #     kernelHelperObjs,
-    #     kernelWriterSource,
-    #     removeTemporaries=removeTemporaries,
-    # )    
+    srcKernels = [k for k in kernels if k["KernelLanguage"] != "Assembly"]
+    print([f for f in logicFiles if "hip" in f])
+    writeSourceKernels(
+        outputPath,
+        cxxCompiler,
+        args,
+        srcKernels,
+        kernelHelperObjs,
+        kernelWriterSource,
+        removeTemporaries=removeTemporaries,
+    )    
 
-    return libraryLogics, kernels
+    return libraryLogics, procnum
 
 
 # weights are assumed reverse sorted
@@ -1315,12 +1321,17 @@ def TensileCreateLibrary():
     if not os.path.exists(logicPath):
         printExit("LogicPath %s doesn't exist" % logicPath)
 
+    # archs = [
+    #     Common.gfxName(arch)
+    #     for arch in archInfo.SupportedIsas 
+    #     if capabilities.Asm[arch]["SupportedISA"]
+    # ]
+
     # converts logicArchs from gfx to common name, e.g., aldebaran, aquavanjaram
     logicArchs: Set[str] = {name for name in (getArchitectureName(gfxName) for gfxName in archInfo.Archs) if name}
     logicFiles = sorted(
         [(os.path.getsize(f), f) for f in findLogicFiles(Path(logicPath), logicArchs)], reverse=True
     )
-    batchedLogicFiles = multifit(logicFiles, numPasses * cpuThreads)
 
     tPrint(1, archInfo.Archs)
     logicFiles = findLogicFiles(Path(logicPath), logicArchs)
@@ -1332,33 +1343,25 @@ def TensileCreateLibrary():
         for i in range(0, len(lst), n):
             yield lst[i : i + n]
 
-    libraryLogics = []
-    kernels = []
-    rvs = Common.ParallelMap(parallelFunc, chunk(logicFiles, 1), cpuThreads, "Running TCL...", multiArg=False)
 
-    for libLogic, kernel in rvs:
-        libraryLogics.extend(libLogic)
-        kernels.extend(kernel)
-
-    archs = [
-        gfxName(arch)
-        for arch in archInfo.SupportedIsas 
-        if capabilities.Asm[arch]["SupportedISA"]
-    ]
-
-    masterLibraries = makeMasterLibrariesWithFallbacks(libraryLogics, capabilities, archInfo, args["SeparateArchitectures"])
-    masterFileList = generateMasterFileList(masterLibraries, archs, args["LazyLibraryLoading"])
+    masterLibraries = {}
+    nextSolutionIdx = {}
+    for result in Common.ParallelMap(parallelFunc, chunk(logicFiles, 4), cpuThreads, "Running TCL...", multiArg=False):
+        libraryLogic, proc = result
+        for _, gfxName, _, _, _, lib in libraryLogic:
+            updateMasterLibrary(gfxName, lib, masterLibraries, nextSolutionIdx)
+            if "fallback" in masterLibraries:
+                addFallback(masterLibraries, capabilities, archInfo)
+        tPrint(0, f"finished processing on: {proc}")
 
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)
-
-    kernelMinNamingSolo = Solution.getMinNaming(kernels)
-
-    tPrint(1, f"kernelMinNamings: {kernelMinNamingSolo}")
-    for name, lib in masterFileList:
-        lib.applyNaming(kernelMinNamingSolo)
-        tPrint(1, f"Writing MSLibrary: {name}")
-        LibraryIO.write(str(newLibraryDir / name), Utils.state(lib), args["LibraryFormat"])
+    baseName = "TensileLibrary_"
+    for arch, masterLib in masterLibraries.items():
+        for name, lib in [(baseName + "lazy_" + arch, masterLib)] + list(masterLib.lazyLibraries.items()):
+            tPrint(1, f"Writing MSLibrary: {name}")
+            lib.applyNaming(getRequiredParametersMin())  # <-- This should be able to be replaced directly with `name`?
+            LibraryIO.write(str(newLibraryDir / name), Utils.state(lib), args["LibraryFormat"])
         
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)

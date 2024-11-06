@@ -465,6 +465,8 @@ class MasterSolutionLibrary:
         solutions = {s.index: s for s in allSolutions}
         rv = cls(solutions, library)
         if lazyLibrary and placeholderLibrary:
+            for s in origSolutions:
+                s["codeObjectFile"] = placeholderName
             rv.lazyLibraries[placeholderName] = lazyLibrary
             placeholderLibrary.filenamePrefix = placeholderName
 
