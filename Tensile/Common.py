@@ -2313,9 +2313,9 @@ def printTable(rows):
       print(pad, cell, sep='', end=' ')
     print()
 
-def printCapTable(parameters):
+def printCapTable(capabilities: Capabilities):
   import itertools
-  archs = [(0,0,0)] + parameters["SupportedISA"]
+  archs = [(0,0,0)] + SUPPORTED_ISA
   gfxNames = list(map(gfxName, archs))
 
   headerRow = ['cap'] + gfxNames
@@ -2323,13 +2323,13 @@ def printCapTable(parameters):
   def capRow(caps, cap):
     return [cap] + [('1' if cap in caps[arch] and caps[arch][cap] else '0') for arch in archs]
 
-  allAsmCaps = set(itertools.chain(*[caps.keys() for arch, caps in parameters["AsmCaps"].items()]))
+  allAsmCaps = set(itertools.chain(*[caps.keys() for arch, caps in capabilities.Asm.items()]))
   allAsmCaps = sorted(allAsmCaps, key=lambda k: (k.split("_")[-1], k))
-  asmCapRows = [capRow(parameters["AsmCaps"], cap) for cap in allAsmCaps]
+  asmCapRows = [capRow(capabilities.Asm, cap) for cap in allAsmCaps]
 
-  allArchCaps = set(itertools.chain(*[caps.keys() for arch, caps in parameters["ArchCaps"].items()]))
+  allArchCaps = set(itertools.chain(*[caps.keys() for arch, caps in capabilities.Arch.items()]))
   allArchCaps = sorted(allArchCaps)
-  archCapRows = [capRow(parameters["ArchCaps"], cap) for cap in allArchCaps]
+  archCapRows = [capRow(capabilities.Arch, cap) for cap in allArchCaps]
 
   printTable([headerRow] + asmCapRows + archCapRows)
 
@@ -2550,7 +2550,7 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   populateCapabilities(capabilities, rocmPaths, archInfo, CACHED_ASM_CAPS)
 
   if globalParameters["PrintLevel"] >= 2:
-    printCapTable(globalParameters)
+    printCapTable(capabilities)
 
   if capabilities.Asm != CACHED_ASM_CAPS and globalParameters["PrintLevel"] >= 1:
     import pprint

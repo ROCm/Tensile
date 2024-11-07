@@ -94,7 +94,7 @@ def ParallelMap(
     from . import Utils
     from .Common import globalParameters
 
-    threadCount = numProcs if numProcs else CPUThreadCount(enable)
+    threadCount = int(numProcs) if numProcs else int(CPUThreadCount(enable))
 
     message += (
         f": {threadCount} thread(s)" + f", {len(objects)} tasks"

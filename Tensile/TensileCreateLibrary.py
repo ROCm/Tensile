@@ -48,6 +48,7 @@ from typing import Any, Callable, Dict, Generator, List, Optional, Set, Tuple, U
 from joblib import Parallel
 
 from . import Common, LibraryIO, Utils
+from .Kernel import Name
 from .Common import (
     HR,
     ArchInfo,
@@ -107,13 +108,76 @@ def processKernelSource(kernel, kernelWriter) -> ProcessedKernelResult:
 
     return (err, src, header, kernelName, filename)
 
+def addBuildIDForROCm53Plus():
+    compilerVer = globalParameters['HipClangVersion'].split(".")[:2]
+    compilerVer = [int(c) for c in compilerVer]
+    if len(compilerVer) >= 2 and (compilerVer[0] > 5 or (compilerVer[0] == 5 and compilerVer[1] > 2)):
+      return ["-Xlinker", "--build-id"]
+    else:
+        return []
 
-def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath, removeTemporaries):
-    # tPrint(0, outputPath)
-    destDir = ensurePath(os.path.join(outputPath, "library"))
-    asmDir = kernelWriterAssembly.getAssemblyDirectory()
-    
-    if len(kernels) == 0:
+
+def getLinkCodeObjectArgs(assembler, objectFileNames, coFileName, *moreArgs):
+    rv = [assembler,
+          '-target', 'amdgcn-amd-amdhsa']
+    rv.extend(addBuildIDForROCm53Plus())
+    rv.extend(moreArgs)
+    rv.extend(['-o', coFileName] + objectFileNames)
+    return rv
+
+
+def gatherCOFilesForLinking(archKernels, destDir, kernelMinNaming):
+    coFileMap = collections.defaultdict(list)
+    for kernel in archKernels:
+        coName = kernel.get("codeObjectFile", None)
+        if coName:
+            coFileMap[os.path.join(destDir, coName + ".co")] += [
+                Name.getKernelFileBase(kernel, kernelMinNaming) + ".o" # would be nice if we didn't need to compute name
+            ]
+    return coFileMap
+
+
+def linkCodeObjectFiles(coFileMap, asmDir):
+    coFiles = []
+    for coFile, objectFiles in coFileMap.items():
+        args = []
+        if os.name == "nt":
+            # On Windows, the objectFiles list command line (including spaces)
+            # exceeds the limit of 8191 characters, so using response file
+            responseArgs = objectFiles
+            responseFile = os.path.join(asmDir, "clangArgs.txt")
+            with open(responseFile, "wt") as file:
+                file.write(" ".join(responseArgs))
+                file.flush()
+            args = getLinkCodeObjectArgs("amdclang++", ["@clangArgs.txt"], coFile)
+        else:
+            args = getLinkCodeObjectArgs("amdclang++", objectFiles, coFile)
+
+        tPrint(2, "Linking objects into co files: " + " ".join(args))
+
+        try:
+            # change to use check_output to force windows cmd block util command finish            
+            out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)
+            tPrint(3, out)
+        except subprocess.CalledProcessError as err:
+            print("Failed to link in linkCodeObjectFiles:")
+            print("Subprocess command is: out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)")
+            print("Subprocess input is: \n\nargs:", ' '.join(args))
+            print("asmDir: ", asmDir)
+            print("See the following error output: \n\n", err.output)
+            raise
+        coFiles.append(coFile)
+    return coFiles
+
+
+def getAssemblyCodeObjectFiles(kernels, outputPath, kernelMinNaming):
+    asmDir = Path("build_tmp") / Path(outputPath).stem.upper() / "assembly"
+    asmDir.mkdir(parents=True, exist_ok=True)
+
+    destDir = Path(outputPath) / "library"
+    destDir.mkdir(parents=True, exist_ok=True)
+
+    if len(kernels) == 0: # is this ever possible and if so wouldn't we want an error?
         return []
 
     archs = collections.defaultdict(list)
@@ -121,77 +185,13 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath, remove
         archs[tuple(k["ISA"])].append(k)
     coFiles = []
     for arch, archKernels in archs.items():
-        archName = gfxName(arch)
-        objectFiles = list(
-            [
-                kernelWriterAssembly.getKernelFileBase(k) + ".o"
-                for k in archKernels
-                if "codeObjectFile" not in k
-            ]
-        )
 
-        numObjectFiles = len(kernels)
+        numObjectFiles = len(archKernels)
 
         if numObjectFiles == 0:
             continue
-        if (
-            globalParameters["MergeFiles"]
-            or globalParameters["NumMergedFiles"] > 1
-            or globalParameters["LazyLibraryLoading"]
-        ):
-
-            # Group kernels from placeholder libraries
-            coFileMap = collections.defaultdict(list)
-
-            if len(objectFiles):
-                coFileMap[os.path.join(destDir, "TensileLibrary_" + archName + ".co")] = objectFiles
-
-            for kernel in archKernels:
-                coName = kernel.get("codeObjectFile", None)
-                if coName:
-                    coFileMap[os.path.join(destDir, coName + ".co")] += [
-                        kernelWriterAssembly.getKernelFileBase(kernel) + ".o"
-                    ]
-
-            for coFile, objectFiles in coFileMap.items():
-                args = []
-                if os.name == "nt":
-                    # On Windows, the objectFiles list command line (including spaces)
-                    # exceeds the limit of 8191 characters, so using response file
-
-                    responseArgs = objectFiles
-                    responseFile = os.path.join(asmDir, "clangArgs.txt")
-                    with open(responseFile, "wt") as file:
-                        file.write(" ".join(responseArgs))
-                        file.flush()
-
-                    args = kernelWriterAssembly.getLinkCodeObjectArgs(["@clangArgs.txt"], coFile)
-                else:
-                    args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
-
-                tPrint(2, "Linking objects into co files: " + " ".join(args))
-
-                # change to use  check_output to force windows cmd block util command finish
-                try:
-                    out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)
-                    tPrint(3, out)
-                except subprocess.CalledProcessError as err:
-                    print(err.output)
-                    raise
-
-                coFiles.append(coFile)
-        else:
-            # no mergefiles
-
-            assemblyKernelNames = [kernelWriterAssembly.getKernelFileBase(k) for k in archKernels]
-            origCOFiles = [os.path.join(asmDir, k + ".co") for k in assemblyKernelNames]
-            newCOFiles = [
-                os.path.join(destDir, k + "_" + archName + ".co") for k in assemblyKernelNames
-            ]
-
-            for src, dst in zip(origCOFiles, newCOFiles):
-                shutil.copyfile(src, dst)
-            coFiles += newCOFiles
+        coFileMap = gatherCOFilesForLinking(archKernels, destDir, kernelMinNaming)
+        coFiles.extend(linkCodeObjectFiles(coFileMap, asmDir))
 
     return coFiles
 
@@ -223,11 +223,12 @@ def splitArchs(caps: Capabilities, archInfo: ArchInfo):
     return archs, cmdlineArchs
 
 
-def buildSourceCodeObjectFile(
-    CxxCompiler, outputPath, kernelFile, caps: Capabilities, rocmPaths: RocmPaths, archInfo: ArchInfo, removeTemporaries
+def buildSourceKernelObjectFile(
+    CxxCompiler, outputPath, kernelFile, caps: Capabilities, rocmPaths: RocmPaths, archInfo: ArchInfo
 ):
-    buildPath = ensurePath(os.path.join(globalParameters["WorkingPath"], "code_object_tmp"))
-    destDir = ensurePath(os.path.join(outputPath, "library"))
+    buildPath = Path("build_tmp") / Path(outputPath).stem.upper() / "code_object_tmp"
+    buildPath.mkdir(parents=True, exist_ok=True)
+
     (_, filename) = os.path.split(kernelFile)
     (base, _) = os.path.splitext(filename)
 
@@ -235,12 +236,9 @@ def buildSourceCodeObjectFile(
         os.environ["CMAKE_CXX_COMPILER"] = rocmPaths.CmakeCxxCompiler
 
     objectFilename = base + ".o"
-    soFilename = base + ".so"
-
-    coFilenames = []
 
     if supportedCompiler(CxxCompiler):
-        archs, cmdlineArchs = splitArchs(caps, archInfo)
+        _, cmdlineArchs = splitArchs(caps, archInfo)
 
         archFlags = ["--offload-arch=" + arch for arch in cmdlineArchs]
 
@@ -249,11 +247,8 @@ def buildSourceCodeObjectFile(
         hipFlags += (
             ["--genco"] if CxxCompiler == "hipcc" else ["--cuda-device-only", "-x", "hip", "-O3"]
         )
-        # if CxxCompiler == "amdclang++":
-        # hipFlags += ["-mllvm", "-amdgpu-early-inline-all=true", "-mllvm", "-amdgpu-function-calls=false"]
         hipFlags += ["-I", outputPath]
 
-        # Add build-id for builds with rocm 5.3+
         compilerVer = globalParameters["HipClangVersion"].split(".")[:2]
         compilerVer = [int(c) for c in compilerVer]
         if len(compilerVer) >= 2 and (
@@ -287,101 +282,108 @@ def buildSourceCodeObjectFile(
                 + [kernelFile, "-c", "-o", os.path.join(buildPath, objectFilename)]
             )
 
-        tPrint(2, f"Build object file command: {compileArgs}")
+        tPrint(0, f"Build object file command: {compileArgs}")
         # change to use  check_output to force windows cmd block util command finish
         try:
             out = subprocess.check_output(compileArgs, stderr=subprocess.STDOUT)
             tPrint(3, out)
         except subprocess.CalledProcessError as err:
+            print("Failed to build source kernel object file in buildSourceKernelObjectFile:")
+            print("Subprocess command is: out = subprocess.check_output(compileArgs, stderr=subprocess.STDOUT)")
+            print("Subprocess input is: \n\nargs:", " ".join(compileArgs))
+            print("See the following error output: \n\n", err.output)
+
             with open(kernelFile, "r") as f, open("test.cpp", "w") as o:
                 o.write(f.read())
             print(err.output)
             raise
-
-        # get hipcc version due to compatiblity reasons
-        # If we aren't using hipcc what happens?
-        hipccver = globalParameters["HipClangVersion"].split(".")
-        hipccMaj = int(hipccver[0])
-        hipccMin = int(hipccver[1])
-
-        # for hipclang 5.2 and above, clang offload bundler changes the way input/output files are specified
-        inflag = "-inputs"
-        outflag = "-outputs"
-        if (hipccMaj == 5 and hipccMin >= 2) or hipccMaj >= 6:
-            inflag = "-input"
-            outflag = "-output"
-
-        infile = os.path.join(buildPath, objectFilename)
-        bundler = rocmPaths.Bundler
-        if bundler is None:
-            raise ValueError(
-                "No bundler available; set TENSILE_ROCM_OFFLOAD_BUNDLER_PATH to point to clang-offload-bundler."
-            )
-        try:
-            bundlerArgs = [bundler, "-type=o", "%s=%s" % (inflag, infile), "-list"]
-            listing = (
-                subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT).decode().split("\n")
-            )
-            for target in listing:
-                matched = re.search("gfx.*$", target)
-                if matched:
-                    arch = re.sub(":", "-", matched.group())
-                    if "TensileLibrary" in base and "fallback" in base:
-                        outfile = os.path.join(buildPath, "{0}_{1}.hsaco".format(base, arch))
-                    elif "TensileLibrary" in base:
-                        variant = [t for t in ["", "xnack-", "xnack+"] if t in target][-1]
-                        baseVariant = base + "-" + variant if variant else base
-                        if arch in baseVariant:
-                            outfile = os.path.join(buildPath, baseVariant + ".hsaco")
-                        else:
-                            outfile = None
-                    else:
-                        outfile = os.path.join(
-                            buildPath, "{0}-000-{1}.hsaco".format(soFilename, arch)
-                        )
-
-                    # Compilation
-                    if outfile:
-                        coFilenames.append(os.path.split(outfile)[1])
-                        # bundlerArgs = [bundler, "-type=o", "-targets=%s" % target, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
-                        bundlerArgs = [
-                            bundler,
-                            "-type=o",
-                            "-targets=%s" % target,
-                            "%s=%s" % (inflag, infile),
-                            "%s=%s" % (outflag, outfile),
-                            "-unbundle",
-                        ]
-                        tPrint(2, "Build source code object file: " + " ".join(bundlerArgs))
-                        # change to use  check_output to force windows cmd block util command finish
-                        out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
-                        tPrint(3, out)
-
-        except subprocess.CalledProcessError as err:
-            tPrint(1, err.output)
-            for i in range(len(archs)):
-                outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
-                coFilenames.append(os.path.split(outfile)[1])
-                # bundlerArgs = [bundler, "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
-                bundlerArgs = [
-                    bundler,
-                    "-type=o",
-                    "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i],
-                    "%s=%s" % (inflag, infile),
-                    "%s=%s" % (outflag, outfile),
-                    "-unbundle",
-                ]
-                tPrint(2, "Build source code object file: " + " ".join(bundlerArgs))
-                # change to use  check_output to force windows cmd block util command finish
-                try:
-                    out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
-                    tPrint(3, out)
-                except subprocess.CalledProcessError as err:
-                    tPrint(1, err.output)
-                    raise
-
     else:
         raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
+    
+    return base
+
+
+def makeHsaCOFilePath(target, base, buildPath):
+    matched = re.search("gfx.*$", target)
+    outfile = None
+    if matched:
+        arch = re.sub(":", "-", matched.group())
+        if "TensileLibrary" in base and "fallback" in base:
+            outfile = os.path.join(buildPath, "{0}_{1}.hsaco".format(base, arch))
+        elif "TensileLibrary" in base:
+            variant = [t for t in ["", "xnack-", "xnack+"] if t in target][-1]
+            baseVariant = base + "-" + variant if variant else base
+            if arch in baseVariant:
+                outfile = os.path.join(buildPath, baseVariant + ".hsaco")
+        else:
+            outfile = os.path.join(
+                buildPath, "{0}-000-{1}.hsaco".format(base + ".so", arch)
+            )
+    return outfile
+
+
+def setInOutFlags():
+    # get hipcc version due to compatiblity reasons
+    # If we aren't using hipcc what happens?
+    hipccver = globalParameters["HipClangVersion"].split(".")
+    hipccMaj = int(hipccver[0])
+    hipccMin = int(hipccver[1])
+    # for hipclang 5.2 and above, clang offload bundler changes the way input/output files are specified
+    inflag = "-inputs"
+    outflag = "-outputs"
+    if (hipccMaj == 5 and hipccMin >= 2) or hipccMaj >= 6:
+        inflag = "-input"
+        outflag = "-output"
+    return inflag, outflag
+    
+
+def buildSourceKernelCodeObjectFile(
+    CxxCompiler, outputPath, base, caps: Capabilities, rocmPaths: RocmPaths, archInfo: ArchInfo, removeTemporaries
+):
+    buildPath = Path("build_tmp") / Path(outputPath).stem.upper() / "code_object_tmp"
+    destDir = Path(outputPath) / "library"
+
+    buildPath.mkdir(parents=True, exist_ok=True)
+    destDir.mkdir(parents=True, exist_ok=True)
+    archs, cmdlineArchs = splitArchs(caps, archInfo)
+    inflag, outflag = setInOutFlags()
+    infile = os.path.join(buildPath, base + ".o")
+    bundler = rocmPaths.Bundler
+    coFilenames = []
+    try:
+        bundlerArgs = [bundler, "-type=o", f"{inflag}={infile}", "-list"]
+        listing = (
+            subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT).decode().split("\n")
+        )
+        for target in listing:
+            outfile = makeHsaCOFilePath(target, base, buildPath)
+            if outfile:
+                coFilenames.append(os.path.split(outfile)[1])
+                bundlerArgs = [bundler, "-type=o", f"-targets={target}", f"{inflag}={infile}", f"{outflag}={outfile}", "-unbundle"]
+                tPrint(2, "Build source code object file: " + " ".join(bundlerArgs))
+                out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
+                tPrint(3, out)
+    except subprocess.CalledProcessError as err:
+        print("Failed to unbundle in buildSourceKernelCodeObjectFile:")
+        print("Subprocess command is: out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)")
+        print("Subprocess input is: \nargs:", bundlerArgs)
+        print("See the following error output: \n\n", err.output)
+        print("Attempting to recover...")
+        note = " ".join([f"-targets=hip-amdgcn-amd-amdhsa--{arch}" for arch in cmdlineArchs])
+        print(f"Using {note}")
+
+        for i in range(len(archs)):
+            outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(base + ".so", archs[i]))
+            coFilenames.append(os.path.split(outfile)[1])
+            bundlerArgs = [bundler, "-type=o", f"-targets=hip-amdgcn-amd-amdhsa--{cmdlineArchs[i]}"]
+            bundlerArgs += [f"{inflag}={infile}", f"{outflag}={outfile}", "-unbundle"]
+            tPrint(2, "Build source code object file: " + " ".join(bundlerArgs))
+            try:
+                out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
+                tPrint(3, out)
+            except subprocess.CalledProcessError as err:
+                tPrint(1, err.output)
+                raise
 
     coFilenames = [name for name in coFilenames]
     extractedCOs = [os.path.join(buildPath, name) for name in coFilenames]
@@ -395,20 +397,22 @@ def buildSourceCodeObjectFile(
     return destCOsList
 
 
-def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath, caps, rocmPaths, archInfo, removeTemporaries):
+def buildSourceKernelCodeObjectFiles(CxxCompiler, baseNames, outputPath, caps, rocmPaths, archInfo, removeTemporaries):
     args = zip(
         itertools.repeat(CxxCompiler),
         itertools.repeat(outputPath),
-        kernelFiles,
+        baseNames,
+        itertools.repeat(caps),
+        itertools.repeat(rocmPaths),
+        itertools.repeat(archInfo),                        
         itertools.repeat(removeTemporaries),
     )
-
-    coFiles = []
-    for k in kernelFiles:
-        coFile = buildSourceCodeObjectFile(CxxCompiler, outputPath, k, caps, rocmPaths, archInfo, removeTemporaries)
-        coFiles.append(coFile)
-
-    return coFiles
+    return Common.ParallelMap(buildSourceKernelCodeObjectFile, args, 32, "Compiling source kernels")
+    #coFiles = []
+    #for k in kernelFiles:
+    #    coFile = buildSourceCodeObjectFile(CxxCompiler, outputPath, k, caps, rocmPaths, archInfo, removeTemporaries)
+    #    coFiles.append(coFile)
+    # return coFiles
 
 
 ################################################################################
@@ -496,7 +500,6 @@ def collectFilesToWrite(
     results: List[ProcessedKernelResult],
     outputPath: Path,
     lazyLoading: bool,
-    mergeFiles: bool,
     numMergedFiles: int,
 ) -> ProcessedKernelLookup:
     """Collects and organizes kernel files to be written based on the provided results.
@@ -527,7 +530,7 @@ def collectFilesToWrite(
         kernPath = pathJoin(kernelName)
         if filename:
             kernPath = pathJoin(filename)
-        elif mergeFiles:
+        else:
             suffix = str(validKernelCount % numMergedFiles) if numMergedFiles > 1 else ""
             kernPath = pathJoin(f"Kernels{suffix}")
 
@@ -535,7 +538,7 @@ def collectFilesToWrite(
         validKernelCount += 1
 
     # Ensure there's at least one kernel file for helper kernels
-    if lazyLoading or (mergeFiles and validKernelCount == 0):
+    if lazyLoading or (validKernelCount == 0):
         kernelSuffix = "0" if numMergedFiles > 1 else ""
         filesToWrite[pathJoin(f"Kernels{kernelSuffix}")] = []
 
@@ -649,6 +652,8 @@ def filterProcessingErrors(
     removeResults = []
     for kernIdx, res in enumerate(results):
         (err, src, header, kernelName, filename) = res
+        if err !=0 :
+            print(kernelName, err)
         if err == -2:
             if not errorTolerant:
                 print(
@@ -709,7 +714,7 @@ def getKernelSourceAndHeaderCode(ko: KernelWriterBase) -> Tuple[int, List[str], 
         Tuple of data: (error code, source code, header code, kernel name)
     """
     name = ko.getKernelName()
-    err, src = ko.getSourceFileString() # why are we doing this twice?
+    err, src = ko.getSourceFileString()
     hdr = ko.getHeaderFileString()
     return err, [CHeader, src], [CHeader, hdr], name
 
@@ -742,15 +747,9 @@ def writeKernelHelpers(
     err, srcCode, hdrCode, kernelName = getKernelSourceAndHeaderCode(kernelHelperObj)
     if err:
         printWarning(f"Invalid kernel: {kernelName} may be corrupt")
-    if kernelSourceFile and kernelHeaderFile:  # Append to existing files => mergeFiles == True
+    if kernelSourceFile and kernelHeaderFile:
         toFile(kernelSourceFile, srcCode)
         toFile(kernelHeaderFile, hdrCode)
-    else:  # Write to new a file for each helper => mergeFiles == False. Default behaviour when called through rocBLAS
-        srcFilename = Path(outputPath) / "Kernels" / f"{kernelName}.cpp"
-        hdrFilename = Path(outputPath) / "Kernels" / f"{kernelName}.h"
-        toFile(srcFilename, srcCode)
-        toFile(hdrFilename, hdrCode)
-        kernelFiles.append(str(srcFilename))
 
 
 ################################################################################
@@ -763,97 +762,40 @@ def writeSourceKernels(
     kernels: List[Solution],
     kernelHelperObjs: List[KernelWriterBase],
     kernelWriterSource: KernelWriterSource,
-    kernelWriterAssembly: KernelWriterAssembly,
     caps: Capabilities,
     rocmPaths: RocmPaths,
     archInfo: ArchInfo,
-    errorTolerant: bool = False,
-    removeTemporaries: bool = True,
 ):
     start = time.time()
-
-    # Push working path into build_tmp folder because there may be more than
-    # one process running this script. This is to avoid build directory clashing.
-    # NOTE: file paths must not contain the lower case word 'kernel' or the
-    # /opt/rocm/bin/extractkernel will fail.
-    # See buildSourceCodeObjectFile:167 for the call to this binary.
-
-    ## TODO: Is there a way to get this to work without changing global state?
-    Common.pushWorkingPath("build_tmp")
-    Common.pushWorkingPath(os.path.basename(outputPath).upper())
-
-    tPrint(1, "# Writing Kernels...")
-
-
-    results = [processKernelSource(k, kernelWriterSource) for k in kernels]
-
-    filesToWrite = collectFilesToWrite(
-        results,
-        Path(outputPath),
-        params["LazyLibraryLoading"],
-        params["MergeFiles"],
-        params["NumMergedFiles"],
-    )
-
-    kernelFiles = generateKernelSourceAndHeaderFiles(filesToWrite)
-
     outPath = Path(outputPath)
-    with KernelFileContextManager(
-        params["LazyLibraryLoading"],
-        params["MergeFiles"],
-        params["NumMergedFiles"],
-        outPath,
-        kernelFiles,
-    ) as (srcFile, hdrFile):
+    results = [processKernelSource(k, kernelWriterSource) for k in kernels]
+    filesToWrite = collectFilesToWrite(results, outPath, params["LazyLibraryLoading"], numMergedFiles=1)
+    kernelFiles = generateKernelSourceAndHeaderFiles(filesToWrite)
+    with KernelFileContextManager(params["LazyLibraryLoading"], True, 1, outPath, kernelFiles) as (srcFile, hdrFile):
         for ko in kernelHelperObjs:
             writeKernelHelpers(ko, srcFile, hdrFile, outPath, kernelFiles)
 
-    codeObjectFiles = []
-    #if not globalParameters["GenerateSourcesAndExit"]:
-    #    codeObjectFiles += buildSourceCodeObjectFiles(
-    #        cxxCompiler, kernelFiles, outputPath, removeTemporaries
-    #    )
-     
+    tPrint(0, f"building {len(kernelFiles)} source code object files")
+    baseNames = [buildSourceKernelObjectFile(cxxCompiler, outputPath, f, caps, rocmPaths, archInfo) for f in kernelFiles]
     stop = time.time()
-    tPrint(1, "# Kernel Building elapsed time = %.1f secs" % (stop - start))
+    tPrint(1, "# Source kernel Building elapsed time = %.1f secs" % (stop - start))
 
-    Common.popWorkingPath()  # outputPath.upper()
-    Common.popWorkingPath()  # build_tmp
+    return baseNames
 
 
+# should be writeAssemblyKernelsAndBuildCodeObjects
+# or we should separate building the code objects from
+# writing asm kernels.
 def writeAssemblyKernels(
     outputPath: str,
-    cxxCompiler: str,
-    params: Dict[str, Any],
     kernels: List[Solution],
-    kernelHelperObjs: List[KernelWriterBase],
     kernelWriterAssembly: KernelWriterAssembly,
-    caps: Capabilities,
-    rocmPaths: RocmPaths,
-    archInfo: ArchInfo,
     errorTolerant: bool = False,
-    removeTemporaries: bool = True,
 ):
     start = time.time()
-    Common.pushWorkingPath("build_tmp")
-    Common.pushWorkingPath(os.path.basename(outputPath).upper())
-
-    ## TODO: This may be unused
-    # if not params["MergeFiles"] or params["NumMergedFiles"] > 1 or params["LazyLibraryLoading"]:
-    ensurePath(os.path.join(outputPath, "Kernels"))
-
-    ## This uses global state from "WorkingPath"
-    # prepAsm(
-    #     kernelWriterAssembly,
-    #     os.name != "nt",
-    #     # Use globalParameters here, not params
-    #     Path(globalParameters["WorkingPath"]),
-    #     globalParameters["CurrentISA"],
-    #     params["PrintLevel"],
-    # )
 
     kernels = markDuplicateKernels(kernels, kernelWriterAssembly)  
-    results = [processKernelSource(k, kernelWriterAssembly) for k in kernels]
+    results = [processKernelSource(k, kernelWriterAssembly) for k in kernels] # the generates both .o and .co files for asm kernels (unlike source kernesl)
 
     filterProcessingErrors(kernels, results, errorTolerant)
     kernelsWithBuildErrors = {kernelName: err for err, _, _, kernelName, _ in results if err}
@@ -861,21 +803,10 @@ def writeAssemblyKernels(
         kernels, kernelsWithBuildErrors, kernelWriterAssembly, errorTolerant
     )
 
-    if not params["GenerateSourcesAndExit"]:
-        codeObjectFiles = getAssemblyCodeObjectFiles(
-            kernelsToBuild,
-            kernelWriterAssembly,
-            outputPath,
-            removeTemporaries,
-        )
-
     stop = time.time()
     tPrint(1, "# Kernel Building elapsed time = %.1f secs" % (stop - start))
 
-    Common.popWorkingPath()  # outputPath.upper()
-    Common.popWorkingPath()  # build_tmp
-
-
+    return kernelsToBuild # we realy just need the .co files on disk
 
 
 
@@ -884,12 +815,11 @@ def writeAssemblyKernels(
 # Min Naming / Solution and Kernel Writers
 ##############################################################################
 def getKernelWriters(
-    kernels: List[Solution], removeTemporaries, rocmPaths, capabilities, archInfo 
+    kernels: List[Solution], removeTemporaries, rocmPaths, capabilities, archInfo, assemblyDirectory, kernelMinNaming
 ):
 
     # if any kernels are assembly, append every ISA supported
     kernelSerialNaming = Solution.getSerialNaming(kernels)
-
     kernelWriterSource = KernelWriterSource(
         getRequiredParametersMin(), kernelSerialNaming, capabilities, archInfo, rocmPaths, removeTemporaries
     )
@@ -899,6 +829,7 @@ def getKernelWriters(
         rocmPaths.Assembler,
         capabilities,
         archInfo,
+        assemblyDirectory,
         removeTemporaries,
     )
 
@@ -964,57 +895,20 @@ def addNewLibrary(
     return archIndex
 
 
-# def makeMasterLibraries(
-#     logicList: List[LibraryIO.LibraryLogic], separate: bool
-# ) -> Dict[str, MasterSolutionLibrary]:
-#     """Creates a dictionary of master solution libraries.
-
-#     Iterates through a list of LibraryLogic objects creating
-#     master solution libraries and modifying the solution
-#     indexing as required.
-
-#     Args:
-#         logicFiles: List of LibraryLogic objects.
-#         separate: Separate libraries by architecture.
-
-#     Returns:
-#         An architecture separated master solution libraries
-#         or a single master solution library for all architectures.
-#     """
-#     masterLibraries = {}
-#     nextSolutionIndex = {}
-#     # fullMasterLibrary = None
-
-#     tPrint(1, "logicList: " + str(len(logicList[0])))
-#     for _, gfxName, _, _, _, lib in logicList:
-#         updateMasterLibrary(gfxName, lib, masterLibraries, nextSolutionIndex)
-#         # if separate:
-#         #     if gfxName in masterLibraries:
-#         #         nextSolIndex[gfxName] = masterLibraries[gfxName].merge(lib, nextSolIndex[gfxName])
-#         #     else:
-#         #         nextSolIndex[gfxName] = addNewLibrary(masterLibraries, lib, gfxName)
-#         # else:
-#         #     if fullMasterLibrary:
-#         #         fullMasterLibrary.merge(lib)
-#         #     else:
-#         #         fullMasterLibrary = lib 
-
-#     return masterLibraries
-#     # return {"full": fullMasterLibrary} if fullMasterLibrary is not None else masterLibraries
-
 def updateMasterLibrary(
     gfxName: str,
     masterLib: MasterSolutionLibrary, 
     masterLibraries: Dict[str, MasterSolutionLibrary], 
     nextIdx: Dict[str, int], 
 ) -> None:
+        tPrint(0, f"gfxNames in MSL: {masterLibraries.keys()}")
         if gfxName in masterLibraries:
             nextIdx[gfxName] = masterLibraries[gfxName].merge(masterLib, nextIdx[gfxName])
         else:
             nextIdx[gfxName] = addNewLibrary(masterLibraries, masterLib, gfxName)
 
 
-def addFallback(masterLibraries: Dict[str, MasterSolutionLibrary], caps, archInfo) -> None:
+def addFallbacksToMasterLibraries(masterLibraries: Dict[str, MasterSolutionLibrary], caps, archInfo) -> None:
     """Adds fallback library.
 
     Given a master solution library, add a fallback and if the corresponding
@@ -1025,9 +919,9 @@ def addFallback(masterLibraries: Dict[str, MasterSolutionLibrary], caps, archInf
     """
     archs, _ = splitArchs(caps, archInfo)
 
-    for key, value in masterLibraries.items():
-        if key != "fallback":
-            value.insert(masterLibraries["fallback"])
+    for arch, msl in masterLibraries.items():
+        if arch != "fallback":
+            msl.insert(masterLibraries["fallback"])
 
     for archName in archs:
         archName = archName.split("-", 1)[0]
@@ -1082,18 +976,6 @@ def makeSolutions(
         for sol in lib.solutions.values()
     )
     return itertools.chain(gen1, gen2)
-
-
-# def makeMasterLibrariesWithFallbacks(
-#     logicFiles: List[LibraryIO.LibraryLogic], caps: Capabilities, archInfo: ArchInfo, separate: bool
-# ) -> Dict[str, MasterSolutionLibrary]:
-#     """Generates a dictionary of master solution libraries."""
-#     masterLibraries = makeMasterLibraries(logicFiles, separate)
-#     if separate and "fallback" in masterLibraries:
-#         addFallback(masterLibraries, caps, archInfo)
-#     applyNaming(masterLibraries)
-#     return masterLibraries
-
 
 
 def parseLibraryLogicFiles(
@@ -1160,58 +1042,9 @@ def findLogicFiles(
     extensions = ["*.yaml", "*.yml"]
     logicFiles = filter(isMatch, (file for ext in extensions for file in path.rglob(ext)))
     logicFiles = filter(isNotExperimental, logicFiles)
+    # logicFiles = filter(lambda file: not ("hip" in str(file) and "_GB" in str(file)), logicFiles)
 
     return list(str(l) for l in logicFiles)
-
-
-# def generateLazyMasterFileList(
-#     masterFileList: List[Tuple[str, MasterSolutionLibrary]]
-# ) -> List[Tuple[str, MasterSolutionLibrary]]:
-#     """Generates a list of tuples that represent the name and the state associated with the lazy master libraries.
-
-#     This function takes a list of MasterSolutionLibraries and traverses each lazy libraries.
-#     It collects the items (i.e. the name and corresponding master file) and adds them to list
-#     of master files.
-
-#     Args:
-#         masterLibraries: A list of name / master solution library pairs.
-
-#     Returns:
-#         List of pairs of master solutions libraries and the corresponding name.
-#     """
-#     return [t for _, lib in masterFileList for t in lib.lazyLibraries.items()]
-
-
-# def generateMasterFileList(
-#     masterLibraries: dict, archs: List[str], lazy: bool
-# ) -> List[Tuple[str, MasterSolutionLibrary]]:
-#     """Generates a list of tuples that represent the name and the state associated with the master libraries.
-
-#     This function takes a dictionary with keys corresponding to a target architecture and values
-#     corresponding to the master solution library for that architecture. The function generates a
-#     tuple consisting of a MasterSolutionLibrary and the associated name. When not separating architectures,
-#     the key full will appear in masterLibraries indicating that all libraries are combinded into a
-#     single master library.
-
-#     Args:
-#         masterLibraries: A dictionary of architecture name / master solution library pairs.
-#         archs: A list of supported architectures.
-#         lazy: If True, add lazy library master files.
-
-#     Returns:
-#         List of pairs of master solutions libraries and the corresponding name.
-#     """
-#     if "full" in masterLibraries.keys():
-#         return [("TensileLibrary", masterLibraries["full"])]
-
-#     baseName = "TensileLibrary_lazy_" if lazy else "TensileLibrary_"
-#     result = [
-#         (baseName + arch, masterLibrary)
-#         for arch, masterLibrary in masterLibraries.items()
-#         if arch in archs
-#     ]
-
-#     return result + generateLazyMasterFileList(result) if lazy else result
 
 
 # @ray.remote
@@ -1231,41 +1064,36 @@ def run(
 
     solns = list(generateSolutions(libraryLogics))
     kernels = list((s.getKernels() for s in solns))
+    # tPrint(0, f"Library logic file: {logicFiles}, kernels: {kernels}")
 
     kernelHelperObjs = generateKernelObjectsFromSolutions(kernels)
-
+    asmDir = Path(os.path.join(Path(outputPath).parent, "build_tmp", Path(outputPath).stem.upper(), "assembly"))
+    asmDir.mkdir(parents=True, exist_ok=True)
     kernelWriterSource, kernelWriterAssembly = getKernelWriters(
-        kernels, removeTemporaries, rocmPaths, capabilities, archInfo
+        kernels, removeTemporaries, rocmPaths, capabilities, archInfo, str(asmDir), getRequiredParametersMin()
     )
+
+    srcKernels = [k for k in kernels if k["KernelLanguage"] == "Source"]
+    baseNames = writeSourceKernels(
+     outputPath,
+     cxxCompiler,
+     args,
+     srcKernels,
+     kernelHelperObjs,
+     kernelWriterSource,
+     capabilities, 
+     rocmPaths, 
+     archInfo,
+    )
+
     asmKernels = [k for k in kernels if k["KernelLanguage"] == "Assembly"]
-
-    writeAssemblyKernels(
+    asmKernels = writeAssemblyKernels(
         outputPath,
-        cxxCompiler,
-        args,
         asmKernels,
-        kernelHelperObjs,
         kernelWriterAssembly,
-        capabilities,
-        rocmPaths,
-        archInfo,
-        removeTemporaries=removeTemporaries,
     )
 
-    srcKernels = [k for k in kernels if k["KernelLanguage"] != "Assembly"]
-    print([f for f in logicFiles if "hip" in f])
-    writeSourceKernels(
-        outputPath,
-        cxxCompiler,
-        args,
-        srcKernels,
-        kernelHelperObjs,
-        kernelWriterSource,
-        removeTemporaries=removeTemporaries,
-    )    
-
-    return libraryLogics, procnum
-
+    return libraryLogics, asmKernels, baseNames, procnum
 
 # weights are assumed reverse sorted
 def multifit(weights, num_bins):
@@ -1310,10 +1138,6 @@ def TensileCreateLibrary():
     # Below code can be removed after deepcopy removal is complete
     gp1 = deepcopy(globalParameters)
     archInfo, capabilities, rocmPaths = assignGlobalParameters(args, capabilitiesCache)
-    import deepdiff
-    out = deepdiff.DeepDiff(gp1, globalParameters).pretty()
-    print("Altered Global Parameters: ")
-    print(out)
 
     if capabilities.AsmIsCached:
         LibraryIO.writeAsmCapsCache(cacheFile, capabilities.Asm)
@@ -1321,38 +1145,47 @@ def TensileCreateLibrary():
     if not os.path.exists(logicPath):
         printExit("LogicPath %s doesn't exist" % logicPath)
 
-    # archs = [
-    #     Common.gfxName(arch)
-    #     for arch in archInfo.SupportedIsas 
-    #     if capabilities.Asm[arch]["SupportedISA"]
-    # ]
-
     # converts logicArchs from gfx to common name, e.g., aldebaran, aquavanjaram
     logicArchs: Set[str] = {name for name in (getArchitectureName(gfxName) for gfxName in archInfo.Archs) if name}
-    logicFiles = sorted(
-        [(os.path.getsize(f), f) for f in findLogicFiles(Path(logicPath), logicArchs)], reverse=True
-    )
 
-    tPrint(1, archInfo.Archs)
-    logicFiles = findLogicFiles(Path(logicPath), logicArchs)
-    tPrint(1, logicFiles)
+    # logicFiles = sorted(
+    #     [(os.path.getsize(f), f) for f in findLogicFiles(Path(logicPath), logicArchs)], reverse=True
+    # )
 
-    parallelFunc = functools.partial(run, removeTemporaries, outputPath, cxxCompiler, args, capabilities, rocmPaths, archInfo)
+    # batchedLogicFiles = multifit(logicFiles, numPasses * cpuThreads)
+
     def chunk(lst, n):
         """Yield successive n-sized chunks from lst."""
         for i in range(0, len(lst), n):
             yield lst[i : i + n]
+    batchedLogicFiles = chunk(findLogicFiles(Path(logicPath), logicArchs), 1)
+    tPrint(0, f"BATCHED LOGIC FILES: {batchedLogicFiles}")
 
+    parallelFunc = functools.partial(run, removeTemporaries, outputPath, cxxCompiler, args, capabilities, rocmPaths, archInfo)
 
     masterLibraries = {}
     nextSolutionIdx = {}
-    for result in Common.ParallelMap(parallelFunc, chunk(logicFiles, 4), cpuThreads, "Running TCL...", multiArg=False):
-        libraryLogic, proc = result
+    kernels = []
+    baseNames = []
+    for result in Common.ParallelMap(parallelFunc, batchedLogicFiles, cpuThreads, "Running TCL...", multiArg=False):
+        libraryLogic, asmKernels, baseName, proc = result
+        kernels.extend(asmKernels)
+        baseNames.extend(baseName)
         for _, gfxName, _, _, _, lib in libraryLogic:
+            tPrint(0, f"finalizing processing {gfxName} on: {proc}")
             updateMasterLibrary(gfxName, lib, masterLibraries, nextSolutionIdx)
-            if "fallback" in masterLibraries:
-                addFallback(masterLibraries, capabilities, archInfo)
-        tPrint(0, f"finished processing on: {proc}")
+
+    tPrint(0, f"built {len(baseNames)} source code object files")
+
+    if "fallback" in masterLibraries:
+        addFallbacksToMasterLibraries(masterLibraries, capabilities, archInfo)
+
+    # buildSourceKernelCodeObjectFiles(cxxCompiler, baseNames, outputPath, capabilities, rocmPaths, archInfo, removeTemporaries)
+    getAssemblyCodeObjectFiles(
+        kernels,
+        outputPath,
+        getRequiredParametersMin(),
+    )
 
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)
@@ -1362,9 +1195,7 @@ def TensileCreateLibrary():
             tPrint(1, f"Writing MSLibrary: {name}")
             lib.applyNaming(getRequiredParametersMin())  # <-- This should be able to be replaced directly with `name`?
             LibraryIO.write(str(newLibraryDir / name), Utils.state(lib), args["LibraryFormat"])
-        
-    newLibraryDir = Path(outputPath) / "library"
-    newLibraryDir.mkdir(exist_ok=True)
+
 
     if removeTemporaries:
         buildTmp = Path(outputPath).parent / "build_tmp"

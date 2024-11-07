@@ -276,11 +276,10 @@ class MasterSolutionLibrary:
                 archLiteral = archString.group(0)
                 archval = (int(archLiteral, 16) << 18)
         # Check for duplicate architecture values
-        tPrint(1, f"architecture value {archval} for {architectureName} and {archLiteral}")
         if archval >= 0 and not archval in cls.ArchitectureSet:
             cls.ArchitectureSet.add(archval)
         else:
-            tPrint(1, f"ERROR: Duplicate architecture value {archval} for {architectureName}")
+            tPrint(1, f"ERROR: Duplicate architecture value {archval} for {architectureName}, with arch set {cls.ArchitectureSet}")
             raise RuntimeError("ERROR in architecture solution index mapping.")
         return archval
 
