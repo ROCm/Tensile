@@ -9,7 +9,7 @@
 Tensile programmer's guide
 ********************************************************************
 
-This document provides necessary information for programmers interested in contributing to the Tensile source code.
+This topic provides necessary information for programmers interested in contributing to the Tensile source code.
 
 .. _development-environment:
 

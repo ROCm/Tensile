@@ -16,7 +16,7 @@ subtrees:
 
 - caption: Concepts
   entries:
-  - file: src/concepts/supported-problems
+  - file: src/conceptual/supported-problems
 
 - caption: Reference
   entries:
@@ -32,7 +32,6 @@ subtrees:
     - file: src/api-reference/tensile-create-library-api
     - file: src/api-reference/utilities
   - file: src/reference/environment-variables
-  - file: src/reference/experimental-kernel-selection
 
 - caption: About
   entries:
