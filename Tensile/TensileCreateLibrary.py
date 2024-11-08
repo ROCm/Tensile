@@ -44,6 +44,7 @@ import time
 from io import TextIOWrapper
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List, Optional, Set, Tuple, Union
+from itertools import chain
 
 from joblib import Parallel
 
@@ -120,24 +121,25 @@ def addBuildIDForROCm53Plus():
 def getLinkCodeObjectArgs(assembler, objectFileNames, coFileName, *moreArgs):
     rv = [assembler,
           '-target', 'amdgcn-amd-amdhsa']
-    rv.extend(addBuildIDForROCm53Plus())
-    rv.extend(moreArgs)
-    rv.extend(['-o', coFileName] + objectFileNames)
+    rv += addBuildIDForROCm53Plus()
+    rv += moreArgs
+    rv += ['-o', coFileName]
+
+    rv += objectFileNames
     return rv
 
 
-def gatherCOFilesForLinking(archKernels, destDir, kernelMinNaming):
+def gatherCOFilesForLinking(kernels, kernelMinNaming):
     coFileMap = collections.defaultdict(list)
-    for kernel in archKernels:
+    for kernel in kernels:
         coName = kernel.get("codeObjectFile", None)
         if coName:
-            coFileMap[os.path.join(destDir, coName + ".co")] += [
-                Name.getKernelFileBase(kernel, kernelMinNaming) + ".o" # would be nice if we didn't need to compute name
-            ]
+            coFileMap[coName + ".co"].append(
+                Name.getKernelFileBase(kernel, kernelMinNaming) + ".o" )# would be nice if we didn't need to compute name
     return coFileMap
 
 
-def linkCodeObjectFiles(coFileMap, asmDir):
+def linkCodeObjectFiles(coFileMap, destDir, asmDir):
     coFiles = []
     for coFile, objectFiles in coFileMap.items():
         args = []
@@ -151,7 +153,7 @@ def linkCodeObjectFiles(coFileMap, asmDir):
                 file.flush()
             args = getLinkCodeObjectArgs("amdclang++", ["@clangArgs.txt"], coFile)
         else:
-            args = getLinkCodeObjectArgs("amdclang++", objectFiles, coFile)
+            args = getLinkCodeObjectArgs("amdclang++", objectFiles, os.path.join(destDir, coFile))
 
         tPrint(2, "Linking objects into co files: " + " ".join(args))
 
@@ -170,30 +172,14 @@ def linkCodeObjectFiles(coFileMap, asmDir):
     return coFiles
 
 
-def getAssemblyCodeObjectFiles(kernels, outputPath, kernelMinNaming):
+def getAssemblyCodeObjectFiles(coFileMap, outputPath):
     asmDir = Path("build_tmp") / Path(outputPath).stem.upper() / "assembly"
     asmDir.mkdir(parents=True, exist_ok=True)
 
     destDir = Path(outputPath) / "library"
     destDir.mkdir(parents=True, exist_ok=True)
 
-    if len(kernels) == 0: # is this ever possible and if so wouldn't we want an error?
-        return []
-
-    archs = collections.defaultdict(list)
-    for k in kernels:
-        archs[tuple(k["ISA"])].append(k)
-    coFiles = []
-    for arch, archKernels in archs.items():
-
-        numObjectFiles = len(archKernels)
-
-        if numObjectFiles == 0:
-            continue
-        coFileMap = gatherCOFilesForLinking(archKernels, destDir, kernelMinNaming)
-        coFiles.extend(linkCodeObjectFiles(coFileMap, asmDir))
-
-    return coFiles
+    return linkCodeObjectFiles(coFileMap, destDir, asmDir)
 
 
 def splitArchs(caps: Capabilities, archInfo: ArchInfo):
@@ -224,7 +210,7 @@ def splitArchs(caps: Capabilities, archInfo: ArchInfo):
 
 
 def buildSourceKernelObjectFile(
-    CxxCompiler, outputPath, kernelFile, caps: Capabilities, rocmPaths: RocmPaths, archInfo: ArchInfo
+    CxxCompiler, outputPath, caps: Capabilities, rocmPaths: RocmPaths, archInfo: ArchInfo, kernelFile
 ):
     buildPath = Path("build_tmp") / Path(outputPath).stem.upper() / "code_object_tmp"
     buildPath.mkdir(parents=True, exist_ok=True)
@@ -340,7 +326,7 @@ def setInOutFlags():
 def buildSourceKernelCodeObjectFile(
     CxxCompiler, outputPath, base, caps: Capabilities, rocmPaths: RocmPaths, archInfo: ArchInfo, removeTemporaries
 ):
-    buildPath = Path("build_tmp") / Path(outputPath).stem.upper() / "code_object_tmp"
+    buildPath = Path(outputPath).parent / Path("build_tmp") / Path(outputPath).stem.upper() / "code_object_tmp"
     destDir = Path(outputPath) / "library"
 
     buildPath.mkdir(parents=True, exist_ok=True)
@@ -365,7 +351,7 @@ def buildSourceKernelCodeObjectFile(
                 tPrint(3, out)
     except subprocess.CalledProcessError as err:
         print("Failed to unbundle in buildSourceKernelCodeObjectFile:")
-        print("Subprocess command is: out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)")
+        print("Subprocess comand is: out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)")
         print("Subprocess input is: \nargs:", bundlerArgs)
         print("See the following error output: \n\n", err.output)
         print("Attempting to recover...")
@@ -385,16 +371,8 @@ def buildSourceKernelCodeObjectFile(
                 tPrint(1, err.output)
                 raise
 
-    coFilenames = [name for name in coFilenames]
-    extractedCOs = [os.path.join(buildPath, name) for name in coFilenames]
-    destCOsList = [os.path.join(destDir, name) for name in coFilenames]
-    for src, dst in zip(extractedCOs, destCOsList):
-        if removeTemporaries:
-            shutil.move(src, dst)
-        else:
-            shutil.copyfile(src, dst)
 
-    return destCOsList
+    return coFilenames
 
 
 def buildSourceKernelCodeObjectFiles(CxxCompiler, baseNames, outputPath, caps, rocmPaths, archInfo, removeTemporaries):
@@ -546,7 +524,7 @@ def collectFilesToWrite(
 
 
 def generateKernelSourceAndHeaderFiles(
-    filesToWrite: ProcessedKernelLookup,
+    srcCodeMap: ProcessedKernelLookup,
 ) -> List[str]:
     """Generates kernel source and header files.
 
@@ -572,10 +550,12 @@ def generateKernelSourceAndHeaderFiles(
         srcFile.write(f'#include "{filename}.h"\n')
 
     # Write kernel data to files
-    for filename, kernelList in filesToWrite.items():
+    filenames = set()
+    for filename, kernelList in srcCodeMap.items():
+        filenames.add(filename)
         # fmt: off
         with open(f"{filename}.h", "w", encoding="utf-8") as hdrFile, \
-             open(f"{filename}.cpp", "w", encoding="utf-8") as srcFile:
+                open(f"{filename}.cpp", "w", encoding="utf-8") as srcFile:
         # fmt: on
             writeHeaderPreface(hdrFile)
             writeSourcePreface(srcFile, filename)
@@ -583,7 +563,7 @@ def generateKernelSourceAndHeaderFiles(
                 srcFile.write(src)
                 hdrFile.write(header)
 
-    return [filePrefix + ".cpp" for filePrefix in filesToWrite]
+    return [filePrefix + ".cpp" for filePrefix in filenames]
 
 
 def markDuplicateKernels(
@@ -757,30 +737,20 @@ def writeKernelHelpers(
 ################################################################################
 def writeSourceKernels(
     outputPath: str,
-    cxxCompiler: str,
     params: Dict[str, Any],
     kernels: List[Solution],
-    kernelHelperObjs: List[KernelWriterBase],
     kernelWriterSource: KernelWriterSource,
-    caps: Capabilities,
-    rocmPaths: RocmPaths,
-    archInfo: ArchInfo,
 ):
     start = time.time()
     outPath = Path(outputPath)
     results = [processKernelSource(k, kernelWriterSource) for k in kernels]
     filesToWrite = collectFilesToWrite(results, outPath, params["LazyLibraryLoading"], numMergedFiles=1)
-    kernelFiles = generateKernelSourceAndHeaderFiles(filesToWrite)
-    with KernelFileContextManager(params["LazyLibraryLoading"], True, 1, outPath, kernelFiles) as (srcFile, hdrFile):
-        for ko in kernelHelperObjs:
-            writeKernelHelpers(ko, srcFile, hdrFile, outPath, kernelFiles)
-
-    tPrint(0, f"building {len(kernelFiles)} source code object files")
-    baseNames = [buildSourceKernelObjectFile(cxxCompiler, outputPath, f, caps, rocmPaths, archInfo) for f in kernelFiles]
     stop = time.time()
-    tPrint(1, "# Source kernel Building elapsed time = %.1f secs" % (stop - start))
+    total = stop - start
+    numKernels = len(filesToWrite)    
+    tPrint(1, f"# Source kernel Writing elapsed time = {total} secs, kps = {float(numKernels)/total}, kernels = {numKernels}")
 
-    return baseNames
+    return filesToWrite
 
 
 # should be writeAssemblyKernelsAndBuildCodeObjects
@@ -804,7 +774,9 @@ def writeAssemblyKernels(
     )
 
     stop = time.time()
-    tPrint(1, "# Kernel Building elapsed time = %.1f secs" % (stop - start))
+    total = stop-start
+    numKernels = len(kernelsToBuild)
+    tPrint(1, f"# Assembly kernel Building elapsed time = {total} secs, kps = {float(numKernels)/total}, kernels = {numKernels}")    
 
     return kernelsToBuild # we realy just need the .co files on disk
 
@@ -994,9 +966,7 @@ def parseLibraryLogicFiles(
         List of library logic tuples.
     """
     libraryLogics = []
-    # print("parsing logic files", logicFiles)
     for f in logicFiles:
-        # tPrint(0, f)
         yamlDict = LibraryIO.readYAML(f)
         logic = LibraryIO.parseLibraryLogicData(yamlDict, caps)
         libraryLogics.append(logic)
@@ -1051,7 +1021,6 @@ def findLogicFiles(
 def run(
     removeTemporaries,
     outputPath,
-    cxxCompiler,
     args,
     capabilities: Capabilities,
     rocmPaths: RocmPaths,
@@ -1074,16 +1043,11 @@ def run(
     )
 
     srcKernels = [k for k in kernels if k["KernelLanguage"] == "Source"]
-    baseNames = writeSourceKernels(
-     outputPath,
-     cxxCompiler,
-     args,
-     srcKernels,
-     kernelHelperObjs,
-     kernelWriterSource,
-     capabilities, 
-     rocmPaths, 
-     archInfo,
+    filesToWrite = writeSourceKernels(
+      outputPath,
+      args,
+      srcKernels,
+      kernelWriterSource,
     )
 
     asmKernels = [k for k in kernels if k["KernelLanguage"] == "Assembly"]
@@ -1093,7 +1057,9 @@ def run(
         kernelWriterAssembly,
     )
 
-    return libraryLogics, asmKernels, baseNames, procnum
+    coFileMap = gatherCOFilesForLinking(asmKernels, getRequiredParametersMin())
+
+    return libraryLogics, coFileMap, filesToWrite, kernelHelperObjs
 
 # weights are assumed reverse sorted
 def multifit(weights, num_bins):
@@ -1112,6 +1078,18 @@ def multifit(weights, num_bins):
         print("size: ", bin)
     
     return result
+
+def relocateSourceKernelCodeObjectFiles(coFilenames, outputPath, removeTemporaries):
+    buildPath = Path(outputPath).parent / Path("build_tmp") / Path(outputPath).stem.upper() / "code_object_tmp"
+    destDir = Path(outputPath) / "library"
+    extractedCOs = [os.path.join(buildPath, name) for name in set(coFilenames)]
+    destCOsList = [os.path.join(destDir, name) for name in set(coFilenames)]
+    for src, dst in zip(extractedCOs, destCOsList):
+        if removeTemporaries:
+            shutil.move(src, dst)
+        else:
+            shutil.copyfile(src, dst)
+
 
 
 @profile
@@ -1136,7 +1114,6 @@ def TensileCreateLibrary():
     capabilitiesCache = LibraryIO.initAsmCapsCache(cacheFile)
 
     # Below code can be removed after deepcopy removal is complete
-    gp1 = deepcopy(globalParameters)
     archInfo, capabilities, rocmPaths = assignGlobalParameters(args, capabilitiesCache)
 
     if capabilities.AsmIsCached:
@@ -1148,45 +1125,79 @@ def TensileCreateLibrary():
     # converts logicArchs from gfx to common name, e.g., aldebaran, aquavanjaram
     logicArchs: Set[str] = {name for name in (getArchitectureName(gfxName) for gfxName in archInfo.Archs) if name}
 
-    # logicFiles = sorted(
-    #     [(os.path.getsize(f), f) for f in findLogicFiles(Path(logicPath), logicArchs)], reverse=True
-    # )
+    logicFiles = sorted(
+        [(os.path.getsize(f), f) for f in findLogicFiles(Path(logicPath), logicArchs)], reverse=True
+    )
+    batchedLogicFiles = multifit(logicFiles, numPasses * cpuThreads)
 
-    # batchedLogicFiles = multifit(logicFiles, numPasses * cpuThreads)
+    kernelMinNaming = getRequiredParametersMin()
 
-    def chunk(lst, n):
-        """Yield successive n-sized chunks from lst."""
-        for i in range(0, len(lst), n):
-            yield lst[i : i + n]
-    batchedLogicFiles = chunk(findLogicFiles(Path(logicPath), logicArchs), 1)
+    parallelFunc = functools.partial(run, removeTemporaries, outputPath, args, capabilities, rocmPaths, archInfo, kernelMinNaming)
+
     tPrint(0, f"BATCHED LOGIC FILES: {batchedLogicFiles}")
 
-    parallelFunc = functools.partial(run, removeTemporaries, outputPath, cxxCompiler, args, capabilities, rocmPaths, archInfo)
+    parallelFunc = functools.partial(run, removeTemporaries, outputPath, args, capabilities, rocmPaths, archInfo)
 
+    # for result in Common.ParallelMap(parallelFunc, batchedLogicFiles, cpuThreads, "Running TCL...", multiArg=False):
+    #     libraryLogic, asmKernels, baseName, proc = result
+    #     kernels.extend(asmKernels)
+    #     baseNames.extend(baseName)
+    #     for _, gfxName, _, _, _, lib in libraryLogic:
+    #         tPrint(0, f"finalizing processing {gfxName} on: {proc}")
+    #         updateMasterLibrary(gfxName, lib, masterLibraries, nextSolutionIdx)
+
+    rvs = Common.ParallelMap(parallelFunc, batchedLogicFiles, cpuThreads, "Running TCL...", multiArg=False)
+
+    def combine_dict(d1, d2):
+        for k, v in d2.items():
+            d1[k].extend(v)
+
+    srcCodeMap= {}
+    coFileMap = collections.defaultdict(list)
+    kernelHelperObjs = []
     masterLibraries = {}
     nextSolutionIdx = {}
-    kernels = []
     baseNames = []
-    for result in Common.ParallelMap(parallelFunc, batchedLogicFiles, cpuThreads, "Running TCL...", multiArg=False):
-        libraryLogic, asmKernels, baseName, proc = result
-        kernels.extend(asmKernels)
-        baseNames.extend(baseName)
+    for libraryLogic, coFileMap_, srcCodeMap_, kho in rvs:
+        combine_dict(coFileMap, coFileMap_)
+        combine_dict(srcCodeMap, srcCodeMap_)
+        kernelHelperObjs.extend(kho)
         for _, gfxName, _, _, _, lib in libraryLogic:
-            tPrint(0, f"finalizing processing {gfxName} on: {proc}")
+            tPrint(0, f"finalizing processing {gfxName}")
             updateMasterLibrary(gfxName, lib, masterLibraries, nextSolutionIdx)
 
     tPrint(0, f"built {len(baseNames)} source code object files")
 
-    if "fallback" in masterLibraries:
-        addFallbacksToMasterLibraries(masterLibraries, capabilities, archInfo)
 
-    # buildSourceKernelCodeObjectFiles(cxxCompiler, baseNames, outputPath, capabilities, rocmPaths, archInfo, removeTemporaries)
+    ###########
+    # Compiling stuff
+    ###########
     getAssemblyCodeObjectFiles(
-        kernels,
+        coFileMap,
         outputPath,
-        getRequiredParametersMin(),
     )
 
+    tPrint(0, f"srcCodeMap: {srcCodeMap}")
+    kernelFiles = generateKernelSourceAndHeaderFiles(srcCodeMap)
+
+    with KernelFileContextManager(True, True, 1, outputPath, kernelFiles) as (srcFile, hdrFile):
+        for ko in kernelHelperObjs:
+            writeKernelHelpers(ko, srcFile, hdrFile, outputPath, kernelFiles)
+
+    parallelFunc = functools.partial(buildSourceKernelObjectFile, cxxCompiler, outputPath, capabilities, rocmPaths, archInfo)
+    rvs = Common.ParallelMap(parallelFunc, batchedLogicFiles, cpuThreads, "Building Source Kernel Code objects", multiArg=False)
+    basenames = list(chain.from_iterable(rvs))
+    results = buildSourceKernelCodeObjectFiles(cxxCompiler, basenames, outputPath, capabilities, rocmPaths, archInfo, removeTemporaries)
+
+    coFilenames = []
+    for result in results:
+        coFilenames.extend(result)
+
+    relocateSourceKernelCodeObjectFiles(coFilenames, outputPath, removeTemporaries)
+
+    ###########
+    # MSL Stuff
+    ###########
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)
     baseName = "TensileLibrary_"
@@ -1195,9 +1206,13 @@ def TensileCreateLibrary():
             tPrint(1, f"Writing MSLibrary: {name}")
             lib.applyNaming(getRequiredParametersMin())  # <-- This should be able to be replaced directly with `name`?
             LibraryIO.write(str(newLibraryDir / name), Utils.state(lib), args["LibraryFormat"])
-
+    if "fallback" in masterLibraries:
+        addFallbacksToMasterLibraries(masterLibraries, capabilities, archInfo)
 
     if removeTemporaries:
         buildTmp = Path(outputPath).parent / "build_tmp"
         if buildTmp.exists() and buildTmp.is_dir():
             shutil.rmtree(buildTmp)
+
+
+
