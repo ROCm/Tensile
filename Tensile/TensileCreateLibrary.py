@@ -382,7 +382,7 @@ def buildSourceKernelCodeObjectFile(
     return coFilenames
 
 
-def buildSourceKernelCodeObjectFiles(CxxCompiler, baseNames, outputPath, caps, rocmPaths, archInfo, removeTemporaries):
+def buildSourceKernelCodeObjectFiles(CxxCompiler, baseNames, outputPath, caps, rocmPaths, archInfo, removeTemporaries, cores):
     args = zip(
         itertools.repeat(CxxCompiler),
         itertools.repeat(outputPath),
@@ -392,7 +392,7 @@ def buildSourceKernelCodeObjectFiles(CxxCompiler, baseNames, outputPath, caps, r
         itertools.repeat(archInfo),                        
         itertools.repeat(removeTemporaries),
     )
-    return Common.ParallelMap(buildSourceKernelCodeObjectFile, args, 32, "Compiling source kernels")
+    return Common.ParallelMap(buildSourceKernelCodeObjectFile, args, cores, "Compiling source kernels")
     #coFiles = []
     #for k in kernelFiles:
     #    coFile = buildSourceCodeObjectFile(CxxCompiler, outputPath, k, caps, rocmPaths, archInfo, removeTemporaries)
@@ -1010,11 +1010,17 @@ def parseLibraryLogicFiles(
         List of library logic tuples.
     """
     libraryLogics = []
-    for f in logicFiles:
+    #print(logicFiles)
+    #for d in logicFiles:
+    #    print(d)
+    files = glob.glob(logicFiles + "/*.yaml")
+    print(files)
+    for f in files:
+        print(f)
         yamlDict = LibraryIO.readYAML(f)
         logic = LibraryIO.parseLibraryLogicData(yamlDict, caps)
         libraryLogics.append(logic)
-
+    
     return libraryLogics
 
 
@@ -1056,8 +1062,8 @@ def findLogicFiles(
     extensions = ["*.yaml", "*.yml"]
     logicFiles = filter(isMatch, (file for ext in extensions for file in path.rglob(ext)))
     logicFiles = filter(isNotExperimental, logicFiles)
-
-    return list(str(l) for l in logicFiles)
+    
+    return set(str(l.parent) for l in logicFiles)
 
 
 def generateLazyMasterFileList(
@@ -1133,13 +1139,13 @@ def run(
         kernels, removeTemporaries, rocmPaths, capabilities, archInfo, str(asmDir), kernelMinNaming
     )
 
-    srcKernels = [k for k in kernels if k["KernelLanguage"] == "Source"]
-    filesToWrite = writeSourceKernels(
-      outputPath,
-      args,
-      srcKernels,
-      kernelWriterSource,
-    )
+    #srcKernels = [k for k in kernels if k["KernelLanguage"] == "Source"]
+    #filesToWrite = writeSourceKernels(
+    #  outputPath,
+    #  args,
+    #  srcKernels,
+    #  kernelWriterSource,
+    #)
 
     asmKernels = [k for k in kernels if k["KernelLanguage"] == "Assembly"]
     asmKernels = writeAssemblyKernels(
@@ -1150,7 +1156,12 @@ def run(
 
     coFileMap = gatherCOFilesForLinking(asmKernels, kernelMinNaming)
 
-    return coFileMap, filesToWrite, kernelHelperObjs
+    return getAssemblyCodeObjectFiles(
+        coFileMap,
+        outputPath,
+    )
+
+    #return coFileMap, filesToWrite, kernelHelperObjs
 
 # weights are assumed reverse sorted
 def multifit(weights, num_bins):
@@ -1165,8 +1176,8 @@ def multifit(weights, num_bins):
         bins[min_bin_index] += weight[0]
         result[min_bin_index].append(weight[1])
     
-    for bin in bins:
-        print("size: ", bin)
+    #for files, bin in zip(result, bins):
+    #    print(bin, files)
     
     return result
 
@@ -1215,15 +1226,9 @@ def TensileCreateLibrary():
 
     # converts logicArchs from gfx to common name, e.g., aldebaran, aquavanjaram
     logicArchs: Set[str] = {name for name in (getArchitectureName(gfxName) for gfxName in archInfo.Archs) if name}
-    logicFiles = sorted(
-        [(os.path.getsize(f), f) for f in findLogicFiles(Path(logicPath), logicArchs)], reverse=True
-    )
-    batchedLogicFiles = multifit(logicFiles, numPasses * cpuThreads)
 
-    file2 = Path(outputPath).parent / "solution_min_naming.yaml"
-
-    kernelMinNaming = LibraryIO.readYAML(file2)        
-
+    solution_min_naming_file = Path(outputPath).parent / "solution_min_naming.yaml"
+    kernelMinNaming = LibraryIO.readYAML(solution_min_naming_file)        
     parallelFunc = functools.partial(run, removeTemporaries, outputPath, args, capabilities, rocmPaths, archInfo, kernelMinNaming)
 
     def chunk(lst, n):
@@ -1231,41 +1236,60 @@ def TensileCreateLibrary():
         for i in range(0, len(lst), n):
             yield lst[i : i + n]
 
-    rvs = Common.ParallelMap(parallelFunc, batchedLogicFiles, cpuThreads, "Running TCL...", multiArg=False)
-
-    def combine_dict(d1, d2):
-        for k, v in d2.items():
-            d1[k].extend(v)
-
-    filesToWrite = []
-    coFileMap = collections.defaultdict(list)
-    kernelHelperObjs = []
-    for coFileMap_, files, kho in rvs:
-        combine_dict(coFileMap, coFileMap_)
-        filesToWrite.extend(files)
-        kernelHelperObjs.extend(kho)
-
-    getAssemblyCodeObjectFiles(
-        coFileMap,
-        outputPath,
-    )
+    #logicFiles = sorted(
+    #    [(sum(file.stat().st_size for file in Path(path).rglob('*')), path) for path in findLogicFiles(Path(logicPath), logicArchs)], reverse=True
+    #)
+    #batchedLogicFiles = multifit(logicFiles, numPasses * cpuThreads)
     
-    kernelFiles = generateKernelSourceAndHeaderFiles(filesToWrite)
 
-    with KernelFileContextManager(True, True, 1, outputPath, kernelFiles) as (srcFile, hdrFile):
-        for ko in kernelHelperObjs:
-            writeKernelHelpers(ko, srcFile, hdrFile, outputPath, kernelFiles)
+    logicFiles = list(findLogicFiles(Path(logicPath), logicArchs))
+    #num_chunks = int(len(logicFiles) / cpuThreads)          
+    #print(f"num chunks {num_chunks}")
+    #rvs = Common.ParallelMap(parallelFunc, chunk(list(logicFiles), num_chunks), cpuThreads, "Running TCL...", multiArg=False)
 
-    parallelFunc = functools.partial(buildSourceKernelObjectFile, cxxCompiler, outputPath, capabilities, rocmPaths, archInfo)
-    rvs = Common.ParallelMap(parallelFunc, batchedLogicFiles, cpuThreads, "Building Source Kernel Code objects", multiArg=False)
-    basenames = list(chain.from_iterable(rvs))
-    results = buildSourceKernelCodeObjectFiles(cxxCompiler, basenames, outputPath, capabilities, rocmPaths, archInfo, removeTemporaries)
+    total = len(logicFiles)
+    chunk_size = int(total / numPasses)
+    remainder = total % numPasses    
 
-    coFilenames = []
-    for result in results:
-        coFilenames.extend(result)
+    for p in range(0, numPasses):
+        print("pass ", p)
+        start = p * chunk_size
+        stop = (p+1) * chunk_size
+        print(logicFiles[start:stop])
+        rvs = Common.ParallelMap(parallelFunc, logicFiles[start:stop], cpuThreads, "Running TCL...", multiArg=False)
+        for r in rvs:
+            print(r)
+    if remainder:
+        rvs = Common.ParallelMap(parallelFunc, logicFiles[-remainder:], cpuThreads, "Running TCL...", multiArg=False)
+        for r in rvs:
+            print(r)            
 
-    relocateSourceKernelCodeObjectFiles(coFilenames, outputPath, removeTemporaries)
+    #def combine_dict(d1, d2):
+    #    for k, v in d2.items():
+    #        d1[k].extend(v)
+
+    #result = []
+    #for coFileMap_, files, kho in rvs:
+    #    combine_dict(coFileMap, coFileMap_)
+    #    filesToWrite.append(files)
+    #    kernelHelperObjs.extend(kho)
+
+    
+    #kernelFiles = generateKernelSourceAndHeaderFiles(filesToWrite)
+
+    #with KernelFileContextManager(True, True, 1, outputPath, kernelFiles) as (srcFile, hdrFile):
+    #    for ko in kernelHelperObjs:
+    #        writeKernelHelpers(ko, srcFile, hdrFile, outputPath, kernelFiles)
+
+    #parallelFunc = functools.partial(buildSourceKernelObjectFile, cxxCompiler, outputPath, capabilities, rocmPaths, archInfo)
+    #basenames = Common.ParallelMap(parallelFunc, kernelFiles, cpuThreads, "Building Source Kernel Code objects", multiArg=False)
+    #results = buildSourceKernelCodeObjectFiles(cxxCompiler, basenames, outputPath, capabilities, rocmPaths, archInfo, removeTemporaries, cpuThreads)
+  
+    #coFilenames = []
+    #for result in results:
+    #     coFilenames.extend(result)
+
+    #relocateSourceKernelCodeObjectFiles(coFilenames, outputPath, removeTemporaries)
 
     # archs = [
     #     gfxName(arch)

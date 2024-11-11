@@ -5377,7 +5377,7 @@ for codeObjectFileName in codeObjectFileNames:
     kernelSource = self.getKernelSource(kernel)
     if os.path.exists(assemblyFileName):
       print(assemblyFileName, " exists potential missed duplicate")
-      return assemblyFileName    
+      #return assemblyFileName    
     tPrint(3, "write_assemblyFilename %s" % assemblyFileName)
     with open(assemblyFileName, 'w') as assemblyFile:
       assemblyFile.write(kernelSource)
