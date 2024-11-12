@@ -4,21 +4,20 @@
 
 ### Added
 
-- Nightly builds and groovy
-- Guard against inconsistent state
+- Nightly builds with performance statistics
 - Cache asm capabilities for reuse
 - venv for Tensile create on Linux
 - Flag to keep build_tmp when running Tensile
 - Generalized profiling scripts
 - GFX1151 support
-- Single-threaded operations support, mainly for profiling
+- Single-threaded support in TensileCreateLibrary
 - Logic to remove temporary build artifacts
 
 ### Changed
 
 - Updated Tensile documents (API reference, README.md, and comments)
 - Disabled asm-cache for tests
-- Used hipcc.bat as a compiler on windows instead of the Perl script
+- Used hipcc.bat as a compiler on Windows instead of the Perl script
 - Improved clarity of CHANGELOG.md
 - Enabled external CI
 - Improved Tensile documentation
