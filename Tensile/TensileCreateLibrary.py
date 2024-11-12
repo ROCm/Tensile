@@ -1040,6 +1040,7 @@ def run(
     if srcKernels:
         kernelFiles = writeSourceKernels(
           outputPath,
+          args,
           srcKernels,
           kernelWriterSource,
           cxxCompiler,
@@ -1073,6 +1074,18 @@ def run(
         tPrint(1, f"Writing MSLibrary: {name}")
         lib.applyNaming(getRequiredParametersMin())  # <-- This should be able to be replaced directly with `name`?
         LibraryIO.write(str(newLibraryDir / name), Utils.state(lib), args["LibraryFormat"])
+
+
+    asmKernels = [k for k in kernels if k["KernelLanguage"] == "Assembly"]
+    if asmKernels:
+        asmKernels = writeAssemblyKernels(
+            outputPath,
+            asmKernels,
+            kernelWriterAssembly,
+        )
+
+        coFileMap = gatherCOFilesForLinking(asmKernels, kernelMinNaming)
+        getAssemblyCodeObjectFiles(coFileMap, outputPath)
 
     return generateKernelObjectsFromSolutions(kernels), libraryLogics
 
