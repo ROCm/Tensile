@@ -1,6 +1,51 @@
 # Changelog for Tensile
 
-## (Unreleased) Tensile 4.42.0
+## (Unreleased) Tensile 4.43.0
+
+### Added
+
+- Nightly builds with performance statistics
+- Cache asm capabilities for reuse
+- venv for Tensile create on Linux
+- Flag to keep build_tmp when running Tensile
+- Generalized profiling scripts
+- GFX1151 support
+- Single-threaded support in TensileCreateLibrary
+- Logic to remove temporary build artifacts
+
+### Changed
+
+- Updated Tensile documents (API reference, README.md, and comments)
+- Disabled asm-cache for tests
+- Used hipcc.bat as a compiler on Windows instead of the Perl script
+- Improved clarity of CHANGELOG.md
+- Enabled external CI
+- Improved Tensile documentation
+- Refactored kernel source and header creation
+- Refactored writeKernels in TensileCreateLibrary
+- Suppressed developer warnings (simplifying the Tensile output)
+- Used an explicit cast when invoking min is called
+- Used cache abbreviations to compute kernel names
+
+### Removed
+
+- OCL backend
+- Unsupported tests
+- Deep copy in TensileCreateLibrary
+
+### Optimized
+
+- Linearized asm register search to reduce build time
+
+### Resolved issues
+
+- Fixed Stream-K dynamic grid model
+- Fixed logic related to caching asm capabilities
+- Fixed accvgpr overflow
+- Fixed test failures in SLES containers when running TensileTests
+- Fixed a regression that prevents TensileCreateLibrary from completing when fallback logic is not available
+
+## Tensile 4.42.0 for ROCm 6.4.0
 
 ### Added
 
@@ -29,7 +74,7 @@
 
 - Improved rocBLAS build output by allowing warning suppression, ignoring developer warnings, displaying progress bar and quiet printing
 - Reordered extensions for Windows in `which` function
-- updated `amdclang++` and `asm` directories
+- Updated `amdclang++` and `asm` directories
 - Updated duplicate marking tests with mocks
 - Restored print ordering
 - Print option
