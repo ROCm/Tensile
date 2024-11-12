@@ -8,7 +8,7 @@
 Environment variables
 ********************************************************************
 
-This document lists the environment variables that enable testing, debugging, and experimental features for Tensile clients and applications.
+This topic lists the environment variables that enable testing, debugging, and experimental features for Tensile clients and applications.
 
 .. list-table:: Environment variables
   :header-rows: 1
@@ -63,15 +63,7 @@ This document lists the environment variables that enable testing, debugging, an
       | "Ratio"
       | "Random"
 
-  * - TENSILE_EXPERIMENTAL_SELECTION
-    - Allows experimental kernel selection for GEMM.
-    - | 0 or unset \- Default kernel selection
-      | 1 \- Grid experimental kernel selection
-      | 2 \- Decision trees experimental kernel selection
-      | See :ref:`experimental-kernel-selection` for details.
-
   * - TENSILE_PROFILE
     - When enabled, all functions decorated with ``@profile`` are profiled and results are generated as ``.prof`` files.
     - | 1, "ON", "TRUE" \- Enable
       | Any other value \- Disable
-

@@ -4,9 +4,9 @@
 
 .. _cli-reference:
 
-*************
-CLI Reference
-*************
+**********************
+Tensile CLI reference
+**********************
 
 The Tensile project provides several command line tools. Here is the standard syntax for the CLI tools:
 
