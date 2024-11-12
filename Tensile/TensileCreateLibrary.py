@@ -43,7 +43,7 @@ import time
 # import ray
 from io import TextIOWrapper
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, Generator, List, NamedTuple, Optional, Set, Tuple, Union
 from itertools import chain
 
 from joblib import Parallel
@@ -85,7 +85,12 @@ TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
 TENSILE_LIBRARY_DIR = "library"
 
 
-ProcessedKernelResult = Tuple[int, str, str, str, Optional[str]]
+class ProcessedKernelResult(NamedTuple):
+    error: int
+    source: str
+    header: str
+    kernelName: str
+    filename: Optional[str] = None
 
 
 def processKernelSource(kernel, kernelWriter) -> ProcessedKernelResult:
@@ -386,11 +391,6 @@ def buildSourceKernelCodeObjectFiles(CxxCompiler, baseNames, outputPath, caps, r
         itertools.repeat(removeTemporaries),
     )
     return Common.ParallelMap(buildSourceKernelCodeObjectFile, args, 32, "Compiling source kernels")
-    #coFiles = []
-    #for k in kernelFiles:
-    #    coFile = buildSourceCodeObjectFile(CxxCompiler, outputPath, k, caps, rocmPaths, archInfo, removeTemporaries)
-    #    coFiles.append(coFile)
-    # return coFiles
 
 
 ################################################################################
@@ -471,7 +471,7 @@ def prepAsm(
     os.chmod(assemblerFileName, 0o777)
 
 
-ProcessedKernelLookup = Dict[str, Any]
+ProcessedKernelLookup = Dict[Union[Path, str], List[ProcessedKernelResult]]
 
 
 def collectFilesToWrite(
@@ -491,14 +491,12 @@ def collectFilesToWrite(
         numMergedFiles: The number of files to merge into if merging is enabled.
 
     Returns:
-        A tuple containing:
-            - A dictionary mapping file paths to kernel data:
-                (error status, source code, header code, kernel name).
-            - A dictionary mapping kernel names to an error status.
+        - A dictionary mapping file paths to kernel data:
+            (error status, source code, header code, kernel name).
     """
     pathJoin = lambda x: os.path.join(os.path.normcase(outputPath), x)
 
-    filesToWrite = collections.defaultdict(list)
+    srcKernelMap = collections.defaultdict(list)
     validKernelCount = 0
 
     for err, src, header, kernelName, filename in results:
@@ -512,15 +510,15 @@ def collectFilesToWrite(
             suffix = str(validKernelCount % numMergedFiles) if numMergedFiles > 1 else ""
             kernPath = pathJoin(f"Kernels{suffix}")
 
-        filesToWrite[kernPath].append((err, src, header, kernelName))
+        srcKernelMap[kernPath].append(ProcessedKernelResult(err, src, header, kernelName))
         validKernelCount += 1
 
     # Ensure there's at least one kernel file for helper kernels
     if lazyLoading or (validKernelCount == 0):
         kernelSuffix = "0" if numMergedFiles > 1 else ""
-        filesToWrite[pathJoin(f"Kernels{kernelSuffix}")] = []
+        srcKernelMap[pathJoin(f"Kernels{kernelSuffix}")] = []
 
-    return filesToWrite
+    return srcKernelMap 
 
 
 def generateKernelSourceAndHeaderFiles(
@@ -744,13 +742,13 @@ def writeSourceKernels(
     start = time.time()
     outPath = Path(outputPath)
     results = [processKernelSource(k, kernelWriterSource) for k in kernels]
-    filesToWrite = collectFilesToWrite(results, outPath, params["LazyLibraryLoading"], numMergedFiles=1)
+    srcKernelMap= collectFilesToWrite(results, outPath, params["LazyLibraryLoading"], numMergedFiles=1)
     stop = time.time()
     total = stop - start
-    numKernels = len(filesToWrite)    
+    numKernels = len(srcKernelMap)    
     tPrint(1, f"# Source kernel Writing elapsed time = {total} secs, kps = {float(numKernels)/total}, kernels = {numKernels}")
 
-    return filesToWrite
+    return srcKernelMap 
 
 
 # should be writeAssemblyKernelsAndBuildCodeObjects
@@ -1043,7 +1041,7 @@ def run(
     )
 
     srcKernels = [k for k in kernels if k["KernelLanguage"] == "Source"]
-    filesToWrite = writeSourceKernels(
+    srcKernelMap = writeSourceKernels(
       outputPath,
       args,
       srcKernels,
@@ -1059,7 +1057,7 @@ def run(
 
     coFileMap = gatherCOFilesForLinking(asmKernels, getRequiredParametersMin())
 
-    return libraryLogics, coFileMap, filesToWrite, kernelHelperObjs
+    return libraryLogics, coFileMap, srcKernelMap, kernelHelperObjs
 
 # weights are assumed reverse sorted
 def multifit(weights, num_bins):
@@ -1157,16 +1155,16 @@ def TensileCreateLibrary():
     kernelHelperObjs = []
     masterLibraries = {}
     nextSolutionIdx = {}
-    baseNames = []
     for libraryLogic, coFileMap_, srcCodeMap_, kho in rvs:
+        tPrint(0, f"srcCodeMap: {next(iter(srcCodeMap_))}")
         combine_dict(coFileMap, coFileMap_)
         combine_dict(srcCodeMap, srcCodeMap_)
         kernelHelperObjs.extend(kho)
         for _, gfxName, _, _, _, lib in libraryLogic:
             tPrint(0, f"finalizing processing {gfxName}")
             updateMasterLibrary(gfxName, lib, masterLibraries, nextSolutionIdx)
-
-    tPrint(0, f"built {len(baseNames)} source code object files")
+        if msl_is_complete_for_arch_problem_type:
+            lib.applyNaming(_)
 
 
     ###########
@@ -1177,7 +1175,6 @@ def TensileCreateLibrary():
         outputPath,
     )
 
-    tPrint(0, f"srcCodeMap: {srcCodeMap}")
     kernelFiles = generateKernelSourceAndHeaderFiles(srcCodeMap)
 
     with KernelFileContextManager(True, True, 1, outputPath, kernelFiles) as (srcFile, hdrFile):
@@ -1201,13 +1198,13 @@ def TensileCreateLibrary():
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)
     baseName = "TensileLibrary_"
+    if "fallback" in masterLibraries:
+        addFallbacksToMasterLibraries(masterLibraries, capabilities, archInfo)
     for arch, masterLib in masterLibraries.items():
         for name, lib in [(baseName + "lazy_" + arch, masterLib)] + list(masterLib.lazyLibraries.items()):
             tPrint(1, f"Writing MSLibrary: {name}")
             lib.applyNaming(getRequiredParametersMin())  # <-- This should be able to be replaced directly with `name`?
             LibraryIO.write(str(newLibraryDir / name), Utils.state(lib), args["LibraryFormat"])
-    if "fallback" in masterLibraries:
-        addFallbacksToMasterLibraries(masterLibraries, capabilities, archInfo)
 
     if removeTemporaries:
         buildTmp = Path(outputPath).parent / "build_tmp"
