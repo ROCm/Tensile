@@ -43,7 +43,6 @@ import glob
 from io import TextIOWrapper
 from pathlib import Path
 from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple, Union
-from itertools import chain
 
 from . import Common, LibraryIO, Utils
 from .Kernel import Name
@@ -77,6 +76,7 @@ from .Utilities.Profile import profile
 from .Utilities.toFile import toFile
 from .Utilities.String import splitDelimitedString
 from .Utilities.RequiredParameters import getRequiredParametersMin
+from .Contractions import Solution as ContractionSolution
 
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
 TENSILE_LIBRARY_DIR = "library"
@@ -834,30 +834,30 @@ def generateKernelObjectsFromSolutions(kernels: List[Solution]):
     return helpers
 
 
-def addNewLibrary(
-    masterLibraries: Dict[str, MasterSolutionLibrary],
-    newLibrary: MasterSolutionLibrary,
-    architectureName: str,
-) -> int:
-    """Adds new master solution library to a master solution libraries dict.
+# def addNewLibrary(
+#     masterLibraries: Dict[str, MasterSolutionLibrary],
+#     newLibrary: MasterSolutionLibrary,
+#     architectureName: str,
+# ) -> int:
+#     """Adds new master solution library to a master solution libraries dict.
 
-    For a given architecture, add the new library to a dictionary containing
-    libraries for all architectures, compute the starting index for the new
-    library, then remap the indexes for all of the solutions associated with
-    the library.
+#     For a given architecture, add the new library to a dictionary containing
+#     libraries for all architectures, compute the starting index for the new
+#     library, then remap the indexes for all of the solutions associated with
+#     the library.
 
-    Args:
-        masterLibraries: A dictionary containing all master solution libraries for all architectures.
-        newLibrary: A master solution library to add to the dictionary.
-        architectureName: The name of the architecture (or key) associated with the library.
+#     Args:
+#         masterLibraries: A dictionary containing all master solution libraries for all architectures.
+#         newLibrary: A master solution library to add to the dictionary.
+#         architectureName: The name of the architecture (or key) associated with the library.
 
-    Returns:
-        Index to the last solution of the library associated with current architecture.
-    """
-    masterLibraries[architectureName] = newLibrary
-    archIndex = MasterSolutionLibrary.ArchitectureIndexMap(architectureName)
-    masterLibraries[architectureName].remapSolutionIndicesStartingFrom(archIndex)
-    return archIndex
+#     Returns:
+#         Index to the last solution of the library associated with current architecture.
+#     """
+#     masterLibraries[architectureName] = newLibrary
+#     archIndex = MasterSolutionLibrary.ArchitectureIndexMap(architectureName)
+#     masterLibraries[architectureName].remapSolutionIndicesStartingFrom(archIndex)
+#     return archIndex
 
 
 def updateMasterLibrary(
@@ -870,7 +870,24 @@ def updateMasterLibrary(
         if gfxName in masterLibraries:
             nextIdx[gfxName] = masterLibraries[gfxName].merge(masterLib, nextIdx[gfxName])
         else:
-            nextIdx[gfxName] = addNewLibrary(masterLibraries, masterLib, gfxName)
+            masterLibraries[gfxName] = masterLib 
+            archIndex = MasterSolutionLibrary.ArchitectureIndexMap(gfxName)
+            masterLibraries[gfxName].remapSolutionIndicesStartingFrom(archIndex)
+            nextIdx[gfxName] = archIndex
+
+
+# def updateMasterLibrary2(
+#     gfxName: str,
+#     masterLib: MasterSolutionLibrary, 
+#     masterLibPrev: MasterSolutionLibrary, 
+#     nextIdx: int, 
+# ) -> None:
+#         if masterLibPrev is not None:
+#             nextIdx = masterLibPrev.merge(masterLib, nextIdx)
+#         else:
+#             masterLibPrev = masterLib 
+#             nextIdx = MasterSolutionLibrary.ArchitectureIndexMap(gfxName)
+#             masterLibPrev.remapSolutionIndicesStartingFrom(nextIdx)
 
 
 def addFallbacksToMasterLibraries(masterLibraries: Dict[str, MasterSolutionLibrary], caps, archInfo) -> None:
@@ -963,7 +980,7 @@ def parseLibraryLogicFiles(
     #for d in logicFiles:
     #    print(d)
     files = glob.glob(logicFiles + "/*.yaml")
-    print(files)
+    # print(files)
     for f in files:
         print(f)
         yamlDict = LibraryIO.readYAML(f)
@@ -1053,6 +1070,21 @@ def run(
         asmKernels,
         kernelWriterAssembly,
     )
+
+    masterLibraries = {}
+    nextSolutionIdx = {}
+    for _, gfxName, _, _, _, lib in libraryLogics:
+        updateMasterLibrary(gfxName, lib, masterLibraries, nextSolutionIdx)
+
+    tPrint(0, f"masterLibraries: {masterLibraries}")
+
+    newLibraryDir = Path(outputPath) / "library"
+    newLibraryDir.mkdir(exist_ok=True)
+    for masterLib in masterLibraries.values():
+        for name, lib in list(masterLib.lazyLibraries.items()):
+            tPrint(1, f"Writing MSLibrary: {name}")
+            lib.applyNaming(getRequiredParametersMin())  # <-- This should be able to be replaced directly with `name`?
+            LibraryIO.write(str(newLibraryDir / name), Utils.state(lib), args["LibraryFormat"])
 
     coFileMap = gatherCOFilesForLinking(asmKernels, kernelMinNaming)
 
