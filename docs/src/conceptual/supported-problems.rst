@@ -8,7 +8,7 @@
 Supported problems
 ===================
 
-This document discusses the types of problems supported by Tensile.
+This topic discusses the types of problems supported by Tensile.
 
 
 Problem types
