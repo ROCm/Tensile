@@ -246,10 +246,19 @@ class PredicateLibrary:
         for row in self.rows:
             row["library"].remapSolutionIndices(indexMap)
 
+    def __repr__(self) -> str:
+        return str(self.rows)
+
 
 class MasterSolutionLibrary:
     StateKeys = ["solutions", "library"]
     ArchitectureSet = set()
+
+    def __init__(self, solutions, library, version=None):
+        self.lazyLibraries = {}
+        self.solutions = solutions
+        self.library = library
+        self.version = version
 
     @classmethod
     def ArchitectureIndexMap(cls, architectureName: str) -> int:
@@ -462,10 +471,10 @@ class MasterSolutionLibrary:
         library = None
         placeholderName = "TensileLibrary"
         placeholderLibrary = None
-        for libName in reversed(libraryOrder):
-            library, placeholderName = libName(origData, problemType, allSolutions, library,
+        for updateNameFunc in reversed(libraryOrder):
+            library, placeholderName = updateNameFunc(origData, problemType, allSolutions, library,
                                                placeholderName)
-            if libName == placeholder:
+            if updateNameFunc == placeholder:
                 placeholderLibrary = library
 
         solutions = {s.index: s for s in allSolutions}
@@ -492,12 +501,6 @@ class MasterSolutionLibrary:
         solutionMap = {s.index: s for s in solutionObjs}
 
         return cls(solutionMap, library)
-
-    def __init__(self, solutions, library, version=None):
-        self.lazyLibraries = {}
-        self.solutions = solutions
-        self.library = library
-        self.version = version
 
     def state(self):
         rv = {
@@ -605,6 +608,9 @@ class MasterSolutionLibrary:
         self.library.merge(other.library)
 
         return curIndex  #Next unused index
+
+    def __repr__(self) -> str:
+        return str(self.library)
 
     @property
     def cpp_base_class(self):
