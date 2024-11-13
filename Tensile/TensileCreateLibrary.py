@@ -753,7 +753,7 @@ def writeSourceKernels(
     stop = time.time()
     total = stop - start
     numKernels = len(srcKernelMap)    
-    tPrint(1, f"# Source kernel Writing elapsed time = {total} secs, kps = {float(numKernels)/total}, kernels = {numKernels}")
+    tPrint(2, f"# Source kernel Writing elapsed time = {total} secs, kps = {float(numKernels)/total}, kernels = {numKernels}")
 
     return kernelFiles 
 
@@ -781,7 +781,7 @@ def writeAssemblyKernels(
     stop = time.time()
     total = stop-start
     numKernels = len(kernelsToBuild)
-    tPrint(1, f"# Assembly kernel Building elapsed time = {total} secs, kps = {float(numKernels)/total}, kernels = {numKernels}")    
+    tPrint(2, f"# Assembly kernel Building elapsed time = {total} secs, kps = {float(numKernels)/total}, kernels = {numKernels}")    
 
     return kernelsToBuild # we realy just need the .co files on disk
 
@@ -1023,11 +1023,10 @@ def run(
     hipClangVersion: str,
     logicFiles,
 ):
-    procnum = os.getpid()
     libraryLogics = parseLibraryLogicFiles(logicFiles, capabilities)
 
     solns = list(generateSolutions(libraryLogics))
-    kernels = list((s.getKernels() for s in solns))
+    kernels = list(s.getKernels() for s in solns)
 
     asmDir = Path(os.path.join(Path(outputPath).parent, "build_tmp", Path(outputPath).stem.upper(), "assembly"))
     asmDir.mkdir(parents=True, exist_ok=True)
@@ -1137,14 +1136,14 @@ def TensileCreateLibrary():
 
     total = len(logicFiles)
     chunk_size = int(total / numPasses)
-    remainder = total % numPasses    
 
     kho = []
     masterLibs = {}
     nextIdx = {}
     for p in range(0, numPasses):
+        print(f"pass {p}")
         start = p * chunk_size
-        stop = (p+1) * chunk_size
+        stop = total if p == numPasses - 1 else (p+1) * chunk_size
         rvs = Common.ParallelMap(parallelFunc, logicFiles[start:stop], cpuThreads, "Running TCL...", multiArg=False)
         for ko, libLogics in rvs:
             kho.extend(ko)

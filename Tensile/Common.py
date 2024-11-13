@@ -441,19 +441,6 @@ validMFMA["I8_940"] = [[32,32,4,2], [32,32,16,1], [16,16,4,4], [16,16,32,1], [4,
 validMFMA["I8"] = validMFMA["H"] + validMFMA["F8"]
 validWMMA = [[16,16,16,1], ]
 validTT = 64
-validMFMA["_format9"] = []
-
-for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["D"], validMFMA["X"], validMFMA["F8"], validWMMA]:
-  for MI in MFMA:
-    for bm in range(int(math.log(MI[3],2))+1):
-      for tt0 in range(1,validTT+1):
-        for tt1 in range(1,validTT+1):
-          for wave_m in range (3):
-            for wave_n in range(3):
-              validMFMA["_format9"].append([MI[0],MI[1],MI[2],MI[3],2**bm,tt0,tt1,2**wave_m, 2**wave_n])
-
-validMatrixInstructions = [[], [-1]] + validMFMA["H"] + validMFMA["S"] + validMFMA["B"] + validMFMA["D"] + validMFMA["X"] + validMFMA["F8"]
-validMatrixInstructions = validMatrixInstructions + validMFMA["_format9"]
 
 # The supported typed GEMM, each entry is (Ti, To, Tc).
 # DataType (Ti)        = The data-type of the input matrices: A/B
@@ -1060,7 +1047,7 @@ validParameters = {
     #      MatrixInst  BlkM   WT    Wave
     #  - means (32x64) per MI * (4x1) per wave * (2x2) per workgroup = (32*4*2)x(64*1*2) = 256x128 macro tile
     # Tensile will ignore the parameters ThreadTile and WorkGroup when the alternative format is used
-    "MatrixInstruction":          validMatrixInstructions,
+    "MatrixInstruction":          -1,
 
     # StoreRemap: Optimize MatrixInstruction store patterns to enhance performance.
     #             MI output data between each threads are along N dims.
@@ -2406,6 +2393,22 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   can override them, overriding happens here
   """
   global globalParameters
+
+  if False:
+    validMFMA["_format9"] = []
+    
+    for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["D"], validMFMA["X"], validMFMA["F8"], validWMMA]:
+      for MI in MFMA:
+        for bm in range(int(math.log(MI[3],2))+1):
+          for tt0 in range(1,validTT+1):
+            for tt1 in range(1,validTT+1):
+              for wave_m in range (3):
+                for wave_n in range(3):
+                  validMFMA["_format9"].append([MI[0],MI[1],MI[2],MI[3],2**bm,tt0,tt1,2**wave_m, 2**wave_n])
+    
+    validMatrixInstructions = [[], [-1]] + validMFMA["H"] + validMFMA["S"] + validMFMA["B"] + validMFMA["D"] + validMFMA["X"] + validMFMA["F8"]
+    validMatrixInstructions = validMatrixInstructions + validMFMA["_format9"]
+    validParameters["MatrixInstruction"] = validMatrixInstructions
 
   # Minimum Required Version
   if "MinimumRequiredVersion" in config:
