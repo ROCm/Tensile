@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2020-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2020-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +31,7 @@ import shutil
 import uuid
 from pathlib import Path
 from typing import List, Tuple
+from unittest.mock import MagicMock, call, mock_open, patch
 
 import pytest
 import yaml
@@ -41,11 +42,48 @@ import Tensile.LibraryIO as LibraryIO
 import Tensile.SolutionLibrary as SolutionLibrary
 import Tensile.TensileCreateLibrary as tcl
 from Tensile.KernelWriterAssembly import KernelWriterAssembly
+from Tensile.KernelWriterBase import KernelWriterBase
 from Tensile.KernelWriterSource import KernelWriterSource
 from Tensile.SolutionStructs import ProblemSizes, Solution
 from Tensile.Utilities.ConditionalImports import yamlLoader
 
 mylogger = logging.getLogger()
+
+
+@pytest.fixture
+def mock_openFile():
+    with patch("builtins.open", mock_open()) as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_toFile():
+    with patch("Tensile.TensileCreateLibrary.toFile") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_getKernelSourceAndHeaderCode():
+    with patch("Tensile.TensileCreateLibrary.getKernelSourceAndHeaderCode") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_printWarning():
+    with patch("Tensile.TensileCreateLibrary.printWarning") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_kernelSourceAndHeaderFiles():
+    return MagicMock(name="source_file_mock"), MagicMock(name="header_file_mock")
+
+
+@pytest.fixture
+def mock_KernelWriterBase():
+    mock = MagicMock(spec=KernelWriterBase)
+    mock.getKernelName.return_value = "TestKernelName"
+    return mock
 
 
 def test_loadSolutions(caplog, useGlobalParameters):
@@ -62,7 +100,9 @@ def test_loadSolutions(caplog, useGlobalParameters):
         assert len(solutions) == 3
         assert len(kernels) == 3
 
-        _, kernelWriterAssembly, _, _ = tcl.getKernelWriters(solutions, kernels)
+        _, kernelWriterAssembly, _, _ = tcl.getKernelWriters(
+            solutions, kernels, removeTemporaries=False
+        )
 
         expectedKernelName0 = "Cijk_Ailk_Bljk_SB_MT128x128x2_SE_K1_TT8_8_WG16_16_1"
         expectedKernelName1 = "Cijk_Ailk_Bljk_SB_MT64x64x2_SE_K1_TT4_4_WG16_16_1"
@@ -468,9 +508,15 @@ def test_logicDataAndSolutionsConstruction(initGlobalParametersForTCL):
         logicFiles = tcl.parseLibraryLogicFiles(yamlFiles)
         assert len(logicFiles) == 2, "The length of the logic files list is incorrect."
 
-        for s in [True, False]:
-            testCase1(logicFiles, separateArch=s)
-            testCase2(yamlFiles, separateArch=s)
+        testCase1(logicFiles, separateArch=True)
+        testCase2(yamlFiles, separateArch=True)
+
+    with initGlobalParametersForTCL(["--architecture=gfx900"] + requiredArgs):
+        logicFiles = tcl.parseLibraryLogicFiles(yamlFiles)
+        assert len(logicFiles) == 2, "The length of the logic files list is incorrect."
+
+        testCase1(logicFiles, separateArch=False)
+        testCase2(yamlFiles, separateArch=False)
 
     with initGlobalParametersForTCL(
         ["--architecture=gfx900", "--lazy-library-loading"] + requiredArgs
@@ -497,7 +543,9 @@ def setupSolutionsAndKernels(
     )
     solutions = [sol.originalSolution for sol in lib.solutions.values()]
     kernels, _, _ = tcl.generateKernelObjectsFromSolutions(solutions)
-    kernelWriterSource, kernelWriterAssembly, _, _ = tcl.getKernelWriters(solutions, kernels)
+    kernelWriterSource, kernelWriterAssembly, _, _ = tcl.getKernelWriters(
+        solutions, kernels, removeTemporaries=False
+    )
     return solutions, kernels, kernelWriterAssembly, kernelWriterSource
 
 
@@ -645,8 +693,6 @@ def test_processKernelSource(setupSolutionsAndKernels):
 
     kernels = tcl.markDuplicateKernels(kernels, kernelWriterAssembly)
 
-    print("Kernel names:", [k["KernelLanguage"] for k in kernels])
-
     fn = functools.partial(
         tcl.processKernelSource,
         kernelWriterSource=kernelWriterSource,
@@ -681,7 +727,32 @@ def test_processKernelSource(setupSolutionsAndKernels):
     assert results == expected, "Assembly files shouldn't have any header or source content"
 
 
-def test_buildKernelSourceAndHeaderFiles():
+def test_generateKernelSourceAndHeaderFiles_generic():
+    outputPath = Path("no-commit-kernel-build-files")
+    outputPath.mkdir(exist_ok=True)
+
+    results: List[tcl.ProcessedKernelResult] = [
+        (-2, "", "", "asm1", None),
+        (0, "", "", "asm2", None),
+        (0, "", "", "asm3", None),
+        (-2, '#include "Kernels1.h"', "#pragma once", "src1", None),
+        (0, '#include "Kernels2.h"', "#pragma twice", "src2", None),
+        (0, '#include "Kernels3.h"', "#pragma thrice", "src3", None),
+    ]
+
+    filesToWrite = tcl.collectFilesToWrite(results, Path(outputPath), True, True, 1)
+
+    kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
+
+    # Undocumented internal logic of generateKernelSourceAndHeaderFiles
+    assert len(kernelFiles) == 1, "Only one file should be created when mergeFiles == True"
+
+    assert (
+        kernelFiles[0] == "no-commit-kernel-build-files/Kernels.cpp"
+    ), "Cpp source file doesn't match"
+
+
+def test_generateKernelSourceAndHeaderFiles_noLazyMergeFallbackNames():
     outputPath = Path("no-commit-kernel-build-files")
     outputPath.mkdir(exist_ok=True)
 
@@ -690,25 +761,134 @@ def test_buildKernelSourceAndHeaderFiles():
         (0, "", "", "asm2", None),
         (0, "", "", "asm3", None),
         (-2, '#include "Kernels1.h"', "#pragma once", "src1", None),
-        (0, '#include "Kernels2.h"', "#pragma twice", "src2", None),
+        (0, '#include "Kernels2.h"', "#pragma twice", "src2", "kfile2"),
         (0, '#include "Kernels3.h"', "#pragma thrice", "src3", None),
     ]
-    expectedWithBuildErrors = {
-        "asm1": -2,
-        "src1": -2,
-    }
 
-    kernelFiles, kernelsWithBuildErrors = tcl.buildKernelSourceAndHeaderFiles(results, outputPath)
+    filesToWrite = tcl.collectFilesToWrite(results, Path(outputPath), False, False, 1)
 
-    # Undocumented internal logic of buildKernelSourceAndHeaderFiles
-    assert len(kernelFiles) == 1, "Only one file should be created for Assembly only kernels"
+    kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
 
     assert (
-        kernelFiles[0] == "no-commit-kernel-build-files/Kernels.cpp"
-    ), "Cpp source file doesn't match"
+        len(kernelFiles) == 3
+    ), "3 files should be created. Since some filenames are present and some not, we use the kernel name directly as a fallback, e.g., src1"
+    assert kernelFiles == [
+        "no-commit-kernel-build-files/src1.cpp",
+        "no-commit-kernel-build-files/kfile2.cpp",
+        "no-commit-kernel-build-files/src3.cpp",
+    ]
+
+
+def test_generateKernelSourceAndHeaderFiles_mergeWithNonEmptyAsm():
+    outputPath = Path("no-commit-kernel-build-files")
+    outputPath.mkdir(exist_ok=True)
+
+    results = [
+        (-2, "A1", "#pragma 1", "asm1", None),
+        (0, "A2", "#pragma 2", "asm2", "afile2"),
+        (0, "A3", "#pragma 3", "asm3", None),
+    ]
+
+    filesToWrite = tcl.collectFilesToWrite(results, Path(outputPath), False, True, 1)
+
+    kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
+
     assert (
-        kernelsWithBuildErrors == expectedWithBuildErrors
-    ), "Kernels with build errors don't match expectation"
+        len(kernelFiles) == 2
+    ), "2 files should be created. Since one filename is present and merge files is True => Kernels.cpp will be created."
+    assert kernelFiles == [
+        "no-commit-kernel-build-files/Kernels.cpp",
+        "no-commit-kernel-build-files/afile2.cpp",
+    ]
+    with open(outputPath / "Kernels.cpp", "r") as f:
+        contents = f.readlines()
+        assert contents[-1] == "A1A3"
+        print(contents[-2])
+        assert contents[-2] == '#include "no-commit-kernel-build-files/Kernels.h"\n'
+    with open(outputPath / "Kernels.h", "r") as f:
+        contents = f.readlines()
+        assert contents[-1] == "#pragma 1#pragma 3"
+
+
+def test_generateKernelSourceAndHeaderFiles_noMerge_WithNonEmptyAsm():
+    outputPath = Path("no-commit-kernel-build-files")
+    outputPath.mkdir(exist_ok=True)
+
+    results = [
+        (-2, "A1", "#pragma 1", "asm1", None),
+        (0, "A2", "#pragma 2", "asm2", "afile2"),
+        (0, "A3", "#pragma 3", "asm3", None),
+    ]
+
+    filesToWrite = tcl.collectFilesToWrite(results, Path(outputPath), False, False, 1)
+
+    kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
+
+    assert (
+        len(kernelFiles) == 3
+    ), "3 files should be created. Since some filenames are present and some not (src kernels), we use the kernel name directly as a fallback, e.g., src1"
+    assert kernelFiles == [
+        "no-commit-kernel-build-files/asm1.cpp",
+        "no-commit-kernel-build-files/afile2.cpp",
+        "no-commit-kernel-build-files/asm3.cpp",
+    ]
+
+
+def test_generateKernelSourceAndHeaderFiles_lazyMerge3Src():
+
+    outputPath = Path("no-commit-kernel-build-files")
+    outputPath.mkdir(exist_ok=True)
+
+    results = [
+        (0, "", "", "asm1", None),
+        (0, "", "", "asm2", None),
+        (0, "", "", "asm3", "blah.asm"),
+        (0, '#include "Kernels1.h"', "#pragma once", "src1", "kfile1"),
+        (0, '#include "Kernels2.h"', "#pragma twice", "src2", "kfile2"),
+        (0, '#include "Kernels3.h"', "#pragma thrice", "src3", "kfile3"),
+    ]
+
+    filesToWrite = tcl.collectFilesToWrite(results, Path(outputPath), True, True, 1)
+
+    kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
+
+    assert (
+        len(kernelFiles) == 4
+    ), "4 files should be created because they have file names AND some source code AND lazy loading/merge files is True"
+    assert kernelFiles == [
+        "no-commit-kernel-build-files/kfile1.cpp",
+        "no-commit-kernel-build-files/kfile2.cpp",
+        "no-commit-kernel-build-files/kfile3.cpp",
+        "no-commit-kernel-build-files/Kernels.cpp",
+    ]
+
+
+def test_generateKernelSourceAndHeaderFiles_noLazyMerge3Src():
+
+    outputPath = Path("no-commit-kernel-build-files")
+    outputPath.mkdir(exist_ok=True)
+
+    results = [
+        (0, "", "", "asm1", None),
+        (0, "", "", "asm2", None),
+        (0, "", "", "asm3", "blah.asm"),
+        (0, '#include "Kernels1.h"', "#pragma once", "src1", "kfile1"),
+        (0, '#include "Kernels2.h"', "#pragma twice", "src2", "kfile2"),
+        (0, '#include "Kernels3.h"', "#pragma thrice", "src3", "kfile3"),
+    ]
+
+    filesToWrite = tcl.collectFilesToWrite(results, Path(outputPath), False, False, 1)
+
+    kernelFiles = tcl.generateKernelSourceAndHeaderFiles(filesToWrite)
+
+    assert (
+        len(kernelFiles) == 3
+    ), "3 files should be created because they have file names AND some source code, but lazy loading/merge files is False"
+    assert kernelFiles == [
+        "no-commit-kernel-build-files/kfile1.cpp",
+        "no-commit-kernel-build-files/kfile2.cpp",
+        "no-commit-kernel-build-files/kfile3.cpp",
+    ]
 
 
 def test_filterBuildErrors():
@@ -755,6 +935,117 @@ def test_filterBuildErrors():
     noBuildFailures()
     buildFailuresIgnoreErr()
     buildFailuresNoIgnoreErr()
+
+
+@pytest.fixture
+def setup_writeKernelHelpersTests():
+    kernelFiles = []
+    kernWriter = MockKernelWriter()
+    basepath = Path("/fake/path")
+    return kernelFiles, kernWriter, basepath
+
+
+def test_writeKernelHelpers_createFiles(
+    setup_writeKernelHelpersTests, mock_toFile, mock_openFile, mock_getKernelSourceAndHeaderCode
+):
+    kernelFiles, kernWriter, basepath = setup_writeKernelHelpersTests
+    mock_getKernelSourceAndHeaderCode.return_value = (
+        0,
+        ["source_code", "abc"],
+        ["header_code", "def"],
+        "kernelName",
+    )
+
+    tcl.writeKernelHelpers(kernWriter, None, None, basepath, kernelFiles)
+
+    assert mock_toFile.call_args_list == [
+        call(basepath / "Kernels" / "kernelName.cpp", ["source_code", "abc"]),
+        call(basepath / "Kernels" / "kernelName.h", ["header_code", "def"]),
+    ]
+    assert kernelFiles == [
+        "/fake/path/Kernels/kernelName.cpp"
+    ], "kernelFiles should be updated with the path to the new kernel"
+
+
+def test_writeKernelHelpers_withOpenFiles(
+    setup_writeKernelHelpersTests,
+    mock_toFile,
+    mock_getKernelSourceAndHeaderCode,
+    mock_kernelSourceAndHeaderFiles,
+):
+    kernelSourceFile, kernelHeaderFile = mock_kernelSourceAndHeaderFiles
+    kernelFiles, kernWriter, basepath = setup_writeKernelHelpersTests
+    mock_getKernelSourceAndHeaderCode.return_value = (
+        0,
+        ["source_code", "abc"],
+        ["header_code", "def"],
+        "kernelName",
+    )
+
+    tcl.writeKernelHelpers(kernWriter, kernelSourceFile, kernelHeaderFile, basepath, kernelFiles)
+
+    expected_calls = [
+        call(kernelSourceFile, ["source_code", "abc"]),
+        call(kernelHeaderFile, ["header_code", "def"]),
+    ]
+    assert mock_toFile.call_args_list == expected_calls
+    assert kernelFiles == [], "kernelFiles should remain unchanged when opened files are provided"
+
+
+def test_writeKernelHelpers_failure(
+    setup_writeKernelHelpersTests, mock_toFile, mock_printWarning, mock_getKernelSourceAndHeaderCode
+):
+    kernelFiles, kernWriter, basepath = setup_writeKernelHelpersTests
+    mock_getKernelSourceAndHeaderCode.return_value = (
+        -2,
+        ["// src comment", ""],
+        ["// hdr comment", ""],
+        "kernelName",
+    )
+
+    tcl.writeKernelHelpers(kernWriter, None, None, basepath, kernelFiles)
+
+    mock_printWarning.assert_called_once_with("Invalid kernel: kernelName may be corrupt")
+    expected_calls = [
+        call(basepath / "Kernels" / "kernelName.cpp", ["// src comment", ""]),
+        call(basepath / "Kernels" / "kernelName.h", ["// hdr comment", ""]),
+    ]
+    assert mock_toFile.call_args_list == expected_calls
+    assert kernelFiles == [
+        "/fake/path/Kernels/kernelName.cpp"
+    ], "kernelFiles should be updated with the new kernel name"
+
+
+def test_getKernelSourceAndHeaderCode_success(mock_KernelWriterBase):
+    mock_KernelWriterBase.getSourceFileString.return_value = (0, "source_code")
+    mock_KernelWriterBase.getHeaderFileString.return_value = "header_code"
+
+    err, src, hdr, name = tcl.getKernelSourceAndHeaderCode(mock_KernelWriterBase)
+
+    mock_KernelWriterBase.getKernelName.assert_called_once_with()
+    mock_KernelWriterBase.getSourceFileString.assert_called_once_with()
+    mock_KernelWriterBase.getHeaderFileString.assert_called_once_with()
+
+    assert err == 0
+    assert src == [Common.CHeader, "source_code"]
+    assert hdr == [Common.CHeader, "header_code"]
+    assert name == "TestKernelName"
+
+
+def test_getKernelSourceAndHeaderCode_sourceFailure(mock_KernelWriterBase):
+    mock_KernelWriterBase.getSourceFileString.return_value = (-1, "")
+    mock_KernelWriterBase.getHeaderFileString.return_value = "header_code"
+
+    err, src, hdr, name = tcl.getKernelSourceAndHeaderCode(mock_KernelWriterBase)
+
+    mock_KernelWriterBase.getKernelName.assert_called_once_with()
+    mock_KernelWriterBase.getSourceFileString.assert_called_once_with()
+    mock_KernelWriterBase.getHeaderFileString.assert_called_once_with()
+
+    assert err == -1
+    assert src == [Common.CHeader, ""]
+    assert hdr == [Common.CHeader, "header_code"]
+    assert name == "TestKernelName"
 
 
 # ----------------

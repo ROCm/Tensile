@@ -83,7 +83,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
 def runTestCommand(platform, project, jobName, testMark, boolean runHostTest=true, boolean runUnitTest=true)
 {
     String compiler = '/opt/rocm/bin/amdclang++'
-    String markSkipExtendedTest = !testMark.contains("extended") ? "\"--gtest_filter=-*Extended*:*Ocl*\"" : "\"--gtest_filter=-*Ocl*\""
+    String markSkipExtendedTest = !testMark.contains("extended") ? "\"--gtest_filter=-*Extended*\"" : "\"--gtest_filter=\""
 
     def command = """#!/usr/bin/env bash
             check_err() {

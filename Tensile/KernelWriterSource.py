@@ -36,59 +36,33 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Make OpenCL Kernel String
   ##############################################################################
-  def __init__( self, kernelMinNaming, kernelSerialNaming ):
+  def __init__( self, kernelMinNaming, kernelSerialNaming, removeTemporaries=True ):
     super(KernelWriterSource, self).__init__( \
-        kernelMinNaming, kernelSerialNaming)
+        kernelMinNaming, kernelSerialNaming, removeTemporaries)
     self.language = globalParameters["RuntimeLanguage"]
 
-    if self.language == "OCL":
-      # everything escaped extra b/c string
-      self.endLine = "\\n\"\n\""
-      self.endLinePP = "\\\\" + self.endLine
-      self.quote = "\\\""
-      self.endLineQuote = "\\\\n\\\""
-    else:
-      self.endLine = "\n"
-      self.endLinePP =  "\\" + self.endLine
-      self.quote = "\""
-      self.endLineQuote = "\\n\""
+    self.endLine = "\n"
+    self.endLinePP =  "\\" + self.endLine
+    self.quote = "\""
+    self.endLineQuote = "\\n\""
 
-    if self.language == "OCL":
-      self.getGroupIdStr = "get_group_id"
-      self.getNumGroupsStr = "get_num_groups"
-      self.getLocalIdStr = "get_local_id"
-      self.getGlobalIdStr = "get_global_id"
-      self.sharedDeclStr = "__local "
-      self.sharedPtrStr = "__local "
-      self.globalPtrStr = "__global "
-      self.syncStr = "barrier(CLK_LOCAL_MEM_FENCE);"
-      self.fenceStr = "mem_fence(CLK_LOCAL_MEM_FENCE);"
-      self.macFStr = "mad"
-      self.macDStr = "mad"
-      self.int64Str = "long"
-      self.uint64Str = "unsigned long"
-      self.vectorComponents = ["s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7"]
-      self.atomicCasStr = "atomic_cmpxchg"
-      self.volatileStr = "volatile "
-      self.deviceFunctionStr = ""
-    else:
-      self.getGroupIdStr = "hc_get_group_id"
-      self.getNumGroupsStr = "hc_get_num_groups"
-      self.getLocalIdStr = "hc_get_workitem_id"
-      self.getGlobalIdStr = "hc_get_workitem_absolute_id"
-      self.sharedDeclStr = "__shared__ "
-      self.sharedPtrStr = ""
-      self.globalPtrStr = ""
-      self.syncStr = "__syncthreads();"
-      self.fenceStr = self.syncStr
-      self.macFStr = "fmaf"
-      self.macDStr = "fma"
-      self.int64Str = "int64_t"
-      self.uint64Str = "uint64_t"
-      self.vectorComponents = ["x", "y", "z", "w"]
-      self.atomicCasStr = "atomicCAS"
-      self.volatileStr = ""
-      self.deviceFunctionStr = "__device__ "
+    self.getGroupIdStr = "hc_get_group_id"
+    self.getNumGroupsStr = "hc_get_num_groups"
+    self.getLocalIdStr = "hc_get_workitem_id"
+    self.getGlobalIdStr = "hc_get_workitem_absolute_id"
+    self.sharedDeclStr = "__shared__ "
+    self.sharedPtrStr = ""
+    self.globalPtrStr = ""
+    self.syncStr = "__syncthreads();"
+    self.fenceStr = self.syncStr
+    self.macFStr = "fmaf"
+    self.macDStr = "fma"
+    self.int64Str = "int64_t"
+    self.uint64Str = "uint64_t"
+    self.vectorComponents = ["x", "y", "z", "w"]
+    self.atomicCasStr = "atomicCAS"
+    self.volatileStr = ""
+    self.deviceFunctionStr = "__device__ "
 
     self.commentPrefix = "/*"
     self.commentSuffix = "*/"
@@ -108,27 +82,6 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
 
   ##############################################################################
-  # Open String
-  ##############################################################################
-  def openString(self, kernel):
-    kStr = ""
-    if self.language == "OCL":
-      kernelName = self.getKernelName(kernel)
-      kStr += "\n"
-      kStr += "std::string %s_src_%u = \"" % (kernelName, self.stringIdx)
-    return kStr
-
-  ##############################################################################
-  # Close String
-  ##############################################################################
-  def closeString(self, kernel):
-    kStr = ""
-    if self.language == "OCL":
-      kStr += "\";\n"
-      self.stringIdx += 1
-    return kStr
-
-  ##############################################################################
   # Init Kernel
   ##############################################################################
   def initKernel(self, kernel, tPA, tPB ):
@@ -142,10 +95,7 @@ class KernelWriterSource(KernelWriter):
   def functionPrefix(self, kernel):
     kStr = ""
     if kernel["ProblemType"]["DataType"].isHalf():
-      if self.language == "OCL":
-        self.vectorComponents = ["p[0]", "p[1]"]
-      else:
-        self.vectorComponents = ["p[0]", "p[1]"]
+      self.vectorComponents = ["p[0]", "p[1]"]
 
     kStr += self.endLine
 
@@ -409,105 +359,66 @@ class KernelWriterSource(KernelWriter):
       kStr += self.comment("atomic add float")
       kStr += "#ifndef ATOMIC_FLOAT_FUNCTION%s" % (self.endLine)
       kStr += "#define ATOMIC_FLOAT_FUNCTION%s" % (self.endLine)
-      if self.language == "OCL":
-        """
+      """
+      kStr += "%svoid atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
+          % ("__device__ " if self.language == "HIP" else "", \
+          self.volatileStr, self.globalPtrStr, self.endLine)
+      kStr += "  %s%sunsigned int *uPtr = (%s%sunsigned int *)fPtr;%s" \
+          % (self.volatileStr, self.globalPtrStr, self.volatileStr, \
+          self.globalPtrStr, self.endLine)
+      #kStr += "  unsigned int old = *uPtr;%s" % (self.endLine)
+      kStr += "  unsigned int old = atomicAdd(uPtr, 0); // atomic read%s" % (self.endLine)
+      kStr += "  unsigned int assumed, newValue;%s" % (self.endLine)
+      kStr += "  do {%s" % (self.endLine)
+      kStr += "    assumed = old;%s" % (self.endLine)
+      kStr += "    newValue = __float_as_uint(operand + __uint_as_float(assumed));%s" % (self.endLine)
+      kStr += "    old = %s(uPtr, assumed, newValue);%s" \
+          % (self.atomicCasStr, self.endLine)
+      kStr += "  } while (assumed != old);%s" % (self.endLine)
+      kStr += "}%s" % (self.endLine)
+      """
+      if globalParameters["CxxCompiler"] == "hipcc" or globalParameters["CxxCompiler"] == "amdclang++":
         kStr += self.endLine
-        kStr += "void atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
+        kStr += "__device__ inline int atomicAddType(int *fPtr, int operand)%s" % (self.endLine)
+        kStr += "{%s" % (self.endLine)
+        kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
+        kStr += "}%s" % (self.endLine)
+        kStr += self.endLine
+        kStr += "__device__ inline unsigned int atomicAddType(unsigned int *fPtr, unsigned int operand)%s" % (self.endLine)
+        kStr += "{%s" % (self.endLine)
+        kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
+        kStr += "}%s" % (self.endLine)
+        kStr += self.endLine
+        kStr += "__device__ inline unsigned long long int atomicAddType(unsigned long long int *fPtr, unsigned long long int operand)%s" % (self.endLine)
+        kStr += "{%s" % (self.endLine)
+        kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
+        kStr += "}%s" % (self.endLine)
+        kStr += self.endLine
+        kStr += "__device__ inline float atomicAddType(float *fPtr, float operand)%s" % (self.endLine)
+        kStr += "{%s" % (self.endLine)
+        kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
+        kStr += "}%s" % (self.endLine)
+        kStr += self.endLine
+        kStr += "__device__ inline double atomicAddType(double *fPtr, double operand)%s" % (self.endLine)
+        kStr += "{%s" % (self.endLine)
+        kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
+        kStr += "}%s" % (self.endLine)
+        kStr += self.endLine
+      else:
+        kStr += self.endLine
+        kStr += "template <typename T>%s" % (self.endLine)
+        kStr += "__device__ inline void atomicAddType(%s%sT *fPtr, T operand) {%s" \
             % (self.volatileStr, self.globalPtrStr, self.endLine)
-        kStr += "  volatile atomic_float *aPtr = (atomic_float*)(fPtr);%s" % (self.endLine)
-        kStr += "  float oldValue, newValue;%s" % (self.endLine)
-        kStr += "  oldValue = atomic_load_explicit(aPtr, memory_order_relaxed, memory_scope_device);%s" % (self.endLine)
-        #kStr += "  oldValue = atomic_load(aPtr);%s" % (self.endLine)
+        kStr += "  std::atomic<T> *aPtr = reinterpret_cast<std::atomic<T>*>(fPtr);%s" % (self.endLine)
+        kStr += "  T oldValue, newValue;%s" % (self.endLine)
+        kStr += "  oldValue = aPtr->load(std::memory_order_relaxed);%s" % (self.endLine)
         kStr += "  do {%s" % (self.endLine)
         kStr += "    newValue = oldValue + operand;%s" % (self.endLine)
         #kStr += "    prevReturn = %s(uPtr, prevVal.ui, newVal.ui);%s" \
         #    % (self.atomicCasStr, self.endLine)
-        kStr += "  } while ( !atomic_compare_exchange_weak_explicit(aPtr, &oldValue, newValue, memory_order_relaxed, memory_order_relaxed) );%s" % (self.endLine)
-        #kStr += "  } while ( !atomic_compare_exchange_weak(aPtr, &oldValue, newValue) );%s" % (self.endLine)
+        #kStr += "  } while ( !std::atomic_compare_exchange_weak_explicit(aPtr, &oldValue, newValue, std::memory_order_acq_rel, std::memory_order_release) );%s" % (self.endLine)
+        kStr += "  } while ( !std::atomic_compare_exchange_weak_explicit(aPtr, &oldValue, newValue, std::memory_order_relaxed, std::memory_order_release) );%s" % (self.endLine)
         kStr += "}%s" % (self.endLine)
-        """
-        kStr += "typedef union {%s" % (self.endLine)
-        kStr += "  unsigned int ui;%s" % (self.endLine)
-        kStr += "  float f;%s" % (self.endLine)
-        kStr += "} AtomicFloat;%s" % (self.endLine)
-        kStr += self.endLine
-        kStr += "%svoid atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
-            % ("__device__ " if self.language == "HIP" else "", \
-            self.volatileStr, self.globalPtrStr, self.endLine)
-        kStr += "  AtomicFloat newVal;%s" % (self.endLine)
-        kStr += "  AtomicFloat prevVal;%s" % (self.endLine)
-        kStr += "  %s%sunsigned int *uPtr = (%s%sunsigned int *)fPtr;%s" \
-            % (self.volatileStr, self.globalPtrStr, self.volatileStr, \
-            self.globalPtrStr, self.endLine)
-        kStr += "  unsigned int prevReturn = *uPtr;%s" % (self.endLine)
-        kStr += "  do {%s" % (self.endLine)
-        kStr += "    prevVal.ui = prevReturn;%s" % (self.endLine)
-        kStr += "    newVal.f = prevVal.f + operand;%s" % (self.endLine)
-        kStr += "    prevReturn = %s(uPtr, prevVal.ui, newVal.ui);%s" \
-            % (self.atomicCasStr, self.endLine)
-        kStr += "  } while (prevVal.ui != prevReturn);%s" % (self.endLine)
-        kStr += "}%s" % (self.endLine)
-      else:
-        """
-        kStr += "%svoid atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
-            % ("__device__ " if self.language == "HIP" else "", \
-            self.volatileStr, self.globalPtrStr, self.endLine)
-        kStr += "  %s%sunsigned int *uPtr = (%s%sunsigned int *)fPtr;%s" \
-            % (self.volatileStr, self.globalPtrStr, self.volatileStr, \
-            self.globalPtrStr, self.endLine)
-        #kStr += "  unsigned int old = *uPtr;%s" % (self.endLine)
-        kStr += "  unsigned int old = atomicAdd(uPtr, 0); // atomic read%s" % (self.endLine)
-        kStr += "  unsigned int assumed, newValue;%s" % (self.endLine)
-        kStr += "  do {%s" % (self.endLine)
-        kStr += "    assumed = old;%s" % (self.endLine)
-        kStr += "    newValue = __float_as_uint(operand + __uint_as_float(assumed));%s" % (self.endLine)
-        kStr += "    old = %s(uPtr, assumed, newValue);%s" \
-            % (self.atomicCasStr, self.endLine)
-        kStr += "  } while (assumed != old);%s" % (self.endLine)
-        kStr += "}%s" % (self.endLine)
-        """
-        if globalParameters["CxxCompiler"] == "hipcc" or globalParameters["CxxCompiler"] == "amdclang++":
-          kStr += self.endLine
-          kStr += "__device__ inline int atomicAddType(int *fPtr, int operand)%s" % (self.endLine)
-          kStr += "{%s" % (self.endLine)
-          kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
-          kStr += "}%s" % (self.endLine)
-          kStr += self.endLine
-          kStr += "__device__ inline unsigned int atomicAddType(unsigned int *fPtr, unsigned int operand)%s" % (self.endLine)
-          kStr += "{%s" % (self.endLine)
-          kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
-          kStr += "}%s" % (self.endLine)
-          kStr += self.endLine
-          kStr += "__device__ inline unsigned long long int atomicAddType(unsigned long long int *fPtr, unsigned long long int operand)%s" % (self.endLine)
-          kStr += "{%s" % (self.endLine)
-          kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
-          kStr += "}%s" % (self.endLine)
-          kStr += self.endLine
-          kStr += "__device__ inline float atomicAddType(float *fPtr, float operand)%s" % (self.endLine)
-          kStr += "{%s" % (self.endLine)
-          kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
-          kStr += "}%s" % (self.endLine)
-          kStr += self.endLine
-          kStr += "__device__ inline double atomicAddType(double *fPtr, double operand)%s" % (self.endLine)
-          kStr += "{%s" % (self.endLine)
-          kStr += "  return atomicAdd(fPtr,operand);%s" % (self.endLine)
-          kStr += "}%s" % (self.endLine)
-          kStr += self.endLine
-        else:
-          kStr += self.endLine
-          kStr += "template <typename T>%s" % (self.endLine)
-          kStr += "__device__ inline void atomicAddType(%s%sT *fPtr, T operand) {%s" \
-              % (self.volatileStr, self.globalPtrStr, self.endLine)
-          kStr += "  std::atomic<T> *aPtr = reinterpret_cast<std::atomic<T>*>(fPtr);%s" % (self.endLine)
-          kStr += "  T oldValue, newValue;%s" % (self.endLine)
-          kStr += "  oldValue = aPtr->load(std::memory_order_relaxed);%s" % (self.endLine)
-          kStr += "  do {%s" % (self.endLine)
-          kStr += "    newValue = oldValue + operand;%s" % (self.endLine)
-          #kStr += "    prevReturn = %s(uPtr, prevVal.ui, newVal.ui);%s" \
-          #    % (self.atomicCasStr, self.endLine)
-          #kStr += "  } while ( !std::atomic_compare_exchange_weak_explicit(aPtr, &oldValue, newValue, std::memory_order_acq_rel, std::memory_order_release) );%s" % (self.endLine)
-          kStr += "  } while ( !std::atomic_compare_exchange_weak_explicit(aPtr, &oldValue, newValue, std::memory_order_relaxed, std::memory_order_release) );%s" % (self.endLine)
-          kStr += "}%s" % (self.endLine)
 
       kStr += "#endif%s" % self.endLine
 
@@ -519,17 +430,14 @@ class KernelWriterSource(KernelWriter):
     kStr += self.endLine
     kStr += "/* MAC's */" + self.endLine
 
-    if self.language == "OCL":
-      kStr += "#define MAC(A,B,DST) mad(A,B,DST)"
+    if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isHalf():
+      kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B)"
+    elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isInt8x4():
+      kStr += "#define MAC(A,B,DST) DST = GenDot4(static_cast<int>(A), static_cast<int>(B), static_cast<int>(DST))"
+    elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isBFloat16():
+      kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B);"
     else:
-      if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isHalf():
-        kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B)"
-      elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isInt8x4():
-        kStr += "#define MAC(A,B,DST) DST = GenDot4(static_cast<int>(A), static_cast<int>(B), static_cast<int>(DST))"
-      elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isBFloat16():
-        kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B);"
-      else:
-        kStr += "#define MAC(A,B,DST) DST += A*B"
+      kStr += "#define MAC(A,B,DST) DST += A*B"
     kStr += self.endLine
 
     if kernel["ProblemType"]["DataType"].isReal():
@@ -827,13 +735,8 @@ class KernelWriterSource(KernelWriter):
 
     s = ""
     # kernel name
-    if self.language == "OCL":
-      s += "__attribute__((reqd_work_group_size(NUM_THREADS,1,1)))"
-      s += self.endLine
-      s += "__kernel "
-    else:
-      s += "extern \"C\"\n"
-      s += "__global__ "
+    s += "extern \"C\"\n"
+    s += "__global__ "
     # the new default of 1024 degrades HGEMM performance too much
     s += "void\n__launch_bounds__(256)\n%s" % ( kernelName )
     s += "(" + self.endLine
@@ -3314,20 +3217,7 @@ class KernelWriterSource(KernelWriter):
   # Kernel Body Suffix
   ##############################################################################
   def kernelBodySuffix(self, kernel, tPA, tPB ):
-    kStr = ""
-    kernelName = self.getKernelName(kernel)
-
-    if self.language == "OCL":
-      kStr += "std::string %s_src_concatenated = \n  %s_src_0" \
-          % (kernelName, kernelName)
-      for i in range(1, self.stringIdx):
-        kStr += "\n  + %s_src_%u" % (kernelName, i)
-      kStr += ";\n"
-      kStr += "const char * const %s_src = %s_src_concatenated.c_str();" \
-          % (kernelName, kernelName)
-
-    kStr += "\n"
-    return kStr
+    return ""
 
   ##############################################################################
   # WaitCnt

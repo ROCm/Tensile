@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,9 @@ from . import Common
 from . import SolutionLibrary
 from .Utilities.ConditionalImports import yamlLoader, yamlDumper
 
-from typing import NamedTuple
+from typing import NamedTuple, Optional
+
+import os
 
 try:
     import yaml
@@ -410,3 +412,44 @@ def createLibraryLogicList(schedulePrefix, architectureName, deviceNames, logicT
 
     data.append(logicTuple[7])
     return data
+
+
+def initAsmCapsCache(cacheFile: str) -> Optional[dict]:
+    """
+    If requested and exists, reads an assembler capabilities cache from disk.
+
+    Arguments:
+      cacheFile: Cache file (YAML format).
+
+    Returns:
+      newcache:  If cachFile is empty, None. Otherwise, if file exists, a dictionary containing 
+                 capabilities cache; if not, an empty dict
+    """
+    # if cacheFile str is empty, do not use cache
+    if not cacheFile:
+        return None
+    
+    cacheExists = os.path.exists(cacheFile)
+    if not cacheExists:
+        return {}
+
+    cache  = readYAML(cacheFile)
+
+    # gaurd against inconsistent state
+    if not cache:
+        return None
+
+    toTuple = lambda s: tuple(int(i.strip()) for i in s.split(","))
+    newcache = {toTuple(k): v for k,v in cache.items()}
+    return newcache
+
+def writeAsmCapsCache(cacheFile: str, data: dict):
+    """
+    Writes an asm cache to disk.
+
+    Arguments:
+      cacheFile: User spedified file to write the cache.
+      data:      dict containg the computed cache.
+    """
+    newdata = {", ".join(map(str, k)): v for k, v in data.items()}
+    writeYAML(cacheFile, newdata)

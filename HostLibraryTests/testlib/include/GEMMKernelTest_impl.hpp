@@ -29,7 +29,6 @@
 
 #include "GEMMKernelTest.hpp"
 
-#include <CL/cl2.hpp>
 #include <Tensile/SolutionLibrary.hpp>
 
 #include <Tensile/AMDGPU.hpp>
@@ -431,8 +430,7 @@ void TypedGEMMKernelTest<TypedInputs, DeviceBackend>::calcGPU()
                   << inputs_d.d + problem.d().totalAllocatedElements() << std::endl;
     }
 
-    // Make sure to keep the kernel args log if necessary (E.g. OpenCL requires logs to be kept to
-    // is can iterate over them during invocation)
+    // Make sure to keep the kernel args log if necessary
     solution->kernelArgsLog = DeviceBackend::kernelArgsLog();
 
     std::vector<KernelInvocation> result = solution->solve(problem, inputs_d, *hardware);

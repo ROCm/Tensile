@@ -97,7 +97,7 @@ args:
 Example use case
 
 ```bash
-$ ./tuning/scripts/provision_tuning.sh -w tensile_tuning -z logs/inception_rocblas-configs_unique.log -r tensile_tuning/tensile/Tensilen-rocblas-configs_unique.log -o tf_inception.yaml -y sgemm -l vega20
+$ ./tuning/scripts/provision_tuning.sh WORKING_PATH LOG_PATH OUTPUT_SUFFIX.yaml LIBRARY [options]
 ```
 
 When this is run the tuning will be provisioned in the directory ./tensile_tuing. The following directories will be generated.

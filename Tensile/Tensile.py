@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,8 @@ if __name__ == "__main__":
 import os
 import sys
 import argparse
+import shutil
+
 from .Common import globalParameters, tPrint, printExit, ensurePath, \
     assignGlobalParameters, restoreDefaultGlobalParameters, HR, gfxArch
 from . import BenchmarkProblems
@@ -38,7 +40,7 @@ from . import LibraryIO
 from . import LibraryLogic
 from . import __version__
 from datetime import datetime
-
+from .Utilities.Profile import profile
 
 ###############################################################################
 # Execute Steps in Config
@@ -110,7 +112,7 @@ def addCommonArguments(argParser):
     argParser.add_argument("-p", "--platform", dest="platform", type=int, \
         help="override which OpenCL platform to benchmark")
     argParser.add_argument("--runtime-language", dest="RuntimeLanguage", \
-        choices=["HIP", "OCL"], help="override which runtime language to use")
+        choices=["HIP"], help="override which runtime language to use")
     argParser.add_argument("--code-object-version", dest="CodeObjectVersion", \
         choices=["default", "V4", "V5"], help="HSA code-object version")
     argParser.add_argument("--arch", dest="arch", help="override gfx arch version")
@@ -129,7 +131,8 @@ def addCommonArguments(argParser):
     argParser.add_argument("--client-build-path", default=None)
     argParser.add_argument("--client-lock", default=None)
     argParser.add_argument("--prebuilt-client", default=None)
-
+    argParser.add_argument("--asm-cache", dest="AsmCacheFile", action="store", type=str, \
+        help="Path to ASM cache YAML file. If it does not exist, generate the cache. If it does exist, use the cache file")
     argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
 
 
@@ -185,6 +188,7 @@ def argUpdatedGlobalParameters(args):
 # Tensile
 # - below entry points call here
 ################################################################################
+@profile
 def Tensile(userArgs):
     global globalParameters
 
@@ -214,7 +218,6 @@ def Tensile(userArgs):
 
     addCommonArguments(argParser)
     args = argParser.parse_args(userArgs)
-
     configPaths = args.config_file
     altFormat = args.AlternateFormat
     useCache = not args.NoCache
@@ -275,11 +278,16 @@ def Tensile(userArgs):
     config["UseCache"] = useCache
     globalParameters["ConfigPath"] = configPaths
 
+    capabilitiesCache = LibraryIO.initAsmCapsCache(args.AsmCacheFile)
+
     # assign global parameters
     if "GlobalParameters" in config:
-        assignGlobalParameters(config["GlobalParameters"])
+        assignGlobalParameters(config["GlobalParameters"], capabilitiesCache)
     else:
-        assignGlobalParameters({})
+        assignGlobalParameters({}, capabilitiesCache)
+
+    if globalParameters["CacheAsmCaps"]:
+        LibraryIO.writeAsmCapsCache(args.AsmCacheFile, globalParameters["AsmCaps"])
 
     globalParameters["OutputPath"] = ensurePath(os.path.abspath(args.output_path))
     globalParameters["WorkingPath"] = globalParameters["OutputPath"]
@@ -296,6 +304,12 @@ def Tensile(userArgs):
     ClientExecutable.getClientExecutable(clientPath)
     executeStepsInConfig(config)
 
+    if not globalParameters["KeepBuildTmp"]:
+        for root, subdirs, files in os.walk(globalParameters["OutputPath"]):
+            for d in subdirs:
+                if d == "build_tmp":
+                    shutil.rmtree(os.path.join(root, d))
+                    break
 
 def TensileConfigPath(*args):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), "Configs", *args)

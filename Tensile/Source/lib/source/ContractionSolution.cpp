@@ -103,8 +103,8 @@ namespace Tensile
                                      size_t m,
                                      size_t n,
                                      size_t k,
-                                     int    grid_start = 1,
-                                     int    grid_end   = 304)
+                                     int    grid_start,
+                                     int    grid_end)
         {
             static const bool debug = Debug::Instance().printStreamKGridInfo();
 
@@ -1864,6 +1864,7 @@ namespace Tensile
                                                      x,
                                                      y,
                                                      z,
+                                                     1,
                                                      cuCount);
         }
 
@@ -1871,7 +1872,7 @@ namespace Tensile
         // whichever is minimum.
         else if(pAMDGPU->skMaxCUs > 0)
         {
-            return min(cuCount, pAMDGPU->skMaxCUs);
+            return min(cuCount, static_cast<size_t>(pAMDGPU->skMaxCUs));
         }
 
         // Multiply the cuCount with a constant factor (c), and launch

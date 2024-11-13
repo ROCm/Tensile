@@ -28,7 +28,7 @@ from .Common import assignParameterRequired, assignParameterWithDefault, \
                     tPrint, printExit, printWarning, \
                     validActivationFormats, validConvolutionConfig, \
                     validMFMA, validWMMA, validParameters, validWeightFormats, \
-                    validGEMMTypes, HPATypes
+                    validGEMMTypes, HPATypes, parameterNameAbbreviations
 from .DataType import DataType
 from .Utils import roundUpToNearestMultiple
 
@@ -1720,51 +1720,51 @@ class Solution(collections.abc.Mapping):
   ########################################
   def __init__(self, config):
     self._name = None
-    config = deepcopy(config)
 
-    self._state = {}
+    state = {}
     # problem type
     if "ProblemType" in config:
-      self["ProblemType"] = ProblemType(config["ProblemType"])
+      state["ProblemType"] = ProblemType(config["ProblemType"])
     else:
-      self["ProblemType"] = ProblemType(defaultProblemType)
+      state["ProblemType"] = ProblemType(defaultProblemType)
 
     # assign parameters with defaults
     for key in defaultSolution:
-      assignParameterWithDefault(self._state, key, config, defaultSolution)
+      assignParameterWithDefault(state, key, config, defaultSolution)
 
-    if 'ISA' not in self._state:
+    if 'ISA' not in state:
       if 'ISA' in config:
-        self._state['ISA'] = config['ISA']
+        state['ISA'] = config['ISA']
       elif config['KernelLanguage'] == 'Assembly':
-        self._state['ISA'] = list(globalParameters["CurrentISA"])
+        state['ISA'] = list(globalParameters["CurrentISA"])
       else:
-        self._state['ISA'] = [0,0,0]
+        state['ISA'] = [0,0,0]
 
-    if "CodeObjectVersion" not in self._state:
+    if "CodeObjectVersion" not in state:
       if "CodeObjectVersion" in config:
-        self._state["CodeObjectVersion"] = config["CodeObjectVersion"]
+        state["CodeObjectVersion"] = config["CodeObjectVersion"]
       else:
-        self._state["CodeObjectVersion"] = globalParameters["CodeObjectVersion"]
+        state["CodeObjectVersion"] = globalParameters["CodeObjectVersion"]
 
     # assign parameters without defaults
     for key in config:
-      if key != "ProblemType" and key not in self._state:
-        self._state[key] = config[key]
-    self["Valid"] = True
+      if key != "ProblemType" and key not in state:
+        state[key] = config[key]
+    state["Valid"] = True
     # this could prevent OriginalSolution from re-assigning the parameters, save lots of time
-    if "AssignedProblemIndependentDerivedParameters" not in self._state:
-      self["AssignedProblemIndependentDerivedParameters"] = False
-    if "AssignedDerivedParameters" not in self._state:
-      self["AssignedDerivedParameters"] = False
+    if "AssignedProblemIndependentDerivedParameters" not in state:
+      state["AssignedProblemIndependentDerivedParameters"] = False
+    if "AssignedDerivedParameters" not in state:
+      state["AssignedDerivedParameters"] = False
 
-    if self["ProblemType"].convolution:
-        for (key,value) in self["ProblemType"].convolution.solutionParms.items():
-            self._state[key]=value
-    Solution.assignDerivedParameters(self._state)
+    if state["ProblemType"].convolution:
+        for (key,value) in state["ProblemType"].convolution.solutionParms.items():
+            state[key]=value
+    Solution.assignDerivedParameters(state)
     self._name = config["CustomKernelName"] if isCustomKernelConfig(config) else None
+    self._state = state
     self.initHelperKernelObjects()
-
+    
   # these keys are copied from ProblemType to internal that may be overridden
   InternalKeys = ["UseSgprForGRO","VectorStore"]
 
@@ -1772,9 +1772,8 @@ class Solution(collections.abc.Mapping):
   ########################################
   # get a list of kernel parameters for this solution
   def getKernels(self):
-    kernel = deepcopy(self)
-    kernel._state.update({"Kernel": True})
-    return kernel
+    self["Kernel"] = True
+    return self
 
 
   ########################################
@@ -4888,13 +4887,9 @@ class Solution(collections.abc.Mapping):
 
   ########################################
   @ staticmethod
-  def getParameterNameAbbreviation( name ):
-    specialValues = {
-      'MACInstruction': '' # Conflicts with MatrixInstruction, but _MAD and _FMA should be enough differentiation for the kernel name.
-    }
-    if name in specialValues: return specialValues[name]
+  def getParameterNameAbbreviation(name):
+    return parameterNameAbbreviations[name]
 
-    return ''.join([c for c in name if not c.islower()])
 
   ########################################
   @ staticmethod
@@ -4938,12 +4933,11 @@ class Solution(collections.abc.Mapping):
     else:
       printExit('Parameter {key}={value} is new object type ({t})'.format(key=key, value=value, t=type(value)))
       return str(value)
-
-
+  
   ##########################
   # make class look like dict
   def keys(self):
-    return list(self._state.keys())
+    return self._state.keys()
 
   def __len__(self):
     return len(self._state)
@@ -4967,14 +4961,12 @@ class Solution(collections.abc.Mapping):
     return self.__str__()
 
   def getAttributes(self):
-    return deepcopy(self._state)
+    return self._state
 
   def __hash__(self):
-    return hash(str(self) + self._state.get("codeObjectFile", ""))
-    #return hash(self.getAttributes())
+    return hash(str(self) + self.get("codeObjectFile", ""))
 
   def __eq__(self, other):
-    #return isinstance(other, Solution) and self.getAttributes() == other.getAttributes()
     return isinstance(other, Solution) and str(self) == str(other)
 
   def __ne__(self, other):

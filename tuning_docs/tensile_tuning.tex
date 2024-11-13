@@ -80,13 +80,13 @@ rocBLAS is a BLAS implementation that is included as part of AMD's ROCm project 
 
 
 \subsection{How to study this document}
-This document provides general information about the Tensile project. We recommend that a new reader clone and skim the \href{https://github.com/ROCmSoftwarePlatform/Tensile}{Tensile repo} before reading this document. Among the Tensile files, pay particular attention to 
+This document provides general information about the Tensile project. We recommend that a new reader clone and skim the \href{https://github.com/ROCm/Tensile}{Tensile repo} before reading this document. Among the Tensile files, pay particular attention to 
 
 \begin{lstlisting}[language=bash,breaklines=true]
 <path-to-Tensile-repo>/Tensile/Common.py
 \end{lstlisting}
 
-\noindent We will refer to this script in the following sections. We also recommend you visit \href{https://github.com/ROCmSoftwarePlatform/rocBLAS}{the rocBLAS repo} and \href{https://rocblas.readthedocs.io/en/rocm-4.5.0/}{its documentation}, especially the \textit{Level 3 BLAS GEMM} function, which is what Tensile is tuning for. A guide for the installation of rocBLAS and Tensile can be found in \hyperref[sec:appendixA]{Appendix A}.
+\noindent We will refer to this script in the following sections. We also recommend you visit \href{https://github.com/ROCm/rocBLAS}{the rocBLAS repo} and \href{https://rocblas.readthedocs.io/en/rocm-4.5.0/}{its documentation}, especially the \textit{Level 3 BLAS GEMM} function, which is what Tensile is tuning for. A guide for the installation of rocBLAS and Tensile can be found in \hyperref[sec:appendixA]{Appendix A}.
 
 \subsection{Goals of Tensile Tuning}
 
@@ -121,7 +121,7 @@ As a simple example of running the tuning application, look at the configuration
 
 \begin{lstlisting}[language=bash,breaklines=true]
 # clone Tensile
-$ git clone https://github.com/ROCmSoftwarePlatform/Tensile.git
+$ git clone https://github.com/ROCm/Tensile.git
 
 # set up tuning run
 $ cd Tensile
@@ -303,7 +303,7 @@ Some important parameters to consider are the following:
 \end{description}
 
 \noindent
-See \href{https://github.com/ROCmSoftwarePlatform/Tensile/blob/master/Tensile/Common.py}{Common.py in Tensile repo} for the full list of input parameters.
+See \href{https://github.com/ROCm/Tensile/blob/master/Tensile/Common.py}{Common.py in Tensile repo} for the full list of input parameters.
 
 \subsubsection{BenchmarkProblems}
 \begin{minted}[
@@ -363,7 +363,7 @@ This is the \textit{most important section} of the tuning configuration; it defi
 \label{sec:forkParams}
 \paragraph{ForkParameters} The fork parameters generate the kernels as a Cartesian product of the parameters lists which are specified. For example, if VectorWidth = [2, 4] and DepthU = [16, 32], the kernels that get generated would be drawn from all combinations of the corresponding value lists. Hence, the combinations \{ \{VectorWidth=2 ,DepthU=16\}, \{VectorWidth=4, DepthU=16\},  \{VectorWidth=2, DepthU=32\}, \{VectorWidth=4, DepthU=32\} \} would get generated as part of the respective kernels specifications, and they would be targeted for benchmarking provided they define valid kernels.
 
-\paragraph{BenchmarkFinalParameters} The problem sizes get defined in BenchmarkFinalParameters as shown in the example provided. There are two types of size specifications: one is the Exact, which specifics a single size, and the other is Range, which generates a set of sizes based on the range logic.
+\paragraph{BenchmarkFinalParameters} The problem sizes get defined in BenchmarkFinalParameters as shown in the example provided. There are two types of size specifications: one is the Exact, which specifies a single size, and the other is Range, which generates a set of sizes based on the range logic.
 
 \hfill \break
 Note the overall structure of this section of the configuration:
@@ -444,7 +444,7 @@ gobble=0,breaklines,
 frame=single,
 linenos
 ]{yaml}
-#LibraryLogic:
+#LibraryClient:
 \end{minted}
 
 
@@ -485,7 +485,7 @@ JoinParameters: null               # not used
 
 The  {\color{ForestGreen} \bf BenchmarkCommonParameters} and  {\color{ForestGreen} \bf ForkParameters} define the space of kernels used for benchmarking. The benchmark common parameters define the common parameters that---unless overridden by the forked parameters---are defined for all the kernels that get generated for the benchmarking. As described in the \hyperref[sec:forkParams]{forked parameters} section, the fork parameters define a Cartesian product of tuning parameter created from all the combinations of parameters in the parameter lists. Here we will focus on the most common parameters that are used during most tuning exercises.
 
-{\color{ForestGreen} \bf ThreadTile} = [tt0, tt1] and {\color{ForestGreen} \bf  WorkGroup} = [wg0, wg1, localSplitU ] define the thread tile parameter which defines the dimensions of the C matrix that each thread works on. Together they form the macro tiling {\color{ForestGreen} \bf MacroTile} = [tt0*wg0, tt1*wg1, mt2]. The {\color{ForestGreen} \bf GlobalSplitU} parameter defines how Tensile splits the unroll summation into multiple sections. Other possible considerations for starting the tuning are {\color{ForestGreen} \bf DepthU, VectorWidth} and {\color{ForestGreen} \bf GlobalReadVectorWidth}. The global read vector width Controls desired width (number of elements) for loads from global memory LDS (possable values are [-1, 1, 2, 3, 4, 6, 8 ]). The vector width controls the contiguous elements from the C matrix. The depth U parameter is closely related to the local split U parameter and the combination of the two defines how the loop of the summation dimension is unrolled.
+{\color{ForestGreen} \bf ThreadTile} = [tt0, tt1] and {\color{ForestGreen} \bf  WorkGroup} = [wg0, wg1, localSplitU ] define the thread tile parameter which defines the dimensions of the C matrix that each thread works on. Together they form the macro tiling {\color{ForestGreen} \bf MacroTile} = [tt0*wg0, tt1*wg1, mt2]. The {\color{ForestGreen} \bf GlobalSplitU} parameter defines how Tensile splits the unroll summation into multiple sections. Other possible considerations for starting the tuning are {\color{ForestGreen} \bf DepthU, VectorWidth} and {\color{ForestGreen} \bf GlobalReadVectorWidth}. The global read vector width controls desired width (number of elements) for loads from global memory to LDS (possible values are [-1, 1, 2, 3, 4, 6, 8 ]). The vector width controls the contiguous elements from the C matrix. The depth U parameter is closely related to the local split U parameter and the combination of the two defines how the loop of the summation dimension is unrolled.
 
 Considering the full set of parameters involved, it is not practical to build every set of kernels as part of any investigation; this would exhaust compute resources. The target number of kernels we consider optimal for investigation is between 10,000 and 20,000. The tuning workflow may take many iterations of the tuning to reach optimal performance. Each iteration will perform a complete run of the Tensile tuning and evaluation of the results. If some of the problem sizes under investigation do not result in optimal performance then, for the sizes that fail, modifications of the tuning specifications are made to search for alternative solutions in the kernel space. The tuning is then rerun using the updated parameter set. This type of iteration is continued until the desired optimization is reached.
 
@@ -501,13 +501,13 @@ The first stage of the tuning creates a benchmark library. This is found in the 
 \begin{lstlisting}[language=bash,breaklines=true, emph={build,ls,build_tmp,library}, emphstyle=\color{blue}]
 $ ls /build_test/1_BenchmarkProblems/Cijk_A??k_B??k_??_??/??_Final
 
-# sourcs contains the library components
+# source contains the library components
 $ build source
 
 $ ls /build_test/1_BenchmarkProblems/Cijk_A??k_B??k_??_??/??_Final/source
 
 # library contains the final tensile library and code objects
-# build_tmp contains the kernals
+# build_tmp contains the kernels
 $ build_tmp library
 
 $ ls /build_test/1_BenchmarkProblems/Cijk_A??k_B??k_??_??/??_Final/source/build_tmp/SOURCETMP/assembly
@@ -625,7 +625,7 @@ linenos
 \noindent
 This example only highlights what the logic file looks like. It is not practical, at this point, to go over all the parameters in a complete file. There are, however, two parts worth noting at the moment: near the beginning of the file is the library specifications that was defined in the LibraryLogic section of the tuning configuration; near the end of the file are the mappings.
 
-The mappings in the logic file are specified in pairs; the first array specifies the size and the second specifics what kernel that size is mapped to. The size part is parameterized as follows (in terms of BLAS parameters):
+The mappings in the logic file are specified in pairs; the first array specifies the size and the second specifies what kernel that size is mapped to. The size part is parameterized as follows (in terms of BLAS parameters):
 
 \begin{center}
  	- - [m, n, batch size, k, ldc, ldd, lda, ldb].
@@ -672,10 +672,10 @@ Once we have library logic files for new sizes, we need to merge and update rocB
 rocblas-bench is a tool used to perform benchmarks on the problem sizes which are being measured and to verify the correctness of the new libraries. While it is designed to measure the performance of the full set of rocBLAS library functions, our interest is in the level 3 gemm functions which---in rocBLAS--- are called into the Tensile library. 
 
 
-The git repository for rocBLAS is found at \url{https://github.com/ROCmSoftwarePlatform/rocBLAS}. Either the develop or master branch version may be used for testing.
+The git repository for rocBLAS is found at \url{https://github.com/ROCm/rocBLAS}. Either the develop or master branch version may be used for testing.
 
 \begin{lstlisting}[language=bash]
-$ git clone -b master|develop https://github.com/ROCmSoftwarePlatform/rocBLAS.git
+$ git clone -b master|develop https://github.com/ROCm/rocBLAS.git
 \end{lstlisting}
 
 One method to use rocblas-bench is to install it locally. The library can be installed using the included installation script (the installation may last quite some time.):
@@ -786,7 +786,7 @@ Libraries are used to implement hierarchical searches. At each level of the hier
 
 \paragraph{Hardware Layer}
 
-This top level of the hierarchy requires the fewest comparisons as there is a limited amount of supported hardware available. At run time, we can only run kernels built for the hardware installed on the host machine. These are classified by `gfx' architecture values. See \href{https://github.com/ROCmSoftwarePlatform/Tensile/wiki/Languages}{here} for supported architectures.
+This top level of the hierarchy requires the fewest comparisons as there is a limited amount of supported hardware available. At run time, we can only run kernels built for the hardware installed on the host machine. These are classified by `gfx' architecture values. See \href{https://github.com/ROCm/Tensile/wiki/Languages}{here} for supported architectures.
 
 \paragraph{Problem Map}
 The problem map layer uses coarse problem operation classifications. This includes ops like GEMM TT or GEMM TN, which are coded similar to the following: Contraction\_l\_Alik\_Bjlk\_Cijk\_Dijk. There are a few more comparisons at this level.
@@ -992,7 +992,7 @@ LogicPath Path to LibraryLogic yaml files.
 
 OutputPath Output directory.
 
-{OCL,HIP,HSA} Chosen runtime language.
+{HIP,HSA} Chosen runtime language.
 \end{lstlisting}
 
 \noindent
@@ -1289,7 +1289,7 @@ Use the following references to find the documentation about the ROCm platform.
 \begin{itemize}
 	\item Documentation for the \href{https://rocmdocs.amd.com/en/latest/}{AMD ROCm} platform.
 	\item Reference to \href{https://rocblas.readthedocs.io/en/latest/intro.html}{rocBLAS}.
-	\item Reference to \href{https://github.com/ROCmSoftwarePlatform/Tensile/tree/develop/tuning}{Tensile provisioning} overview and \href{https://github.com/ROCmSoftwarePlatform/Tensile/wiki}{Tensile} wiki.
+	\item Reference to \href{https://github.com/ROCm/Tensile/tree/develop/tuning}{Tensile provisioning} overview and \href{https://github.com/ROCm/Tensile/wiki}{Tensile} wiki.
 \end{itemize}
 
 \subsection{ROCm Installation}
