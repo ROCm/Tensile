@@ -2426,15 +2426,6 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
     else:
       tPrint(3, " %24s: %8s (unspecified)" % (key, defaultValue))
 
-  # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
-  # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
-  # '0.0.0' will persist
-
-  # Due to platform.linux_distribution() being deprecated, just try to run dpkg regardless.
-  # The alternative would be to install the `distro` package.
-  # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
-  
-  # The following try except block computes the hipcc version
   hipClangVersion = "0.0.0"
   try:
     if os.name == "nt":
@@ -2451,9 +2442,6 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
 
   except (subprocess.CalledProcessError, OSError) as e:
       printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))
-
-  if "KeepBuildTmp" in config:
-    globalParameters["KeepBuildTmp"] = config["KeepBuildTmp"] 
 
   # Path management section
   rocmPath = "/opt/rocm"
@@ -2491,7 +2479,7 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   assemblerPath = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
   if assemblerPath is None and compilerIsSupported:
     if os.name == "nt":
-      assemblerPath = locateExe(globalParameters["ROCmBinPath"], "clang++.exe")
+      assemblerPath = locateExe(rocmBinPath, "clang++.exe")
     else:
       assemblerPath = locateExe(rocmBinPath, "clang++" if cxxCompiler == "hipcc" else "amdclang++")
 
@@ -2528,8 +2516,7 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   #     printWarning("Failed to detect ISA so forcing (gfx906) on windows")
   isasWithDisabledHWMonitor = ((9,4,1), (9,4,2), (11,0,0), (11,0,1), (11,0,2), (12,0,0), (12,0,1))
   if currentIsa in isasWithDisabledHWMonitor:
-    isaString = ', '.join(map(gfxName, isasWithDisabledHWMonitor))
-    printWarning(f"HardwareMonitor currently disabled for {isaString}")
+    printWarning(f"HardwareMonitor currently disabled for {', '.join(map(gfxName, isasWithDisabledHWMonitor))}")
     globalParameters["HardwareMonitor"] = False
 
   separatedArchs = splitDelimitedString(config["Architecture"], {";", "_"})
@@ -2581,18 +2568,25 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   # del globalParameters["ROCmPath"]
   # del globalParameters["ROCmBinPath"]
   # del globalParameters["ROCmAgentEnumeratorPath"]
-  del globalParameters["CxxCompiler"]
-  del globalParameters["CCompiler"]
-  del globalParameters["CmakeCxxCompiler"]
-  # del globalParameters["CmakeCCompiler"]
-  del globalParameters["AssemblerPath"]
-  # del globalParameters["SupportedISA"]
-  del globalParameters["CurrentISA"]
-  del globalParameters["IndexChars"]
-  del globalParameters["HipClangVersion"]
   # del globalParameters["AsmCaps"]
   # del globalParameters["ArchCaps"]
   # del globalParameters["ClangOffloadBundlerPath"]
+  # del globalParameters["SupportedISA"]
+  # del globalParameters["CmakeCCompiler"]
+  del globalParameters["CxxCompiler"]
+  del globalParameters["CCompiler"]
+  del globalParameters["CmakeCxxCompiler"]
+  del globalParameters["AssemblerPath"]
+  del globalParameters["CurrentISA"]
+  del globalParameters["IndexChars"]
+  del globalParameters["HipClangVersion"]
+  del globalParameters["KeepBuildTmp"]
+  del globalParameters["RuntimeLanguage"]
+  del globalParameters["MergeFiles"]
+  del globalParameters["NumMergedFiles"]
+  del globalParameters["LazyLibraryLoading"]
+  del globalParameters["WorkingPath"]
+  del globalParameters["SourcePath"]
 
   return archInfo, capabilities, rocmPaths, hipClangVersion
 

@@ -524,9 +524,10 @@ def generateKernelSourceAndHeaderFiles(
     def writeHeaderPreface(hdrFile):
         hdrFile.write(CHeader)
         hdrFile.write("#pragma once\n")
-        if globalParameters["RuntimeLanguage"] == "HIP":
-            hdrFile.write("#include <hip/hip_runtime.h>\n")
-            hdrFile.write("#include <hip/hip_ext.h>\n\n")
+        # Assume runtime language is HIP
+        # if globalParameters["RuntimeLanguage"] == "HIP":
+        hdrFile.write("#include <hip/hip_runtime.h>\n")
+        hdrFile.write("#include <hip/hip_ext.h>\n\n")
         hdrFile.write('#include "KernelHeader.h"\n\n')
 
     def writeSourcePreface(srcFile, filename):
@@ -814,9 +815,8 @@ def getKernelWriters(
 ################################################################################
 # copy static cpp files and headers
 ################################################################################
-def copyStaticFiles(outputPath=None):
-    if outputPath is None:
-        outputPath = globalParameters["WorkingPath"]
+def copyStaticFiles(outputPath, srcPath):
+    assert outputPath is not None
     libraryStaticFiles = [
         "TensileTypes.h",
         "tensile_bfloat16.h",
@@ -827,7 +827,7 @@ def copyStaticFiles(outputPath=None):
 
     for fileName in libraryStaticFiles:
         # copy file
-        shutil.copy(os.path.join(globalParameters["SourcePath"], fileName), outputPath)
+        shutil.copy(os.path.join(srcPath, fileName), outputPath)
 
     return libraryStaticFiles
 
@@ -1088,6 +1088,7 @@ def TensileCreateLibrary():
     removeTemporaries = not args["KeepBuildTmp"]
     numPasses = args["NumPasses"]
     cpuThreads = args["CpuThreads"]
+    runtimeLanguage = args["RuntimeLanguage"]
 
     if args["VerifyManifest"]:
         tPrint(0, f"Verify manifest functionality has been removed. No op.")
@@ -1097,7 +1098,7 @@ def TensileCreateLibrary():
 
     ensurePath(outputPath)
     outputPath = os.path.abspath(outputPath)
-    copyStaticFiles(outputPath)
+    copyStaticFiles(outputPath, os.path.join(os.path.dirname(__file__), "Source"))
 
     cacheFile = Path(outputPath).parent / "asm-cache.yaml"
     capabilitiesCache = LibraryIO.initAsmCapsCache(cacheFile)

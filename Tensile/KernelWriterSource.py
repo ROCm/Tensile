@@ -36,10 +36,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Make OpenCL Kernel String
   ##############################################################################
-  def __init__( self, kernelMinNaming, kernelSerialNaming, capabilities, archInfo, rocmPaths, hipClangVersion, removeTemporaries=True ):
+  def __init__( self, kernelMinNaming, kernelSerialNaming, capabilities, archInfo, rocmPaths, hipClangVersion, removeTemporaries=True, runtimeLanguage="HIP" ):
     super(KernelWriterSource, self).__init__( \
         kernelMinNaming, kernelSerialNaming, capabilities, archInfo, hipClangVersion, removeTemporaries)
-    self.language = globalParameters["RuntimeLanguage"]
+    self.language = runtimeLanguage
     self.rocmPaths = rocmPaths
 
     self.endLine = "\n"
@@ -3114,91 +3114,92 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def functionSuffix(self, kernel):
     kStr = ""
-    if globalParameters["MergeFiles"] and self.language == "HIP":
-      kStr += "#undef UNROLL%s" % self.endLine
-      kStr += "#undef LOCAL_SPLITU%s" % self.endLine
-      kStr += "#undef LOCAL_DEPTHU%s" % self.endLine
-      kStr += "#undef SG%s%s" % (self.tileChar0, self.endLine)
-      kStr += "#undef SG%s%s" % (self.tileChar1, self.endLine)
-      kStr += "#undef TT%s%s" % (self.tileChar0, self.endLine)
-      kStr += "#undef TT%s%s" % (self.tileChar1, self.endLine)
-      kStr += "#undef MT%s%s" % (self.tileChar0, self.endLine)
-      kStr += "#undef MT%s%s" % (self.tileChar1, self.endLine)
-      kStr += "#undef NLCA%s" % (self.endLine )
-      kStr += "#undef NLCB%s" % (self.endLine )
-      kStr += "#undef NLPA%s" % (self.endLine )
-      kStr += "#undef NLPB%s" % (self.endLine )
-      kStr += "#undef LSCA%s" % (self.endLine)
-      kStr += "#undef LSPA%s" % (self.endLine)
-      kStr += "#undef LSCB%s" % (self.endLine)
-      kStr += "#undef LSPB%s" % (self.endLine)
-      kStr += "#undef GLOBAL_D%s" % (self.endLine)
-      kStr += "#undef GLOBAL_C%s" % (self.endLine)
-      kStr += "#undef GLOBAL_OFFSET_A%s" % (self.endLine)
-      kStr += "#undef GLOBAL_OFFSET_B%s" % (self.endLine)
-      kStr += "#undef DATA_TYPE%s" % (self.endLine)
-      kStr += "#undef DEST_DATA_TYPE%s" % (self.endLine)
-      kStr += "#undef COMPUTE_DATA_TYPE%s" % (self.endLine)
-      #kStr += "#undef VECTOR_TYPE%s" % (self.endLine)
-      kStr += "#undef LDS_OFFSET_B%s" % (self.endLine)
-      kStr += "#undef LDS_OFFSET_BLK%s" % (self.endLine)
-      kStr += "#undef LDS_NUM_ELEMENTS%s" % (self.endLine)
-      kStr += "#undef NUM_THREADS%s" % (self.endLine)
-      kStr += "#undef PAD%s" % (self.endLine)
-      kStr += "#undef WORK_GROUP_MAPPING%s" % (self.endLine)
-      kStr += "#undef VECTOR_WIDTH%s" % (self.endLine)
-      kStr += "#undef GLOBAL_LOAD_VECTOR_WIDTH_A%s" % (self.endLine)
-      kStr += "#undef GLOBAL_LOAD_VECTOR_WIDTH_B%s" % (self.endLine)
-      kStr += "#undef GLOBAL_WRITE_VECTOR_WIDTH%s" % (self.endLine)
-      kStr += "#undef MAC%s" % (self.endLine)
-      kStr += "#undef TYPE_MAC%s" % (self.endLine)
-      kStr += "#undef TYPE_MAC_WRITE%s" % (self.endLine)
-      kStr += "#undef GLOBAL_SPLITU%s" % (self.endLine)
-      # zero
-      kStr += "#undef SCALAR_ZERO%s" % (self.endLine )
-      kStr += "#undef SCALAR_OOB_DATA%s" % (self.endLine )
+    # Assume merge files and langauge HIP
+    # if globalParameters["MergeFiles"] and self.language == "HIP":
+    kStr += "#undef UNROLL%s" % self.endLine
+    kStr += "#undef LOCAL_SPLITU%s" % self.endLine
+    kStr += "#undef LOCAL_DEPTHU%s" % self.endLine
+    kStr += "#undef SG%s%s" % (self.tileChar0, self.endLine)
+    kStr += "#undef SG%s%s" % (self.tileChar1, self.endLine)
+    kStr += "#undef TT%s%s" % (self.tileChar0, self.endLine)
+    kStr += "#undef TT%s%s" % (self.tileChar1, self.endLine)
+    kStr += "#undef MT%s%s" % (self.tileChar0, self.endLine)
+    kStr += "#undef MT%s%s" % (self.tileChar1, self.endLine)
+    kStr += "#undef NLCA%s" % (self.endLine )
+    kStr += "#undef NLCB%s" % (self.endLine )
+    kStr += "#undef NLPA%s" % (self.endLine )
+    kStr += "#undef NLPB%s" % (self.endLine )
+    kStr += "#undef LSCA%s" % (self.endLine)
+    kStr += "#undef LSPA%s" % (self.endLine)
+    kStr += "#undef LSCB%s" % (self.endLine)
+    kStr += "#undef LSPB%s" % (self.endLine)
+    kStr += "#undef GLOBAL_D%s" % (self.endLine)
+    kStr += "#undef GLOBAL_C%s" % (self.endLine)
+    kStr += "#undef GLOBAL_OFFSET_A%s" % (self.endLine)
+    kStr += "#undef GLOBAL_OFFSET_B%s" % (self.endLine)
+    kStr += "#undef DATA_TYPE%s" % (self.endLine)
+    kStr += "#undef DEST_DATA_TYPE%s" % (self.endLine)
+    kStr += "#undef COMPUTE_DATA_TYPE%s" % (self.endLine)
+    #kStr += "#undef VECTOR_TYPE%s" % (self.endLine)
+    kStr += "#undef LDS_OFFSET_B%s" % (self.endLine)
+    kStr += "#undef LDS_OFFSET_BLK%s" % (self.endLine)
+    kStr += "#undef LDS_NUM_ELEMENTS%s" % (self.endLine)
+    kStr += "#undef NUM_THREADS%s" % (self.endLine)
+    kStr += "#undef PAD%s" % (self.endLine)
+    kStr += "#undef WORK_GROUP_MAPPING%s" % (self.endLine)
+    kStr += "#undef VECTOR_WIDTH%s" % (self.endLine)
+    kStr += "#undef GLOBAL_LOAD_VECTOR_WIDTH_A%s" % (self.endLine)
+    kStr += "#undef GLOBAL_LOAD_VECTOR_WIDTH_B%s" % (self.endLine)
+    kStr += "#undef GLOBAL_WRITE_VECTOR_WIDTH%s" % (self.endLine)
+    kStr += "#undef MAC%s" % (self.endLine)
+    kStr += "#undef TYPE_MAC%s" % (self.endLine)
+    kStr += "#undef TYPE_MAC_WRITE%s" % (self.endLine)
+    kStr += "#undef GLOBAL_SPLITU%s" % (self.endLine)
+    # zero
+    kStr += "#undef SCALAR_ZERO%s" % (self.endLine )
+    kStr += "#undef SCALAR_OOB_DATA%s" % (self.endLine )
 
-      numMacs = 2 if kernel["PrefetchLocalRead"] else 1
-      for m in range(0, numMacs):
-        kStr += "#undef MAC_%ux%u" \
-            % (kernel["ThreadTile0"], kernel["ThreadTile1"])
-        if kernel["PrefetchLocalRead"]:
-          kStr += ("" if m==0 else "_BLK")
-        kStr += self.endLine
-      # initial strides
-      firstStride = 0
-      if kernel["ProblemType"]["UseInitialStridesCD"]:
-        lastStrideD = 0
-        lastStrideC = 0
-      else:
-        lastStrideD = 1
-        lastStrideC = 1
-      if kernel["ProblemType"]["UseInitialStridesAB"]:
-        lastStrideA = 0
-        lastStrideB = 0
-      else:
-        lastStrideA = 1
-        lastStrideB = 1
-      for i in range(firstStride, lastStrideD):
-        kStr += "#undef strideD" + self.indexChars[i] + self.endLine
-      for i in range(firstStride, lastStrideC):
-        kStr += "#undef strideC" + self.indexChars[i] + self.endLine
-      for i in range(firstStride, lastStrideA):
-        kStr += "#undef strideA" \
-            + self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]] \
-            + self.endLine
-      for i in range(firstStride, lastStrideB):
-        kStr += "#undef strideB" \
-            + self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]] \
-            + self.endLine
-      # other summation indices
-      for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]-1):
-        index = i + kernel["ProblemType"]["NumIndicesC"]
-        kStr += "#undef globalReadOffsetA%s%s" \
-            % (self.indexChars[index], self.endLine)
-        kStr += "#undef globalReadOffsetB%s%s" \
-            % (self.indexChars[index], self.endLine)
-      kStr += self.endLine + self.endLine
+    numMacs = 2 if kernel["PrefetchLocalRead"] else 1
+    for m in range(0, numMacs):
+      kStr += "#undef MAC_%ux%u" \
+          % (kernel["ThreadTile0"], kernel["ThreadTile1"])
+      if kernel["PrefetchLocalRead"]:
+        kStr += ("" if m==0 else "_BLK")
+      kStr += self.endLine
+    # initial strides
+    firstStride = 0
+    if kernel["ProblemType"]["UseInitialStridesCD"]:
+      lastStrideD = 0
+      lastStrideC = 0
+    else:
+      lastStrideD = 1
+      lastStrideC = 1
+    if kernel["ProblemType"]["UseInitialStridesAB"]:
+      lastStrideA = 0
+      lastStrideB = 0
+    else:
+      lastStrideA = 1
+      lastStrideB = 1
+    for i in range(firstStride, lastStrideD):
+      kStr += "#undef strideD" + self.indexChars[i] + self.endLine
+    for i in range(firstStride, lastStrideC):
+      kStr += "#undef strideC" + self.indexChars[i] + self.endLine
+    for i in range(firstStride, lastStrideA):
+      kStr += "#undef strideA" \
+          + self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]] \
+          + self.endLine
+    for i in range(firstStride, lastStrideB):
+      kStr += "#undef strideB" \
+          + self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]] \
+          + self.endLine
+    # other summation indices
+    for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]-1):
+      index = i + kernel["ProblemType"]["NumIndicesC"]
+      kStr += "#undef globalReadOffsetA%s%s" \
+          % (self.indexChars[index], self.endLine)
+      kStr += "#undef globalReadOffsetB%s%s" \
+          % (self.indexChars[index], self.endLine)
+    kStr += self.endLine + self.endLine
     return kStr
 
   ##############################################################################
@@ -3207,10 +3208,11 @@ class KernelWriterSource(KernelWriter):
   def kernelBodyPrefix(self, kernel, tPA, tPB ):
     kStr = ""
     kernelName = self.getKernelFileBase(kernel)
-    if not globalParameters["MergeFiles"]:
-      kStr += "\n"
-      kStr += "#include \"%s.h\"\n" % kernelName
-      kStr += "\n"
+    # Assume merge files => The following code can be eliminated
+    # if not globalParameters["MergeFiles"]:
+    #   kStr += "\n"
+    #   kStr += "#include \"%s.h\"\n" % kernelName
+    #   kStr += "\n"
 
     return kStr
 

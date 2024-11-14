@@ -442,17 +442,11 @@ class MasterSolutionLibrary:
         # end library creation functions
 
         if libraryOrder is None:
-            if Common.globalParameters["LazyLibraryLoading"]:
-                libraryOrder = [
-                    hardware, operationIdentifier, performanceMetric, fp16AltImpl, fp16AltImplRound, predicates,
-                    placeholder, selection
-                ]
-            else:
-                libraryOrder = [
-                    hardware, operationIdentifier, performanceMetric, fp16AltImpl, fp16AltImplRound, predicates,
-                    selection
-                ]
-        #assert libraryOrder[-1] == selection
+            # Assume lazy library loading
+            libraryOrder = [
+                hardware, operationIdentifier, performanceMetric, fp16AltImpl, fp16AltImplRound, predicates,
+                placeholder, selection
+            ]
 
         lazyLibrary = None
         if placeholder in libraryOrder:

@@ -3707,7 +3707,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # Init Kernel
   ##############################################################################
   @abc.abstractmethod
-  def initKernel(self, kernel, tensorParametersA, tensorParametersB ):
+  def initKernel(self, kernel, tensorParametersA, tensorParametersB, runtimeLanguage="HIP" ):
 
     self.staggerU = kernel["StaggerU"]
 
@@ -3860,7 +3860,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     #  print "\nKernelWriter enable:", self.enable
 
     if kernel["KernelLanguage"] == "Source":
-      self.language = globalParameters["RuntimeLanguage"]
+      self.language = runtimeLanguage
     else:
       self.language = "ASM"
     self.indexChars = list(Common.INDEX_CHARS)
@@ -5506,19 +5506,21 @@ for codeObjectFileName in codeObjectFileNames:
   def getHeaderFileString(self, kernel):
     kernelName = self.getKernelName(kernel)
     fileString = "" # CHeader
+    # Assume HIP runtime language
     if self.language == "HIP":
-      if not globalParameters["MergeFiles"]:
-        fileString += CHeader
-        fileString += "#pragma once\n\n"
-        fileString += "#include <hip/hip_runtime.h>\n"
-        fileString += "#include <hip/hip_fp16.h>\n"
-        fileString += "#include <KernelHeader.h>\n"
-        fileString += "\n"
+      # Assume merge files => following code can be removed
+      # if not globalParameters["MergeFiles"]:
+      #   fileString += CHeader
+      #   fileString += "#pragma once\n\n"
+      #   fileString += "#include <hip/hip_runtime.h>\n"
+      #   fileString += "#include <hip/hip_fp16.h>\n"
+      #   fileString += "#include <KernelHeader.h>\n"
+      #   fileString += "\n"
       fileString += self.functionSignature(kernel)
       fileString += ";\n"
     else:
-      if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
-        fileString += "#pragma once\n\n"
+      # if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
+      #   fileString += "#pragma once\n\n"
       if not globalParameters["CodeFromFiles"]:
         fileString += "extern const unsigned char %s_coba[]; // code object byte array\n" % kernelName
 
