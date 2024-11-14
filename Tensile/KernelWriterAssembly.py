@@ -72,9 +72,9 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Init
   ##############################################################################
-  def __init__(self, kernelMinNaming, kernelSerialNaming, assemblerPath: str, caps: Capabilities, archInfo: ArchInfo, assemblyDir, removeTemporaries=True):
+  def __init__(self, kernelMinNaming, kernelSerialNaming, assemblerPath: str, caps: Capabilities, archInfo: ArchInfo, hipClangVersion, assemblyDir, removeTemporaries=True):
     super(KernelWriterAssembly, self).__init__( \
-        kernelMinNaming, kernelSerialNaming, caps, archInfo, assemblyDir, removeTemporaries)
+        kernelMinNaming, kernelSerialNaming, caps, archInfo, hipClangVersion, assemblyDir, removeTemporaries)
 
     self.assembler = assemblerPath
 
@@ -262,7 +262,7 @@ class KernelWriterAssembly(KernelWriter):
     rv = [self.assembler,
           '-target', 'amdgcn-amd-amdhsa']
     # Add build-id for builds with rocm 5.3+
-    compilerVer = globalParameters['HipClangVersion'].split(".")[:2]
+    compilerVer = self.hipClangVersion.split(".")[:2]
     compilerVer = [int(c) for c in compilerVer]
     if len(compilerVer) >= 2 and (compilerVer[0] > 5 or (compilerVer[0] == 5 and compilerVer[1] > 2)):
       rv += ["-Xlinker", "--build-id"]

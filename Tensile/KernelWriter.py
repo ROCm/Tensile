@@ -46,13 +46,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   # Init
   ##############################################################################
-  def __init__( self, kernelMinNaming, kernelSerialNaming, capabilities, archInfo, assemblyDirectory, removeTemporaries=True ):
+  def __init__( self, kernelMinNaming, kernelSerialNaming, capabilities, archInfo, hipClangVersion, assemblyDirectory, removeTemporaries=True ):
     self.kernelMinNaming = kernelMinNaming
     self.kernelSerialNaming = kernelSerialNaming
     self.overflowedResources = 0
     self.removeTemporaries = removeTemporaries
     self.caps = capabilities
     self.version = archInfo.CurrentIsa
+    self.hipClangVersion = hipClangVersion
     self.assemblyDirectory = assemblyDirectory
 
   @property

@@ -111,8 +111,8 @@ def processKernelSource(kernel, kernelWriter) -> ProcessedKernelResult:
 
     return (err, src, header, kernelName, filename)
 
-def addBuildIDForROCm53Plus():
-    compilerVer = globalParameters['HipClangVersion'].split(".")[:2]
+def addBuildIDForROCm53Plus(hipClangVersion):
+    compilerVer = hipClangVersion.split(".")[:2]
     compilerVer = [int(c) for c in compilerVer]
     if len(compilerVer) >= 2 and (compilerVer[0] > 5 or (compilerVer[0] == 5 and compilerVer[1] > 2)):
       return ["-Xlinker", "--build-id"]
@@ -120,10 +120,10 @@ def addBuildIDForROCm53Plus():
         return []
 
 
-def getLinkCodeObjectArgs(assembler, objectFileNames, coFileName, *moreArgs):
+def getLinkCodeObjectArgs(assembler, objectFileNames, coFileName, hipClangVersion, *moreArgs):
     rv = [assembler,
           '-target', 'amdgcn-amd-amdhsa']
-    rv += addBuildIDForROCm53Plus()
+    rv += addBuildIDForROCm53Plus(hipClangVersion)
     rv += moreArgs
     rv += ['-o', coFileName]
 
@@ -141,7 +141,7 @@ def gatherCOFilesForLinking(kernels, kernelMinNaming):
     return coFileMap
 
 
-def linkCodeObjectFiles(coFileMap, destDir, asmDir):
+def linkCodeObjectFiles(coFileMap, destDir, asmDir, hipClangVersion):
     coFiles = []
     for coFile, objectFiles in coFileMap.items():
         args = []
@@ -155,7 +155,7 @@ def linkCodeObjectFiles(coFileMap, destDir, asmDir):
                 file.flush()
             args = getLinkCodeObjectArgs("amdclang++", ["@clangArgs.txt"], coFile)
         else:
-            args = getLinkCodeObjectArgs("amdclang++", [os.path.join(asmDir, o) for o in objectFiles], os.path.join(destDir, coFile))
+            args = getLinkCodeObjectArgs("amdclang++", [os.path.join(asmDir, o) for o in objectFiles], os.path.join(destDir, coFile), hipClangVersion)
 
         tPrint(2, "Linking objects into co files: " + " ".join(args))
 
@@ -174,14 +174,14 @@ def linkCodeObjectFiles(coFileMap, destDir, asmDir):
     return coFiles
 
 
-def getAssemblyCodeObjectFiles(coFileMap, outputPath):
+def getAssemblyCodeObjectFiles(coFileMap, outputPath, hipClangVersion):
     asmDir = Path(outputPath).parent / "build_tmp" / Path(outputPath).stem.upper() / "assembly"
     asmDir.mkdir(parents=True, exist_ok=True)
 
     destDir = Path(outputPath) / "library"
     destDir.mkdir(parents=True, exist_ok=True)
 
-    return linkCodeObjectFiles(coFileMap, destDir, asmDir)
+    return linkCodeObjectFiles(coFileMap, destDir, asmDir, hipClangVersion)
 
 
 def splitArchs(caps: Capabilities, archInfo: ArchInfo):
@@ -212,11 +212,12 @@ def splitArchs(caps: Capabilities, archInfo: ArchInfo):
 
 
 def buildSourceKernelObjectFile(
-    CxxCompiler, outputPath, caps: Capabilities, rocmPaths: RocmPaths, archInfo: ArchInfo, kernelFile
+    CxxCompiler, outputPath, caps: Capabilities, rocmPaths: RocmPaths, archInfo: ArchInfo, hipClangVersion: str, kernelFile
 ):
     buildPath = Path(outputPath).parent / "build_tmp" / Path(outputPath).stem.upper() / "code_object_tmp"
     buildPath.mkdir(parents=True, exist_ok=True)
 
+    tPrint(0, f"KERNEL FILE: {kernelFile}")
     (_, filename) = os.path.split(kernelFile)
     (base, _) = os.path.splitext(filename)
 
@@ -237,7 +238,7 @@ def buildSourceKernelObjectFile(
         )
         hipFlags += ["-I", outputPath]
 
-        compilerVer = globalParameters["HipClangVersion"].split(".")[:2]
+        compilerVer = hipClangVersion.split(".")[:2]
         compilerVer = [int(c) for c in compilerVer]
         if len(compilerVer) >= 2 and (
             compilerVer[0] > 5 or (compilerVer[0] == 5 and compilerVer[1] > 2)
@@ -310,10 +311,10 @@ def makeHsaCOFilePath(target, base, buildPath):
     return outfile
 
 
-def setInOutFlags():
+def setInOutFlags(hipClangVersion):
     # get hipcc version due to compatiblity reasons
     # If we aren't using hipcc what happens?
-    hipccver = globalParameters["HipClangVersion"].split(".")
+    hipccver = hipClangVersion.split(".")
     hipccMaj = int(hipccver[0])
     hipccMin = int(hipccver[1])
     # for hipclang 5.2 and above, clang offload bundler changes the way input/output files are specified
@@ -326,7 +327,7 @@ def setInOutFlags():
     
 
 def buildSourceKernelCodeObjectFile(
-    CxxCompiler, outputPath, caps: Capabilities, rocmPaths: RocmPaths, archInfo: ArchInfo, removeTemporaries, base
+    CxxCompiler, outputPath, caps: Capabilities, rocmPaths: RocmPaths, archInfo: ArchInfo, removeTemporaries, hipClangVersion, base
 ):
     buildPath = Path(outputPath).parent / Path("build_tmp") / Path(outputPath).stem.upper() / "code_object_tmp"
     destDir = Path(outputPath) / "library"
@@ -334,7 +335,7 @@ def buildSourceKernelCodeObjectFile(
     buildPath.mkdir(parents=True, exist_ok=True)
     destDir.mkdir(parents=True, exist_ok=True)
     archs, cmdlineArchs = splitArchs(caps, archInfo)
-    inflag, outflag = setInOutFlags()
+    inflag, outflag = setInOutFlags(hipClangVersion)
     infile = os.path.join(buildPath, base + ".o")
     bundler = rocmPaths.Bundler
     coFilenames = []
@@ -728,14 +729,14 @@ def relocateSourceKernelCodeObjectFiles(coFilenames, outputPath, removeTemporari
 
 def writeSourceKernels(
     outputPath: str,
-    params: Dict[str, Any],
     kernels: List[Solution],
     kernelWriterSource: KernelWriterSource,
     cxxCompiler,
     capabilities,
     rocmPaths,
     archInfo,
-    removeTemporaries
+    removeTemporaries,
+    hipClangVersion
 ):
     start = time.time()
 
@@ -743,8 +744,8 @@ def writeSourceKernels(
     results = [processKernelSource(k, kernelWriterSource) for k in kernels]
     srcKernelMap = collectFilesToWrite(results, outPath)
     kernelFiles = generateKernelSourceAndHeaderFiles(srcKernelMap)
-    basenames = [buildSourceKernelObjectFile(cxxCompiler, outputPath, capabilities, rocmPaths, archInfo, k) for k in kernelFiles]
-    coFilenames = [buildSourceKernelCodeObjectFile(cxxCompiler, outputPath, capabilities, rocmPaths, archInfo, removeTemporaries, basename) for basename in basenames]
+    basenames = [buildSourceKernelObjectFile(cxxCompiler, outputPath, capabilities, rocmPaths, archInfo, hipClangVersion, k) for k in kernelFiles]
+    coFilenames = [buildSourceKernelCodeObjectFile(cxxCompiler, outputPath, capabilities, rocmPaths, archInfo, removeTemporaries, hipClangVersion, basename) for basename in basenames]
     for cofileList in coFilenames:
         relocateSourceKernelCodeObjectFiles(cofileList, outputPath, removeTemporaries)
 
@@ -788,13 +789,13 @@ def writeAssemblyKernels(
 # Min Naming / Solution and Kernel Writers
 ##############################################################################
 def getKernelWriters(
-    kernels: List[Solution], removeTemporaries, rocmPaths, capabilities, archInfo, assemblyDirectory, kernelMinNaming
+    kernels: List[Solution], removeTemporaries, rocmPaths, capabilities, archInfo, hipClangVersion, assemblyDirectory
 ):
 
     # if any kernels are assembly, append every ISA supported
     kernelSerialNaming = Solution.getSerialNaming(kernels)
     kernelWriterSource = KernelWriterSource(
-        getRequiredParametersMin(), kernelSerialNaming, capabilities, archInfo, rocmPaths, removeTemporaries
+        getRequiredParametersMin(), kernelSerialNaming, capabilities, archInfo, rocmPaths, hipClangVersion, removeTemporaries
     )
     kernelWriterAssembly = KernelWriterAssembly(
         getRequiredParametersMin(),
@@ -802,6 +803,7 @@ def getKernelWriters(
         rocmPaths.Assembler,
         capabilities,
         archInfo,
+        hipClangVersion,
         assemblyDirectory,
         removeTemporaries,
     )
@@ -840,32 +842,6 @@ def generateKernelObjectsFromSolutions(kernels: List[Solution]):
             ko.getKernelName()
     list(dict.fromkeys(helpers))
     return helpers
-
-
-# def addNewLibrary(
-#     masterLibraries: Dict[str, MasterSolutionLibrary],
-#     newLibrary: MasterSolutionLibrary,
-#     architectureName: str,
-# ) -> int:
-#     """Adds new master solution library to a master solution libraries dict.
-
-#     For a given architecture, add the new library to a dictionary containing
-#     libraries for all architectures, compute the starting index for the new
-#     library, then remap the indexes for all of the solutions associated with
-#     the library.
-
-#     Args:
-#         masterLibraries: A dictionary containing all master solution libraries for all architectures.
-#         newLibrary: A master solution library to add to the dictionary.
-#         architectureName: The name of the architecture (or key) associated with the library.
-
-#     Returns:
-#         Index to the last solution of the library associated with current architecture.
-#     """
-#     masterLibraries[architectureName] = newLibrary
-#     archIndex = MasterSolutionLibrary.ArchitectureIndexMap(architectureName)
-#     masterLibraries[architectureName].remapSolutionIndicesStartingFrom(archIndex)
-#     return archIndex
 
 
 def updateMasterLibrary(
@@ -1044,6 +1020,7 @@ def run(
     rocmPaths: RocmPaths,
     archInfo: ArchInfo,
     kernelMinNaming,
+    hipClangVersion: str,
     logicFiles,
 ):
     procnum = os.getpid()
@@ -1051,19 +1028,18 @@ def run(
 
     solns = list(generateSolutions(libraryLogics))
     kernels = list((s.getKernels() for s in solns))
-    # tPrint(0, f"Library logic file: {logicFiles}, kernels: {kernels}")
 
     asmDir = Path(os.path.join(Path(outputPath).parent, "build_tmp", Path(outputPath).stem.upper(), "assembly"))
     asmDir.mkdir(parents=True, exist_ok=True)
+
     kernelWriterSource, kernelWriterAssembly = getKernelWriters(
-        kernels, removeTemporaries, rocmPaths, capabilities, archInfo, str(asmDir), kernelMinNaming
+        kernels, removeTemporaries, rocmPaths, capabilities, archInfo, hipClangVersion, str(asmDir)
     )
 
     srcKernels = [k for k in kernels if k["KernelLanguage"] == "Source"]
     if srcKernels:
         kernelFiles = writeSourceKernels(
           outputPath,
-          args,
           srcKernels,
           kernelWriterSource,
           cxxCompiler,
@@ -1071,6 +1047,7 @@ def run(
           rocmPaths,
           archInfo,
           kernelMinNaming,
+          hipClangVersion
         )
 
     asmKernels = [k for k in kernels if k["KernelLanguage"] == "Assembly"]
@@ -1083,7 +1060,7 @@ def run(
 
         coFileMap = gatherCOFilesForLinking(asmKernels, kernelMinNaming)
         
-        getAssemblyCodeObjectFiles(coFileMap, outputPath)
+        getAssemblyCodeObjectFiles(coFileMap, outputPath, hipClangVersion)
 
     _masterLib = None
     _nextSolutionIdx = 0
@@ -1126,7 +1103,7 @@ def TensileCreateLibrary():
     capabilitiesCache = LibraryIO.initAsmCapsCache(cacheFile)
 
     # Below code can be removed after deepcopy removal is complete
-    archInfo, capabilities, rocmPaths = assignGlobalParameters(args, capabilitiesCache)
+    archInfo, capabilities, rocmPaths, hipClangVersion = assignGlobalParameters(args, capabilitiesCache)
 
     if capabilities.AsmIsCached:
         LibraryIO.writeAsmCapsCache(cacheFile, capabilities.Asm)
@@ -1139,7 +1116,7 @@ def TensileCreateLibrary():
 
     kernelMinNaming = getRequiredParametersMin()
 
-    parallelFunc = functools.partial(run, removeTemporaries, outputPath, args, cxxCompiler, capabilities, rocmPaths, archInfo, kernelMinNaming)
+    parallelFunc = functools.partial(run, removeTemporaries, outputPath, args, cxxCompiler, capabilities, rocmPaths, archInfo, kernelMinNaming, hipClangVersion)
 
     logicFiles = list(findLogicFiles(Path(logicPath), logicArchs))
     tPrint(0, f"Logic files: {logicFiles}")
@@ -1170,9 +1147,9 @@ def TensileCreateLibrary():
     with open(kernelsCpp, "w") as srcFile,  open(kernelsH, "w") as hdrFile:
         for ko in kho:
             writeKernelHelpers(ko, srcFile, hdrFile, outputPath)
-    basenames = buildSourceKernelObjectFile(cxxCompiler, outputPath, capabilities, rocmPaths, archInfo, str(kernelsCpp))
+    basenames = buildSourceKernelObjectFile(cxxCompiler, outputPath, capabilities, rocmPaths, archInfo, hipClangVersion, str(kernelsCpp))
     tPrint(0, f"BASENAMES: {basenames}")
-    coFilenames = buildSourceKernelCodeObjectFile(cxxCompiler, outputPath, capabilities, rocmPaths, archInfo, removeTemporaries, basenames)
+    coFilenames = buildSourceKernelCodeObjectFile(cxxCompiler, outputPath, capabilities, rocmPaths, archInfo, removeTemporaries, hipClangVersion, basenames)
     tPrint(0, f"CO FILENAMES: {coFilenames}")
     relocateSourceKernelCodeObjectFiles(coFilenames, outputPath, removeTemporaries)
     # make into a function?

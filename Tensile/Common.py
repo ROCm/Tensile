@@ -2054,7 +2054,7 @@ def locateExe( defaultPath: str, exeName: str ): # /opt/rocm/bin, hip-clang
       return exePath
   raise ValueError("Cannot locate executable %s" % exeName)
 
-def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion, assemblerPath: Optional[str]) -> dict:
+def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion, assemblerPath: Optional[str], hipClangVersion: str) -> dict:
   """Determine assembler capabilities by testing short instructions sequences """
   if assemblerPath is not None:
 
@@ -2159,7 +2159,7 @@ def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion, assembl
                          (compilerVersion.major == 5 and compilerVersion.minor <= 2) 
 
     if not derivedAsmCaps["SupportedISA"] and CACHED_ASM_CAPS[isaVersion]["SupportedISA"]:
-      printWarning("Architecture {} not supported by ROCm {}".format(isaVersion, globalParameters['HipClangVersion']), DeveloperWarning)
+      printWarning("Architecture {} not supported by ROCm {}".format(isaVersion, hipClangVersion), DeveloperWarning)
       ignoreCacheCheck = True
 
     # check if derived caps matches asm cap cache
@@ -2353,7 +2353,7 @@ def which(p, rocmBinPath: str):
 
 
 def populateCapabilities(
-    capabilities: Capabilities, rocmPaths: RocmPaths, archInfo: ArchInfo, cachedAsmCaps: Dict[IsaVersion, dict]
+    capabilities: Capabilities, rocmPaths: RocmPaths, archInfo: ArchInfo, hipClangVersion: str, cachedAsmCaps: Dict[IsaVersion, dict]
 ):
     """Populates the assembler and archiecture capabilities based on the compiler and ISA.
 
@@ -2372,7 +2372,7 @@ def populateCapabilities(
         This function modifies `globalParameters` and `cachedAsmCaps` in place.
     """
     compilerVer = CompilerVersion(
-        *[int(c) for c in globalParameters["HipClangVersion"].split(".")[:2]]
+        *[int(c) for c in hipClangVersion.split(".")[:2]]
     )
     supportedISA = archInfo.SupportedIsas
     to_remove = []
@@ -2388,7 +2388,7 @@ def populateCapabilities(
             continue
 
         if emptyCache or not capabilities.AsmIsCached:
-            capabilities.Asm[v] = GetAsmCaps(v, compilerVer, rocmPaths.Assembler)
+            capabilities.Asm[v] = GetAsmCaps(v, compilerVer, rocmPaths.Assembler, hipClangVersion)
 
         capabilities.Arch[v] = GetArchCaps(v)
 
@@ -2425,6 +2425,32 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
         tPrint(3, " %24s: %8s (overridden)" % (key, configValue))
     else:
       tPrint(3, " %24s: %8s (unspecified)" % (key, defaultValue))
+
+  # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
+  # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
+  # '0.0.0' will persist
+
+  # Due to platform.linux_distribution() being deprecated, just try to run dpkg regardless.
+  # The alternative would be to install the `distro` package.
+  # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
+  
+  # The following try except block computes the hipcc version
+  hipClangVersion = "0.0.0"
+  try:
+    if os.name == "nt":
+      compileArgs = ['perl'] + [which('hipcc')] + ['--version']
+      output = subprocess.run(compileArgs, check=True, stdout=subprocess.PIPE).stdout.decode()
+    else:
+      compiler = "hipcc"
+      output = subprocess.run([compiler, "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
+
+    line = output.split('\n')[0]
+    if 'HIP version' in line:
+      hipClangVersion = line.split()[2]
+      tPrint(1, f"# Found HIP version {hipClangVersion}")
+
+  except (subprocess.CalledProcessError, OSError) as e:
+      printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))
 
   if "KeepBuildTmp" in config:
     globalParameters["KeepBuildTmp"] = config["KeepBuildTmp"] 
@@ -2509,34 +2535,9 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   separatedArchs = splitDelimitedString(config["Architecture"], {";", "_"})
   for a in separatedArchs:
     if gfxArch(a) not in supportedIsas:
-      printWarning("Architecture %s is not supported by ROCm %s" % (a, globalParameters['HipClangVersion']))
+      printWarning("Architecture %s is not supported by ROCm %s" % (a, hipClangVersion))
 
   archInfo = ArchInfo(separatedArchs, currentIsa, supportedIsas)
-
-  # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
-  # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
-  # '0.0.0' will persist
-
-  # Due to platform.linux_distribution() being deprecated, just try to run dpkg regardless.
-  # The alternative would be to install the `distro` package.
-  # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
-  
-  # The following try except block computes the hipcc version
-  try:
-    if os.name == "nt":
-      compileArgs = ['perl'] + [which('hipcc')] + ['--version']
-      output = subprocess.run(compileArgs, check=True, stdout=subprocess.PIPE).stdout.decode()
-    else:
-      compiler = "hipcc"
-      output = subprocess.run([compiler, "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
-
-    for line in output.split('\n'):
-      if 'HIP version' in line:
-        globalParameters['HipClangVersion'] = line.split()[2]
-        tPrint(1, "# Found hipcc version " + globalParameters['HipClangVersion'])
-
-  except (subprocess.CalledProcessError, OSError) as e:
-      printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))
 
   # Assembler/architecture capability detection
   if "IgnoreAsmCapCache" in config:
@@ -2546,8 +2547,7 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   asmCaps = capabilitiesCache if asmIsCached else {}
   archCaps = {}
   capabilities = Capabilities(asmCaps, archCaps, asmIsCached)
-
-  populateCapabilities(capabilities, rocmPaths, archInfo, CACHED_ASM_CAPS)
+  populateCapabilities(capabilities, rocmPaths, archInfo, hipClangVersion, CACHED_ASM_CAPS)
 
   if globalParameters["PrintLevel"] >= 2:
     printCapTable(capabilities)
@@ -2557,7 +2557,7 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
     printWarning("ASM Caps differ from cache. New caps:")
     print("####################")
     print("CACHED_ASM_CAPS = \\\n")
-    pprint.pprint(globalParameters["AsmCaps"])
+    pprint.pprint(capabilities.Asm)
     print("####################")
 
   supportedIsas = list([i for i in supportedIsas if capabilities.Asm[i]["SupportedISA"]])
@@ -2589,11 +2589,12 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   # del globalParameters["SupportedISA"]
   del globalParameters["CurrentISA"]
   del globalParameters["IndexChars"]
+  del globalParameters["HipClangVersion"]
   # del globalParameters["AsmCaps"]
   # del globalParameters["ArchCaps"]
   # del globalParameters["ClangOffloadBundlerPath"]
 
-  return archInfo, capabilities, rocmPaths
+  return archInfo, capabilities, rocmPaths, hipClangVersion
 
 def setupRestoreClocks():
   import atexit

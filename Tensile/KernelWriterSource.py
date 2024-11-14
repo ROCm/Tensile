@@ -36,9 +36,9 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Make OpenCL Kernel String
   ##############################################################################
-  def __init__( self, kernelMinNaming, kernelSerialNaming, capabilities, archInfo, rocmPaths, removeTemporaries=True ):
+  def __init__( self, kernelMinNaming, kernelSerialNaming, capabilities, archInfo, rocmPaths, hipClangVersion, removeTemporaries=True ):
     super(KernelWriterSource, self).__init__( \
-        kernelMinNaming, kernelSerialNaming, capabilities, archInfo, removeTemporaries)
+        kernelMinNaming, kernelSerialNaming, capabilities, archInfo, hipClangVersion, removeTemporaries)
     self.language = globalParameters["RuntimeLanguage"]
     self.rocmPaths = rocmPaths
 
