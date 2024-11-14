@@ -155,13 +155,13 @@ def linkCodeObjectFiles(coFileMap, destDir, asmDir):
                 file.flush()
             args = getLinkCodeObjectArgs("amdclang++", ["@clangArgs.txt"], coFile)
         else:
-            args = getLinkCodeObjectArgs("amdclang++", objectFiles, os.path.join(destDir, coFile))
+            args = getLinkCodeObjectArgs("amdclang++", [os.path.join(asmDir, o) for o in objectFiles], os.path.join(destDir, coFile))
 
         tPrint(2, "Linking objects into co files: " + " ".join(args))
 
         try:
             # change to use check_output to force windows cmd block util command finish            
-            out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)
+            out = subprocess.check_output(args, stderr=subprocess.STDOUT)
             tPrint(3, out)
         except subprocess.CalledProcessError as err:
             print("Failed to link in linkCodeObjectFiles:")
@@ -175,7 +175,7 @@ def linkCodeObjectFiles(coFileMap, destDir, asmDir):
 
 
 def getAssemblyCodeObjectFiles(coFileMap, outputPath):
-    asmDir = Path("build_tmp") / Path(outputPath).stem.upper() / "assembly"
+    asmDir = Path(outputPath).parent / "build_tmp" / Path(outputPath).stem.upper() / "assembly"
     asmDir.mkdir(parents=True, exist_ok=True)
 
     destDir = Path(outputPath) / "library"
@@ -214,7 +214,7 @@ def splitArchs(caps: Capabilities, archInfo: ArchInfo):
 def buildSourceKernelObjectFile(
     CxxCompiler, outputPath, caps: Capabilities, rocmPaths: RocmPaths, archInfo: ArchInfo, kernelFile
 ):
-    buildPath = Path("build_tmp") / Path(outputPath).stem.upper() / "code_object_tmp"
+    buildPath = Path(outputPath).parent / "build_tmp" / Path(outputPath).stem.upper() / "code_object_tmp"
     buildPath.mkdir(parents=True, exist_ok=True)
 
     (_, filename) = os.path.split(kernelFile)
@@ -874,7 +874,6 @@ def updateMasterLibrary(
     masterLibraries: Dict[str, MasterSolutionLibrary], 
     nextIdx: Dict[str, int], 
 ) -> None:
-        tPrint(0, f"gfxNames in MSL: {masterLibraries.keys()}")
         if gfxName in masterLibraries:
             nextIdx[gfxName] = masterLibraries[gfxName].merge(masterLib, nextIdx[gfxName])
         else:
@@ -898,7 +897,6 @@ def updateMasterLibrary2(
             prevMasterLib.remapSolutionIndicesStartingFrom(nextIndex)
             # nextIdx[gfxName] = archIndex
         
-        tPrint(0, f"gfxNames in MSL: {prevMasterLib}")
         return prevMasterLib, nextIdx
 
 def addFallbacksToMasterLibraries(masterLibraries: Dict[str, MasterSolutionLibrary], caps, archInfo) -> None:
@@ -1075,7 +1073,6 @@ def run(
           kernelMinNaming,
         )
 
-
     asmKernels = [k for k in kernels if k["KernelLanguage"] == "Assembly"]
     if asmKernels:
         asmKernels = writeAssemblyKernels(
@@ -1085,14 +1082,13 @@ def run(
         )
 
         coFileMap = gatherCOFilesForLinking(asmKernels, kernelMinNaming)
+        
         getAssemblyCodeObjectFiles(coFileMap, outputPath)
 
     _masterLib = None
     _nextSolutionIdx = 0
     for _, gfxName, _, _, _, lib in libraryLogics:
         _masterLib, _nextSolutionIdx = updateMasterLibrary2(gfxName, lib, _masterLib, _nextSolutionIdx)
-
-    tPrint(0, f"masterLibraries: {_masterLib}")
 
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)
@@ -1115,6 +1111,10 @@ def TensileCreateLibrary():
     removeTemporaries = not args["KeepBuildTmp"]
     numPasses = args["NumPasses"]
     cpuThreads = args["CpuThreads"]
+
+    if args["VerifyManifest"]:
+        tPrint(0, f"Verify manifest functionality has been removed. No op.")
+        exit(0)
 
     globalParameters["PrintLevel"] = args["PrintLevel"]
 
@@ -1142,6 +1142,7 @@ def TensileCreateLibrary():
     parallelFunc = functools.partial(run, removeTemporaries, outputPath, args, cxxCompiler, capabilities, rocmPaths, archInfo, kernelMinNaming)
 
     logicFiles = list(findLogicFiles(Path(logicPath), logicArchs))
+    tPrint(0, f"Logic files: {logicFiles}")
 
     total = len(logicFiles)
     chunk_size = int(total / numPasses)
@@ -1170,7 +1171,9 @@ def TensileCreateLibrary():
         for ko in kho:
             writeKernelHelpers(ko, srcFile, hdrFile, outputPath)
     basenames = buildSourceKernelObjectFile(cxxCompiler, outputPath, capabilities, rocmPaths, archInfo, str(kernelsCpp))
+    tPrint(0, f"BASENAMES: {basenames}")
     coFilenames = buildSourceKernelCodeObjectFile(cxxCompiler, outputPath, capabilities, rocmPaths, archInfo, removeTemporaries, basenames)
+    tPrint(0, f"CO FILENAMES: {coFilenames}")
     relocateSourceKernelCodeObjectFiles(coFilenames, outputPath, removeTemporaries)
     # make into a function?
 
