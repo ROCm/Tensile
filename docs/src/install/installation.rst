@@ -8,12 +8,10 @@
 Tensile installation
 ********************************************************************
 
-You can obtain Tensile as part of ROCm installation or choose to install Tensile from source. This document discusses both the methods to obtain Tensile.
-
 Install ROCm
 ============
 
-Install ROCm for your platform. For installation instructions, refer to `Linux <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/tutorial/quick-start.html>`_ or Windows `Windows <https://rocm.docs.amd.com/projects/install-on-windows/en/latest/index.html>`_ installation guide.
+To begin, install ROCm for your platform. For installation instructions, refer to the `Linux <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/tutorial/quick-start.html>`_ or `Windows <https://rocm.docs.amd.com/projects/install-on-windows/en/latest/index.html>`_ installation guide.
 
 .. tip::
 
@@ -23,10 +21,9 @@ Install ROCm for your platform. For installation instructions, refer to `Linux <
 Install OS dependencies
 =========================
 
-Here are the steps to install dependencies for Ubuntu distributions. For other distributions, use the appropriate package manager.
 
 .. note::
-   These steps might require elevated privileges.
+   The steps below are for Ubuntu. For other distributions, use the appropriate package manager.
 
 1. Install dependencies:
 

@@ -9,7 +9,12 @@ subtrees:
 
 - caption: Concepts
   entries:
+<<<<<<< HEAD
   - file: src/conceptual/supported-problems
+=======
+  - file: src/concepts/supported-problems
+  - file: src/concepts/solution-libraries
+>>>>>>> 6c94017f (docs: add content on master solution library)
 
 - caption: Reference
   entries:
