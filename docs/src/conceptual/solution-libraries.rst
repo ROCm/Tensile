@@ -11,11 +11,10 @@ Solution selection catalogs
 After kernels are compiled and linked into code objects libraries (.co files), we still have the problem of how these kernels are executed at runtime. The naive approach
 would be to search through all of the code object libraries until an appropriate kernel is found. A more sophisticated approach is to use a heirarchical structure
 that allows client code to search for kernels using predicates such as hardware, problem size, and transpose, among others. 
-This is the role of a **solution selection catalog** [1]_.
-It is a serialized file that uses a heirarchical schema to organize kernel metadata for efficient lookup at runtime.
+This is the role of the **solution selection catalog** [1]_---a serialized file that uses a heirarchical schema to organize kernel metadata for efficient lookup at runtime.
 
 .. note::
-    Throughout this document we will refer to catalog files as using the .yaml extension. In practice
+    Throughout this document we will refer to catalog files with the .yaml extension. In practice
     solution selection catalogs are usually serialized with `MessagePack <https://msgpack.org/>`_, which uses the .dat extension.
 
 Catalog hierarchy
@@ -29,12 +28,12 @@ Catalog hierarchy
 
 **Level 1: Hardware**
 
-At runtime, only kernels compatible with the host machine's installed hardware can run. As such, the top level of the hierarchy involves hardware comparisions using GFX architecture.
+At runtime, only kernels compatible with the host machine's installed hardware can execute. As such, the top level of the hierarchy involves hardware comparisions using GFX architecture.
 
 **Level 2: Operation**
 
-This layer is a map of problem operations, where the key to the map defines the GEMM transpose setting using 
-Einstein tensor notation, e.g., *Contraction_l_Alik_Bjlk_Cijk_Dijk*.
+This layer is a mapping from a GEMM transpose setting, defined using 
+Einstein tensor notation (e.g. *Contraction_l_Alik_Bjlk_Cijk_Dijk*), to a list of problem properties (Level 3).
 
 **Level 3: Problem**
 
