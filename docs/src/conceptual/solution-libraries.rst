@@ -4,29 +4,177 @@
 
 .. _solution-catalogs:
 
-********************************************************************
-Solution catalogs
-********************************************************************
+***************************
+Solution selection catalogs
+***************************
 
-After kernels are compiled and linked into code objects (.co files), we still have the problem of how these kernels are executed at runtime. The naive approach
+After kernels are compiled and linked into code objects libraries (.co files), we still have the problem of how these kernels are executed at runtime. The naive approach
 would be to search through all of the code object libraries until an appropriate kernel is found. A more sophisticated approach is to use a heirarchical structure
-that allows calling code to search by hardware, problem size, transpose, and other predicates. This is the role of a **solution catalog** (previously called 
-master solution library); it is a YAML file that uses a heirarchical schema to organize kernel metadata for quick lookup at runtime.
+that allows client code to search for kernels using predicates such as hardware, problem size, and transpose, among others. 
+This is the role of a **solution selection catalog** [1]_.
+It is a serialized file that uses a heirarchical schema to organize kernel metadata for efficient lookup at runtime.
 
-At a minimum, during build, one solution catalog is generated for each device architecture provided, named *TensileLibrary_<gfx>.yaml*. 
-In this case, the generated solution catalog *TensileLibrary_<gfx>.yaml* contains all information about the supported libraries, as well as references to the
-list of solutions and the solution metadata, which is used to locate the optimal kernel for the requested GEMM. This pattern is the original implementation,
-and while it is still occasionally used, has the drawback that all libraries need to be loaded eagerly into memory.
+.. note::
+    Throughout this document we will refer to catalog files as using the .yaml extension. In practice
+    solution selection catalogs are usually serialized with `MessagePack <https://msgpack.org/>`_, which uses the .dat extension.
 
-If lazy library loading is enabled, then the file is instead called *TensileLibrary_lazy_<gfx>.yaml* and serves as a "parent" catalog, containing a
-reference to each of it's "child" catalogs, which use the naming convention *TensileLibrary_Type_<precision>_<problem type>_<gfx>.yaml* (note that there
-will also be a code object file generated alongside it with the same name.) 
+Catalog hierarchy
+=================
+
+.. figure:: ../../assets/msl.svg
+    :alt: Master Solution Library hierarchy
+    :align: center
+
+    Solution selection catalog heirarchy for gfx900 and gfx90a
+
+**Level 1: Hardware**
+
+At runtime, only kernels compatible with the host machine's installed hardware can run. As such, the top level of the hierarchy involves hardware comparisions using GFX architecture.
+
+**Level 2: Operation**
+
+This layer is a map of problem operations, where the key to the map defines the GEMM transpose setting using 
+Einstein tensor notation, e.g., *Contraction_l_Alik_Bjlk_Cijk_Dijk*.
+
+**Level 3: Problem**
+
+This layer matches against specific problem properties such as input and output types, and features like high precision accumulation and stochastic rounding.
+
+**Level 4: Exact solution**
+
+Finally, exact solutions contain fine-grained details about each solution that can be used during solution selection to locate the best kernel and to assert that the requested problem predicates are satisfied. At this level, there will typically exist a small pool of acceptable kernels for any requested GEMM. Each kernel will have an index and a performance ranking. During solution selection, this highest ranked kernel from this pool will be selected.
+
+
+Build modes
+===========
+
+Tensile comes equipped with multiple build modes, which affect the way solution selection catalogs are generated.
+
+Mode 1: Merge files
+-------------------
+
+When ``--merge-files`` is enabled, one solution catalog is generated for each architecture, named
+
+.. centered:: TensileLibrary_<gfx>.yaml
+
+The generated catalog contains all information about supported GEMM types, as well as references to 
+solution metadata, which is used to locate the optimal kernel for a requested GEMM. This pattern
+is still occasionally used, but has the drawback that all code object libraries need to be loaded eagerly,
+thereby increasing the memory footprint of the calling application.
+
+**Example**
+
+Say you're building libraries for gfx908 and gfx90a with ``--merge-files``. The build output directory would look like this
+
+.. code-block:: bash
+
+    build/
+    └── library
+        ├── Kernels.so-000-gfx1030.hsaco
+        ├── Kernels.so-000-gfx1030.hsaco
+        ├── Kernels.so-000-gfx1030.hsaco
+        ├── Kernels.so-000-gfx900.hsaco
+        ├── Kernels.so-000-gfx906.hsaco
+        ├── TensileLibrary_gfx1030.co
+        ├── TensileLibrary_gfx1030.yaml
+        ├── TensileLibrary_gfx900.co
+        ├── TensileLibrary_gfx900.yaml
+        ├── TensileLibrary_gfx906.co
+        └── TensileLibrary_gfx906.yaml
+
+
+Mode 2: Lazy library loading
+----------------------------
+
+If ``--lazy-library-loading`` is enabled, then a "parent" catalog is generated for each architecture, named
+
+.. centered:: TensileLibrary_lazy_<gfx>.yaml
+
+This file , contains a
+reference to each of it's "child" catalogs, but doesn't have much details about the exact solutions. These settings are instead 
+held in the "child" catalogs, whic use the naming convention 
+
+.. centered:: TensileLibrary_Type_<precision>_<problem type>_<gfx>.yaml
+
+Here, *precision* is the data type, *problem type* is the GEMM type, including transpose and accumulate settings, and *gfx* is the hardware GFX archiecture.
+
 For example, *TensileLibrary_Type_HH_Contraction_l_Alik_Bjlk_Cijk_Dijk_<gfx>.yaml* identifies a code object library for half precision
 contractions on two transpose matrices, otherwise known as HGEMM TT.
 In this way, the child catalogs are responsible for holding the actual solution metadata, while the parent catalog is responsible for organizing the child catalogs
 by hardware, problem type, transpose, precision, and other predicates.
 This has the benefit of reducing the memory footprint of the calling application, as code object libraries are compiled separately and loaded only when required.
 
-.. image:: ../../assets/msl.svg
-    :alt: Master Solution Library hierarchy
-    :align: center
+**Example: Build outputs**
+
+.. code-block:: bash
+
+  build/
+  └── library
+      ├── Kernels.so-000-gfx1030.hsaco
+      ├── Kernels.so-000-gfx900.hsaco
+      ├── Kernels.so-000-gfx906.hsaco
+      ├── TensileLibrary_lazy_gfx1030.yaml                   # [A]
+      ├── TensileLibrary_lazy_gfx900.yaml                                    
+      ├── TensileLibrary_lazy_gfx906.yaml                                    
+      ├...
+      ├── TensileLibrary_Type_..._gfx1030.hsaco
+      ├── TensileLibrary_Type_..._fallback_gfx900.hsaco
+      ├── TensileLibrary_Type_..._fallback_gfx906.hsaco
+      ├── TensileLibrary_Type_..._fallback.yaml              # [B]
+      ├── TensileLibrary_Type_..._gfx900.co
+      ├── TensileLibrary_Type_..._gfx900.hsaco
+      ├── TensileLibrary_Type_..._gfx900.yaml                # [C]
+      ├── TensileLibrary_Type_..._gfx906.co
+      ├── TensileLibrary_Type_..._gfx906.yaml                # [D]
+
+Line **[A]** shows the parent catalog for gfx1030, the first of the three parent catalogs generated.
+Line **[B]** shows a fallback child catalog kernels of problem type *DD_Contraction_l_Alik_Bjlk_Cijk_Dijk*.
+This means that at least 
+some of the precision/problem type combinations haven't been explicitly tuned for these architectures.
+Note that the matching .hsaco files (above **[B]**) are code object libraries for HIP source kernels.
+These files are referenced by the fallback catalog.
+Line **[C]** shows a child catalog for gfx900 that references both HIP source and assembly source kernels, found in the associated .hsaco and .co files, respectively.
+Line **[D]** shows a child catalog for gfx906, similar to the gfx900 catalog. However, notice that there is only one associated
+.co file. This means that there are only assembly source kernels in this catalog.
+
+**Example: Parent solution selection catalog**
+
+.. code-block:: yaml
+  :caption: build/library/TensileLibrary_lazy_gfx900.yaml
+
+  library:
+    rows:                                                    # [A_]
+    - library:
+        map:
+          Contraction_l_Alik_Bjlk_Cijk_Dijk:                 # [B_]
+            ...
+            rows:                                            # [C_]
+            - library: {type: Placeholder, value: TensileLibrary_Type_SS_..._fallback}
+              predicate:
+                type: And
+                value:
+                - type: TypesEqual
+                  value: [Float, Float, Float, Float]
+                - {type: HighPrecisionAccumulate, value: false}
+                - {type: F32XdlMathOp, value: Float}
+                - {type: StochasticRounding, value: false}
+            - ...
+            type: Problem
+            ...
+          Contraction_l_Alik_Bljk_Cijk_Dijk:
+            rows:
+              - ...
+            type: Problem                                    # [_C]
+        property: {type: OperationIdentifier}
+        type: ProblemMap                                     # [_B]
+      predicate: {type: TruePred}
+    type: Hardware                                           # [_A]
+  solutions: []
+
+Line **[A]** shows the top level of the parent catalog, which contains a single row for each hardware architecture.
+Line **[B]** shows the problem map for the operation *Contraction_l_Alik_Bjlk_Cijk_Dijk*.
+Line **[C]** shows the problem type and predicates used to match against exact solutions contained in the child catalogs.
+
+--------------------
+
+.. [1] Previously these files were called *master solution libraries* because they contain two top level keys, "solutions" and "library". The term *solution selection catalog* was later adopted to clarify the purpose of this file within the larger context of the Tensile C++ API.
