@@ -101,7 +101,7 @@ Here, *precision* is the data type, *problem type* is the GEMM type, including t
 
 For example, *TensileLibrary_Type_HH_Contraction_l_Alik_Bjlk_Cijk_Dijk_<gfx>.yaml* identifies a code object library for half precision
 contractions on two transpose matrices, otherwise known as HGEMM TT.
-In this way, the child catalogs are responsible for holding the actual solution metadata, while the parent catalog is responsible for organizing the child catalogs
+In this way, the child catalogs contain the solution metadata, while the parent catalog is responsible for organizing the child catalogs
 by hardware, problem type, transpose, precision, and other predicates.
 This has the benefit of reducing the memory footprint of the calling application, as code object libraries are compiled separately and loaded only when required.
 
