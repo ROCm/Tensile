@@ -59,7 +59,7 @@ When ``--merge-files`` is enabled, one solution catalog is generated for each ar
 The generated catalog contains all information about supported GEMM types, as well as references to 
 solution metadata, which is used to locate the optimal kernel for a requested GEMM. This pattern
 is still occasionally used, but has the drawback that all code object libraries need to be loaded eagerly,
-thereby increasing the memory footprint of the calling application.
+thereby increasing both the initialization time and memory footprint of the calling application.
 
 **Example**
 
@@ -68,7 +68,7 @@ Say you're building libraries for gfx908 and gfx90a with ``--merge-files``. The 
 .. code-block:: bash
 
     build/
-    └── library
+    └── library/
         ├── Kernels.so-000-gfx1030.hsaco
         ├── Kernels.so-000-gfx1030.hsaco
         ├── Kernels.so-000-gfx1030.hsaco
@@ -89,7 +89,7 @@ If ``--lazy-library-loading`` is enabled, then a "parent" catalog is generated f
 
 .. centered:: TensileLibrary_lazy_<gfx>.yaml
 
-This file , contains a
+This file, contains a
 reference to each of it's "child" catalogs, but doesn't have much details about the exact solutions. These settings are instead 
 held in the "child" catalogs, whic use the naming convention 
 
@@ -106,9 +106,10 @@ This has the benefit of reducing the memory footprint of the calling application
 **Example: Build outputs**
 
 .. code-block:: bash
+  :caption: Lazy library loading build outputs for *DD_Contraction_l_Alik_Bjlk_Cijk_Dijk*
 
   build/
-  └── library
+  └── library/
       ├── Kernels.so-000-gfx1030.hsaco
       ├── Kernels.so-000-gfx900.hsaco
       ├── Kernels.so-000-gfx906.hsaco
@@ -116,7 +117,7 @@ This has the benefit of reducing the memory footprint of the calling application
       ├── TensileLibrary_lazy_gfx900.yaml                                    
       ├── TensileLibrary_lazy_gfx906.yaml                                    
       ├...
-      ├── TensileLibrary_Type_..._gfx1030.hsaco
+      ├── TensileLibrary_Type_..._fallback_gfx1030.hsaco
       ├── TensileLibrary_Type_..._fallback_gfx900.hsaco
       ├── TensileLibrary_Type_..._fallback_gfx906.hsaco
       ├── TensileLibrary_Type_..._fallback.yaml              # [B]
@@ -127,9 +128,10 @@ This has the benefit of reducing the memory footprint of the calling application
       ├── TensileLibrary_Type_..._gfx906.yaml                # [D]
 
 Line **[A]** shows the parent catalog for gfx1030, the first of the three parent catalogs generated.
-Line **[B]** shows a fallback child catalog kernels of problem type *DD_Contraction_l_Alik_Bjlk_Cijk_Dijk*.
-This means that at least 
-some of the precision/problem type combinations haven't been explicitly tuned for these architectures.
+Line **[B]** shows a fallback child catalog, which reference each of the archiecture specific fallback kernels
+in the associate .hsaco files.
+This means that at least some of the parameter/problem type combinations for *DD_Contraction_l_Alik_Bjlk_Cijk_Dijk*
+haven't been explicitly tuned for these architectures.
 Note that the matching .hsaco files (above **[B]**) are code object libraries for HIP source kernels.
 These files are referenced by the fallback catalog.
 Line **[C]** shows a child catalog for gfx900 that references both HIP source and assembly source kernels, found in the associated .hsaco and .co files, respectively.
