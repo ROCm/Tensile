@@ -9,8 +9,8 @@ subtrees:
 
 - caption: Concepts
   entries:
-  - file: src/concepts/supported-problems
-  - file: src/concepts/solution-selection-catalogs
+  - file: src/conceptual/supported-problems
+  - file: src/conceptual/solution-libraries
 
 - caption: Reference
   entries:
@@ -25,7 +25,7 @@ subtrees:
     - file: src/api-reference/embedded-data
     - file: src/api-reference/tensile-create-library-api
     - file: src/api-reference/utilities
-  - file: src/reference/environment-variables
+  - file: src/reference/environment-variables 
   - file: src/reference/nomenclature
 
 - caption: Contribution
