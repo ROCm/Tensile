@@ -2,21 +2,23 @@
   :description: Tensile is a tool for creating a benchmark-driven backend library for GEMM
   :keywords: Tensile, GEMM, Tensor, Tensile API documentation, Tensile library creation
 
-.. _solution-catalogs:
+.. _solution-selection-catalogs:
 
 ***************************
 Solution selection catalogs
 ***************************
 
- Tensile provides a mechanism by which only a subset of the code object files produced during a build are loaded at runtime. This is necessary to avoid the overhead associated with loading code object files including initialization time and the memory footprint of the loaded code object files. However, this introduces the problem of knowing which code object file to load. Solution selection is the process 
-by which the **TensileHost** library determines what kernel is preferred and, in turn, 
-what code object file contains the selected kernel. This process uses
-a hierarchical structure
+Tensile provides a mechanism by which only a subset of the code object files produced during a build are loaded at runtime. 
+This is necessary to avoid the overhead associated with loading code object files including initialization time and the 
+memory footprint of the loaded code object files. However, this introduces the problem of knowing which code object file to load. 
+Solution selection is the process by which the **TensileHost** library determines what kernel is preferred and, in turn, 
+what code object file contains the selected kernel. This process uses a hierarchical structure
 to efficiently search for kernels based on hardware, problem size, and transpose, among others. 
-This is the role of the **solution selection catalog** [1]_---a serialized file that uses a hierarchical schema to organize kernel metadata for efficient lookup at runtime.
+This is the role of the **solution selection catalog** [1]_---a serialized file that uses a hierarchical
+schema to organize kernel metadata for efficient lookup at runtime.
 
 .. note::
-    Throughout this document we will refer to catalog files with the .yaml extension. In practice
+    Throughout this document we will refer to catalog files with the .yaml extension. In practice,
     solution selection catalogs are usually serialized with `MessagePack <https://msgpack.org/>`_, which uses the .dat extension.
 
 Catalog hierarchy
@@ -43,7 +45,9 @@ This layer matches against specific problem properties such as input and output 
 
 **Level 4: Exact solution**
 
-Finally, exact solutions contain fine-grained details about each solution that can be used during solution selection to locate the best kernel and to assert that the requested problem predicates are satisfied. Each kernel will have an index and a performance ranking. During solution selection, the highest ranked kernel from this pool will be selected.
+Finally, exact solutions contain fine-grained details about each solution that can be used during solution selection to locate the best kernel and to assert 
+that the requested problem predicates are satisfied. Each kernel will have an index and a performance ranking. During solution selection, the highest ranked 
+kernel from this pool will be selected.
 
 
 Build modes
@@ -51,47 +55,14 @@ Build modes
 
 Tensile comes equipped with multiple build modes, which affect the way solution selection catalogs are generated.
 
-Mode 1: Merge files
--------------------
-
-When ``--merge-files`` is enabled, one solution catalog is generated for each architecture, named
-
-.. centered:: TensileLibrary_<gfx>.yaml
-
-The catalog contains information about supported GEMM types and 
-solution metadata that is used to locate the optimal kernel for a requested GEMM. This pattern
-has the drawback that all code object libraries are loaded eagerly,
-thereby increasing both the initialization time and memory footprint of the calling application.
-
-**Example**
-
-Say you're building libraries for gfx908 and gfx90a with ``--merge-files``. The build output directory would look like this
-
-.. code-block:: bash
-
-    build/
-    └── library/
-        ├── Kernels.so-000-gfx1030.hsaco
-        ├── Kernels.so-000-gfx1030.hsaco
-        ├── Kernels.so-000-gfx1030.hsaco
-        ├── Kernels.so-000-gfx900.hsaco
-        ├── Kernels.so-000-gfx906.hsaco
-        ├── TensileLibrary_gfx1030.co
-        ├── TensileLibrary_gfx1030.yaml
-        ├── TensileLibrary_gfx900.co
-        ├── TensileLibrary_gfx900.yaml
-        ├── TensileLibrary_gfx906.co
-        └── TensileLibrary_gfx906.yaml
-
-
-Mode 2: Lazy library loading
+Mode 1: Lazy library loading
 ----------------------------
 
 If ``--lazy-library-loading`` is enabled, then a "parent" catalog is generated for each architecture, named
 
 .. centered:: TensileLibrary_lazy_<gfx>.yaml
 
-This file, contains a
+This file contains a
 reference to each of it's "child" catalogs, but doesn't have details about the exact solutions. These settings are instead 
 held in the "child" catalogs, which use the naming convention 
 
@@ -177,6 +148,41 @@ Line **[D]** shows a child catalog for gfx906, similar to the gfx900 catalog. Ho
 Line **[A]** shows the top level of the parent catalog, which contains a single row for each hardware architecture.
 Line **[B]** shows the problem map for the operation *Contraction_l_Alik_Bjlk_Cijk_Dijk*.
 Line **[C]** shows the problem type and predicates used to match against exact solutions contained in the child catalogs.
+
+Mode 2: Merge files
+-------------------
+
+.. warning::
+    This feature is not recommended and is in the process of being deprecated.
+
+When ``--merge-files`` is enabled, one solution catalog is generated for each architecture, named
+
+.. centered:: TensileLibrary_<gfx>.yaml
+
+The catalog contains information about supported GEMM types and 
+solution metadata that is used to locate the optimal kernel for a requested GEMM. This pattern
+has the drawback that all code object libraries are loaded eagerly,
+thereby increasing both the initialization time and memory footprint of the calling application.
+
+**Example**
+
+Say you're building libraries for gfx908 and gfx90a with ``--merge-files``. The build output directory would look like this
+
+.. code-block:: bash
+
+    build/
+    └── library/
+        ├── Kernels.so-000-gfx1030.hsaco
+        ├── Kernels.so-000-gfx1030.hsaco
+        ├── Kernels.so-000-gfx1030.hsaco
+        ├── Kernels.so-000-gfx900.hsaco
+        ├── Kernels.so-000-gfx906.hsaco
+        ├── TensileLibrary_gfx1030.co
+        ├── TensileLibrary_gfx1030.yaml
+        ├── TensileLibrary_gfx900.co
+        ├── TensileLibrary_gfx900.yaml
+        ├── TensileLibrary_gfx906.co
+        └── TensileLibrary_gfx906.yaml
 
 --------------------
 

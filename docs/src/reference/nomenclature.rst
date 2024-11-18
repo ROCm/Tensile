@@ -52,7 +52,29 @@ Nomenclature
    * - 4 Free Indices
      - C[i,j,k,l,m] = ∑[n,o] A[i,k,m,o,n] * B[j,m,l,n,o]
 
-Definitions
-===========
+Indices
+=======
 
-This is some inline $E_{i, j} = \sum_{k} A_{i, k} B_{k, j}$ math.
+The indices describe the dimensionality of the problem to be solved. A GEMM operation takes two 2-dimensional matrices as input,
+adding up to four input dimensions and contracts them along one dimension, which cancels out two dimensions, leading to a 2-dimensional result.
+When an index shows up in multiple tensors, those tensors must be the same size along with the dimension, however, they can have different strides.
+
+There are three categories of indices or dimensions used in the problems supported by Tensile: free, batch and bound.
+**Tensile only supports problems with at least one pair of free indices.**
+
+Free indices
+------------
+
+Free indices are the paired indices of tensor C with one pair in tensor A and another pair in tensor B. i,j,k, and l are the four free indices of tensor C where indices i and k are present in tensor A while indices j and l are present in tensor B.
+
+Batch indices
+-------------
+
+Batch indices are the indices of tensor C that are present in both tensor A and tensor B.
+The difference between the GEMM example and the batched-GEMM example is the additional index.
+In the batched-GEMM example, the index k is the batch index, which batches together multiple independent GEMMs.
+
+Bound indices
+-------------
+
+The bound indices are also known as summation indices. These indices are not present in tensor C but in the summation symbol (Sum[k]) and in tensors A and B. The inner products (pairwise multiply then sum) are performed along these indices.
