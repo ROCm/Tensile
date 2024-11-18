@@ -93,7 +93,7 @@ If ``--lazy-library-loading`` is enabled, then a "parent" catalog is generated f
 
 This file, contains a
 reference to each of it's "child" catalogs, but doesn't have much details about the exact solutions. These settings are instead 
-held in the "child" catalogs, whic use the naming convention 
+held in the "child" catalogs, which use the naming convention 
 
 .. centered:: TensileLibrary_Type_<precision>_<problem type>_<gfx>.yaml
 
