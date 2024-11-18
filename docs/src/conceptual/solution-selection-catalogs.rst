@@ -60,7 +60,7 @@ When ``--merge-files`` is enabled, one solution catalog is generated for each ar
 
 The generated catalog contains all information about supported GEMM types, as well as references to 
 solution metadata, which is used to locate the optimal kernel for a requested GEMM. This pattern
-is still occasionally used, but has the drawback that all code object libraries need to be loaded eagerly,
+has the drawback that all code object libraries are loaded eagerly,
 thereby increasing both the initialization time and memory footprint of the calling application.
 
 **Example**
