@@ -37,7 +37,7 @@ At runtime, only kernels compatible with the device can execute. As such, the to
 **Level 2: Operation**
 
 This layer is a mapping from a GEMM transpose setting, defined using 
-Einstein tensor notation (e.g. *Contraction_l_Alik_Bjlk_Cijk_Dijk*), to a list of problem properties (Level 3).
+Einstein tensor notation (e.g. *Contraction_l_Alik_Bjlk_Cijk_Dijk*) to a list of problem properties.
 
 **Level 3: Problem**
 

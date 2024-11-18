@@ -1,5 +1,5 @@
 ********************************************************************
-Tensile contribution guidelines
+Contribution guidelines
 ********************************************************************
 
 This document provides the guidelines for contributing to the Tensile source code.
