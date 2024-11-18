@@ -43,7 +43,7 @@ This layer matches against specific problem properties such as input and output 
 
 **Level 4: Exact solution**
 
-Finally, exact solutions contain fine-grained details about each solution that can be used during solution selection to locate the best kernel and to assert that the requested problem predicates are satisfied. At this level, there will typically exist a small pool of acceptable kernels for any requested GEMM. Each kernel will have an index and a performance ranking. During solution selection, this highest ranked kernel from this pool will be selected.
+Finally, exact solutions contain fine-grained details about each solution that can be used during solution selection to locate the best kernel and to assert that the requested problem predicates are satisfied. Each kernel will have an index and a performance ranking. During solution selection, the highest ranked kernel from this pool will be selected.
 
 
 Build modes
