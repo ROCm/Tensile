@@ -58,8 +58,8 @@ When ``--merge-files`` is enabled, one solution catalog is generated for each ar
 
 .. centered:: TensileLibrary_<gfx>.yaml
 
-The generated catalog contains all information about supported GEMM types, as well as references to 
-solution metadata, which is used to locate the optimal kernel for a requested GEMM. This pattern
+The catalog contains information about supported GEMM types and 
+solution metadata that is used to locate the optimal kernel for a requested GEMM. This pattern
 has the drawback that all code object libraries are loaded eagerly,
 thereby increasing both the initialization time and memory footprint of the calling application.
 
