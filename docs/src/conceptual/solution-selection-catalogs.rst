@@ -8,10 +8,12 @@
 Solution selection catalogs
 ***************************
 
-After kernels are compiled and linked into code objects libraries (.co files), we still have the problem of how these kernels are executed at runtime. The naive approach
-would be to search through all of the code object libraries until an appropriate kernel is found. A more sophisticated approach is to use a heirarchical structure
-that allows client code to search for kernels using predicates such as hardware, problem size, and transpose, among others. 
-This is the role of the **solution selection catalog** [1]_---a serialized file that uses a heirarchical schema to organize kernel metadata for efficient lookup at runtime.
+ Tensile provides a mechanism by which only a subset of the code object files produced during a build are loaded at runtime. This is necessary to avoid the overhead associated with loading code object files including initialization time and the memory footprint of the loaded code object files. However, this introduces the problem of knowing which code object file to load. Solution selection is the process 
+by which the **TensileHost** library determines what kernel is preferred and, in turn, 
+what code object file contains the selected kernel. This process uses
+a hierarchical structure
+to efficiently search for kernels based on hardware, problem size, and transpose, among others. 
+This is the role of the **solution selection catalog** [1]_---a serialized file that uses a hierarchical schema to organize kernel metadata for efficient lookup at runtime.
 
 .. note::
     Throughout this document we will refer to catalog files with the .yaml extension. In practice
