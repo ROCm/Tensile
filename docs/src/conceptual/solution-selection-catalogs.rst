@@ -30,7 +30,7 @@ Catalog hierarchy
 
 **Level 1: Hardware**
 
-At runtime, only kernels compatible with the host machine's installed hardware can execute. As such, the top level of the hierarchy involves hardware comparisions using GFX architecture.
+At runtime, only kernels compatible with the device can execute. As such, the top level of the hierarchy involves hardware comparisons using GFX architecture.
 
 **Level 2: Operation**
 
