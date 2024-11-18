@@ -8,12 +8,23 @@
 Nomenclature
 ************
 
-.. list-table:: GEMM data types 
+General Matrix Multiplication
+=============================
+
+General matrix multiplication (GEMM) is a level 3 BLAS operation that computes the product of two matrices, formalized by the equation,
+
+.. math::
+   C = \alpha A B + \beta C
+
+where :math:`\alpha` and :math:`\beta` are scalars and :math:`A` and :math:`B` are optionally transposed input matrices. 
+
+.. list-table:: GEMM data types. 
    :header-rows: 1
+   :widths: 30, 50, 20
 
    * - Abbreviation
      - Description
-     - Bit Size
+     - Precision
    * - HGEMM
      - Half precision general matrix multiplication
      - 16-bit
@@ -28,29 +39,31 @@ Nomenclature
      - 32-bit
    * - ZGEMM
      - Double precision complex general matrix multiplication
-     - 32-bit
+     - 64-bit
 
-.. list-table:: GEMM Operations
+.. list-table:: GEMM operations; N (non-transpose) and T (transpose) represent the transpose state of the input matrices.
    :header-rows: 1
+   :widths: 30, 70
 
    * - Operation
      - Equation
-   * - N (N: nontranspose)
-     - C i,j = ∑[l] A[i,l] * B[l,j]
-   * - NT (T: transpose)
-     - C[i,j] = ∑[l] A[i,l] * B[j,l]
+   * - NN
+     - :math:`C_{i,j} = \sum_l A_{i,l} B_{l,j}`
+   * - NT
+     - :math:`C_{i,j} = \sum_l A_{i,l} B_{j,l}`
    * - TN
-     - C[i,j] = ∑[l] A[l,i] * B[l,j]
+     - :math:`C_{i,j} = \sum_l A_{l,i} B_{l,j}`
    * - TT
-     - C[i,j] = ∑[l] A[l,i] * B[j,l]
+     - :math:`C_{i,j} = \sum_l A_{l,i} B_{j,l}`
    * - Batched-GEMM
-     - C[i,j,k] = ∑[l] A[i,l,k] * B[l,j,k]
+     - :math:`C_{i,j,k} = \sum_l A_{i,l,k} B_{l,j,k}`
    * - 2D Summation
-     - C[i,j] = ∑[k,l] A[i,k,l] * B[j,l,k]
-   * - GEMM with 3 Batched Indices
-     - C[i,j,k,l,m] = ∑[n] A[i,k,m,l,n] * B[j,k,l,n,m]
+     - :math:`C_{i,j} = \sum_{k,l} A_{i,k,l} B_{j,l,k}`
+   * - 3 Batched Indices
+     - :math:`C_{i,j,k,l,m} = \sum_n A_{i,k,m,l,n} B_{j,k,l,n,m}`
    * - 4 Free Indices
-     - C[i,j,k,l,m] = ∑[n,o] A[i,k,m,o,n] * B[j,m,l,n,o]
+     - :math:`C_{i,j,k,l,m} = \sum_{n,o} A_{i,k,m,o,n} B_{j,m,l,n,o}`
+
 
 Indices
 =======
