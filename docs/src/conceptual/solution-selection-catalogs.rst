@@ -131,7 +131,7 @@ This has the benefit of reducing the memory footprint of the calling application
 
 Line **[A]** shows the parent catalog for gfx1030, the first of the three parent catalogs generated.
 Line **[B]** shows a fallback child catalog, which reference each of the archiecture specific fallback kernels
-in the associate .hsaco files.
+in the associated .hsaco files.
 This means that at least some of the parameter/problem type combinations for *DD_Contraction_l_Alik_Bjlk_Cijk_Dijk*
 haven't been explicitly tuned for these architectures.
 Note that the matching .hsaco files (above **[B]**) are code object libraries for HIP source kernels.
