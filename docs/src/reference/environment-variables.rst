@@ -5,7 +5,7 @@
 .. _environment-variables:
 
 ********************************************************************
-Tensile environment variables
+Environment variables
 ********************************************************************
 
 This topic lists the environment variables that enable testing, debugging, and experimental features for Tensile clients and applications.
