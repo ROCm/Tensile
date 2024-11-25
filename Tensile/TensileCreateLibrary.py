@@ -34,9 +34,7 @@ import collections
 import itertools
 import os
 import re
-import shlex
 import shutil
-import subprocess
 import sys
 import time
 import warnings
@@ -45,6 +43,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 from . import ClientExecutable, Common, EmbeddedData, LibraryIO, Utils
+from .BuildCommands import AssemblyCommands, SourceCommands
 from .Common import (
     HR,
     CHeader,
@@ -56,10 +55,9 @@ from .Common import (
     globalParameters,
     printExit,
     printWarning,
+    splitArchs,
     supportedCompiler,
     tPrint,
-    which,
-    splitArchs,
 )
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterBase import KernelWriterBase
@@ -71,7 +69,6 @@ from .TensileCreateLib.ParseArguments import parseArguments
 from .Utilities.Profile import profile
 from .Utilities.String import splitDelimitedString
 from .Utilities.toFile import toFile
-from .BuildCommands import SourceCommands, AssemblyCommands
 
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
 TENSILE_LIBRARY_DIR = "library"
@@ -458,6 +455,7 @@ def writeKernelHelpers(
 def writeKernels(
     outputPath: str,
     cxxCompiler: str,
+    bundler: str,
     params: Dict[str, Any],
     solutions: List[Solution],
     kernels: List[Solution],
@@ -539,6 +537,7 @@ def writeKernels(
             cxxCompiler, kernelFiles, outputPath, removeTemporaries
         )
         codeObjectFiles += AssemblyCommands.buildAssemblyCodeObjectFiles(
+            bundler,
             kernelsToBuild,
             kernelWriterAssembly,
             outputPath,
@@ -1117,6 +1116,7 @@ def writeBenchmarkClientFiles(
     codeObjectFiles, kernels, solutions = writeKernels(
         libraryWorkingPath,
         cxxCompiler,
+        globalParameters["ClangOffloadBundler"],
         globalParameters,
         solutions,
         kernels,
@@ -1485,6 +1485,7 @@ def TensileCreateLibrary():
     codeObjectFiles, kernels, solutions = writeKernels(
         outputPath,
         cxxCompiler,
+        globalParameters["ClangOffloadBundlerPath"],
         args,
         solutions,
         kernels,

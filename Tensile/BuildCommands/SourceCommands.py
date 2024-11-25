@@ -2,23 +2,49 @@ import itertools
 import os
 import re
 import shlex
+import shutil
 import subprocess
-
-from typing import Union, List
 from pathlib import Path
+from typing import List, Union
 
 from ..Common import (
-    globalParameters,
-    tPrint,
-    ensurePath,
-    supportedCompiler,
-    ParallelMap,
-    splitArchs,
-    which,
-    ParallelMap,
     IsaVersion,
+    ParallelMap,
+    ensurePath,
+    globalParameters,
+    splitArchs,
+    supportedCompiler,
+    tPrint,
+    which,
 )
-from .SharedCommands import compressCodeObject
+
+
+def _computeSourceCodeObjectPath(
+    target: str, base: str, buildPath: Union[Path, str], arch
+) -> Union[Path, None]:
+    """Generates a code object file path using the target, base, and build path.
+
+    Args:
+        target: The target triple.
+        base: The base name for the output file (name without extension).
+        buildPath: The build directory path.
+
+    Returns:
+        Path to the code object file if a name can be computed, otherwise None, which
+        indicates that the code object file should not be generated.
+    """
+    coPath = None
+    buildPath = Path(buildPath)
+    if "TensileLibrary" in base and "fallback" in base:
+        coPath = buildPath / "{0}_{1}.hsaco.raw".format(base, arch)
+    elif "TensileLibrary" in base:
+        variant = [t for t in ["", "xnack-", "xnack+"] if t in target][-1]
+        baseVariant = base + "-" + variant if variant else base
+        if arch in baseVariant:
+            coPath = buildPath / (baseVariant + ".hsaco.raw")
+    else:
+        coPath = buildPath / "{0}.so-000-{1}.hsaco.raw".format(base, arch)
+    return coPath
 
 
 def _compileSourceObjectFile(
@@ -29,25 +55,23 @@ def _compileSourceObjectFile(
     outputPath: str,
     compilerVer: IsaVersion,
 ):
-    """
-    Compiles a HIP source file (.cpp) into an object file (.o).
+    """Compiles a HIP source file (.cpp) into an object file (.o).
 
     Args:
         cmdlineArchs: List of architectures for offloading.
         cxxCompiler: The C++ compiler to use.
-        kernelFile: The path to the kernel source file.
-        buildPath: The build directory path.
-        objFilename: The name of the output object file.
+        cxxSrcPath: The path to the kernel source file.
+        objDestPath: The build directory path.
         outputPath: The output directory path.
-        globalParameters (dict): A dictionary of global parameters.
+        compilerVer: The compiler version.
 
     Raises:
         subprocess.CalledProcessError: If the compilation command fails.
     """
     archFlags = ["--offload-arch=" + arch for arch in cmdlineArchs]
 
-    # needs to be fixed when Maneesh's change is made available
     hipFlags = ["-D__HIP_HCC_COMPAT_MODE__=1"]
+    # TODO(@tensile-infra): hipcc is deprecated and should be removed for ROCm 6.5
     hipFlags += (
         ["--genco"] if cxxCompiler == "hipcc" else ["--cuda-device-only", "-x", "hip", "-O3"]
     )
@@ -87,39 +111,14 @@ def _compileSourceObjectFile(
         )
 
 
-def _computeSourceCodeObjectPath(target: str, base: str, buildPath: Union[Path, str], arch) -> Path:
-    """
-    Generates the output file path based on the target, base, and build path.
+def _listTargetTriples(bundler: str, objFile: str):
+    """Invokes the bundler to list target triples in an object file.
 
     Args:
-        target (str): The target architecture string.
-        base (str): The base name for the output file.
-        buildPath (str): The build directory path.
-
-    Returns:
-        str: The generated output file path.
+        bundler: The path to the bundler executable, typically ``clang-offload-bundler``.
+        objFile: String-like path to the object file.
     """
-    coPath = None
-    buildPath = Path(buildPath)
-    if "TensileLibrary" in base and "fallback" in base:
-        coPath = buildPath / "{0}_{1}.hsaco.raw".format(base, arch)
-    elif "TensileLibrary" in base:
-        variant = [t for t in ["", "xnack-", "xnack+"] if t in target][-1]
-        baseVariant = base + "-" + variant if variant else base
-        if arch in baseVariant:
-            coPath = buildPath / (baseVariant + ".hsaco.raw")
-        else:
-            raise RuntimeError(
-                "Failed to compute code object name:"
-                f"Could not find variant {variant} in {baseVariant}"
-            )
-    else:
-        coPath = buildPath / "{0}.so-000-{1}.hsaco.raw".format(base, arch)
-    return coPath
-
-
-def _listTargetTriples(bundler: str, infile: str):
-    args = [bundler, "--type=o", f"--input={infile}", "-list"]
+    args = [bundler, "--type=o", f"--input={objFile}", "-list"]
     try:
         listing = subprocess.check_output(args, stderr=subprocess.STDOUT).decode().split("\n")
     except subprocess.CalledProcessError as err:
@@ -130,8 +129,7 @@ def _listTargetTriples(bundler: str, infile: str):
 
 
 def _unbundleSourceCodeObjects(bundler: str, target: str, infile: str, outfileRaw: str):
-    """
-    Unbundles source code object files using the Clang Offload Bundler.
+    """Unbundles code object files from the provided target triple.
 
     Args:
         bundler (str): The path to the Clang Offload Bundler executable.
@@ -166,13 +164,13 @@ def _unbundleSourceCodeObjects(bundler: str, target: str, infile: str, outfileRa
 def _buildSourceCodeObjectFile(
     cxxCompiler: str,
     outputPath: Union[Path, str],
-    kernelFile: Union[Path, str],
+    kernelPath: Union[Path, str],
     removeTemporaries: bool,
-):
+) -> List[str]:
 
     buildPath = Path(ensurePath(os.path.join(globalParameters["WorkingPath"], "code_object_tmp")))
     destPath = Path(ensurePath(os.path.join(outputPath, "library")))
-    kernelPath = Path(kernelFile)
+    kernelPath = Path(kernelPath)
 
     objectFilename = kernelPath.stem + ".o"
     coPathsRaw = []
@@ -182,9 +180,7 @@ def _buildSourceCodeObjectFile(
         os.environ["CMAKE_CXX_COMPILER"] = globalParameters["CmakeCxxCompiler"]
 
     if not supportedCompiler(cxxCompiler):
-        raise RuntimeError(
-            f"Cannot compiler source code object files: unknown compiler: {cxxCompiler}"
-        )
+        raise RuntimeError(f"Cannot compile HIP code object files: unknown compiler: {cxxCompiler}")
 
     _, cmdlineArchs = splitArchs()
 
@@ -194,7 +190,7 @@ def _buildSourceCodeObjectFile(
 
     objPath = str(buildPath / objectFilename)
     _compileSourceObjectFile(
-        cmdlineArchs, cxxCompiler, kernelFile, objPath, outputPath, compilerVer
+        cmdlineArchs, cxxCompiler, str(kernelPath), objPath, str(outputPath), compilerVer
     )
 
     bundler = globalParameters["ClangOffloadBundlerPath"]
@@ -206,24 +202,41 @@ def _buildSourceCodeObjectFile(
     for target in _listTargetTriples(bundler, objPath):
         if match := re.search("gfx.*$", target):
             arch = re.sub(":", "-", match.group())
-            coPathRaw = _computeSourceCodeObjectFilename(target, kernelPath.stem, buildPath, arch)
-            _unbundleSourceCodeObjects(bundler, target, objPath, coPathRaw)
+            coPathRaw = _computeSourceCodeObjectPath(target, kernelPath.stem, buildPath, arch)
+            if not coPathRaw:
+                continue
+            _unbundleSourceCodeObjects(bundler, target, objPath, str(coPathRaw))
 
-            outfile = os.path.join(destPath, coPathRaw.stem)
-            compressCodeObject(coPathRaw, outfile, arch, bundler)
+            coPath = str(destPath / coPathRaw.stem)
+            coPaths.append(coPath)
             coPathsRaw.append(coPathRaw)
-            coPaths.append(outfile)
 
+    for src, dst in zip(coPathsRaw, coPaths):
+        shutil.copy(src, dst)
     if removeTemporaries:
         for file in coPathsRaw:
             os.remove(file)
 
-    return coPathsRaw
+    return coPaths
 
 
-def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath, removeTemporaries):
+def buildSourceCodeObjectFiles(
+    cxxCompiler: str, kernelFiles: List[Path], outputPath: Path, removeTemporaries: bool
+) -> List[str]:
+    """Compiles HIP source code files into code object files.
+
+    Args:
+        cxxCompiler: The C++ compiler to use.
+        kernelFiles: List of paths to the kernel source files.
+        outputPath: The output directory path where code objects will be placed.
+        removeTemporaries: Whether to clean up temporary files.
+
+    Returns:
+        List of paths to the created code objects.
+    """
+
     args = zip(
-        itertools.repeat(CxxCompiler),
+        itertools.repeat(cxxCompiler),
         itertools.repeat(outputPath),
         kernelFiles,
         itertools.repeat(removeTemporaries),

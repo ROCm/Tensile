@@ -1,14 +1,12 @@
 import collections
-import math
 import os
 import shutil
 import subprocess
-
 from pathlib import Path
 from typing import List, Union
 
 from .. import Utils
-from ..Common import globalParameters, tPrint, ensurePath, printWarning, gfxName
+from ..Common import ensurePath, gfxName, globalParameters, printWarning, tPrint
 from ..KernelWriterAssembly import KernelWriterAssembly
 from ..SolutionStructs import Solution
 from .SharedCommands import compressCodeObject

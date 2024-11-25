@@ -1,7 +1,6 @@
 import subprocess
-
-from typing import Union
 from pathlib import Path
+from typing import Union
 
 from ..Common import tPrint
 
