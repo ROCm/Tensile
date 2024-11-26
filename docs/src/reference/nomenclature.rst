@@ -8,17 +8,19 @@
 Nomenclature
 ************
 
+This topic lists and describes the frequently used terms in the Tensile documentation.
+
 General Matrix Multiplication
 =============================
 
-General matrix multiplication (GEMM) is a level 3 BLAS operation that computes the product of two matrices, formalized by the equation,
+General matrix multiplication (GEMM) is a level 3 BLAS operation that computes the product of two matrices, formalized by the following equation:
 
 .. math::
    C = \alpha A B + \beta C
 
-where :math:`\alpha` and :math:`\beta` are scalars and :math:`A` and :math:`B` are optionally transposed input matrices. 
+In the preceding equation, :math:`\alpha` and :math:`\beta` are scalars and :math:`A` and :math:`B` are optionally transposed input matrices.
 
-.. list-table:: GEMM data types. 
+.. list-table:: GEMM data types
    :header-rows: 1
    :widths: 30, 50, 20
 
@@ -41,7 +43,7 @@ where :math:`\alpha` and :math:`\beta` are scalars and :math:`A` and :math:`B` a
      - Double precision complex general matrix multiplication
      - 64-bit
 
-.. list-table:: GEMM operations; N (non-transpose) and T (transpose) represent the transpose state of the input matrices.
+.. list-table:: GEMM operations where N (non-transpose) and T (transpose) represent the transpose state of the input matrices
    :header-rows: 1
    :widths: 30, 70
 
@@ -59,9 +61,9 @@ where :math:`\alpha` and :math:`\beta` are scalars and :math:`A` and :math:`B` a
      - :math:`C_{i,j,k} = \sum_l A_{i,l,k} B_{l,j,k}`
    * - 2D Summation
      - :math:`C_{i,j} = \sum_{k,l} A_{i,k,l} B_{j,l,k}`
-   * - 3 Batched Indices
+   * - 3 Batched indices
      - :math:`C_{i,j,k,l,m} = \sum_n A_{i,k,m,l,n} B_{j,k,l,n,m}`
-   * - 4 Free Indices
+   * - 4 Free indices
      - :math:`C_{i,j,k,l,m} = \sum_{n,o} A_{i,k,m,o,n} B_{j,m,l,n,o}`
 
 
@@ -69,11 +71,14 @@ Indices
 =======
 
 The indices describe the dimensionality of the problem to be solved. A GEMM operation takes two 2-dimensional matrices as input,
-adding up to four input dimensions and contracts them along one dimension, which cancels out two dimensions, leading to a 2-dimensional result.
+	adds up to four input dimensions and contracts them along one dimension. This cancels out two dimensions, leading to a 2-dimensional result.
 When an index shows up in multiple tensors, those tensors must be the same size along with the dimension, however, they can have different strides.
 
-There are three categories of indices or dimensions used in the problems supported by Tensile: free, batch and bound.
-**Tensile only supports problems with at least one pair of free indices.**
+There are three categories of indices or dimensions used in the problems supported by Tensile: free, batch, and bound.
+
+.. note::
+
+  Tensile only supports problems with at least one pair of free indices.
 
 Free indices
 ------------
