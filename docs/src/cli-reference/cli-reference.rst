@@ -4,19 +4,14 @@
 
 .. _cli-reference:
 
-*************
-CLI Reference
-*************
+**********************
+Tensile CLI reference
+**********************
 
-The **Tensile** project provides several command line tools. Below
-we enumerate these tools and provide links to the command line interface
-(CLI) reference documentation for each tool.
-
-  * :ref:`TensileCreateLibrary<tensilecreatelibrary-cli-reference>`
-
+The Tensile project provides several command line tools. Here is the standard syntax for the CLI tools:
 
 .. table:: Usage syntax for Tensile's command-line documentation
- 
+
    ================================= ==================================
    Notation                          Description
    ================================= ==================================
@@ -26,4 +21,4 @@ we enumerate these tools and provide links to the command line interface
    ================================= ==================================
 
 .. warning::
-   Consider undocumented command-line options experimental or deprecated.  
+   Consider undocumented command-line options experimental or deprecated.
