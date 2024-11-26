@@ -82,7 +82,7 @@ In this way, the child catalogs contain the solution metadata, while the parent 
 by hardware, problem type, transpose, precision, and other predicates.
 This reduces the memory footprint of the calling application, as code object libraries are compiled separately and loaded only when required.
 
-**Example: Build outputs**
+**Example: Build output**
 
 .. code-block:: bash
   :caption: Lazy library loading build outputs for *DD_Contraction_l_Alik_Bjlk_Cijk_Dijk*
@@ -106,20 +106,20 @@ This reduces the memory footprint of the calling application, as code object lib
       ├── TensileLibrary_Type_..._gfx906.co
       ├── TensileLibrary_Type_..._gfx906.yaml                # [D]
 
-Note that the lines in the build output are marked as A,B,C, and D for reference.
+Note that the lines in the build output are marked as A, B, C, and D for reference.
 
 - Line [A]: Shows the parent catalog for gfx1030, the first of the three parent catalogs generated.
 
 - Line [B]: Shows a fallback child catalog that references each of the architecture-specific fallback kernels in the associated ``.hsaco`` files.
-This implies that at least some of the parameter or problem type combinations for *DD_Contraction_l_Alik_Bjlk_Cijk_Dijk*
-haven't been explicitly tuned for these architectures.
-Note that the matching ``.hsaco`` files (above line [B]) are code object libraries for HIP source kernels.
-These files are referenced by the fallback catalog.
+  This implies that at least some of the parameter or problem type combinations for *DD_Contraction_l_Alik_Bjlk_Cijk_Dijk*
+  haven't been explicitly tuned for these architectures.
+  Note that the matching ``.hsaco`` files (above line [B]) are code object libraries for HIP source kernels.
+  These files are referenced by the fallback catalog.
 
 - Line [C]: Shows a child catalog for gfx900 that references both HIP source and assembly source kernels found in the associated ``.hsaco`` and ``.co`` files, respectively.
 
 - Line [D]: Shows a child catalog for gfx906, similar to the gfx900 catalog. However, notice that there is only one associated
-``.co`` file. This implies that the catalog contains only assembly source kernels.
+  ``.co`` file. This implies that the catalog contains only assembly source kernels.
 
 **Example: Parent solution selection catalog**
 
@@ -155,7 +155,7 @@ These files are referenced by the fallback catalog.
     type: Hardware                                           # [_A]
   solutions: []
 
-Note that the lines in the parent catalog are marked as A,B, and C for reference.
+Note that the lines in the parent catalog are marked as A, B, and C for reference.
 
 - Line [A]: Shows the top level of the parent catalog, which contains a single row for each hardware architecture.
 - Line [B]: Shows the problem map for the operation *Contraction_l_Alik_Bjlk_Cijk_Dijk*.
@@ -176,7 +176,7 @@ The catalog contains information about supported GEMM types and
 solution metadata that is used to locate the optimal kernel for a requested GEMM. Note that this pattern increases both the initialization time and memory footprint of the calling application
 as all code object libraries are loaded eagerly.
 
-**Example**
+**Example: Build output**
 
 Here is the build output directory when building libraries for gfx908 and gfx90a with ``--merge-files``:
 

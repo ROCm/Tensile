@@ -27,7 +27,7 @@ The code is open source and hosted at https://github.com/ROCm/Tensile
 
   .. grid-item-card:: Conceptual
 
-    * :ref:`solution-selection-catalogs`
+    * :ref:`Solution selection catalogs <solution-selection-catalogs>`
 
   .. grid-item-card:: Reference
 
