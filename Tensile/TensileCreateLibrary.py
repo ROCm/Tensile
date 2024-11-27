@@ -217,7 +217,6 @@ def buildSourceKernelObjectFile(
     buildPath = Path(outputPath).parent / "build_tmp" / Path(outputPath).stem.upper() / "code_object_tmp"
     buildPath.mkdir(parents=True, exist_ok=True)
 
-    tPrint(0, f"KERNEL FILE: {kernelFile}")
     (_, filename) = os.path.split(kernelFile)
     (base, _) = os.path.splitext(filename)
 
@@ -1039,7 +1038,6 @@ def run(
     if srcKernels:
         kernelFiles = writeSourceKernels(
           outputPath,
-          args,
           srcKernels,
           kernelWriterSource,
           cxxCompiler,
@@ -1070,21 +1068,11 @@ def run(
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)
     for name, lib in list(_masterLib.lazyLibraries.items()):
-        tPrint(1, f"Writing MSLibrary: {name}")
+        catalogPath = newLibraryDir / name
+        parents = catalogPath.parents[:2]
+        tPrint(1, f"# LAZY CATALOG: {parents[1].name}/{parents[0].name}/{catalogPath.name}")
         lib.applyNaming(getRequiredParametersMin())  # <-- This should be able to be replaced directly with `name`?
-        LibraryIO.write(str(newLibraryDir / name), Utils.state(lib), args["LibraryFormat"])
-
-
-    asmKernels = [k for k in kernels if k["KernelLanguage"] == "Assembly"]
-    if asmKernels:
-        asmKernels = writeAssemblyKernels(
-            outputPath,
-            asmKernels,
-            kernelWriterAssembly,
-        )
-
-        coFileMap = gatherCOFilesForLinking(asmKernels, kernelMinNaming)
-        getAssemblyCodeObjectFiles(coFileMap, outputPath)
+        LibraryIO.write(str(catalogPath), Utils.state(lib), args["LibraryFormat"])
 
     return generateKernelObjectsFromSolutions(kernels), libraryLogics
 
@@ -1149,10 +1137,6 @@ def TensileCreateLibrary():
             kho.extend(ko)
             for _, gfxName, _, _, _, lib in libLogics:
                 updateMasterLibrary(gfxName, lib, masterLibs, nextIdx)
-    if remainder:
-        rvs = Common.ParallelMap(parallelFunc, logicFiles[-remainder:], cpuThreads, "Running TCL...", multiArg=False)
-        for ko in rvs:
-            kho.extend(ko)
 
     # make into a function?
     kernelsCpp = Path(outputPath) / "Kernels.cpp"
@@ -1161,7 +1145,6 @@ def TensileCreateLibrary():
         for ko in kho:
             writeKernelHelpers(ko, srcFile, hdrFile, outputPath)
     basenames = buildSourceKernelObjectFile(cxxCompiler, outputPath, capabilities, rocmPaths, archInfo, hipClangVersion, str(kernelsCpp))
-    tPrint(0, f"BASENAMES: {basenames}")
     coFilenames = buildSourceKernelCodeObjectFile(cxxCompiler, outputPath, capabilities, rocmPaths, archInfo, removeTemporaries, hipClangVersion, basenames)
     tPrint(0, f"CO FILENAMES: {coFilenames}")
     relocateSourceKernelCodeObjectFiles(coFilenames, outputPath, removeTemporaries)
@@ -1175,7 +1158,7 @@ def TensileCreateLibrary():
         addFallbacksToMasterLibraries(masterLibs, capabilities, archInfo)
     for arch, masterLib in masterLibs.items():
         name = baseName + "lazy_" + arch
-        tPrint(1, f"Writing MSLibrary FINAL: {name}")
+        tPrint(1, f"WRITING PARENT CATALOG: {name}")
         masterLib.applyNaming(getRequiredParametersMin())  # <-- This should be able to be replaced directly with `name`?
         LibraryIO.write(str(newLibraryDir / name), Utils.state(masterLib), args["LibraryFormat"])
 
