@@ -8,7 +8,7 @@
 Tensile documentation
 ********************************************************************
 
-ensile is a tool for creating a benchmark-driven backend library for General Matrix-Matrix Multiplications (GEMMs), GEMM-like problems such as batched GEMM, N-dimensional tensor contractions, and anything else that multiplies two multidimensional objects together on an AMD GPU.
+Tensile is a tool for creating a benchmark-driven backend library for General Matrix-Matrix Multiplications (GEMMs), GEMM-like problems such as batched GEMM, N-dimensional tensor contractions, and anything else that multiplies two multidimensional objects together on an AMD GPU.
 
 Tensile is written in Python for library and kernel generation and in C++ for client headers and library tests. It is a vital
 project in the ROCm ecosystem, providing optimized kernels for downstream libraries such as :doc:`rocBLAS <rocblas:index>`.
