@@ -37,6 +37,7 @@ import subprocess
 import sys
 import time
 import warnings
+import re
 
 startTime = time.time()
 
@@ -2318,6 +2319,40 @@ def which(p):
             if os.path.isfile(candidate):
                 return candidate
     return None
+
+
+def splitArchs():
+    # Helper for architecture
+    def isSupported(arch):
+        return (
+            globalParameters["AsmCaps"][arch]["SupportedISA"]
+            and globalParameters["AsmCaps"][arch]["SupportedSource"]
+        )
+
+    if ";" in globalParameters["Architecture"]:
+        wantedArchs = globalParameters["Architecture"].split(";")
+    else:
+        wantedArchs = globalParameters["Architecture"].split("_")
+    archs = []
+    cmdlineArchs = []
+
+    if "all" in wantedArchs:
+        for arch in globalParameters["SupportedISA"]:
+            if isSupported(arch):
+                if arch == (9, 0, 6) or arch == (9, 0, 8) or arch == (9, 0, 10):
+                    if arch == (9, 0, 10):
+                        archs += [gfxName(arch) + "-xnack+"]
+                        cmdlineArchs += [gfxName(arch) + ":xnack+"]
+                    archs += [gfxName(arch) + "-xnack-"]
+                    cmdlineArchs += [gfxName(arch) + ":xnack-"]
+                else:
+                    archs += [gfxName(arch)]
+                    cmdlineArchs += [gfxName(arch)]
+    else:
+        for arch in wantedArchs:
+            archs += [re.sub(":", "-", arch)]
+            cmdlineArchs += [arch]
+    return archs, cmdlineArchs
 
 
 def populateCapabilities(
