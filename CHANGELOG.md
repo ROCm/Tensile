@@ -45,7 +45,7 @@
 - Fixed test failures in SLES containers when running TensileTests
 - Fixed a regression that prevents TensileCreateLibrary from completing when fallback logic is not available
 
-## Tensile 4.42.0 for ROCm 6.4.0
+## Tensile 4.42.0 for ROCm 6.3.0
 
 ### Added
 

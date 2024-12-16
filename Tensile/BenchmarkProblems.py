@@ -150,7 +150,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
     # write solution, kernels and CMake
     problemType = solutions[0]["ProblemType"]
     codeObjectFiles, kernels, solutions = writeKernels( \
-            globalParameters["WorkingPath"], globalParameters["CxxCompiler"], \
+            globalParameters["WorkingPath"], globalParameters["CxxCompiler"], globalParameters["ClangOffloadBundlerPath"], \
             globalParameters, solutions, kernels, kernelHelperOjbs, \
             kernelWriterSource, kernelWriterAssembly, errorTolerant=True, \
             removeTemporaries = not globalParameters["KeepBuildTmp"])
