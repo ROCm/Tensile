@@ -180,7 +180,7 @@ namespace Tensile
         using AMDGPUPredicateSMT = SubclassMappingTraits<Predicates::Predicate<AMDGPU>, IO>;
 
         template <typename IO>
-        const typename AMDGPUPredicateSMT<IO>::SubclassMap 
+        const typename AMDGPUPredicateSMT<IO>::SubclassMap
             SubclassMappingTraits<Predicates::Predicate<AMDGPU>, IO>::subclasses
             = AMDGPUPredicateSMT<IO>::GetSubclasses();
 
@@ -269,8 +269,8 @@ namespace Tensile
         using TaskPredicateSMT = SubclassMappingTraits<Predicates::Predicate<Task>, IO>;
 
         template <typename IO>
-        const typename TaskPredicateSMT<IO>::SubclassMap 
-        SubclassMappingTraits<Predicates::Predicate<Task>, IO>::subclasses
+        const typename TaskPredicateSMT<IO>::SubclassMap
+            SubclassMappingTraits<Predicates::Predicate<Task>, IO>::subclasses
             = TaskPredicateSMT<IO>::GetSubclasses();
 
         template <typename IO>
