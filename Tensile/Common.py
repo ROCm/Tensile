@@ -2308,17 +2308,20 @@ def printCapTable(parameters):
 def which(p):
     if supportedCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
         return os.environ['CMAKE_CXX_COMPILER']
+    
+    systemPath = os.environ['PATH'].split(os.pathsep)
+    systemPath.append(os.environ["HIP_PATH"])
+
     if os.name == "nt":
         exes = [p+x for x in ['.exe', '', '.bat']]  # bat may be front end for file with no extension
     else:
         exes = [p+x for x in ['', '.exe', '.bat']]
-    system_path = os.environ['PATH'].split(os.pathsep)
-    for dirname in system_path+[globalParameters["ROCmBinPath"]]:
+    for dirname in systemPath+[globalParameters["ROCmBinPath"]]:
         for exe in exes:
             candidate = os.path.join(os.path.expanduser(dirname), exe)
             if os.path.isfile(candidate):
                 return candidate
-    return None
+    raise FileNotFoundError(f"Could not find {p} in PATH or HIP_PATH")
 
 
 def splitArchs():
