@@ -49,7 +49,7 @@ This layer matches against specific problem properties such as input and output 
 
 **Level 4: Exact solution**
 
-Finally, exact solutions contain fine-grained details about each solution that can be used during solution selection to locate the best kernel along with ensuring the fulfillment of the requested problem predicates. Each kernel has an index and a performance ranking. During solution selection, the highest ranked
+Finally, exact solutions contain fine-grained details about each solution that can be used during solution selection to locate the best kernel and ensure the fulfillment of the requested problem predicates. Each kernel has an index and a performance ranking. During solution selection, the highest-ranked
 kernel from this pool is selected.
 
 
