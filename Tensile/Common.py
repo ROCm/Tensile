@@ -349,22 +349,35 @@ def getArchitectureName(gfxName: str) -> Optional[str]:
     return None
 
 def supportedCompiler(compiler: str) -> bool:
-  """ Determines if compiler is supported by Tensile.
+  """Determines if compiler is supported by Tensile.
 
-      Args:
-          The name of a compiler to test for support.
-      
-      Return:
-          If supported True; otherwise, False.
+  Args:
+      compiler: The name of a compiler to test for support.
+  
+  Return:
+      If supported True; otherwise, False.
   """
   isSupported = (compiler == "hipcc")
-  if os.name == "nt": 
-    isSupported = (isSupported or compiler == "clang++")
+  if os.name == "nt":
+    isSupported = (isSupported or compiler == "clang++" or compiler == "hipcc.bat")
   else:
-    isSupported = (isSupported or compiler == "amdclang++")
-  
+    isSupported = isSupported or compiler == "amdclang++"
   if not isSupported: printWarning(f"{compiler} is unsupported for os {os.name}")
+  return isSupported
+
+def supportedHipExe(hipExe: str) -> bool:
+  """Determines if a hip tool is supported by Tensile.
+
+  Args:
+      compiler: The name of a compiler to test for support.
   
+  Return:
+      If supported True; otherwise, False.
+  """
+  isSupported = hipExe == "hipcc" or hipExe == "hipconfig"
+  if os.name == "nt": 
+    isSupported = (isSupported or hipExe == "hipcc.bat")
+  if not isSupported: printWarning(f"{hipExe} is unsupported for os {os.name}")
   return isSupported
 
 ################################################################################
@@ -2306,11 +2319,12 @@ def printCapTable(parameters):
   printTable([headerRow] + asmCapRows + archCapRows)
 
 def which(p):
-    if supportedCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
+    if (supportedHipExe(p) or supportedCompiler(p)) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
         return os.environ['CMAKE_CXX_COMPILER']
     
     systemPath = os.environ['PATH'].split(os.pathsep)
-    systemPath.append(os.environ["HIP_PATH"])
+    if 'HIP_PATH' in os.environ:
+      systemPath.append(os.path.join(os.environ["HIP_PATH"], "bin"))
 
     if os.name == "nt":
         exes = [p+x for x in ['.exe', '', '.bat']]  # bat may be front end for file with no extension
@@ -2517,23 +2531,10 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   # Due to platform.linux_distribution() being deprecated, just try to run dpkg regardless.
   # The alternative would be to install the `distro` package.
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
-  
-  # The following try except block computes the hipcc version
-  try:
-    if os.name == "nt":
-      compileArgs = [which('hipcc.bat')] + ['--version']
-      output = subprocess.run(compileArgs, check=True, stdout=subprocess.PIPE).stdout.decode()
-    else:
-      compiler = "hipcc"
-      output = subprocess.run([compiler, "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
+  output = subprocess.run(f'"{which("hipconfig")}" "--version"', check=True, shell=True, stdout=subprocess.PIPE).stdout.decode()
+  globalParameters["HipClangVersion"] = output.strip()
+  tPrint(1, f"# Found HIP version: {globalParameters['HipClangVersion']}")
 
-    for line in output.split('\n'):
-      if 'HIP version' in line:
-        globalParameters['HipClangVersion'] = line.split()[2]
-        tPrint(1, "# Found hipcc version " + globalParameters['HipClangVersion'])
-
-  except (subprocess.CalledProcessError, OSError) as e:
-      printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))
 
   if "IgnoreAsmCapCache" in config:
     globalParameters["IgnoreAsmCapCache"] = config["IgnoreAsmCapCache"]
