@@ -56,7 +56,7 @@ kernel from this pool is selected.
 Build modes
 ===========
 
-Tensile is equipped with multiple build modes that affect the way solution selection catalogs are generated.
+Tensile is equipped with multiple build modes that affect how solution selection catalogs are generated.
 
 Mode 1: Lazy library loading
 ----------------------------
