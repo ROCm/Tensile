@@ -31,9 +31,10 @@ The code is open source and hosted at https://github.com/ROCm/Tensile
 
   .. grid-item-card:: Reference
 
-    * :ref:`Environment variables <environment-variables>`
-    * :ref:`API reference <api-reference>`
     * :ref:`CLI reference <cli-reference>`
+    * :ref:`API reference <api-reference>`
+    * :ref:`Environment variables <environment-variables>`
+    * :ref:`Glossary <glossary>`
 
   .. grid-item-card:: Contribution
 

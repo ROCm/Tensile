@@ -2,11 +2,11 @@
   :description: Tensile is a tool for creating a benchmark-driven backend library for GEMM
   :keywords: Tensile kernel selection, Tensile solution selection, GEMM, Tensor, ROCm
 
-.. _nomenclature:
+.. _glossary:
 
-************
-Nomenclature
-************
+*********
+Glossary
+*********
 
 This topic lists and describes the frequently used terms in the Tensile documentation.
 

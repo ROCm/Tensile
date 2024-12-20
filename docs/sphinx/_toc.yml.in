@@ -27,7 +27,7 @@ subtrees:
     - file: src/api-reference/utilities
   - file: src/reference/environment-variables
     title: Environment variables
-  - file: src/reference/nomenclature
+  - file: src/reference/glossary
 
 - caption: Contribution
   entries:

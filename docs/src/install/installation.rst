@@ -15,8 +15,8 @@ To begin, install ROCm for your platform. For installation instructions, refer t
 
 .. tip::
 
-   If using Bash, we recommend you to set ``PATH=/opt/rocm/bin/:$PATH`` in your ``~/.bashrc`` and refresh your shell using ``source ~/.bashrc``.
-   Alternatively, export the path for your current shell session only, using ``export PATH=/opt/rocm/bin/:$PATH``.
+   If using Bash, set ``PATH=/opt/rocm/bin/:$PATH`` in your ``~/.bashrc`` and refresh your shell using ``source ~/.bashrc``.
+   Alternatively, export the path exclusively for your current shell session, using ``export PATH=/opt/rocm/bin/:$PATH``.
 
 Install OS dependencies
 =========================
@@ -83,7 +83,7 @@ Running benchmark
 
 To run a benchmark, pass a tuning config to the ``Tensile`` program located in ``Tensile/bin``.
 
-For demonstration purposes, we use the sample tuning file available in ``Tensile/Configs/rocblas_sgemm_example.yaml``.
+For demonstration purposes, the sample tuning file available in ``Tensile/Configs/rocblas_sgemm_example.yaml`` is used.
 The sample tuning file allows you to specify the target architecture for which the benchmark will generate a library.
 To find your device architecture, run:
 
