@@ -27,17 +27,17 @@ In the preceding equation, :math:`\alpha` and :math:`\beta` are scalars and, :ma
    * - Abbreviation
      - Description
      - Precision
+   * - CGEMM
+     - Single precision complex general matrix multiplication
+     - 32-bit
+   * - DGEMM
+     - Double precision general matrix multiplication
+     - 64-bit
    * - HGEMM
      - Half precision general matrix multiplication
      - 16-bit
    * - SGEMM
      - Single precision general matrix multiplication
-     - 32-bit
-   * - DGEMM
-     - Double precision general matrix multiplication
-     - 64-bit
-   * - CGEMM
-     - Single precision complex general matrix multiplication
      - 32-bit
    * - ZGEMM
      - Double precision complex general matrix multiplication
@@ -49,6 +49,8 @@ In the preceding equation, :math:`\alpha` and :math:`\beta` are scalars and, :ma
 
    * - Operation
      - Equation
+   * - Batched-GEMM
+     - :math:`C_{i,j,k} = \sum_l A_{i,l,k} B_{l,j,k}`
    * - NN
      - :math:`C_{i,j} = \sum_l A_{i,l} B_{l,j}`
    * - NT
@@ -57,15 +59,12 @@ In the preceding equation, :math:`\alpha` and :math:`\beta` are scalars and, :ma
      - :math:`C_{i,j} = \sum_l A_{l,i} B_{l,j}`
    * - TT
      - :math:`C_{i,j} = \sum_l A_{l,i} B_{j,l}`
-   * - Batched-GEMM
-     - :math:`C_{i,j,k} = \sum_l A_{i,l,k} B_{l,j,k}`
    * - 2D Summation
      - :math:`C_{i,j} = \sum_{k,l} A_{i,k,l} B_{j,l,k}`
    * - 3 Batched indices
      - :math:`C_{i,j,k,l,m} = \sum_n A_{i,k,m,l,n} B_{j,k,l,n,m}`
    * - 4 Free indices
      - :math:`C_{i,j,k,l,m} = \sum_{n,o} A_{i,k,m,o,n} B_{j,m,l,n,o}`
-
 
 Indices
 =======
