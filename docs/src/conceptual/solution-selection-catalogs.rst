@@ -78,7 +78,7 @@ In the preceding naming convention:
 
 For example, *TensileLibrary_Type_HH_Contraction_l_Alik_Bjlk_Cijk_Dijk_<gfx>.yaml* identifies a code object library for half-precision
 contractions on two transpose matrices, otherwise known as HGEMM TT.
-In this way, the child catalogs contain the solution metadata, while the parent catalog is responsible for organizing the child catalogs
+In this way, the child catalogs contain the solution metadata, while the parent catalog organizes the child catalogs
 by hardware, problem type, transpose, precision, and other predicates.
 This reduces the memory footprint of the calling application, as code object libraries are compiled separately and loaded only when required.
 
