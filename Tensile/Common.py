@@ -25,6 +25,7 @@
 from . import __version__
 from . import Parallel
 from .Utilities.ConditionalImports import print, TENSILE_TERM_COLORS
+from .Utilities.Toolchain import getVersion
 from collections import OrderedDict
 
 from copy import deepcopy
@@ -348,23 +349,36 @@ def getArchitectureName(gfxName: str) -> Optional[str]:
         return architectureMap[archKey]
     return None
 
-def supportedCompiler(compiler: str) -> bool:
-  """ Determines if compiler is supported by Tensile.
+# def supportedCompiler(compiler: str) -> bool:
+#   """Determines if compiler is supported by Tensile.
 
-      Args:
-          The name of a compiler to test for support.
-      
-      Return:
-          If supported True; otherwise, False.
+#   Args:
+#       compiler: The name of a compiler to test for support.
+  
+#   Return:
+#       If supported True; otherwise, False.
+#   """
+#   isSupported = (compiler == "hipcc")
+#   if os.name == "nt":
+#     isSupported = (isSupported or compiler == "clang++" or compiler == "hipcc.bat")
+#   else:
+#     isSupported = isSupported or compiler == "amdclang++"
+#   if not isSupported: printWarning(f"{compiler} is unsupported for os {os.name}")
+#   return isSupported
+
+def supportedHipExe(hipExe: str) -> bool:
+  """Determines if a hip tool is supported by Tensile.
+
+  Args:
+      compiler: The name of a compiler to test for support.
+  
+  Return:
+      If supported True; otherwise, False.
   """
-  isSupported = (compiler == "hipcc")
+  isSupported = hipExe == "hipcc" or hipExe == "hipconfig"
   if os.name == "nt": 
-    isSupported = (isSupported or compiler == "clang++")
-  else:
-    isSupported = (isSupported or compiler == "amdclang++")
-  
-  if not isSupported: printWarning(f"{compiler} is unsupported for os {os.name}")
-  
+    isSupported = (isSupported or hipExe == "hipcc.bat")
+  if not isSupported: printWarning(f"{hipExe} is unsupported for os {os.name}")
   return isSupported
 
 ################################################################################
@@ -2305,23 +2319,24 @@ def printCapTable(parameters):
 
   printTable([headerRow] + asmCapRows + archCapRows)
 
-def which(p):
-    if supportedCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
-        return os.environ['CMAKE_CXX_COMPILER']
+# def which(p):
+#     if (supportedHipExe(p) or supportedCompiler(p)) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
+#         return os.environ['CMAKE_CXX_COMPILER']
     
-    systemPath = os.environ['PATH'].split(os.pathsep)
-    systemPath.append(os.environ["HIP_PATH"])
+#     systemPath = os.environ['PATH'].split(os.pathsep)
+#     if 'HIP_PATH' in os.environ:
+#       systemPath.append(os.path.join(os.environ["HIP_PATH"], "bin"))
 
-    if os.name == "nt":
-        exes = [p+x for x in ['.exe', '', '.bat']]  # bat may be front end for file with no extension
-    else:
-        exes = [p+x for x in ['', '.exe', '.bat']]
-    for dirname in systemPath+[globalParameters["ROCmBinPath"]]:
-        for exe in exes:
-            candidate = os.path.join(os.path.expanduser(dirname), exe)
-            if os.path.isfile(candidate):
-                return candidate
-    raise FileNotFoundError(f"Could not find {p} in PATH or HIP_PATH")
+#     if os.name == "nt":
+#         exes = [p+x for x in ['.exe', '', '.bat']]  # bat may be front end for file with no extension
+#     else:
+#         exes = [p+x for x in ['', '.exe', '.bat']]
+#     for dirname in systemPath+[globalParameters["ROCmBinPath"]]:
+#         for exe in exes:
+#             candidate = os.path.join(os.path.expanduser(dirname), exe)
+#             if os.path.isfile(candidate):
+#                 return candidate
+#     raise FileNotFoundError(f"Could not find {p} in PATH or HIP_PATH")
 
 
 def splitArchs():
@@ -2459,39 +2474,24 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
 
   if "CxxCompiler" in config:
     globalParameters["CxxCompiler"] = config["CxxCompiler"]
-    # Pair the CCompiler with CxxCompiler
-    if globalParameters["CxxCompiler"] == "hipcc":
-       globalParameters["CCompiler"] = "hipcc"
-    else:
-        if supportedCompiler(globalParameters["CxxCompiler"]):
-          globalParameters["CCompiler"] = "clang" if os.name == "nt" else "amdclang"
-        else: # unkown c++ compiler so set c compile rto be the same
-          globalParameters["CCompiler"] = globalParameters["CxxCompiler"]
-
+  else:
+    raise ValueError("CxxCompiler not specified in config")
   if "CCompiler" in config:
     globalParameters["CCompiler"] = config["CCompiler"]    
-
-  if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
-    globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
-  elif globalParameters["AssemblerPath"] is None and supportedCompiler(globalParameters["CxxCompiler"]):
-    if os.name == "nt":
-      globalParameters["AssemblerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang++.exe")
-    else:
-      bin_path = "llvm/bin" if globalParameters["CxxCompiler"] == "hipcc" else "bin"
-      compiler = "clang++" if globalParameters["CxxCompiler"] == "hipcc" else "amdclang++"
-      globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], bin_path), compiler)
+  else:
+    raise ValueError("CCompiler not specified in config")
+  if "Assembler" in config:
+    globalParameters["AssemblerPath"] = config["Assembler"]
+  else:
+    raise ValueError("Assembler not specified in config")
+  if "OffloadBundler" in config:
+    globalParameters["ClangOffloadBundlerPath"] = config["OffloadBundler"]
+  else:
+    raise ValueError("OffloadBundler not specified in config")
 
   globalParameters["ROCmSMIPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm-smi")
 
   globalParameters["ExtractKernelPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "hip/bin"), "extractkernel")
-
-  if "TENSILE_ROCM_OFFLOAD_BUNDLER_PATH" in os.environ:
-    globalParameters["ClangOffloadBundlerPath"] = os.environ.get("TENSILE_ROCM_OFFLOAD_BUNDLER_PATH")
-  else:
-    if os.name == "nt":
-      globalParameters["ClangOffloadBundlerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang-offload-bundler.exe")
-    else:
-      globalParameters["ClangOffloadBundlerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang-offload-bundler")
 
   if "ROCmAgentEnumeratorPath" in config:
     globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
@@ -2517,23 +2517,11 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   # Due to platform.linux_distribution() being deprecated, just try to run dpkg regardless.
   # The alternative would be to install the `distro` package.
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
-  
-  # The following try except block computes the hipcc version
-  try:
-    if os.name == "nt":
-      compileArgs = [which('hipcc.bat')] + ['--version']
-      output = subprocess.run(compileArgs, check=True, stdout=subprocess.PIPE).stdout.decode()
-    else:
-      compiler = "hipcc"
-      output = subprocess.run([compiler, "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
 
-    for line in output.split('\n'):
-      if 'HIP version' in line:
-        globalParameters['HipClangVersion'] = line.split()[2]
-        tPrint(1, "# Found hipcc version " + globalParameters['HipClangVersion'])
+  output = getVersion(config["HipConfig"], regex=r'(.+)')
+  globalParameters["HipClangVersion"] = output.strip()
+  tPrint(1, f"# Found HIP version: {globalParameters['HipClangVersion']}")
 
-  except (subprocess.CalledProcessError, OSError) as e:
-      printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))
 
   if "IgnoreAsmCapCache" in config:
     globalParameters["IgnoreAsmCapCache"] = config["IgnoreAsmCapCache"]

@@ -13,9 +13,7 @@ from ..Common import (
     ensurePath,
     globalParameters,
     splitArchs,
-    supportedCompiler,
     tPrint,
-    which,
 )
 
 
@@ -95,7 +93,7 @@ def _compileSourceObjectFile(
 
     args = (
         launcher
-        + [which(cxxCompiler)]
+        + [cxxCompiler]
         + hipFlags
         + archFlags
         + [str(cxxSrcPath), "-c", "-o", objDestPath]
@@ -178,9 +176,6 @@ def _buildSourceCodeObjectFile(
 
     if "CmakeCxxCompiler" in globalParameters and globalParameters["CmakeCxxCompiler"] is not None:
         os.environ["CMAKE_CXX_COMPILER"] = globalParameters["CmakeCxxCompiler"]
-
-    if not supportedCompiler(cxxCompiler):
-        raise RuntimeError(f"Cannot compile HIP code object files: unknown compiler: {cxxCompiler}")
 
     _, cmdlineArchs = splitArchs()
 

@@ -56,7 +56,6 @@ from .Common import (
     printExit,
     printWarning,
     splitArchs,
-    supportedCompiler,
     tPrint,
 )
 from .KernelWriterAssembly import KernelWriterAssembly
@@ -69,6 +68,7 @@ from .TensileCreateLib.ParseArguments import parseArguments
 from .Utilities.Profile import profile
 from .Utilities.String import splitDelimitedString
 from .Utilities.toFile import toFile
+from .Utilities.Toolchain import validateToolchain, ToolchainDefaults
 
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
 TENSILE_LIBRARY_DIR = "library"
@@ -627,10 +627,7 @@ def buildObjectFileNames(
     cxxCompiler = globalParameters["CxxCompiler"]
 
     # Source based kernels are built for all supported architectures
-    if supportedCompiler(cxxCompiler):
-        sourceArchs, _ = splitArchs()
-    else:
-        raise RuntimeError("Unknown compiler %s" % cxxCompiler)
+    sourceArchs, _ = splitArchs()
 
     # Asm based kernels target the configured ISA
     asmArchs = collections.defaultdict(list)
@@ -666,20 +663,14 @@ def buildObjectFileNames(
         allSources = sourceKernelNames + kernelHelperObjNames
 
         for kernelName in allSources:
-            if supportedCompiler(cxxCompiler):
-                sourceLibFiles += [
-                    "%s.so-000-%s.hsaco" % (kernelName, arch) for arch in sourceArchs
-                ]
-            else:
-                raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
+            sourceLibFiles += [
+                "%s.so-000-%s.hsaco" % (kernelName, arch) for arch in sourceArchs
+            ]
     elif globalParameters["NumMergedFiles"] > 1:
-        if supportedCompiler(cxxCompiler):
-            for kernelIndex in range(0, globalParameters["NumMergedFiles"]):
-                sourceLibFiles += [
-                    "Kernels%d.so-000-%s.hsaco" % (kernelIndex, arch) for arch in sourceArchs
-                ]
-        else:
-            raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
+        for kernelIndex in range(0, globalParameters["NumMergedFiles"]):
+            sourceLibFiles += [
+                "Kernels%d.so-000-%s.hsaco" % (kernelIndex, arch) for arch in sourceArchs
+            ]
     elif globalParameters["LazyLibraryLoading"]:
         fallbackLibs = list(
             set(
@@ -694,13 +685,9 @@ def buildObjectFileNames(
             "{0}_{1}.hsaco".format(name, arch)
             for name, arch in itertools.product(fallbackLibs, sourceArchs)
         ]
-        if supportedCompiler(cxxCompiler):
-            sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
+        sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
     else:  # Merge
-        if supportedCompiler(cxxCompiler):
-            sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
-        else:
-            raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
+        sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
 
     # Returns names for all xnack versions
     def addxnack(name, ext):
@@ -1376,7 +1363,6 @@ def TensileCreateLibrary():
     separateArchs = args["SeparateArchitectures"]
     mergeFiles = args["MergeFiles"]
     embedLibrary = args["EmbedLibrary"]
-    cxxCompiler = args["CxxCompiler"]
     libraryFormat = args["LibraryFormat"]
     logicPath = args["LogicPath"]
     outputPath = args["OutputPath"]
@@ -1394,6 +1380,7 @@ def TensileCreateLibrary():
     tPrint(3, HR)
     tPrint(3, "")
 
+    args["CxxCompiler"], args["CCompiler"], args["Assembler"], args["OffloadBundler"], args["HipConfig"] = validateToolchain(args["CxxCompiler"], args["CCompiler"], args["Assembler"], args["OffloadBundler"], ToolchainDefaults.HIP_CONFIG)
     assignGlobalParameters(args)
 
     manifestFile = Path(outputPath) / TENSILE_LIBRARY_DIR / TENSILE_MANIFEST_FILENAME
@@ -1407,7 +1394,10 @@ def TensileCreateLibrary():
             printExit("Failed to verify all files in manifest")
 
     tPrint(1, "# CodeObjectVersion: %s" % args["CodeObjectVersion"])
-    tPrint(1, "# CxxCompiler:       %s" % cxxCompiler)
+    tPrint(1, "# CxxCompiler:       %s" % args["CxxCompiler"])
+    tPrint(1, "# CCompiler:         %s" % args["CCompiler"])
+    tPrint(1, "# Assembler:         %s" % args["Assembler"])
+    tPrint(1, "# OffloadBundler:    %s" % args["OffloadBundler"])
     tPrint(1, "# Architecture:      %s" % args["Architecture"])
     tPrint(1, "# LibraryFormat:     %s" % libraryFormat)
 
@@ -1484,7 +1474,7 @@ def TensileCreateLibrary():
 
     codeObjectFiles, kernels, solutions = writeKernels(
         outputPath,
-        cxxCompiler,
+        args["CxxCompiler"],
         globalParameters["ClangOffloadBundlerPath"],
         args,
         solutions,
