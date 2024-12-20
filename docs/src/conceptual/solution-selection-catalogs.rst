@@ -65,7 +65,7 @@ If ``--lazy-library-loading`` is enabled, then the following `parent` catalog is
 
 .. centered:: TensileLibrary_lazy_<gfx>.yaml
 
-This parent catalog contains a reference to each of it's `child` catalogs without the details about the exact solutions.
+This parent catalog contains a reference to each of its `child` catalogs without the details about the exact solutions.
 These settings are present in the `child` catalogs, which use the following naming convention:
 
 .. centered:: TensileLibrary_Type_<precision>_<problem type>_<gfx>.yaml
