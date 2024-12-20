@@ -5,7 +5,7 @@
 .. _solution-selection-catalogs:
 
 **************************************
-Tensile's solution selection catalogs
+Tensile solution selection catalogs
 **************************************
 
 To avoid the overhead associated with loading code object files including initialization time and the memory footprint of the loaded code object files,
