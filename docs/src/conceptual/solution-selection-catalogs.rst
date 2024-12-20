@@ -73,7 +73,7 @@ These settings are present in the `child` catalogs, which use the following nami
 In the preceding naming convention:
 
 - <precision>: Data type
-- <problem type>: GEMM type including transpose and accumulate settings
+- <problem type>: GEMM type, including transpose and accumulate settings
 - <gfx>: Hardware GFX architecture
 
 For example, *TensileLibrary_Type_HH_Contraction_l_Alik_Bjlk_Cijk_Dijk_<gfx>.yaml* identifies a code object library for half precision
