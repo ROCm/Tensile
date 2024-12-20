@@ -18,7 +18,7 @@ General matrix multiplication (GEMM) is a level 3 BLAS operation that computes t
 .. math::
    C = \alpha A B + \beta C
 
-In the preceding equation, :math:`\alpha` and :math:`\beta` are scalars and :math:`A` and :math:`B` are optionally transposed input matrices.
+In the preceding equation, :math:`\alpha` and :math:`\beta` are scalars and, :math:`A` and :math:`B` are optionally transposed input matrices.
 
 .. list-table:: GEMM data types
    :header-rows: 1
@@ -72,9 +72,9 @@ Indices
 
 The indices describe the dimensionality of the problem to be solved. A GEMM operation takes two 2-dimensional matrices as input,
 adds up to four input dimensions and contracts them along one dimension. This cancels out two dimensions, leading to a 2-dimensional result.
-When an index shows up in multiple tensors, those tensors must be the same size along with the dimension, however, they can have different strides.
+When an index shows up in multiple tensors, those tensors must be the same size along with the dimension. However, they can have different strides.
 
-There are three categories of indices or dimensions used in the problems supported by Tensile: free, batch, and bound.
+Three categories of indices or dimensions are used in the problems supported by Tensile: free, batch, and bound.
 
 .. note::
 
