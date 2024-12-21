@@ -51,7 +51,7 @@ autodoc_default_options = {
 }
 
 external_toc_path = "./sphinx/_toc.yml"
-external_projects_current_project = "Tensile"
+external_projects_current_project = "tensile"
 
 docs_core = ROCmDocs(left_nav_title)
 docs_core.setup()
