@@ -29,13 +29,12 @@ def _linkIntoCodeObject(
     if os.name == "nt":
         # On Windows, the objectFiles list command line (including spaces)
         # exceeds the limit of 8191 characters, so using response file
-
-        responseFile = os.path.join("/tmp", "clangArgs.txt")
+        responseFile = os.path.join(Path.cwd(), "clang_args.txt")
         with open(responseFile, "wt") as file:
             file.write(" ".join(objFiles))
             file.flush()
 
-        args = kernelWriterAssembly.getLinkCodeObjectArgs(["@clangArgs.txt"], str(coPathDest))
+        args = kernelWriterAssembly.getLinkCodeObjectArgs(["@clang_args.txt"], str(coPathDest))
     else:
         args = kernelWriterAssembly.getLinkCodeObjectArgs(objFiles, str(coPathDest))
 
