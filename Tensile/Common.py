@@ -2246,36 +2246,47 @@ def gfxName(arch):
     name = str(arch[0]) + str(arch[1]) + ('%x' % arch[2])
     return 'gfx' + ''.join(map(str,name))
 
+
+def detectIsaWindows(output):
+    i = 0
+    for line in output:
+      if 'gcnArchName' in line:
+        arch = gfxArch(line.split()[1].strip())
+        if arch and arch in globalParameters["SupportedISA"]:
+          tPrint(1, f"# Detected GPU {i}:    {gfxName(arch)}")
+          globalParameters["CurrentISA"] = arch
+          i += 1
+
+
+def detectIsaLinux(output):
+    for i, line in enumerate(output):
+      arch = gfxArch(line.strip())
+      if arch and arch in globalParameters["SupportedISA"]:
+          tPrint(1, f"# Detected GPU {i}:    {gfxName(arch)}")
+          globalParameters["CurrentISA"] = arch
+
+
 def detectGlobalCurrentISA():
   """
   Returns returncode if detection failure
   """
   global globalParameters
 
-  if globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
-    process = subprocess.run([globalParameters["ROCmAgentEnumeratorPath"]], stdout=subprocess.PIPE)
-    if os.name == "nt":
-      line = ""
-      for line_in in process.stdout.decode().splitlines():
-        if 'gcnArchName' in line_in:
-          line += line_in.split()[1]
-          break # determine if hipinfo will support multiple arch
-      arch = gfxArch(line.strip())
-      if arch is not None:
-        if arch in globalParameters["SupportedISA"]:
-          tPrint(1, "# Detected local GPU with ISA: " + gfxName(arch))
-          globalParameters["CurrentISA"] = arch
-    else:
-      for line in process.stdout.decode().split("\n"):
-        arch = gfxArch(line.strip())
-        if arch is not None:
-          if arch in globalParameters["SupportedISA"]:
-            tPrint(1, "# Detected local GPU with ISA: " + gfxName(arch))
-            globalParameters["CurrentISA"] = arch
-    if (process.returncode):
-      printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
-    return process.returncode
-  return 0
+  if globalParameters["CurrentISA"] != (0,0,0) or not globalParameters["ROCmAgentEnumeratorPath"]:
+    return 0
+
+  enumerator = globalParameters["ROCmAgentEnumeratorPath"]
+  process = subprocess.run([enumerator], stdout=subprocess.PIPE)
+  output = process.stdout.decode().splitlines()
+
+  if os.name == "nt":
+    detectIsaWindows(output)
+  else:
+    detectIsaLinux(output)
+
+  if process.returncode:
+    printWarning(f"{globalParameters['ROCmAgentEnumeratorPath']} exited with code {process.returncode}")
+  return process.returncode
 
 def restoreDefaultGlobalParameters():
   """
@@ -2404,7 +2415,7 @@ def populateCapabilities(
         if v[0] == 12 and not (
             compilerVer.major > 6 or (compilerVer.major == 6 and compilerVer.minor >= 3)
         ):
-            printWarning(f"ISA {v} isn't supported for ROCm stack {compilerVer}, skipping...")
+            printWarning(f"{gfxName(v)} isn't supported by ROCm {compilerVer}, skipping capability check...")
             to_remove.append(v)
             continue
 
@@ -2434,6 +2445,10 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
     if not versionIsCompatible(config["MinimumRequiredVersion"]):
       printExit("Config file requires version=%s is not compatible with current Tensile version=%s" \
           % (config["MinimumRequiredVersion"], __version__) )
+
+  output = getVersion(config["HipConfig"], regex=r'(.+)')
+  globalParameters["HipClangVersion"] = output.strip()
+  tPrint(1, f"# Found HIP version: {globalParameters['HipClangVersion']}")
 
   # User-specified global parameters
   tPrint(3, "GlobalParameters:")
@@ -2467,11 +2482,10 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   globalParameters["ROCmBinPath"] = os.path.join(globalParameters["ROCmPath"], "bin")
 
   # ROCm Agent Enumerator Path
-  if os.name == "nt":
-    globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "hipinfo.exe")
+  if "ROCmAgentEnumeratorPath" in config:
+    globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
   else:
-    globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm_agent_enumerator")
-
+    raise ValueError("ROCmAgentEnumeratorPath not specified in config")
   if "CxxCompiler" in config:
     globalParameters["CxxCompiler"] = config["CxxCompiler"]
   else:
@@ -2492,9 +2506,6 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   globalParameters["ROCmSMIPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm-smi")
 
   globalParameters["ExtractKernelPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "hip/bin"), "extractkernel")
-
-  if "ROCmAgentEnumeratorPath" in config:
-    globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
 
   # read current gfx version
   returncode = detectGlobalCurrentISA()
@@ -2518,9 +2529,6 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   # The alternative would be to install the `distro` package.
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
 
-  output = getVersion(config["HipConfig"], regex=r'(.+)')
-  globalParameters["HipClangVersion"] = output.strip()
-  tPrint(1, f"# Found HIP version: {globalParameters['HipClangVersion']}")
 
 
   if "IgnoreAsmCapCache" in config:
@@ -2551,7 +2559,18 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
       config["NumMergedFiles"] = 1
       printWarning("--num-merged-files and --no-merge-files specified, ignoring --num-merged-files")
 
-  rejectGlobalParameters = {"LogicPath", "OutputPath", "EmbedLibraryKey", "Version", "BuildClient", "ClientConfig", "WriteMasterSolutionIndex"}
+  rejectGlobalParameters = {
+    "LogicPath",
+    "OutputPath",
+    "EmbedLibraryKey",
+    "Version",
+    "BuildClient",
+    "ClientConfig",
+    "WriteMasterSolutionIndex",
+    "HipConfig",
+    "OffloadBundler",
+    "Assembler",
+  }
   for key in config:
     if key in rejectGlobalParameters:
       continue

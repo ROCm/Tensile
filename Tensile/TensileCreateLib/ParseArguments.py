@@ -316,12 +316,11 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
         "IgnoreAsmCapCache": args.IgnoreAsmCapCache,
         "WriteMasterSolutionIndex": args.WriteMasterSolutionIndex,
         "KeepBuildTmp": args.KeepBuildTmp,
+        "ROCmAgentEnumeratorPath": not args.NoEnumerate,
     }
 
     if args.CmakeCxxCompiler:
         os.environ["CMAKE_CXX_COMPILER"] = args.CmakeCxxCompiler
-    if args.NoEnumerate:
-        arguments["ROCmAgentEnumeratorPath"] = False
     if args.GenerateSourcesAndExit:
         # Generated sources are preserved and go into output directory
         arguments["WorkingPath"] = arguments["OutputPath"]

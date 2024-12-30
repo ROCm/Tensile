@@ -92,11 +92,7 @@ def _compileSourceObjectFile(
         ]
 
     args = (
-        launcher
-        + [cxxCompiler]
-        + hipFlags
-        + archFlags
-        + [str(cxxSrcPath), "-c", "-o", objDestPath]
+        launcher + [cxxCompiler] + hipFlags + archFlags + [str(cxxSrcPath), "-c", "-o", objDestPath]
     )
 
     tPrint(2, f"Compile source object file command: {args}")

@@ -40,6 +40,7 @@ class ToolchainDefaults(NamedTuple):
     OFFLOAD_BUNDLER= osSelect(linux="clang-offload-bundler", windows="clang-offload-bundler.exe")
     ASSEMBLER = osSelect(linux="amdclang++", windows="clang++.exe")
     HIP_CONFIG = osSelect(linux="hipconfig", windows="hipconfig")
+    DEVICE_ENUMERATOR= osSelect(linux="rocm_agent_enumerator", windows="hipinfo.exe")
 
 
 def _supportedComponent(component: str, targets: List[str]) -> bool:
@@ -84,7 +85,7 @@ def supportedOffloadBundler(bundler: str) -> bool:
 
 
 def supportedHip(smi: str) -> bool:
-    """Determine if an offload bundler is supported by Tensile.
+    """Determine if a HIP config executable is supported by Tensile.
 
     Args:
         bundler: The name of an offload bundler to test for support.
@@ -93,6 +94,18 @@ def supportedHip(smi: str) -> bool:
         If supported True; otherwise, False.
     """
     return _supportedComponent(smi, [ToolchainDefaults.HIP_CONFIG])
+
+
+def supportedDeviceEnumerator(enumerator: str) -> bool:
+    """Determine if a device enumerator is supported by Tensile.
+
+    Args:
+        bundler: The name of a device enumerator to test for support.
+
+    Return:
+        If supported True; otherwise, False.
+    """
+    return _supportedComponent(enumerator, [ToolchainDefaults.DEVICE_ENUMERATOR])
 
 
 def _exeExists(file: Path) -> bool:
@@ -122,7 +135,11 @@ def _validateExecutable(file: str, searchPaths: List[Path]) -> str:
         The validated executable with an absolute path.
     """
     if not any((
-        supportedCxxCompiler(file), supportedCCompiler(file), supportedOffloadBundler(file), supportedHip(file)
+        supportedCxxCompiler(file),
+        supportedCCompiler(file),
+        supportedOffloadBundler(file),
+        supportedHip(file),
+        supportedDeviceEnumerator(file)
     )):
         raise ValueError(f"{file} is not a supported toolchain component for OS: {os.name}")
 

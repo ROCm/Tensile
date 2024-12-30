@@ -663,9 +663,7 @@ def buildObjectFileNames(
         allSources = sourceKernelNames + kernelHelperObjNames
 
         for kernelName in allSources:
-            sourceLibFiles += [
-                "%s.so-000-%s.hsaco" % (kernelName, arch) for arch in sourceArchs
-            ]
+            sourceLibFiles += ["%s.so-000-%s.hsaco" % (kernelName, arch) for arch in sourceArchs]
     elif globalParameters["NumMergedFiles"] > 1:
         for kernelIndex in range(0, globalParameters["NumMergedFiles"]):
             sourceLibFiles += [
@@ -1380,7 +1378,21 @@ def TensileCreateLibrary():
     tPrint(3, HR)
     tPrint(3, "")
 
-    args["CxxCompiler"], args["CCompiler"], args["Assembler"], args["OffloadBundler"], args["HipConfig"] = validateToolchain(args["CxxCompiler"], args["CCompiler"], args["Assembler"], args["OffloadBundler"], ToolchainDefaults.HIP_CONFIG)
+    (
+        args["CxxCompiler"],
+        args["CCompiler"],
+        args["Assembler"],
+        args["OffloadBundler"],
+        args["HipConfig"],
+    ) = validateToolchain(
+        args["CxxCompiler"],
+        args["CCompiler"],
+        args["Assembler"],
+        args["OffloadBundler"],
+        ToolchainDefaults.HIP_CONFIG,
+    )
+    if args["ROCmAgentEnumeratorPath"] != False:
+        args["ROCmAgentEnumeratorPath"] = validateToolchain(ToolchainDefaults.DEVICE_ENUMERATOR)
     assignGlobalParameters(args)
 
     manifestFile = Path(outputPath) / TENSILE_LIBRARY_DIR / TENSILE_MANIFEST_FILENAME
