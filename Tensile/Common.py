@@ -349,22 +349,6 @@ def getArchitectureName(gfxName: str) -> Optional[str]:
         return architectureMap[archKey]
     return None
 
-# def supportedCompiler(compiler: str) -> bool:
-#   """Determines if compiler is supported by Tensile.
-
-#   Args:
-#       compiler: The name of a compiler to test for support.
-  
-#   Return:
-#       If supported True; otherwise, False.
-#   """
-#   isSupported = (compiler == "hipcc")
-#   if os.name == "nt":
-#     isSupported = (isSupported or compiler == "clang++" or compiler == "hipcc.bat")
-#   else:
-#     isSupported = isSupported or compiler == "amdclang++"
-#   if not isSupported: printWarning(f"{compiler} is unsupported for os {os.name}")
-#   return isSupported
 
 def supportedHipExe(hipExe: str) -> bool:
   """Determines if a hip tool is supported by Tensile.
@@ -2330,25 +2314,6 @@ def printCapTable(parameters):
 
   printTable([headerRow] + asmCapRows + archCapRows)
 
-# def which(p):
-#     if (supportedHipExe(p) or supportedCompiler(p)) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
-#         return os.environ['CMAKE_CXX_COMPILER']
-    
-#     systemPath = os.environ['PATH'].split(os.pathsep)
-#     if 'HIP_PATH' in os.environ:
-#       systemPath.append(os.path.join(os.environ["HIP_PATH"], "bin"))
-
-#     if os.name == "nt":
-#         exes = [p+x for x in ['.exe', '', '.bat']]  # bat may be front end for file with no extension
-#     else:
-#         exes = [p+x for x in ['', '.exe', '.bat']]
-#     for dirname in systemPath+[globalParameters["ROCmBinPath"]]:
-#         for exe in exes:
-#             candidate = os.path.join(os.path.expanduser(dirname), exe)
-#             if os.path.isfile(candidate):
-#                 return candidate
-#     raise FileNotFoundError(f"Could not find {p} in PATH or HIP_PATH")
-
 
 def splitArchs():
     # Helper for architecture
@@ -2415,7 +2380,7 @@ def populateCapabilities(
         if v[0] == 12 and not (
             compilerVer.major > 6 or (compilerVer.major == 6 and compilerVer.minor >= 3)
         ):
-            printWarning(f"{gfxName(v)} isn't supported by ROCm {compilerVer}, skipping capability check...")
+            printWarning(f"{gfxName(v)} isn't supported by ROCm {compilerVer}, libraries will not be generated...")
             to_remove.append(v)
             continue
 
@@ -2446,9 +2411,12 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
       printExit("Config file requires version=%s is not compatible with current Tensile version=%s" \
           % (config["MinimumRequiredVersion"], __version__) )
 
-  output = getVersion(config["HipConfig"], regex=r'(.+)')
-  globalParameters["HipClangVersion"] = output.strip()
-  tPrint(1, f"# Found HIP version: {globalParameters['HipClangVersion']}")
+  if "HipConfig" in config:
+    output = getVersion(config["HipConfig"], regex=r'(.+)')
+    globalParameters["HipClangVersion"] = output.strip()
+    tPrint(1, f"# Found HIP version: {globalParameters['HipClangVersion']}")
+  else:
+    raise ValueError("HipConfig not specified in config, could not set HipClangVersion")
 
   # User-specified global parameters
   tPrint(3, "GlobalParameters:")
@@ -2520,16 +2488,6 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
     isaString = ', '.join(map(gfxName, isasWithDisabledHWMonitor))
     printWarning(f"HardwareMonitor currently disabled for {isaString}")
     globalParameters["HardwareMonitor"] = False
-
-  # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
-  # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
-  # '0.0.0' will persist
-
-  # Due to platform.linux_distribution() being deprecated, just try to run dpkg regardless.
-  # The alternative would be to install the `distro` package.
-  # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
-
-
 
   if "IgnoreAsmCapCache" in config:
     globalParameters["IgnoreAsmCapCache"] = config["IgnoreAsmCapCache"]

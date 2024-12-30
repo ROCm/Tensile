@@ -28,7 +28,7 @@ from argparse import Action, ArgumentParser
 from typing import Any, Dict, List, Optional
 
 from ..Common import DeveloperWarning, architectureMap
-from ..Utilities.Toolchain import ToolchainDefaults
+from ..Utilities.Toolchain import ToolchainDefaults, validateToolchain
 
 
 class DeprecatedOption(Action):
@@ -316,7 +316,6 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
         "IgnoreAsmCapCache": args.IgnoreAsmCapCache,
         "WriteMasterSolutionIndex": args.WriteMasterSolutionIndex,
         "KeepBuildTmp": args.KeepBuildTmp,
-        "ROCmAgentEnumeratorPath": not args.NoEnumerate,
     }
 
     if args.CmakeCxxCompiler:
@@ -329,5 +328,24 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
 
     for k, v in args.GlobalParameters:
         arguments[k] = v
+    (
+        arguments["CxxCompiler"],
+        arguments["CCompiler"],
+        arguments["Assembler"],
+        arguments["OffloadBundler"],
+        arguments["HipConfig"],
+    ) = validateToolchain(
+        arguments["CxxCompiler"],
+        arguments["CCompiler"],
+        arguments["Assembler"],
+        arguments["OffloadBundler"],
+        ToolchainDefaults.HIP_CONFIG,
+    )
+    if args.NoEnumerate:
+        arguments["ROCmAgentEnumeratorPath"] = False
+    else:
+        arguments["ROCmAgentEnumeratorPath"] = validateToolchain(
+            ToolchainDefaults.DEVICE_ENUMERATOR
+        )
 
     return arguments

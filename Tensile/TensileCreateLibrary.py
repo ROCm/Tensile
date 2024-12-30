@@ -68,7 +68,6 @@ from .TensileCreateLib.ParseArguments import parseArguments
 from .Utilities.Profile import profile
 from .Utilities.String import splitDelimitedString
 from .Utilities.toFile import toFile
-from .Utilities.Toolchain import validateToolchain, ToolchainDefaults
 
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
 TENSILE_LIBRARY_DIR = "library"
@@ -624,8 +623,6 @@ def buildObjectFileNames(
 
     kernelHelperObjNames = [ko.getKernelName() for ko in kernelHelperObjs]
 
-    cxxCompiler = globalParameters["CxxCompiler"]
-
     # Source based kernels are built for all supported architectures
     sourceArchs, _ = splitArchs()
 
@@ -1162,7 +1159,9 @@ def verifyManifest(manifest: Path) -> bool:
     """
     with open(manifest, mode="r") as generatedFiles:
         for f in generatedFiles.readlines():
+            tPrint(1, f"Checking file: {f}")
             if not Path(f.rstrip()).exists():
+                printWarning(f"File in manifest ``{f}`` not found.")
                 return False
     return True
 
@@ -1378,22 +1377,19 @@ def TensileCreateLibrary():
     tPrint(3, HR)
     tPrint(3, "")
 
-    (
-        args["CxxCompiler"],
-        args["CCompiler"],
-        args["Assembler"],
-        args["OffloadBundler"],
-        args["HipConfig"],
-    ) = validateToolchain(
-        args["CxxCompiler"],
-        args["CCompiler"],
-        args["Assembler"],
-        args["OffloadBundler"],
-        ToolchainDefaults.HIP_CONFIG,
-    )
-    if args["ROCmAgentEnumeratorPath"] != False:
-        args["ROCmAgentEnumeratorPath"] = validateToolchain(ToolchainDefaults.DEVICE_ENUMERATOR)
     assignGlobalParameters(args)
+
+    supportedArchs = [
+        gfxName(arch)
+        for arch in globalParameters["SupportedISA"]
+        if globalParameters["AsmCaps"][arch]["SupportedISA"]
+    ]
+
+    _, requestedArchs = splitArchs()
+    if all(a.split(":")[0] not in supportedArchs for a in requestedArchs):
+        printExit(
+            f"No requested architecture is supported by ROCm {globalParameters['HipClangVersion']}\n  Requested {', '.join(requestedArchs)}\n  Supported {', '.join(supportedArchs)}"
+        )
 
     manifestFile = Path(outputPath) / TENSILE_LIBRARY_DIR / TENSILE_MANIFEST_FILENAME
     manifestFile.parent.mkdir(exist_ok=True)
@@ -1439,6 +1435,8 @@ def TensileCreateLibrary():
     masterLibraries = generateLogicData(
         logicFiles, args["Version"], args["PrintLevel"], args["SeparateArchitectures"]
     )
+    tPrint(1, f"# Found {len(masterLibraries)} Master Files")
+    tPrint(1, f"# {', '.join(masterLibraries.keys())}")
 
     solutions = generateSolutions(masterLibraries, args["SeparateArchitectures"])
     if lazyLoading and args["WriteMasterSolutionIndex"]:
@@ -1507,18 +1505,15 @@ def TensileCreateLibrary():
     tPrint(2, f"codeObjectFiles: {codeObjectFiles}")
     tPrint(2, f"sourceLibPaths + asmLibPaths: {sourceLibPaths + asmLibPaths}")
 
-    archs = [
-        gfxName(arch)
-        for arch in globalParameters["SupportedISA"]
-        if globalParameters["AsmCaps"][arch]["SupportedISA"]
-    ]
-
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)
 
-    masterFileList = generateMasterFileList(masterLibraries, archs, lazyLoading)
+    masterFileList = generateMasterFileList(masterLibraries, supportedArchs, lazyLoading)
 
+    tPrint(1, f"# Writing {len(masterFileList)} Master Files")
+    tPrint(1, f"# {', '.join(m[0] for m in masterFileList)}")
     for name, lib in masterFileList:
+        tPrint(1, f"# Writing Master File: {name}")
         writeMasterFile(newLibraryDir, libraryFormat, kernelMinNaming, name, lib)
 
     if embedLibrary or args["ClientConfig"]:

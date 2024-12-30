@@ -46,6 +46,7 @@ from Tensile.KernelWriterBase import KernelWriterBase
 from Tensile.KernelWriterSource import KernelWriterSource
 from Tensile.SolutionStructs import ProblemSizes, Solution
 from Tensile.Utilities.ConditionalImports import yamlLoader
+from Tensile.Utilities.Toolchain import ToolchainDefaults, validateToolchain
 
 mylogger = logging.getLogger()
 
@@ -537,7 +538,26 @@ def setupSolutionsAndKernels(
     unittestPath,
 ) -> Tuple[List[Solution], List[Solution], KernelWriterAssembly, KernelWriterSource]:
     """Reusable logic for setting up testable solutions and kernels"""
-    Common.assignGlobalParameters({})
+
+    (cxxCompiler, cCompiler, assembler, offloadBundler, hipconfig, deviceEnumerator) = (
+        validateToolchain(
+            ToolchainDefaults.CXX_COMPILER,
+            ToolchainDefaults.C_COMPILER,
+            ToolchainDefaults.ASSEMBLER,
+            ToolchainDefaults.OFFLOAD_BUNDLER,
+            ToolchainDefaults.HIP_CONFIG,
+            ToolchainDefaults.DEVICE_ENUMERATOR,
+        )
+    )
+    params = {
+        "CxxCompiler": cxxCompiler,
+        "CCompiler": cCompiler,
+        "Assembler": assembler,
+        "OffloadBundler": offloadBundler,
+        "HipConfig": hipconfig,
+        "ROCmAgentEnumeratorPath": deviceEnumerator,
+    }
+    Common.assignGlobalParameters(params)
     _, _, _, _, _, lib = LibraryIO.parseLibraryLogicFile(
         unittestPath.parent / "test_data" / "unit" / "aldebaran_Cijk_AlikC_Bljk_ZB_GB.yaml"
     )
