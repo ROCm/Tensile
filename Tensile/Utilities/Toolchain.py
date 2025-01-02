@@ -84,7 +84,7 @@ def supportedOffloadBundler(bundler: str) -> bool:
     return _supportedComponent(bundler, [ToolchainDefaults.OFFLOAD_BUNDLER])
 
 
-def supportedHip(smi: str) -> bool:
+def supportedHip(exe: str) -> bool:
     """Determine if a HIP config executable is supported by Tensile.
 
     Args:
@@ -93,7 +93,7 @@ def supportedHip(smi: str) -> bool:
     Return:
         If supported True; otherwise, False.
     """
-    return _supportedComponent(smi, [ToolchainDefaults.HIP_CONFIG])
+    return _supportedComponent(exe, [ToolchainDefaults.HIP_CONFIG])
 
 
 def supportedDeviceEnumerator(enumerator: str) -> bool:

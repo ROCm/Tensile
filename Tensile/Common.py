@@ -326,7 +326,7 @@ architectureMap = {
   'gfx1010':'navi10', 'gfx1011':'navi12', 'gfx1012':'navi14',
   'gfx1030':'navi21', 'gfx1031':'navi22', 'gfx1032':'navi23', 'gfx1034':'navi24', 'gfx1035':'rembrandt',
   'gfx1100':'navi31', 'gfx1101':'navi32', 'gfx1102':'navi33',
-  'gfx1151':'strixhalo',
+  'gfx1151':'gfx1151',
   'gfx1200':'gfx1200',
   'gfx1201':'gfx1201'
 }
@@ -349,21 +349,6 @@ def getArchitectureName(gfxName: str) -> Optional[str]:
         return architectureMap[archKey]
     return None
 
-
-def supportedHipExe(hipExe: str) -> bool:
-  """Determines if a hip tool is supported by Tensile.
-
-  Args:
-      compiler: The name of a compiler to test for support.
-  
-  Return:
-      If supported True; otherwise, False.
-  """
-  isSupported = hipExe == "hipcc" or hipExe == "hipconfig"
-  if os.name == "nt": 
-    isSupported = (isSupported or hipExe == "hipcc.bat")
-  if not isSupported: printWarning(f"{hipExe} is unsupported for os {os.name}")
-  return isSupported
 
 ################################################################################
 # Enumerate Valid Solution Parameters

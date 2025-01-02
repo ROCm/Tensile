@@ -28,12 +28,13 @@ def _linkIntoCodeObject(
     """
     args = []
     if os.name == "nt":
-        # On Windows, the objectFiles list command line (including spaces)
-        # exceeds the limit of 8191 characters, so using response file
-        with tempfile.NamedTemporaryFile(mode="wt", delete=False) as f:
-            f.write(" ".join(o.replace("\\", "/") for o in objFiles))
-            f.flush()
-            args = kernelWriterAssembly.getLinkCodeObjectArgs([f"@{f.name}"], str(coPathDest))
+        # On Windows, it is possible for the list of `objFiles` to exceed the command line limit
+        # LLVM allows the provision of compiler arguments via a "response file" (`rf` below)
+        # Reference: https://llvm.org/docs/CommandLine.html#response-files
+        with tempfile.NamedTemporaryFile(mode="wt", delete=False) as rf:
+            rf.write(" ".join(o.replace("\\", "/") for o in objFiles))
+            rf.flush()
+            args = kernelWriterAssembly.getLinkCodeObjectArgs([f"@{rf.name}"], str(coPathDest))
     else:
         args = kernelWriterAssembly.getLinkCodeObjectArgs(objFiles, str(coPathDest))
 

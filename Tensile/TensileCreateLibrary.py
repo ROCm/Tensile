@@ -1159,7 +1159,6 @@ def verifyManifest(manifest: Path) -> bool:
     """
     with open(manifest, mode="r") as generatedFiles:
         for f in generatedFiles.readlines():
-            tPrint(1, f"Checking file: {f}")
             if not Path(f.rstrip()).exists():
                 printWarning(f"File in manifest ``{f}`` not found.")
                 return False
@@ -1435,9 +1434,6 @@ def TensileCreateLibrary():
     masterLibraries = generateLogicData(
         logicFiles, args["Version"], args["PrintLevel"], args["SeparateArchitectures"]
     )
-    tPrint(1, f"# Found {len(masterLibraries)} Master Files")
-    tPrint(1, f"# {', '.join(masterLibraries.keys())}")
-
     solutions = generateSolutions(masterLibraries, args["SeparateArchitectures"])
     if lazyLoading and args["WriteMasterSolutionIndex"]:
         writeMasterSolutionIndexCSV(outputPath, masterLibraries)
@@ -1510,10 +1506,8 @@ def TensileCreateLibrary():
 
     masterFileList = generateMasterFileList(masterLibraries, supportedArchs, lazyLoading)
 
-    tPrint(1, f"# Writing {len(masterFileList)} Master Files")
-    tPrint(1, f"# {', '.join(m[0] for m in masterFileList)}")
+    tPrint(1, f"# Writing solution selection catalog(s) for {len(solutions)} architecture(s)")
     for name, lib in masterFileList:
-        tPrint(1, f"# Writing Master File: {name}")
         writeMasterFile(newLibraryDir, libraryFormat, kernelMinNaming, name, lib)
 
     if embedLibrary or args["ClientConfig"]:
