@@ -1506,7 +1506,7 @@ def TensileCreateLibrary():
 
     masterFileList = generateMasterFileList(masterLibraries, supportedArchs, lazyLoading)
 
-    tPrint(1, f"# Writing solution selection catalog(s) for {len(solutions)} architecture(s)")
+    tPrint(1, f"# Writing {len(masterFileList)} solution selection catalog(s)")
     for name, lib in masterFileList:
         writeMasterFile(newLibraryDir, libraryFormat, kernelMinNaming, name, lib)
 
