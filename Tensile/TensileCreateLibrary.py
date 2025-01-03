@@ -56,7 +56,6 @@ from .Common import (
     printExit,
     printWarning,
     splitArchs,
-    supportedCompiler,
     tPrint,
 )
 from .KernelWriterAssembly import KernelWriterAssembly
@@ -624,13 +623,8 @@ def buildObjectFileNames(
 
     kernelHelperObjNames = [ko.getKernelName() for ko in kernelHelperObjs]
 
-    cxxCompiler = globalParameters["CxxCompiler"]
-
     # Source based kernels are built for all supported architectures
-    if supportedCompiler(cxxCompiler):
-        sourceArchs, _ = splitArchs()
-    else:
-        raise RuntimeError("Unknown compiler %s" % cxxCompiler)
+    sourceArchs, _ = splitArchs()
 
     # Asm based kernels target the configured ISA
     asmArchs = collections.defaultdict(list)
@@ -666,20 +660,12 @@ def buildObjectFileNames(
         allSources = sourceKernelNames + kernelHelperObjNames
 
         for kernelName in allSources:
-            if supportedCompiler(cxxCompiler):
-                sourceLibFiles += [
-                    "%s.so-000-%s.hsaco" % (kernelName, arch) for arch in sourceArchs
-                ]
-            else:
-                raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
+            sourceLibFiles += ["%s.so-000-%s.hsaco" % (kernelName, arch) for arch in sourceArchs]
     elif globalParameters["NumMergedFiles"] > 1:
-        if supportedCompiler(cxxCompiler):
-            for kernelIndex in range(0, globalParameters["NumMergedFiles"]):
-                sourceLibFiles += [
-                    "Kernels%d.so-000-%s.hsaco" % (kernelIndex, arch) for arch in sourceArchs
-                ]
-        else:
-            raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
+        for kernelIndex in range(0, globalParameters["NumMergedFiles"]):
+            sourceLibFiles += [
+                "Kernels%d.so-000-%s.hsaco" % (kernelIndex, arch) for arch in sourceArchs
+            ]
     elif globalParameters["LazyLibraryLoading"]:
         fallbackLibs = list(
             set(
@@ -694,13 +680,9 @@ def buildObjectFileNames(
             "{0}_{1}.hsaco".format(name, arch)
             for name, arch in itertools.product(fallbackLibs, sourceArchs)
         ]
-        if supportedCompiler(cxxCompiler):
-            sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
+        sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
     else:  # Merge
-        if supportedCompiler(cxxCompiler):
-            sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
-        else:
-            raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
+        sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
 
     # Returns names for all xnack versions
     def addxnack(name, ext):
@@ -1178,6 +1160,7 @@ def verifyManifest(manifest: Path) -> bool:
     with open(manifest, mode="r") as generatedFiles:
         for f in generatedFiles.readlines():
             if not Path(f.rstrip()).exists():
+                printWarning(f"File in manifest ``{f}`` not found.")
                 return False
     return True
 
@@ -1376,7 +1359,6 @@ def TensileCreateLibrary():
     separateArchs = args["SeparateArchitectures"]
     mergeFiles = args["MergeFiles"]
     embedLibrary = args["EmbedLibrary"]
-    cxxCompiler = args["CxxCompiler"]
     libraryFormat = args["LibraryFormat"]
     logicPath = args["LogicPath"]
     outputPath = args["OutputPath"]
@@ -1396,6 +1378,18 @@ def TensileCreateLibrary():
 
     assignGlobalParameters(args)
 
+    supportedArchs = [
+        gfxName(arch)
+        for arch in globalParameters["SupportedISA"]
+        if globalParameters["AsmCaps"][arch]["SupportedISA"]
+    ]
+
+    _, requestedArchs = splitArchs()
+    if all(a.split(":")[0] not in supportedArchs for a in requestedArchs):
+        printExit(
+            f"No requested architecture is supported by ROCm {globalParameters['HipClangVersion']}\n  Requested {', '.join(requestedArchs)}\n  Supported {', '.join(supportedArchs)}"
+        )
+
     manifestFile = Path(outputPath) / TENSILE_LIBRARY_DIR / TENSILE_MANIFEST_FILENAME
     manifestFile.parent.mkdir(exist_ok=True)
 
@@ -1407,7 +1401,10 @@ def TensileCreateLibrary():
             printExit("Failed to verify all files in manifest")
 
     tPrint(1, "# CodeObjectVersion: %s" % args["CodeObjectVersion"])
-    tPrint(1, "# CxxCompiler:       %s" % cxxCompiler)
+    tPrint(1, "# CxxCompiler:       %s" % args["CxxCompiler"])
+    tPrint(1, "# CCompiler:         %s" % args["CCompiler"])
+    tPrint(1, "# Assembler:         %s" % args["Assembler"])
+    tPrint(1, "# OffloadBundler:    %s" % args["OffloadBundler"])
     tPrint(1, "# Architecture:      %s" % args["Architecture"])
     tPrint(1, "# LibraryFormat:     %s" % libraryFormat)
 
@@ -1437,7 +1434,6 @@ def TensileCreateLibrary():
     masterLibraries = generateLogicData(
         logicFiles, args["Version"], args["PrintLevel"], args["SeparateArchitectures"]
     )
-
     solutions = generateSolutions(masterLibraries, args["SeparateArchitectures"])
     if lazyLoading and args["WriteMasterSolutionIndex"]:
         writeMasterSolutionIndexCSV(outputPath, masterLibraries)
@@ -1484,7 +1480,7 @@ def TensileCreateLibrary():
 
     codeObjectFiles, kernels, solutions = writeKernels(
         outputPath,
-        cxxCompiler,
+        args["CxxCompiler"],
         globalParameters["ClangOffloadBundlerPath"],
         args,
         solutions,
@@ -1505,17 +1501,12 @@ def TensileCreateLibrary():
     tPrint(2, f"codeObjectFiles: {codeObjectFiles}")
     tPrint(2, f"sourceLibPaths + asmLibPaths: {sourceLibPaths + asmLibPaths}")
 
-    archs = [
-        gfxName(arch)
-        for arch in globalParameters["SupportedISA"]
-        if globalParameters["AsmCaps"][arch]["SupportedISA"]
-    ]
-
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)
 
-    masterFileList = generateMasterFileList(masterLibraries, archs, lazyLoading)
+    masterFileList = generateMasterFileList(masterLibraries, supportedArchs, lazyLoading)
 
+    tPrint(1, f"# Writing {len(masterFileList)} solution selection catalog(s)")
     for name, lib in masterFileList:
         writeMasterFile(newLibraryDir, libraryFormat, kernelMinNaming, name, lib)
 

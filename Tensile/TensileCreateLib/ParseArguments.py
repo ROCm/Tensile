@@ -28,6 +28,7 @@ from argparse import Action, ArgumentParser
 from typing import Any, Dict, List, Optional
 
 from ..Common import DeveloperWarning, architectureMap
+from ..Utilities.Toolchain import ToolchainDefaults, validateToolchain
 
 
 class DeprecatedOption(Action):
@@ -71,15 +72,32 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
     )
 
     # Optional arguments
-    compilerChoices = ["amdclang++", "hipcc"] if os.name != "nt" else ["clang++", "hipcc"]
     parser.add_argument(
         "--cxx-compiler",
         dest="CxxCompiler",
-        choices=compilerChoices,
-        default=compilerChoices[0],
+        choices=[ToolchainDefaults.CXX_COMPILER, "hipcc"],
+        default=ToolchainDefaults.CXX_COMPILER,
         type=str,
         help="C++ compiler used when generating binaries."
         " On linux, amdclang++ (default) or hipcc. On Windows clang++ (default) or hipcc.",
+    )
+    parser.add_argument(
+        "--c-compiler",
+        dest="CCompiler",
+        default=ToolchainDefaults.C_COMPILER,
+        type=str,
+    )
+    parser.add_argument(
+        "--assembler",
+        dest="Assembler",
+        default=ToolchainDefaults.ASSEMBLER,
+        type=str,
+    )
+    parser.add_argument(
+        "--offload-bundler",
+        dest="OffloadBundler",
+        default=ToolchainDefaults.OFFLOAD_BUNDLER,
+        type=str,
     )
     parser.add_argument(
         "--architecture",
@@ -272,6 +290,9 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
         "OutputPath": args.OutputPath,
         "RuntimeLanguage": args.RuntimeLanguage,
         "CxxCompiler": args.CxxCompiler,
+        "CCompiler": args.CCompiler,
+        "Assembler": args.Assembler,
+        "OffloadBundler": args.OffloadBundler,
         "CmakeCxxCompiler": args.CmakeCxxCompiler,
         "CodeObjectVersion": args.CodeObjectVersion,
         "Architecture": args.Architecture,
@@ -299,8 +320,6 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
 
     if args.CmakeCxxCompiler:
         os.environ["CMAKE_CXX_COMPILER"] = args.CmakeCxxCompiler
-    if args.NoEnumerate:
-        arguments["ROCmAgentEnumeratorPath"] = False
     if args.GenerateSourcesAndExit:
         # Generated sources are preserved and go into output directory
         arguments["WorkingPath"] = arguments["OutputPath"]
@@ -309,5 +328,24 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
 
     for k, v in args.GlobalParameters:
         arguments[k] = v
+    (
+        arguments["CxxCompiler"],
+        arguments["CCompiler"],
+        arguments["Assembler"],
+        arguments["OffloadBundler"],
+        arguments["HipConfig"],
+    ) = validateToolchain(
+        arguments["CxxCompiler"],
+        arguments["CCompiler"],
+        arguments["Assembler"],
+        arguments["OffloadBundler"],
+        ToolchainDefaults.HIP_CONFIG,
+    )
+    if args.NoEnumerate:
+        arguments["ROCmAgentEnumeratorPath"] = False
+    else:
+        arguments["ROCmAgentEnumeratorPath"] = validateToolchain(
+            ToolchainDefaults.DEVICE_ENUMERATOR
+        )
 
     return arguments

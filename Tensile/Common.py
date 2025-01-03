@@ -25,6 +25,7 @@
 from . import __version__
 from . import Parallel
 from .Utilities.ConditionalImports import print, TENSILE_TERM_COLORS
+from .Utilities.Toolchain import getVersion
 from collections import OrderedDict
 
 from copy import deepcopy
@@ -348,24 +349,6 @@ def getArchitectureName(gfxName: str) -> Optional[str]:
         return architectureMap[archKey]
     return None
 
-def supportedCompiler(compiler: str) -> bool:
-  """ Determines if compiler is supported by Tensile.
-
-      Args:
-          The name of a compiler to test for support.
-      
-      Return:
-          If supported True; otherwise, False.
-  """
-  isSupported = (compiler == "hipcc")
-  if os.name == "nt": 
-    isSupported = (isSupported or compiler == "clang++")
-  else:
-    isSupported = (isSupported or compiler == "amdclang++")
-  
-  if not isSupported: printWarning(f"{compiler} is unsupported for os {os.name}")
-  
-  return isSupported
 
 ################################################################################
 # Enumerate Valid Solution Parameters
@@ -2232,36 +2215,47 @@ def gfxName(arch):
     name = str(arch[0]) + str(arch[1]) + ('%x' % arch[2])
     return 'gfx' + ''.join(map(str,name))
 
+
+def detectIsaWindows(output):
+    i = 0
+    for line in output:
+      if 'gcnArchName' in line:
+        arch = gfxArch(line.split()[1].strip())
+        if arch and arch in globalParameters["SupportedISA"]:
+          tPrint(1, f"# Detected GPU {i}:    {gfxName(arch)}")
+          globalParameters["CurrentISA"] = arch
+          i += 1
+
+
+def detectIsaLinux(output):
+    for i, line in enumerate(output):
+      arch = gfxArch(line.strip())
+      if arch and arch in globalParameters["SupportedISA"]:
+          tPrint(1, f"# Detected GPU {i}:    {gfxName(arch)}")
+          globalParameters["CurrentISA"] = arch
+
+
 def detectGlobalCurrentISA():
   """
   Returns returncode if detection failure
   """
   global globalParameters
 
-  if globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
-    process = subprocess.run([globalParameters["ROCmAgentEnumeratorPath"]], stdout=subprocess.PIPE)
-    if os.name == "nt":
-      line = ""
-      for line_in in process.stdout.decode().splitlines():
-        if 'gcnArchName' in line_in:
-          line += line_in.split()[1]
-          break # determine if hipinfo will support multiple arch
-      arch = gfxArch(line.strip())
-      if arch is not None:
-        if arch in globalParameters["SupportedISA"]:
-          tPrint(1, "# Detected local GPU with ISA: " + gfxName(arch))
-          globalParameters["CurrentISA"] = arch
-    else:
-      for line in process.stdout.decode().split("\n"):
-        arch = gfxArch(line.strip())
-        if arch is not None:
-          if arch in globalParameters["SupportedISA"]:
-            tPrint(1, "# Detected local GPU with ISA: " + gfxName(arch))
-            globalParameters["CurrentISA"] = arch
-    if (process.returncode):
-      printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
-    return process.returncode
-  return 0
+  if not (globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]):
+    return -1
+
+  enumerator = globalParameters["ROCmAgentEnumeratorPath"]
+  process = subprocess.run([enumerator], stdout=subprocess.PIPE)
+  output = process.stdout.decode().splitlines()
+
+  if os.name == "nt":
+    detectIsaWindows(output)
+  else:
+    detectIsaLinux(output)
+
+  if process.returncode:
+    printWarning(f"{globalParameters['ROCmAgentEnumeratorPath']} exited with code {process.returncode}")
+  return process.returncode
 
 def restoreDefaultGlobalParameters():
   """
@@ -2304,21 +2298,6 @@ def printCapTable(parameters):
   archCapRows = [capRow(parameters["ArchCaps"], cap) for cap in allArchCaps]
 
   printTable([headerRow] + asmCapRows + archCapRows)
-
-def which(p):
-    if supportedCompiler(p) and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
-        return os.environ['CMAKE_CXX_COMPILER']
-    if os.name == "nt":
-        exes = [p+x for x in ['.exe', '', '.bat']]  # bat may be front end for file with no extension
-    else:
-        exes = [p+x for x in ['', '.exe', '.bat']]
-    system_path = os.environ['PATH'].split(os.pathsep)
-    for dirname in system_path+[globalParameters["ROCmBinPath"]]:
-        for exe in exes:
-            candidate = os.path.join(os.path.expanduser(dirname), exe)
-            if os.path.isfile(candidate):
-                return candidate
-    return None
 
 
 def splitArchs():
@@ -2386,7 +2365,7 @@ def populateCapabilities(
         if v[0] == 12 and not (
             compilerVer.major > 6 or (compilerVer.major == 6 and compilerVer.minor >= 3)
         ):
-            printWarning(f"ISA {v} isn't supported for ROCm stack {compilerVer}, skipping...")
+            printWarning(f"{gfxName(v)} isn't supported by ROCm {compilerVer}, libraries will not be generated...")
             to_remove.append(v)
             continue
 
@@ -2416,6 +2395,13 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
     if not versionIsCompatible(config["MinimumRequiredVersion"]):
       printExit("Config file requires version=%s is not compatible with current Tensile version=%s" \
           % (config["MinimumRequiredVersion"], __version__) )
+
+  if "HipConfig" in config:
+    output = getVersion(config["HipConfig"], regex=r'(.+)')
+    globalParameters["HipClangVersion"] = output.strip()
+    tPrint(1, f"# Found HIP version: {globalParameters['HipClangVersion']}")
+  else:
+    raise ValueError("HipConfig not specified in config, could not set HipClangVersion")
 
   # User-specified global parameters
   tPrint(3, "GlobalParameters:")
@@ -2449,49 +2435,30 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   globalParameters["ROCmBinPath"] = os.path.join(globalParameters["ROCmPath"], "bin")
 
   # ROCm Agent Enumerator Path
-  if os.name == "nt":
-    globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "hipinfo.exe")
+  if "ROCmAgentEnumeratorPath" in config:
+    globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
   else:
-    globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm_agent_enumerator")
-
+    raise ValueError("ROCmAgentEnumeratorPath not specified in config")
   if "CxxCompiler" in config:
     globalParameters["CxxCompiler"] = config["CxxCompiler"]
-    # Pair the CCompiler with CxxCompiler
-    if globalParameters["CxxCompiler"] == "hipcc":
-       globalParameters["CCompiler"] = "hipcc"
-    else:
-        if supportedCompiler(globalParameters["CxxCompiler"]):
-          globalParameters["CCompiler"] = "clang" if os.name == "nt" else "amdclang"
-        else: # unkown c++ compiler so set c compile rto be the same
-          globalParameters["CCompiler"] = globalParameters["CxxCompiler"]
-
+  else:
+    raise ValueError("CxxCompiler not specified in config")
   if "CCompiler" in config:
     globalParameters["CCompiler"] = config["CCompiler"]    
-
-  if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
-    globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
-  elif globalParameters["AssemblerPath"] is None and supportedCompiler(globalParameters["CxxCompiler"]):
-    if os.name == "nt":
-      globalParameters["AssemblerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang++.exe")
-    else:
-      bin_path = "llvm/bin" if globalParameters["CxxCompiler"] == "hipcc" else "bin"
-      compiler = "clang++" if globalParameters["CxxCompiler"] == "hipcc" else "amdclang++"
-      globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], bin_path), compiler)
+  else:
+    raise ValueError("CCompiler not specified in config")
+  if "Assembler" in config:
+    globalParameters["AssemblerPath"] = config["Assembler"]
+  else:
+    raise ValueError("Assembler not specified in config")
+  if "OffloadBundler" in config:
+    globalParameters["ClangOffloadBundlerPath"] = config["OffloadBundler"]
+  else:
+    raise ValueError("OffloadBundler not specified in config")
 
   globalParameters["ROCmSMIPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm-smi")
 
   globalParameters["ExtractKernelPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "hip/bin"), "extractkernel")
-
-  if "TENSILE_ROCM_OFFLOAD_BUNDLER_PATH" in os.environ:
-    globalParameters["ClangOffloadBundlerPath"] = os.environ.get("TENSILE_ROCM_OFFLOAD_BUNDLER_PATH")
-  else:
-    if os.name == "nt":
-      globalParameters["ClangOffloadBundlerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang-offload-bundler.exe")
-    else:
-      globalParameters["ClangOffloadBundlerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang-offload-bundler")
-
-  if "ROCmAgentEnumeratorPath" in config:
-    globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
 
   # read current gfx version
   returncode = detectGlobalCurrentISA()
@@ -2506,31 +2473,6 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
     isaString = ', '.join(map(gfxName, isasWithDisabledHWMonitor))
     printWarning(f"HardwareMonitor currently disabled for {isaString}")
     globalParameters["HardwareMonitor"] = False
-
-  # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
-  # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
-  # '0.0.0' will persist
-
-  # Due to platform.linux_distribution() being deprecated, just try to run dpkg regardless.
-  # The alternative would be to install the `distro` package.
-  # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
-  
-  # The following try except block computes the hipcc version
-  try:
-    if os.name == "nt":
-      compileArgs = [which('hipcc.bat')] + ['--version']
-      output = subprocess.run(compileArgs, check=True, stdout=subprocess.PIPE).stdout.decode()
-    else:
-      compiler = "hipcc"
-      output = subprocess.run([compiler, "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
-
-    for line in output.split('\n'):
-      if 'HIP version' in line:
-        globalParameters['HipClangVersion'] = line.split()[2]
-        tPrint(1, "# Found hipcc version " + globalParameters['HipClangVersion'])
-
-  except (subprocess.CalledProcessError, OSError) as e:
-      printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))
 
   if "IgnoreAsmCapCache" in config:
     globalParameters["IgnoreAsmCapCache"] = config["IgnoreAsmCapCache"]
@@ -2560,7 +2502,18 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
       config["NumMergedFiles"] = 1
       printWarning("--num-merged-files and --no-merge-files specified, ignoring --num-merged-files")
 
-  rejectGlobalParameters = {"LogicPath", "OutputPath", "EmbedLibraryKey", "Version", "BuildClient", "ClientConfig", "WriteMasterSolutionIndex"}
+  rejectGlobalParameters = {
+    "LogicPath",
+    "OutputPath",
+    "EmbedLibraryKey",
+    "Version",
+    "BuildClient",
+    "ClientConfig",
+    "WriteMasterSolutionIndex",
+    "HipConfig",
+    "OffloadBundler",
+    "Assembler",
+  }
   for key in config:
     if key in rejectGlobalParameters:
       continue
