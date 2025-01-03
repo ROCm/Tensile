@@ -32,7 +32,8 @@ def _linkIntoCodeObject(
         # LLVM allows the provision of compiler arguments via a "response file" (`rf` below)
         # Reference: https://llvm.org/docs/CommandLine.html#response-files
         with tempfile.NamedTemporaryFile(mode="wt", delete=False) as rf:
-            rf.write(" ".join(o.replace("\\", "/") for o in objFiles))
+            # Use repr to a get raw string with non-escaped path separators
+            rf.write(" ".join(map(repr, objFiles)))
             rf.flush()
             args = kernelWriterAssembly.getLinkCodeObjectArgs([f"@{rf.name}"], str(coPathDest))
     else:
