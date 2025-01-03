@@ -2241,8 +2241,8 @@ def detectGlobalCurrentISA():
   """
   global globalParameters
 
-  if globalParameters["CurrentISA"] != (0,0,0) or not globalParameters["ROCmAgentEnumeratorPath"]:
-    return 0
+  if not (globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]):
+    return -1
 
   enumerator = globalParameters["ROCmAgentEnumeratorPath"]
   process = subprocess.run([enumerator], stdout=subprocess.PIPE)
