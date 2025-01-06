@@ -16,7 +16,7 @@ To begin, install ROCm for your platform. For installation instructions, refer t
 .. tip::
 
    If using Bash, set ``PATH=/opt/rocm/bin/:$PATH`` in your ``~/.bashrc`` and refresh your shell using ``source ~/.bashrc``.
-   Alternatively, export the path exclusively for your current shell session, using ``export PATH=/opt/rocm/bin/:$PATH``.
+   Alternatively, export the path for your current shell session using ``export PATH=/opt/rocm/bin/:$PATH``.
 
 Install OS dependencies
 =========================
