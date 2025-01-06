@@ -29,7 +29,7 @@ from .Utilities.Toolchain import getVersion
 from collections import OrderedDict
 
 from copy import deepcopy
-from .AsmCaps import CACHED_ASM_CAPS
+from .AsmCaps import getCapabilitiesCache
 from typing import Any, NamedTuple, Optional, Tuple, Dict
 
 import math
@@ -2112,6 +2112,8 @@ def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion) -> Dict
       ignoreCacheCheck = ignoreCacheCheck or \
                          compilerVersion.major < 5 or \
                          (compilerVersion.major == 5 and compilerVersion.minor <= 2) 
+    
+    CACHED_ASM_CAPS = getCapabilitiesCache(compilerVersion.major)
 
     if not derivedAsmCaps["SupportedISA"] and CACHED_ASM_CAPS[isaVersion]["SupportedISA"]:
       printWarning("Architecture {} not supported by ROCm {}".format(isaVersion, globalParameters['HipClangVersion']), DeveloperWarning)
@@ -2335,7 +2337,7 @@ def splitArchs():
 
 
 def populateCapabilities(
-    globalParameters: Dict[str, Any], cachedAsmCaps: Dict[IsaVersion, dict]
+    globalParameters: Dict[str, Any], cachedAsmCaps: Dict[IsaVersion, dict], compilerVer: CompilerVersion
 ):
     """Populates the assembler and archiecture capabilities based on the compiler and ISA.
 
@@ -2353,9 +2355,6 @@ def populateCapabilities(
     Note:
         This function modifies `globalParameters` and `cachedAsmCaps` in place.
     """
-    compilerVer = CompilerVersion(
-        *[int(c) for c in globalParameters["HipClangVersion"].split(".")[:2]]
-    )
     supportedISA = globalParameters["SupportedISA"]
     to_remove = []
    
@@ -2480,6 +2479,11 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   globalParameters["CacheAsmCaps"] = True if capabilitiesCache is not None else False
   globalParameters["AsmCaps"] = capabilitiesCache if globalParameters["CacheAsmCaps"] else {}
   globalParameters["ArchCaps"] = {}
+
+  compilerVer = CompilerVersion(
+    *[int(c) for c in globalParameters["HipClangVersion"].split(".")[:2]]
+  )
+  CACHED_ASM_CAPS = getCapabilitiesCache(compilerVer.major)
   populateCapabilities(globalParameters, CACHED_ASM_CAPS)
 
   if globalParameters["PrintLevel"] >= 2:
