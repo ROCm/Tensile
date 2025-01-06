@@ -2484,7 +2484,7 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
     *[int(c) for c in globalParameters["HipClangVersion"].split(".")[:2]]
   )
   CACHED_ASM_CAPS = getCapabilitiesCache(compilerVer.major)
-  populateCapabilities(globalParameters, CACHED_ASM_CAPS)
+  populateCapabilities(globalParameters, CACHED_ASM_CAPS, compilerVer)
 
   if globalParameters["PrintLevel"] >= 2:
     printCapTable(globalParameters)
