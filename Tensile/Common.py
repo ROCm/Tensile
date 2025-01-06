@@ -46,12 +46,13 @@ ParallelMap = Parallel.ParallelMap
 
 IsaVersion = Tuple[int, int, int]
 
-class CompilerVersion(NamedTuple):
+class SemanticVersion(NamedTuple):
     major: int
     minor: int
+    patch: int
 
     def __str__(self) -> str:
-        return f"{self.major}.{self.minor}"
+        return f"{self.major}.{self.minor}.{self.patch}"
 
 class DeveloperWarning(Warning):
     """Custom warning for Tensile developers.
@@ -2011,7 +2012,7 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
       return exePath
   return None
 
-def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion, cachedAsmCaps: Dict[IsaVersion, dict]) -> Dict[IsaVersion, dict]:
+def GetAsmCaps(isaVersion: IsaVersion, hipVersion: SemanticVersion, cachedAsmCaps: Dict[IsaVersion, dict]) -> Dict[IsaVersion, dict]:
   """ Determine assembler capabilities by testing short instructions sequences """
   if globalParameters["AssemblerPath"] is not None:
 
@@ -2108,10 +2109,10 @@ def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion, cachedA
     ignoreCacheCheck = globalParameters["IgnoreAsmCapCache"]
 
     # disable cache checking for < rocm 5.3
-    if len(compilerVersion) >= 2:
+    if len(hipVersion) >= 2:
       ignoreCacheCheck = ignoreCacheCheck or \
-                         compilerVersion.major < 5 or \
-                         (compilerVersion.major == 5 and compilerVersion.minor <= 2) 
+                         hipVersion.major < 5 or \
+                         (hipVersion.major == 5 and hipVersion.minor <= 2) 
     
     if not derivedAsmCaps["SupportedISA"] and cachedAsmCaps[isaVersion]["SupportedISA"]:
       printWarning("Architecture {} not supported by ROCm {}".format(isaVersion, globalParameters['HipClangVersion']), DeveloperWarning)
@@ -2121,7 +2122,7 @@ def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion, cachedA
     if not ignoreCacheCheck:
       exitFlag = False
       # rocm<=6.0, ignore KernargPreloading
-      if compilerVersion.major <= 5 or (compilerVersion.major == 6 and compilerVersion.minor == 0):
+      if hipVersion.major <= 5 or (hipVersion.major == 6 and hipVersion.minor == 0):
         derivedAsmCapsCopy = deepcopy(derivedAsmCaps)
         # copy KernargPreloading from CACHED_ASM_CAPS (to ignore this)
         derivedAsmCapsCopy["KernargPreloading"] = cachedAsmCaps[isaVersion]["KernargPreloading"]
@@ -2335,7 +2336,7 @@ def splitArchs():
 
 
 def populateCapabilities(
-    globalParameters: Dict[str, Any], cachedAsmCaps: Dict[IsaVersion, dict], compilerVer: CompilerVersion
+    globalParameters: Dict[str, Any], cachedAsmCaps: Dict[IsaVersion, dict], hipVer: SemanticVersion
 ):
     """Populates the assembler and archiecture capabilities based on the compiler and ISA.
 
@@ -2349,7 +2350,7 @@ def populateCapabilities(
             application, including the HipClang version and supported ISA versions.
         cachedAsmCaps: A dictionary to be populated with the assembler
             capabilities for each ISA version.
-        compilerVer: The hip compiler version.
+        hipVer: The hip compiler version.
 
     Note:
         This function modifies `globalParameters` and `cachedAsmCaps` in place.
@@ -2361,14 +2362,14 @@ def populateCapabilities(
 
     for v in supportedISA + [(0, 0, 0)]:
         if v[0] == 12 and not (
-            compilerVer.major > 6 or (compilerVer.major == 6 and compilerVer.minor >= 3)
+            hipVer.major > 6 or (hipVer.major == 6 and hipVer.minor >= 3)
         ):
-            printWarning(f"{gfxName(v)} isn't supported by ROCm {compilerVer}, libraries will not be generated...")
+            printWarning(f"{gfxName(v)} isn't supported by ROCm {hipVer}, libraries will not be generated...")
             to_remove.append(v)
             continue
 
         if emptyCache or not globalParameters["CacheAsmCaps"]:
-            globalParameters["AsmCaps"][v] = GetAsmCaps(v, compilerVer, cachedAsmCaps)
+            globalParameters["AsmCaps"][v] = GetAsmCaps(v, hipVer, cachedAsmCaps)
 
         globalParameters["ArchCaps"][v] = GetArchCaps(v)
 
@@ -2479,12 +2480,11 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   globalParameters["AsmCaps"] = capabilitiesCache if globalParameters["CacheAsmCaps"] else {}
   globalParameters["ArchCaps"] = {}
 
-  compilerVer = CompilerVersion(
-    *[int(c) for c in globalParameters["HipClangVersion"].split(".")[:2]]
+  hipVersion = SemanticVersion(
+    *[int(c.split("-")[0]) for c in globalParameters["HipClangVersion"].split(".")[:3]]
   )
-
-  cachedAsmCaps = getCapabilitiesCache(compilerVer)
-  populateCapabilities(globalParameters, cachedAsmCaps, compilerVer)
+  cachedAsmCaps = getCapabilitiesCache(hipVersion)
+  populateCapabilities(globalParameters, cachedAsmCaps, hipVersion)
 
   if globalParameters["PrintLevel"] >= 2:
     printCapTable(globalParameters)

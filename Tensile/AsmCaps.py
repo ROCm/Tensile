@@ -21,20 +21,22 @@
 # SOFTWARE.
 #
 ################################################################################
+from typing import NamedTuple
 
-def getCapabilitiesCache(compiler_version: tuple) -> dict:
+def getCapabilitiesCache(rocmVersion: NamedTuple) -> dict:
     """Returns a compiler version dependent capabilities cache.
 
     Args:
-        compiler_maj_version: The major version of the compiler.
+        rocmVersion: The rocm major/minor version (often obtained from hipconfig maj/min version).
 
     Returns:
         A dictionary representing the capabilities cache.
     """
 
-    print(f"Creating capabilities cache for ROCm {compiler_version}")
-
-    CACHED_ASM_CAPS = \
+    # The base cachedAsmCaps is assumed to work for rocm versions <= 6.3
+    # and amdclang major versions <= 18. The version dependent cachedAmmCaps
+    # was introduced in ROCm 6.4 which contains clang 19.
+    cachedAsmCaps = \
     {(0, 0, 0): {'HasAddLshl': False,
                  'HasAtomicAdd': False,
                  'HasDirectToLdsDest': False,
@@ -920,12 +922,15 @@ def getCapabilitiesCache(compiler_version: tuple) -> dict:
         for key, val in right.items():
             left[key].update(val)
 
-    if compiler_version.major * 10 + compiler_version.minor > 63:
+    if rocmVersion.major * 10 + rocmVersion.minor > 63:
         v19_diff = \
             {(11, 0, 0): {'VOP3v_dot4_i32_i8': True}, 
              (11, 0, 1): {'VOP3v_dot4_i32_i8': True},
              (11, 0, 2): {'VOP3v_dot4_i32_i8': True},
-             (11, 5, 1): {'VOP3v_dot4_i32_i8': True}}
-        nested_update_(CACHED_ASM_CAPS, v19_diff)
+             (11, 5, 1): {'VOP3v_dot4_i32_i8': True},
+             (12, 0, 0): {'VOP3v_dot4_i32_i8': True},
+             (12, 0, 1): {'VOP3v_dot4_i32_i8': True}}
 
-    return CACHED_ASM_CAPS
+        nested_update_(cachedAsmCaps, v19_diff)
+
+    return cachedAsmCaps
