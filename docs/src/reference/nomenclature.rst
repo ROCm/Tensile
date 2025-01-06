@@ -2,11 +2,11 @@
   :description: Tensile is a tool for creating a benchmark-driven backend library for GEMM
   :keywords: Tensile kernel selection, Tensile solution selection, GEMM, Tensor, ROCm
 
-.. _glossary:
+.. _nomenclature:
 
-*********
-Glossary
-*********
+*************
+Nomenclature
+*************
 
 This topic lists and describes the frequently used terms in the Tensile documentation.
 
@@ -18,7 +18,7 @@ General matrix multiplication (GEMM) is a level 3 BLAS operation that computes t
 .. math::
    C = \alpha A B + \beta C
 
-In the preceding equation, :math:`\alpha` and :math:`\beta` are scalars and, :math:`A` and :math:`B` are optionally transposed input matrices.
+where, :math:`\alpha` and :math:`\beta` are scalars and, :math:`A` and :math:`B` are optionally transposed input matrices.
 
 .. list-table:: GEMM data types
    :header-rows: 1

@@ -4,9 +4,9 @@
 
 .. _solution-selection-catalogs:
 
-**************************************
-Tensile solution selection catalogs
-**************************************
+*****************************
+Solution selection catalogs
+*****************************
 
 To avoid the overhead associated with loading code object files including initialization time and the memory footprint of the loaded code object files,
 Tensile provides a mechanism to load only a subset of the code object files produced during a build, at runtime.
@@ -28,7 +28,7 @@ Solution selection catalog hierarchy
     :alt: Master Solution Library hierarchy
     :align: center
 
-    Solution selection catalog heirarchy for gfx900 and gfx90a
+    Solution selection catalog hierarchy for gfx900 and gfx90a
 
 .. note::
 

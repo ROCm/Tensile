@@ -4,9 +4,11 @@
 
 .. _installation:
 
-********************************************************************
-Tensile installation
-********************************************************************
+*****************
+Installation
+*****************
+
+This topic provides information required to install Tensile from source and run benchmarks.
 
 Install ROCm
 ============
@@ -20,7 +22,6 @@ To begin, install ROCm for your platform. For installation instructions, refer t
 
 Install OS dependencies
 =========================
-
 
 .. note::
    The steps below are for Ubuntu. For other distributions, use the appropriate package manager.

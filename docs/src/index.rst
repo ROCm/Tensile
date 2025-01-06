@@ -23,7 +23,7 @@ The code is open source and hosted at https://github.com/ROCm/Tensile
 
   .. grid-item-card:: Install
 
-    * :ref:`Installation <installation>`
+    * :ref:`installation`
 
   .. grid-item-card:: Conceptual
 
@@ -33,8 +33,8 @@ The code is open source and hosted at https://github.com/ROCm/Tensile
 
     * :ref:`CLI reference <cli-reference>`
     * :ref:`API reference <api-reference>`
-    * :ref:`Environment variables <environment-variables>`
-    * :ref:`Glossary <glossary>`
+    * :ref:`environment-variables`
+    * :ref:`nomenclature`
 
   .. grid-item-card:: Contribution
 
