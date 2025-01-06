@@ -921,7 +921,10 @@ def getCapabilitiesCache(compiler_version: tuple) -> dict:
             left[key].update(val)
 
     if compiler_version.major * 10 + compiler_version.minor > 63:
-        v19_diff = {(11, 0, 0): {'VOP3v_dot4_i32_i8': True}}
+        v19_diff = \
+            {(11, 0, 0): {'VOP3v_dot4_i32_i8': True}, 
+             (11, 0, 1): {'VOP3v_dot4_i32_i8': True},
+             (11, 0, 2): {'VOP3v_dot4_i32_i8': True}}
         nested_update_(CACHED_ASM_CAPS, v19_diff)
 
     return CACHED_ASM_CAPS
