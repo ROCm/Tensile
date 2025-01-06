@@ -18,7 +18,7 @@ This process uses a hierarchical structure to efficiently search for kernels bas
 For efficient lookup at runtime, the kernel metadata must be organized in a hierarchical schema in a serialized file named `solution selection catalog` [1]_.
 
 .. note::
-    This document refers to the catalog files with .yaml extension. In practice,
+    This document refers to catalog files with the .yaml extension. In practice,
     solution selection catalogs are usually serialized with `MessagePack <https://msgpack.org/>`_, which uses the .dat extension.
 
 Solution selection catalog hierarchy
