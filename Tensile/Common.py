@@ -2011,7 +2011,7 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
       return exePath
   return None
 
-def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion) -> Dict[IsaVersion, dict]:
+def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion, cachedAsmCaps: Dict[IsaVersion, dict]) -> Dict[IsaVersion, dict]:
   """ Determine assembler capabilities by testing short instructions sequences """
   if globalParameters["AssemblerPath"] is not None:
 
@@ -2113,9 +2113,7 @@ def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion) -> Dict
                          compilerVersion.major < 5 or \
                          (compilerVersion.major == 5 and compilerVersion.minor <= 2) 
     
-    CACHED_ASM_CAPS = getCapabilitiesCache(compilerVersion.major)
-
-    if not derivedAsmCaps["SupportedISA"] and CACHED_ASM_CAPS[isaVersion]["SupportedISA"]:
+    if not derivedAsmCaps["SupportedISA"] and cachedAsmCaps[isaVersion]["SupportedISA"]:
       printWarning("Architecture {} not supported by ROCm {}".format(isaVersion, globalParameters['HipClangVersion']), DeveloperWarning)
       ignoreCacheCheck = True
 
@@ -2126,19 +2124,19 @@ def GetAsmCaps(isaVersion: IsaVersion, compilerVersion: CompilerVersion) -> Dict
       if compilerVersion.major <= 5 or (compilerVersion.major == 6 and compilerVersion.minor == 0):
         derivedAsmCapsCopy = deepcopy(derivedAsmCaps)
         # copy KernargPreloading from CACHED_ASM_CAPS (to ignore this)
-        derivedAsmCapsCopy["KernargPreloading"] = CACHED_ASM_CAPS[isaVersion]["KernargPreloading"]
+        derivedAsmCapsCopy["KernargPreloading"] = cachedAsmCaps[isaVersion]["KernargPreloading"]
         # compare with copied version (need to keep original value)
-        if derivedAsmCapsCopy != CACHED_ASM_CAPS[isaVersion]:
+        if derivedAsmCapsCopy != cachedAsmCaps[isaVersion]:
           exitFlag = True
       # rocm>=6
-      elif derivedAsmCaps != CACHED_ASM_CAPS[isaVersion]:
+      elif derivedAsmCaps != cachedAsmCaps[isaVersion]:
         exitFlag = True
       if exitFlag:
         printExit("Cached asm caps differ from derived asm caps for {}".format(isaVersion))
     return derivedAsmCaps
   else:
     printWarning("Assembler not present, asm caps loaded from cache are unverified")
-    return CACHED_ASM_CAPS[isaVersion]
+    return cachedAsmCaps[isaVersion]
 
 def GetArchCaps(isaVersion):
   rv = {}
@@ -2369,7 +2367,7 @@ def populateCapabilities(
             continue
 
         if emptyCache or not globalParameters["CacheAsmCaps"]:
-            globalParameters["AsmCaps"][v] = GetAsmCaps(v, compilerVer)
+            globalParameters["AsmCaps"][v] = GetAsmCaps(v, compilerVer, cachedAsmCaps)
 
         globalParameters["ArchCaps"][v] = GetArchCaps(v)
 
@@ -2483,13 +2481,14 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
   compilerVer = CompilerVersion(
     *[int(c) for c in globalParameters["HipClangVersion"].split(".")[:2]]
   )
-  CACHED_ASM_CAPS = getCapabilitiesCache(compilerVer.major)
-  populateCapabilities(globalParameters, CACHED_ASM_CAPS, compilerVer)
+
+  cachedAsmCaps = getCapabilitiesCache(compilerVer)
+  populateCapabilities(globalParameters, cachedAsmCaps, compilerVer)
 
   if globalParameters["PrintLevel"] >= 2:
     printCapTable(globalParameters)
 
-  if globalParameters["AsmCaps"] != CACHED_ASM_CAPS and globalParameters["PrintLevel"] >= 1:
+  if globalParameters["AsmCaps"] != cachedAsmCaps and globalParameters["PrintLevel"] >= 1:
     import pprint
     printWarning("ASM Caps differ from cache. New caps:")
     print("####################")

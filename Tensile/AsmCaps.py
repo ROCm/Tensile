@@ -22,7 +22,7 @@
 #
 ################################################################################
 
-def getCapabilitiesCache(compiler_maj_version: int) -> dict:
+def getCapabilitiesCache(compiler_version: tuple) -> dict:
     """Returns a compiler version dependent capabilities cache.
 
     Args:
@@ -31,6 +31,8 @@ def getCapabilitiesCache(compiler_maj_version: int) -> dict:
     Returns:
         A dictionary representing the capabilities cache.
     """
+
+    print(f"Creating capabilities cache for ROCm {compiler_version}")
 
     CACHED_ASM_CAPS = \
     {(0, 0, 0): {'HasAddLshl': False,
@@ -918,8 +920,7 @@ def getCapabilitiesCache(compiler_maj_version: int) -> dict:
         for key, val in right.items():
             left[key].update(val)
 
-
-    if compiler_maj_version >= 19:
+    if compiler_version.major * 10 + compiler_version.minor > 63:
         v19_diff = {(11, 0, 0): {'VOP3v_dot4_i32_i8': True}}
         nested_update_(CACHED_ASM_CAPS, v19_diff)
 
