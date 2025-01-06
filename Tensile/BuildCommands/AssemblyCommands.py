@@ -14,30 +14,35 @@ from .SharedCommands import compressCodeObject
 
 
 def _linkIntoCodeObject(
-    objFiles: List[str], coPathDest: Union[Path, str], kernelWriterAssembly: KernelWriterAssembly
+    objFiles: List[str],
+    coPathDest: Union[Path, str],
+    writer: KernelWriterAssembly,
+    maxLineLength: int,
 ):
     """Links object files into a code object file.
 
     Args:
         objectFiles: A list of object files to be linked.
         coPathDest: The destination path for the code object file.
-        kernelWriterAssembly: An instance of KernelWriterAssembly to get link arguments.
+        writer: An instance of KernelWriterAssembly to get link arguments.
+        maxLineLength: The maximum command line length. On Windows, this is nominally 8191,
+            on posix platforms this number can be computed with ``$ getconf ARG_MAX``.
 
     Raises:
         RuntimeError: If linker invocation fails.
     """
-    args = []
-    if os.name == "nt":
-        # On Windows, it is possible for the list of `objFiles` to exceed the command line limit
-        # LLVM allows the provision of compiler arguments via a "response file" (`rf` below)
-        # Reference: https://llvm.org/docs/CommandLine.html#response-files
+    args = writer.getLinkCodeObjectArgs(objFiles, str(coPathDest))
+    # It is possible for the list of `objFiles` to exceed the command line limit
+    # LLVM allows the provision of compiler arguments via a "response file" (`rf` below)
+    # Reference: https://llvm.org/docs/CommandLine.html#response-files
+    lineLength = sum(len(arg) for arg in args) + len(args) - 1  # Account for spaces
+    if lineLength > maxLineLength:
         with tempfile.NamedTemporaryFile(mode="wt", delete=False) as rf:
-            # Use repr to a get raw string with non-escaped path separators
-            rf.write(" ".join(map(repr, objFiles)))
+            # Use repr on Windows to a get raw string with non-escaped path separators
+            strArgs = " ".join(map(repr, objFiles)) if os.name == "nt" else " ".join(objFiles)
+            rf.write(strArgs)
             rf.flush()
-            args = kernelWriterAssembly.getLinkCodeObjectArgs([f"@{rf.name}"], str(coPathDest))
-    else:
-        args = kernelWriterAssembly.getLinkCodeObjectArgs(objFiles, str(coPathDest))
+            args = writer.getLinkCodeObjectArgs([f"@{rf.name}"], str(coPathDest))
 
     tPrint(2, "Linking objects into co files: " + " ".join(args))
     try:
@@ -65,6 +70,11 @@ def buildAssemblyCodeObjectFiles(
 
     destDir = Path(ensurePath(os.path.join(outputPath, "library")))
     asmDir = Path(writer.getAssemblyDirectory())
+
+    maxLineLength = (
+        8191 if os.name == "nt" else int(subprocess.check_output(["getconf", "ARG_MAX"]).strip())
+    )
+    tPrint(0, f"Maximum command line length: {maxLineLength}")
 
     assemblyKernels = [k for k in kernels if k["KernelLanguage"] == "Assembly"]
     if len(assemblyKernels) == 0:
@@ -107,7 +117,7 @@ def buildAssemblyCodeObjectFiles(
 
             for coFileRaw, objFiles in coFileMap.items():
 
-                _linkIntoCodeObject(objFiles, coFileRaw, writer)
+                _linkIntoCodeObject(objFiles, coFileRaw, writer, maxLineLength)
                 coFile = destDir / coFileRaw.name.replace(extCoRaw, extCo)
                 compressCodeObject(coFileRaw, coFile, gfx, bundler)
                 coFiles.append(coFile)
