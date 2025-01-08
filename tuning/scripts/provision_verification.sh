@@ -172,7 +172,7 @@ if [ -z "$(ls -A "${EXACT_PATH}")" ] || ${REDO}; then
     cp "${PATH_NAME}"/* "${EXACT_PATH}"
   done
 
-  cp "${REFERENCE_LIBRARY_ASM}"/* "${ASM_PATH}"
+  cp "${REFERENCE_LIBRARY_ASM}/${LIBRARY}"/* "${ASM_PATH}"
   cp "${REFERENCE_LIBRARY_ARCHIVE}"/* "${ARCHIVE_PATH}"
   cp "${ARCHIVE_PATH}"/*yaml "${ASM_PATH}"
 else
