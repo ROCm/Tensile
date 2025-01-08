@@ -193,6 +193,7 @@ if [ "${LIBRARY}" == arcturus ]; then
   fi
 fi
 
+export PYTHONPATH=${TENSILE_PATH}
 MERGE_SCRIPT=${TENSILE_PATH}/Tensile/Utilities/merge.py
 MASSAGE_SCRIPT=${REFERENCE_LIBRARY_ARCHIVE}/massage.py
 
