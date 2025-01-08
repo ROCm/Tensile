@@ -5,33 +5,62 @@ from typing import List, NamedTuple, Union
 from warnings import warn
 from subprocess import run, PIPE
 
-ROCM_BIN_PATH = Path("/opt/rocm/bin")
-ROCM_LLVM_BIN_PATH = Path("/opt/rocm/lib/llvm/bin")
-
-if os.name == "nt":
-    def _windowsLatestRocmBin(path: Union[Path, str]) -> Path:
-        """Get the path to the latest ROCm bin directory, on Windows.
-        
-        This function assumes that ROCm versions are differentiated with the form ``X.Y``.
-        
-        Args:
-            path: The path to the ROCm root directory, typically ``C:/Program Files/AMD/ROCm``.
-
-        Returns:
-            The path to the ROCm bin directory for the latest ROCm version.
-            Typically of the form ``C:/Program Files/AMD/ROCm/X.Y/bin``.
-        """
-        path = Path(path)
-        pattern = re.compile(r'^\d+\.\d+$')
-        versions = filter(lambda d: d.is_dir() and pattern.match(d.name), path.iterdir())
-        latest = max(versions, key=lambda d: tuple(map(int, d.name.split('.'))))
-        return latest / "bin"
-    # LLVM binaries are in the same directory as ROCm binaries on Windows
-    ROCM_BIN_PATH = _windowsLatestRocmBin("C:/Program Files/AMD/ROCm")
-    ROCM_LLVM_BIN_PATH = _windowsLatestRocmBin("C:/Program Files/AMD/ROCm")
+DEFAULT_ROCM_BIN_PATH_POSIX = Path("/opt/rocm/bin")
+DEFAULT_ROCM_LLVM_BIN_PATH_POSIX = Path("/opt/rocm/lib/llvm/bin")
+DEFAULT_ROCM_BIN_PATH_WINDOWS= Path("C:/Program Files/AMD/ROCm")
 
 
 osSelect = lambda linux, windows: linux if os.name != "nt" else windows
+
+
+def _windowsLatestRocmBin(path: Union[Path, str]) -> Path:
+    """Get the path to the latest ROCm bin directory, on Windows.
+    
+    This function assumes that ROCm versions are differentiated with the form ``X.Y``.
+    
+    Args:
+        path: The path to the ROCm root directory, typically ``C:/Program Files/AMD/ROCm``.
+
+    Returns:
+        The path to the ROCm bin directory for the latest ROCm version.
+        Typically of the form ``C:/Program Files/AMD/ROCm/X.Y/bin``.
+    """
+    path = Path(path)
+    pattern = re.compile(r'^\d+\.\d+$')
+    versions = filter(lambda d: d.is_dir() and pattern.match(d.name), path.iterdir())
+    latest = max(versions, key=lambda d: tuple(map(int, d.name.split('.'))))
+    return latest / "bin"
+
+
+def _windowsSearchPaths() -> List[Path]:
+    defaultPath = DEFAULT_ROCM_BIN_PATH_WINDOWS
+    searchPaths = []
+
+    if Path(defaultPath).exists():
+        searchPaths.append(_windowsLatestRocmBin(defaultPath))
+
+    if os.environ.get("HIP_PATH"):
+        hipPaths = [Path(p) / "bin" for p in os.environ["HIP_PATH"].split(os.pathsep)]
+        searchPaths.extend(hipPaths)
+
+    if os.environ.get("PATH"):
+        envPath = [Path(p) for p in os.environ["PATH"].split(os.pathsep)]
+        searchPaths.extend(envPath)
+
+    return searchPaths
+
+
+def _posixSearchPaths() -> List[Path]:
+    searchPaths = [
+        DEFAULT_ROCM_BIN_PATH_POSIX,
+        DEFAULT_ROCM_LLVM_BIN_PATH_POSIX,
+    ]
+
+    if os.environ.get("PATH"):
+        envPath = [Path(p) for p in os.environ["PATH"].split(os.pathsep)]
+        searchPaths.extend(envPath)
+
+    return searchPaths
 
 
 class ToolchainDefaults(NamedTuple):
@@ -166,11 +195,9 @@ def validateToolchain(*args: str):
     if not args:
         raise ValueError("No toolchain components to validate, at least one argument is required")
 
-    searchPaths = [
-        ROCM_BIN_PATH,
-        ROCM_LLVM_BIN_PATH,
-    ] + [Path(p) for p in os.environ["PATH"].split(os.pathsep)]
+    searchPaths = _windowsSearchPaths() if os.name == "nt" else _posixSearchPaths()
 
+    print(1, f"Search paths: {':'.join(map(str, searchPaths))}")
     out = (_validateExecutable(x, searchPaths) for x in args)
     return next(out) if len(args) == 1 else tuple(out) 
 
