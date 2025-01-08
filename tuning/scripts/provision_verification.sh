@@ -125,6 +125,19 @@ if [ ${MERGE} == false ]; then
    MASSAGE=false
 fi
 
+if ! command -v awk &> /dev/null; then
+    echo "This script requires awk to be available in PATH"
+    exit 1
+fi
+if ! command -v python &> /dev/null; then
+    echo "This script requires python to be available in PATH"
+    exit 1
+fi
+if ! command -v xargs &> /dev/null; then
+    echo "This script requires xargs to be available in PATH"
+    exit 1
+fi
+
 # determine full path of tools root
 TOOLS_ROOT=$(realpath "${0}" | xargs dirname | xargs dirname)
 
@@ -249,12 +262,10 @@ else
   echo "rocBLAS already built: skipping"
 fi
 
-# TODO: way to set which Tensile to use for create library?
-# TODO: get correct Python version
-CREATE_LIBRARY_EXE=${ROCBLAS_PATH}/build/release/virtualenv/lib/python3.6/site-packages/Tensile/bin/TensileCreateLibrary
+PYTHON_MODULE_DIR=$(python --version | cut -c 8- | awk -F. '{printf("python%s.%s", $1,$2)}')
+CREATE_LIBRARY_EXE=${ROCBLAS_PATH}/build/release/virtualenv/lib/${PYTHON_MODULE_DIR}/site-packages/Tensile/bin/TensileCreateLibrary
 CREATE_LIBRARY_ARGS=(--merge-files --no-short-file-names \
-  --no-library-print-debug --cxx-compiler=hipcc \
-  --library-format=msgpack "${MERGE_PATH}" "${TENSILE_LIBRARY_PATH}" HIP)
+  --cxx-compiler=hipcc --library-format=msgpack "${MERGE_PATH}" "${TENSILE_LIBRARY_PATH}" HIP)
 
 # create new (tuned) Tensile library
 echo "Creating new Tensile library"
