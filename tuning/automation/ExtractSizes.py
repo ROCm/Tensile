@@ -728,7 +728,7 @@ def ConvertToRocBlasBenchCall(line):
     line = str(line.split(','))
     line = line.replace('"','').replace(' ','').replace('\'','').replace('[-{','').replace('}\\n]','').replace(':',',')
     line = line.split(',')
-    sameParams = set(['b_type','c_type','d_type','compute_type','lda','ldb','ldc','ldd','batch','batch_count','algo','solution_index','flags','stride_a','stride_b','stride_c','stride_d','alpha','beta'])
+    sameParams = set(['a_type','b_type','c_type','d_type','compute_type','lda','ldb','ldc','ldd','batch','batch_count','algo','solution_index','flags','stride_a','stride_b','stride_c','stride_d','alpha','beta'])
 
     for item in range(2,len(line)):
         if line[item] == 'flags' and line[item+1] == 'none':
@@ -747,14 +747,6 @@ def ConvertToRocBlasBenchCall(line):
             benchLine += ('-k '+line[item+1]+' ')
         if line[item] == 'call_count' or line[item] == "iters":
             benchLine += ('-i '+line[item+1])
-        if line[item] == 'a_type':
-            if line[item+1] == 'f32_r':
-                benchLine += ('-r s ')
-            elif line[item+1] == 'f16_r':
-                benchLine += ('-r h ')
-            else:
-                benchLine += ('-r d ')
-            benchLine += ('--'+line[item]+' '+line[item+1]+' ')
 
     return benchLine
 
