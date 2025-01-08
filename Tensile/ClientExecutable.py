@@ -27,7 +27,7 @@ import os
 import subprocess
 
 from . import Common
-from .Common import globalParameters, tPrint, supportedCompiler
+from .Common import globalParameters, tPrint
 from .Parallel import CPUThreadCount
 
 def cmake_path(os_path):
@@ -79,8 +79,8 @@ def clientExecutableEnvironment(builddir=None):
         builddir = os.path.join(globalParameters["OutputPath"], globalParameters["ClientBuildPath"])
     builddir = Common.ensurePath(builddir)
 
-    CxxCompiler = "clang++.exe" if ((os.name == "nt") and supportedCompiler(globalParameters['CxxCompiler'])) else globalParameters['CxxCompiler']
-    CCompiler   = "clang.exe"   if ((os.name == "nt") and supportedCompiler(globalParameters['CxxCompiler'])) else globalParameters['CCompiler']
+    CxxCompiler = globalParameters['CxxCompiler']
+    CCompiler   = globalParameters['CCompiler']
 
     options = {'CMAKE_BUILD_TYPE': globalParameters["CMakeBuildType"],
                'TENSILE_USE_MSGPACK': 'ON',

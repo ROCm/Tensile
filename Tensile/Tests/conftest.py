@@ -25,6 +25,7 @@
 import pytest
 import os
 import sys
+from Tensile.Utilities.Toolchain import validateToolchain, ToolchainDefaults
 
 try:
     import xdist  # noqa
@@ -141,10 +142,30 @@ def useGlobalParameters(tensile_args):
             args = argParser.parse_args(tensile_args)
 
             Common.restoreDefaultGlobalParameters()
-            if args.CxxCompiler:
-                Common.globalParameters["CxxCompiler"] = args.CxxCompiler
-
-            Common.assignGlobalParameters({})
+            (
+                cxxCompiler,
+                cCompiler,
+                assembler,
+                offloadBundler,
+                hipconfig,
+                deviceEnumerator
+            ) = validateToolchain(
+                args.CxxCompiler,
+                args.CCompiler,
+                args.Assembler,
+                args.OffloadBundler,
+                ToolchainDefaults.HIP_CONFIG,
+                ToolchainDefaults.DEVICE_ENUMERATOR
+            )
+            params = {
+                "CxxCompiler": cxxCompiler,
+                "CCompiler": cCompiler,
+                "Assembler": assembler,
+                "OffloadBundler": offloadBundler,
+                "HipConfig": hipconfig,
+                "ROCmAgentEnumeratorPath": deviceEnumerator,
+            }
+            Common.assignGlobalParameters(params)
 
             overrideParameters = Tensile.argUpdatedGlobalParameters(args)
             for key, value in overrideParameters.items():
@@ -170,7 +191,8 @@ def initGlobalParametersForTCL():
             self.args = tcl_args
 
         def __enter__(self):
-            Common.assignGlobalParameters(parseArguments(self.args))
+            args = parseArguments(self.args)
+            Common.assignGlobalParameters(args)
             return Common.globalParameters
 
         def __exit__(self, exc_type, exc_value, traceback):

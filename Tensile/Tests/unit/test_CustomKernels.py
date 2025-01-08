@@ -28,6 +28,7 @@ from Tensile.CustomKernels import getCustomKernelConfig, getCustomKernelContents
 from Tensile.BenchmarkProblems import getCustomKernelSolutionObj
 from Tensile.Common import assignGlobalParameters
 from Tensile.Utilities.ConditionalImports import yamlLoader
+from Tensile.Utilities.Toolchain import validateToolchain, ToolchainDefaults
 
 import yaml
 
@@ -74,7 +75,30 @@ def test_ReadCustomKernelConfig(objs):
 @pytest.mark.parametrize("objs", [("TestKernel", testKernelDir)])
 def test_CreateSolutionFromCustomKernel(objs):
     try:
-        assignGlobalParameters({})
+        (
+            cxxCompiler,
+            cCompiler,
+            assembler,
+            offloadBundler,
+            hipconfig,
+            deviceEnumerator
+        ) = validateToolchain(
+            ToolchainDefaults.CXX_COMPILER,
+            ToolchainDefaults.C_COMPILER,
+            ToolchainDefaults.ASSEMBLER,
+            ToolchainDefaults.OFFLOAD_BUNDLER,
+            ToolchainDefaults.HIP_CONFIG,
+            ToolchainDefaults.DEVICE_ENUMERATOR
+        )
+        params = {
+            "CxxCompiler": cxxCompiler,
+            "CCompiler": cCompiler,
+            "Assembler": assembler,
+            "OffloadBundler": offloadBundler,
+            "HipConfig": hipconfig,
+            "ROCmAgentEnumeratorPath": deviceEnumerator,
+        }
+        assignGlobalParameters(params)
 
         name, directory = objs
         solution = getCustomKernelSolutionObj(name, directory)
