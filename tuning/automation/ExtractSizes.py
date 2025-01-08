@@ -731,6 +731,8 @@ def ConvertToRocBlasBenchCall(line):
     sameParams = set(['b_type','c_type','d_type','compute_type','lda','ldb','ldc','ldd','batch','batch_count','algo','solution_index','flags','stride_a','stride_b','stride_c','stride_d','alpha','beta'])
 
     for item in range(2,len(line)):
+        if line[item] == 'flags' and line[item+1] == 'none':
+            line[item+1] = '0'
         if line[item] in sameParams:
             benchLine += ('--'+line[item]+' '+line[item+1]+' ')
         if line[item] == 'transA':
