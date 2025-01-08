@@ -176,7 +176,8 @@ def _validateExecutable(file: str, searchPaths: List[Path]) -> str:
     for path in searchPaths:
         path /= file 
         if _exeExists(path): return str(path)
-    raise FileNotFoundError(f"`{file}` either not found or not executable in any search path: {':'.join(map(str, searchPaths))}")
+    raise FileNotFoundError(f"`{file}` either not found or not executable in any search path: {':'.join(map(str, searchPaths))}\n" 
+                            "Please refer to the troubleshooting section of the Tensile documentation at https://rocm.docs.amd.com/projects/Tensile/en/latest/src/#")
 
 
 def validateToolchain(*args: str):

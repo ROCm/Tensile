@@ -33,6 +33,10 @@ subtrees:
   - file: src/how-to/programmers-guide
   - file: src/how-to/contribution-guidelines
 
+- caption: Support
+  entries:
+  - file: src/support/troubleshooting
+
 - caption: About
   entries:
   - file: license.rst
