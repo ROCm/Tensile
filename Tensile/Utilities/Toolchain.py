@@ -208,7 +208,6 @@ def validateToolchain(*args: str):
 
     searchPaths = _windowsSearchPaths() if os.name == "nt" else _posixSearchPaths()
 
-    print(1, f"Search paths: {':'.join(map(str, searchPaths))}")
     out = (_validateExecutable(x, searchPaths) for x in args)
     return next(out) if len(args) == 1 else tuple(out)
 
