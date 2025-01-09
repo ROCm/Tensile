@@ -19,7 +19,7 @@ Missing toolchain components
 
     FileNotFoundError: `amdclang++` either not found or not executable in any search path
 
-In this situation, Tensile cannot locate one or more binaries required fir proper program execution. This includes compilers, assemblers, linkers, and bundlers. 
+In this situation, Tensile cannot locate one or more binaries required for proper program execution. This includes compilers, assemblers, linkers, and bundlers.
 
 .. note::
 
@@ -27,7 +27,7 @@ In this situation, Tensile cannot locate one or more binaries required fir prope
    
 .. note::
 
-   On Windows, the default installation location is *C:\\Program Files\\AMD\\ROCm\\X.Y*, where *X.Y* identify the major and minor version of the current ROCm installation.
+   On Windows, the default installation location is *C:\\Program Files\\AMD\\ROCm\\X.Y*, where *X.Y* identifies the major and minor version of the current ROCm installation.
    When the HIP SDK is installed on Windows, the variable ``HIP_PATH`` is set to the installation location of the HIP SDK.
 
 There are two possible reasons for this:
