@@ -191,7 +191,7 @@ def _buildSourceCodeObjectFile(
         )
 
     for target in _listTargetTriples(bundler, objPath):
-        match = re.search("gfx.*$", target):
+        match = re.search("gfx.*$", target)
         if match:
             arch = re.sub(":", "-", match.group())
             coPathRaw = _computeSourceCodeObjectPath(target, kernelPath.stem, buildPath, arch)
