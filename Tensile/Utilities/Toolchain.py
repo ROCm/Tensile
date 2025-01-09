@@ -160,7 +160,7 @@ def _exeExists(file: Path) -> bool:
     """
     if os.access(file, os.X_OK):
         if "rocm" not in map(str.lower, file.parts):
-            warn(f"Found non-ROCm install of `{file.name}`: {file}")
+            warn(f"Found `{file.name}` but in a non-default ROCm location: {file}")
         return True
     return False
 
