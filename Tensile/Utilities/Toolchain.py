@@ -36,12 +36,12 @@ def _windowsSearchPaths() -> List[Path]:
     defaultPath = DEFAULT_ROCM_BIN_PATH_WINDOWS
     searchPaths = []
 
-    if Path(defaultPath).exists():
-        searchPaths.append(_windowsLatestRocmBin(defaultPath))
-
     if os.environ.get("HIP_PATH"):
         hipPaths = [Path(p) / "bin" for p in os.environ["HIP_PATH"].split(os.pathsep)]
         searchPaths.extend(hipPaths)
+
+    if Path(defaultPath).exists():
+        searchPaths.append(_windowsLatestRocmBin(defaultPath))
 
     if os.environ.get("PATH"):
         envPath = [Path(p) for p in os.environ["PATH"].split(os.pathsep)]
@@ -51,10 +51,20 @@ def _windowsSearchPaths() -> List[Path]:
 
 
 def _posixSearchPaths() -> List[Path]:
-    searchPaths = [
-        DEFAULT_ROCM_BIN_PATH_POSIX,
-        DEFAULT_ROCM_LLVM_BIN_PATH_POSIX,
-    ]
+
+    searchPaths = []
+
+    if os.environ.get("ROCM_PATH"):
+        for p in os.environ["ROCM_PATH"].split(os.pathsep):
+            searchPaths.append(Path(p) / "bin")
+            searchPaths.append(Path(p) / "lib" / "llvm" / "bin")
+
+    searchPaths.extend(
+        [
+            DEFAULT_ROCM_BIN_PATH_POSIX,
+            DEFAULT_ROCM_LLVM_BIN_PATH_POSIX,
+        ]
+    )
 
     if os.environ.get("PATH"):
         envPath = [Path(p) for p in os.environ["PATH"].split(os.pathsep)]

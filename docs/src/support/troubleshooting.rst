@@ -34,4 +34,5 @@ There are two possible reasons for this:
 
 1. ROCm is not installed on the system. To resolve this issue, install ROCm by following the instructions at :ref:`install-rocm`.
 2. ROCm is installed, but in a non-default location and the binaries cannot be found in the system PATH.
-   In this case, add the installation location to the PATH. For example, on Linux use ``export PATH=$PATH:/<path_to_rocm>/bin`` or on Windows PowerShell use ``$env:PATH += ";<path_to_rocm>\bin"``.
+   In this case, add the installation location to the ROCM_PATH on Linux, HIP_PATH on Windows, or the system PATH on either.
+   For example, on Linux use ``export ROCM_PATH=<path_to_rocm>/bin`` or on Windows PowerShell use ``$env:HIP_PATH = "<path_to_rocm>\bin"``.
