@@ -34,7 +34,7 @@ def getCapabilitiesCache(rocmVersion: NamedTuple) -> dict:
     """
 
     # The base cachedAsmCaps is assumed to work for rocm versions <= 6.3
-    # and amdclang major versions <= 18. The version dependent cachedAmmCaps
+    # and amdclang major versions <= 18. The version dependent cachedAsmCaps
     # was introduced in ROCm 6.4 which contains clang 19.
     cachedAsmCaps = \
     {(0, 0, 0): {'HasAddLshl': False,
