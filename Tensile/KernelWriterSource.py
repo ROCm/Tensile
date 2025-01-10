@@ -22,10 +22,12 @@
 #
 ################################################################################
 
+import os
+
 from . import Code
 from .DataType import DataType
 from .SolutionStructs import isPackedIndex
-from .Common import globalParameters, printExit, roundUp
+from .Common import globalParameters, printExit, printWarning, roundUp
 from .KernelWriter import KernelWriter
 
 ################################################################################
@@ -377,7 +379,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "  } while (assumed != old);%s" % (self.endLine)
       kStr += "}%s" % (self.endLine)
       """
-      if globalParameters["CxxCompiler"] == "hipcc" or globalParameters["CxxCompiler"] == "amdclang++":
+      if os.path.basename(globalParameters["CxxCompiler"]) == "hipcc" or os.path.basename(globalParameters["CxxCompiler"]) == "amdclang++":
         kStr += self.endLine
         kStr += "__device__ inline int atomicAddType(int *fPtr, int operand)%s" % (self.endLine)
         kStr += "{%s" % (self.endLine)
@@ -405,6 +407,7 @@ class KernelWriterSource(KernelWriter):
         kStr += "}%s" % (self.endLine)
         kStr += self.endLine
       else:
+        printWarning("Unsupported C++ compiler for atomicAddType: {}".format(globalParameters["CxxCompiler"]))
         kStr += self.endLine
         kStr += "template <typename T>%s" % (self.endLine)
         kStr += "__device__ inline void atomicAddType(%s%sT *fPtr, T operand) {%s" \

@@ -71,7 +71,7 @@ def _compileSourceObjectFile(
     hipFlags = ["-D__HIP_HCC_COMPAT_MODE__=1"]
     # TODO(@tensile-infra): hipcc is deprecated and should be removed for ROCm 6.5
     hipFlags += (
-        ["--genco"] if cxxCompiler == "hipcc" else ["--cuda-device-only", "-x", "hip", "-O3"]
+        ["--genco"] if os.path.basename(cxxCompiler) == "hipcc" else ["--cuda-device-only", "-x", "hip", "-O3"]
     )
     hipFlags += ["-I", outputPath]
 
