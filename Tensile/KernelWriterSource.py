@@ -22,12 +22,10 @@
 #
 ################################################################################
 
-import os
-
 from . import Code
 from .DataType import DataType
 from .SolutionStructs import isPackedIndex
-from .Common import globalParameters, printExit, printWarning, roundUp
+from .Common import globalParameters, printExit, roundUp
 from .KernelWriter import KernelWriter
 
 ################################################################################
