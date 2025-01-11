@@ -71,7 +71,9 @@ def _compileSourceObjectFile(
     hipFlags = ["-D__HIP_HCC_COMPAT_MODE__=1"]
     # TODO(@tensile-infra): hipcc is deprecated and should be removed for ROCm 6.5
     hipFlags += (
-        ["--genco"] if cxxCompiler == "hipcc" else ["--cuda-device-only", "-x", "hip", "-O3"]
+        ["--genco"]
+        if os.path.basename(cxxCompiler) == "hipcc"
+        else ["--cuda-device-only", "-x", "hip", "-O3"]
     )
     hipFlags += ["-I", outputPath]
 
@@ -191,7 +193,8 @@ def _buildSourceCodeObjectFile(
         )
 
     for target in _listTargetTriples(bundler, objPath):
-        if match := re.search("gfx.*$", target):
+        match = re.search("gfx.*$", target)
+        if match:
             arch = re.sub(":", "-", match.group())
             coPathRaw = _computeSourceCodeObjectPath(target, kernelPath.stem, buildPath, arch)
             if not coPathRaw:
