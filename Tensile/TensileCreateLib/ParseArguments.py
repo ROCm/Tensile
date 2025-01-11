@@ -79,7 +79,8 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
         default=ToolchainDefaults.CXX_COMPILER,
         type=str,
         help="C++ compiler used when generating binaries."
-        " On linux, amdclang++ (default) or hipcc. On Windows clang++ (default) or hipcc.",
+        " On linux, amdclang++ (default) or hipcc. On Windows clang++.exe (default) or hipcc. "
+        "If clang++.exe is specified, it must include the extension `.exe`.",
     )
     parser.add_argument(
         "--c-compiler",

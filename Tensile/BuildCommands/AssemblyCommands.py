@@ -74,7 +74,6 @@ def buildAssemblyCodeObjectFiles(
     maxLineLength = (
         8191 if os.name == "nt" else int(subprocess.check_output(["getconf", "ARG_MAX"]).strip())
     )
-    tPrint(0, f"Maximum command line length: {maxLineLength}")
 
     assemblyKernels = [k for k in kernels if k["KernelLanguage"] == "Assembly"]
     if len(assemblyKernels) == 0:
