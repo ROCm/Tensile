@@ -7,6 +7,9 @@
 *****************
 Installation
 *****************
+*****************
+
+This topic provides information required to install Tensile from source and run benchmarks.
 
 This topic provides information required to install Tensile from source and run benchmarks.
 
