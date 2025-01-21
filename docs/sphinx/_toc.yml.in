@@ -9,8 +9,8 @@ subtrees:
 
 - caption: Conceptual
   entries:
-  - file: src/conceptual/introduction
   - file: src/conceptual/solution-selection-catalogs
+    title: Solution selection catalogs
 
 - caption: Reference
   entries:
@@ -25,7 +25,8 @@ subtrees:
     - file: src/api-reference/embedded-data
     - file: src/api-reference/tensile-create-library-api
     - file: src/api-reference/utilities
-  - file: src/reference/environment-variables 
+  - file: src/reference/environment-variables
+    title: Environment variables
   - file: src/reference/nomenclature
 
 - caption: Contribution
