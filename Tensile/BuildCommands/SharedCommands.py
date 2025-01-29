@@ -25,7 +25,7 @@ def compressCodeObject(
         "--compress",
         "--type=o",
         "--bundle-align=4096",
-        f"--targets=host-x86_64-unknown-linux,hipv4-amdgcn-amd-amdhsa--{gfx}",
+        f"--targets=host-x86_64-unknown-linux-gnu,hipv4-amdgcn-amd-amdhsa--{gfx}",
         f"--input={os.devnull}",
         f"--input={str(coPathSrc)}",
         f"--output={str(coPathDest)}",
