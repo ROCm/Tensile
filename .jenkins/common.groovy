@@ -46,7 +46,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     String buildThreads = maxThreads.toString() // if hipcc is used may be multiplied by parallel-jobs
 
     String sclCommand = ""
-    if (platform.os.contains("rhel"))
+    if (platform.os.contains("rhel9"))
     {
         sclCommand = "source scl_source enable gcc-toolset-12"
     }
