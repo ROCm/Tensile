@@ -99,7 +99,9 @@ def supportedCCompiler(compiler: str) -> bool:
         If supported True; otherwise, False.
     """
     if os.name == "nt":
-        return _supportedComponent(compiler, ["clang.exe", "clang", "hipcc", "hipcc.bat", "amdclang"])
+        return _supportedComponent(
+            compiler, ["clang.exe", "clang", "hipcc", "hipcc.bat", "amdclang"]
+        )
     return _supportedComponent(compiler, ["amdclang", "clang", "hipcc"])
 
 
@@ -113,7 +115,9 @@ def supportedCxxCompiler(compiler: str) -> bool:
         If supported True; otherwise, False.
     """
     if os.name == "nt":
-        return _supportedComponent(compiler, ["clang++.exe", "clang++", "hipcc", "hipcc.bat", "amdclang++"])
+        return _supportedComponent(
+            compiler, ["clang++.exe", "clang++", "hipcc", "hipcc.bat", "amdclang++"]
+        )
     return _supportedComponent(compiler, ["amdclang++", "clang++", "hipcc"])
 
 
