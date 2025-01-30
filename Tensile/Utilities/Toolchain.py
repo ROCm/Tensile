@@ -5,6 +5,8 @@ from subprocess import PIPE, run
 from typing import List, NamedTuple, Union
 from warnings import warn
 
+from Tensile.Tensile.Common import printWarning
+
 DEFAULT_ROCM_BIN_PATH_POSIX = Path("/opt/rocm/bin")
 DEFAULT_ROCM_LLVM_BIN_PATH_POSIX = Path("/opt/rocm/lib/llvm/bin")
 DEFAULT_ROCM_BIN_PATH_WINDOWS = Path("C:/Program Files/AMD/ROCm")
@@ -100,7 +102,7 @@ def supportedCCompiler(compiler: str) -> bool:
     """
     if os.name == "nt":
         return _supportedComponent(
-            compiler, ["clang.exe", "clang", "hipcc", "hipcc.bat", "amdclang"]
+            compiler, ["clang.exe", "clang", "hipcc", "hipcc.bat", "amdclang.exe", "amdclang"]
         )
     return _supportedComponent(compiler, ["amdclang", "clang", "hipcc"])
 
@@ -116,7 +118,7 @@ def supportedCxxCompiler(compiler: str) -> bool:
     """
     if os.name == "nt":
         return _supportedComponent(
-            compiler, ["clang++.exe", "clang++", "hipcc", "hipcc.bat", "amdclang++"]
+            compiler, ["clang++.exe", "clang++", "hipcc", "hipcc.bat", "amdclang++.exe", "amdclang++"]
         )
     return _supportedComponent(compiler, ["amdclang++", "clang++", "hipcc"])
 
@@ -251,6 +253,7 @@ def getVersion(
         match = re.search(regex, output, re.IGNORECASE)
         if match:
             return match.group(1)
-        raise ValueError(f"version could not be extracted from output: {output}")
+        printWarning(f"Failed to get version for {executable}: {output}")
+        return "<unknown>"
     except Exception as e:
         raise RuntimeError(f"Failed to get version when calling {args}: {e}")
