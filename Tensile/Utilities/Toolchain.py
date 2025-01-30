@@ -5,8 +5,6 @@ from subprocess import PIPE, run
 from typing import List, NamedTuple, Union
 from warnings import warn
 
-from Tensile.Tensile.Common import printWarning
-
 DEFAULT_ROCM_BIN_PATH_POSIX = Path("/opt/rocm/bin")
 DEFAULT_ROCM_LLVM_BIN_PATH_POSIX = Path("/opt/rocm/lib/llvm/bin")
 DEFAULT_ROCM_BIN_PATH_WINDOWS = Path("C:/Program Files/AMD/ROCm")
@@ -253,7 +251,7 @@ def getVersion(
         match = re.search(regex, output, re.IGNORECASE)
         if match:
             return match.group(1)
-        printWarning(f"Failed to get version for {executable}: {output}")
+        warn(f"Failed to get version for {executable}: {output}")
         return "<unknown>"
     except Exception as e:
         raise RuntimeError(f"Failed to get version when calling {args}: {e}")
