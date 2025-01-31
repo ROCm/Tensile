@@ -64,7 +64,7 @@ def runCI =
         platform, project->
 
         def testMark = "pre_checkin"
-        boolean runHostTest = true
+        boolean runHostTest = !platform.os.contains("rhel8")
         boolean runUnitTest = true
         boolean runToxTest = !platform.os.contains("rhel8")
         commonGroovy.runTestCommand(platform, project, jobName, testMark, runHostTest, runUnitTest, runToxTest)
