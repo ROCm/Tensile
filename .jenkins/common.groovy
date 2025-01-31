@@ -124,7 +124,10 @@ def runTestCommand(platform, project, jobName, testMark, boolean runHostTest=tru
         """
     platform.runCommand(this, command)
 
-    archiveArtifacts "${project.paths.project_build_prefix}/timing*.csv"
+    if (!platform.os.contains("rhel8"))
+    {
+        archiveArtifacts "${project.paths.project_build_prefix}/timing*.csv"
+    }
 
     if (runUnitTest) {
         recordCoverage(tools: [[parser: 'COBERTURA', pattern: "${project.paths.project_build_prefix}/cobertura.xml"]])
