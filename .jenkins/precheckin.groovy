@@ -68,7 +68,7 @@ def runCI =
         boolean runUnitTest = true
         boolean runToxTest = !platform.os.contains("rhel8")
         commonGroovy.runTestCommand(platform, project, jobName, testMark, runHostTest, runUnitTest, runToxTest)
-    }!p
+    }
 
     buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, testCommand, null)
 
