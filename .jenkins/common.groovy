@@ -46,7 +46,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     String buildThreads = maxThreads.toString() // if hipcc is used may be multiplied by parallel-jobs
 
     String sclCommand = ""
-    if (platform.os.contains("rhel"))
+    if (platform.os.contains("rhel9"))
     {
         sclCommand = "source scl_source enable gcc-toolset-12"
     }
@@ -80,7 +80,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
 }
 
 
-def runTestCommand(platform, project, jobName, testMark, boolean runHostTest=true, boolean runUnitTest=true)
+def runTestCommand(platform, project, jobName, testMark, boolean runHostTest=true, boolean runUnitTest=true, boolean runToxTest=true)
 {
     String compiler = '/opt/rocm/bin/amdclang++'
     String markSkipExtendedTest = !testMark.contains("extended") ? "\"--gtest_filter=-*Extended*\"" : "\"--gtest_filter=\""
@@ -104,14 +104,16 @@ def runTestCommand(platform, project, jobName, testMark, boolean runHostTest=tru
             export GPU_ARCH=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
             export TIMING_FILE=`pwd`/timing-\$GPU_ARCH.csv
 
-            if ${runUnitTest}; then 
+            if ${runUnitTest}; then
               tox run -e unittest -- --cov-report=xml:cobertura.xml
               check_err
             fi
 
-            tox --version
-            tox run -e ci -- -m ${testMark} --timing-file=\$TIMING_FILE
-            check_err
+            if ${runToxTest}; then
+              tox --version
+              tox run -e ci -- -m ${testMark} --timing-file=\$TIMING_FILE
+              check_err
+            fi
 
             if ${runHostTest}; then
               pushd build
@@ -122,7 +124,10 @@ def runTestCommand(platform, project, jobName, testMark, boolean runHostTest=tru
         """
     platform.runCommand(this, command)
 
-    archiveArtifacts "${project.paths.project_build_prefix}/timing*.csv"
+    if (!platform.os.contains("rhel8"))
+    {
+        archiveArtifacts "${project.paths.project_build_prefix}/timing*.csv"
+    }
 
     if (runUnitTest) {
         recordCoverage(tools: [[parser: 'COBERTURA', pattern: "${project.paths.project_build_prefix}/cobertura.xml"]])
