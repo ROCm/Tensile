@@ -66,8 +66,9 @@ def runCI =
         def testMark = "pre_checkin"
         boolean runHostTest = true
         boolean runUnitTest = true
-        commonGroovy.runTestCommand(platform, project, jobName, testMark, runHostTest, runUnitTest)
-    }
+        boolean runToxTest = !platform.os.contains("rhel8")
+        commonGroovy.runTestCommand(platform, project, jobName, testMark, runHostTest, runUnitTest, runToxTest)
+    }!p
 
     buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, testCommand, null)
 
