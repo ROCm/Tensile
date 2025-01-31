@@ -1281,7 +1281,7 @@ def generateClientConfig(
 
 
 def generateLazyMasterFileList(
-    masterFileList: List[Tuple[str, MasterSolutionLibrary]]
+    masterFileList: List[Tuple[str, MasterSolutionLibrary]],
 ) -> List[Tuple[str, MasterSolutionLibrary]]:
     """Generates a list of tuples that represent the name and the state associated with the lazy master libraries.
 

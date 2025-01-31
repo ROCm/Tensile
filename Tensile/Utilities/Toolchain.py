@@ -98,7 +98,11 @@ def supportedCCompiler(compiler: str) -> bool:
     Return:
         If supported True; otherwise, False.
     """
-    return _supportedComponent(compiler, [ToolchainDefaults.C_COMPILER, "hipcc"])
+    if os.name == "nt":
+        return _supportedComponent(
+            compiler, ["clang.exe", "clang", "hipcc", "hipcc.bat", "amdclang.exe", "amdclang"]
+        )
+    return _supportedComponent(compiler, ["amdclang", "clang", "hipcc"])
 
 
 def supportedCxxCompiler(compiler: str) -> bool:
@@ -110,7 +114,12 @@ def supportedCxxCompiler(compiler: str) -> bool:
     Return:
         If supported True; otherwise, False.
     """
-    return _supportedComponent(compiler, [ToolchainDefaults.CXX_COMPILER, "hipcc"])
+    if os.name == "nt":
+        return _supportedComponent(
+            compiler,
+            ["clang++.exe", "clang++", "hipcc", "hipcc.bat", "amdclang++.exe", "amdclang++"],
+        )
+    return _supportedComponent(compiler, ["amdclang++", "clang++", "hipcc"])
 
 
 def supportedOffloadBundler(bundler: str) -> bool:
@@ -122,7 +131,9 @@ def supportedOffloadBundler(bundler: str) -> bool:
     Return:
         If supported True; otherwise, False.
     """
-    return _supportedComponent(bundler, [ToolchainDefaults.OFFLOAD_BUNDLER])
+    if os.name == "nt":
+        return _supportedComponent(bundler, ["clang-offload-bundler.exe", "clang-offload-bundler"])
+    return _supportedComponent(bundler, ["clang-offload-bundler"])
 
 
 def supportedHip(exe: str) -> bool:
@@ -134,7 +145,9 @@ def supportedHip(exe: str) -> bool:
     Return:
         If supported True; otherwise, False.
     """
-    return _supportedComponent(exe, [ToolchainDefaults.HIP_CONFIG])
+    if os.name == "nt":
+        return _supportedComponent(exe, ["hipconfig", "hipconfig.bat", "hipcc", "hipcc.bat"])
+    return _supportedComponent(exe, ["hipconfig", "hipcc"])
 
 
 def supportedDeviceEnumerator(enumerator: str) -> bool:
@@ -146,7 +159,9 @@ def supportedDeviceEnumerator(enumerator: str) -> bool:
     Return:
         If supported True; otherwise, False.
     """
-    return _supportedComponent(enumerator, [ToolchainDefaults.DEVICE_ENUMERATOR])
+    if os.name == "nt":
+        return _supportedComponent(enumerator, ["hipinfo.exe", "hipInfo.exe", "hipinfo", "hipInfo"])
+    return _supportedComponent(enumerator, ["rocm_agent_enumerator", "amdgpu-arch"])
 
 
 def _exeExists(file: Path) -> bool:
@@ -235,6 +250,9 @@ def getVersion(
     try:
         output = run(args, stdout=PIPE, shell=True).stdout.decode().strip()
         match = re.search(regex, output, re.IGNORECASE)
-        return match.group(1) if match else "<unknown>"
+        if match:
+            return match.group(1)
+        warn(f"Failed to get version for {executable}: {output}")
+        return "<unknown>"
     except Exception as e:
         raise RuntimeError(f"Failed to get version when calling {args}: {e}")
