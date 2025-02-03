@@ -50,6 +50,14 @@ def _windowsSearchPaths() -> List[Path]:
     return searchPaths
 
 
+def _windowsWithExtensions(exe: str) -> List[str]:
+    if not os.name == "nt":
+        raise ValueError("These extensions should not be added on anything but Windows")
+    files = [exe]
+    files.extend([exe + ext.lower() for ext in os.environ["PATHEXT"].split(";")])
+    return files
+
+
 def _posixSearchPaths() -> List[Path]:
 
     searchPaths = []
@@ -83,6 +91,8 @@ class ToolchainDefaults(NamedTuple):
 
 
 def _supportedComponent(component: str, targets: List[str]) -> bool:
+    if os.name == "nt":
+        targets = [tExt for t in targets for tExt in _windowsWithExtensions(t)]
     isSupported = any([component == t for t in targets]) or any(
         [Path(component).name == t for t in targets]
     )
@@ -98,10 +108,6 @@ def supportedCCompiler(compiler: str) -> bool:
     Return:
         If supported True; otherwise, False.
     """
-    if os.name == "nt":
-        return _supportedComponent(
-            compiler, ["clang.exe", "clang", "hipcc", "hipcc.bat", "amdclang.exe", "amdclang"]
-        )
     return _supportedComponent(compiler, ["amdclang", "clang", "hipcc"])
 
 
@@ -114,11 +120,6 @@ def supportedCxxCompiler(compiler: str) -> bool:
     Return:
         If supported True; otherwise, False.
     """
-    if os.name == "nt":
-        return _supportedComponent(
-            compiler,
-            ["clang++.exe", "clang++", "hipcc", "hipcc.bat", "amdclang++.exe", "amdclang++"],
-        )
     return _supportedComponent(compiler, ["amdclang++", "clang++", "hipcc"])
 
 
@@ -131,8 +132,6 @@ def supportedOffloadBundler(bundler: str) -> bool:
     Return:
         If supported True; otherwise, False.
     """
-    if os.name == "nt":
-        return _supportedComponent(bundler, ["clang-offload-bundler.exe", "clang-offload-bundler"])
     return _supportedComponent(bundler, ["clang-offload-bundler"])
 
 
@@ -145,8 +144,6 @@ def supportedHip(exe: str) -> bool:
     Return:
         If supported True; otherwise, False.
     """
-    if os.name == "nt":
-        return _supportedComponent(exe, ["hipconfig", "hipconfig.bat", "hipcc", "hipcc.bat"])
     return _supportedComponent(exe, ["hipconfig", "hipcc"])
 
 
@@ -154,13 +151,13 @@ def supportedDeviceEnumerator(enumerator: str) -> bool:
     """Determine if a device enumerator is supported by Tensile.
 
     Args:
-        bundler: The name of a device enumerator to test for support.
+        enumerator: The name of a device enumerator to test for support.
 
     Return:
         If supported True; otherwise, False.
     """
     if os.name == "nt":
-        return _supportedComponent(enumerator, ["hipinfo.exe", "hipInfo.exe", "hipinfo", "hipInfo"])
+        return _supportedComponent(enumerator, ["hipinfo", "hipInfo"])
     return _supportedComponent(enumerator, ["rocm_agent_enumerator", "amdgpu-arch"])
 
 
@@ -203,10 +200,13 @@ def _validateExecutable(file: str, searchPaths: List[Path]) -> str:
 
     if _exeExists(Path(file)):
         return file
+
+    files = _windowsWithExtensions(file) if os.name == "nt" else [file]
     for path in searchPaths:
-        path /= file
-        if _exeExists(path):
-            return str(path)
+        for f in files:
+            p = path / f
+            if _exeExists(p):
+                return str(p)
     raise FileNotFoundError(
         f"`{file}` either not found or not executable in any search path: "
         f"{':'.join(map(str, searchPaths))}\n"
