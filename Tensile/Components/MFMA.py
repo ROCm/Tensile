@@ -48,7 +48,7 @@ class WMMASelection(MFMA):
         return kStr
 
 class MFMASelection940(MFMA):
-    versions = [(9,4,0), (9,4,1), (9,4,2)]
+    versions = [(9,4,2)]
 
     def WaitCount(self, writer):
         kernel = writer.kernel
