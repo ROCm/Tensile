@@ -2149,6 +2149,7 @@ def GetArchCaps(isaVersion):
   rv["VgprBank"]           = isaVersion[0] in (10, 11, 12)
   rv["InstRename"]         = isaVersion[0]>=11
   rv["CrosslaneWait"]      = isaVersion==(9,4,2)
+  rv["ForceStoreSC1"]      = False
   
   return rv
 
