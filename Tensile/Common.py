@@ -2313,12 +2313,13 @@ def which(p):
     else:
         exes = [p+x for x in ['', '.exe', '.bat']]
     system_path = os.environ['PATH'].split(os.pathsep)
+    # system_path += os.environ['HIP_PATH'].split(os.pathsep)
     for dirname in system_path+[globalParameters["ROCmBinPath"]]:
         for exe in exes:
             candidate = os.path.join(os.path.expanduser(dirname), exe)
             if os.path.isfile(candidate):
                 return candidate
-    return None
+    raise ValueError(f"Could not find {p} in PATH or ROCmBinPath.")
 
 
 def splitArchs():
@@ -2440,6 +2441,8 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
     globalParameters["ROCmPath"] = os.environ.get("TENSILE_ROCM_PATH")
   if os.name == "nt" and "HIP_DIR" in os.environ:
     globalParameters["ROCmPath"] = os.environ.get("HIP_DIR") # windows has no ROCM
+  if os.name == "nt" and "HIP_PATH" in os.environ:
+    globalParameters["ROCmPath"] = os.environ.get("HIP_PATH") # windows has no ROCM
   globalParameters["CmakeCxxCompiler"] = None
   if "CMAKE_CXX_COMPILER" in os.environ:
     globalParameters["CmakeCxxCompiler"] = os.environ.get("CMAKE_CXX_COMPILER")
