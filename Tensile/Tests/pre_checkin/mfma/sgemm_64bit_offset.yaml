@@ -1,17 +1,17 @@
 TestParameters:
-  marks: [skip-gfx900, skip-gfx906, skip-gfx908, skip-gfx940, skip-gfx941, skip-gfx942, skip-gfx1010, skip-gfx1011, skip-gfx1012, skip-gfx1030, skip-gfx1100, skip-gfx1101, skip-gfx1102, skip-gfx1151] # not supported by arch
+  marks: [skip-gfx900, skip-gfx906, skip-gfx908, skip-gfx940, skip-gfx941, skip-gfx942, skip-gfx950, skip-gfx1010, skip-gfx1011, skip-gfx1012, skip-gfx1030, skip-gfx1100, skip-gfx1101, skip-gfx1102, skip-gfx1151] # not supported by arch
 
 GlobalParameters:
   NumElementsToValidate: -1
   BoundsCheck: True
   KernelTime: True
-  # PrintSolutionRejectionReason: True
+#PrintSolutionRejectionReason : True
   BufferOffsetB: 4294967296
   PristineOnGPU: False
 
 BenchmarkProblems:
   ########################################
-  # NN - standard
+#NN - standard
   ########################################
   - # sgemm NN
     - # ProblemType
@@ -34,7 +34,7 @@ BenchmarkProblems:
         - ExpandPointerSwap: [0]
         - GroupLoadStore: [1]
         - LocalReadVectorWidth: [1]
-        # - MACInstruction: ["MAD"]
+#- MACInstruction : ["MAD"]
         - NumElementsPerBatchStore: [4]
         - PrefetchGlobalRead: [2]
         - PrefetchLocalRead: [3]
@@ -46,9 +46,9 @@ BenchmarkProblems:
         - StoreSyncOpt: [6]
         - WorkGroupMapping: [11]
         - MatrixInstruction:
-          # - [16, 16, 4, 1,  1,  8,2,  1,4]  # 128x128
-          # - [16, 16, 4, 1,  1,  4,4,  2,2]  # 128x128
-          # - [16, 16, 4, 1,  1,  1,1,  4,1]  # 128x128
+#-[16, 16, 4, 1, 1, 8, 2, 1, 4] #128x128
+#-[16, 16, 4, 1, 1, 4, 4, 2, 2] #128x128
+#-[16, 16, 4, 1, 1, 1, 1, 4, 1] #128x128
           - [16, 16, 4, 1]
         - ThreadTile:
           - [ 2, 16 ]
@@ -59,5 +59,5 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          # - Exact: [1024, 1024, 1, 1024, 1048576, 524288, 524288, 524288]
+#- Exact : [1024, 1024, 1, 1024, 1048576, 524288, 524288, 524288]
           - Exact: [1024, 1024, 1, 1024]

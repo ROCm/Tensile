@@ -1,123 +1,279 @@
 ################################################################################
-# Copyright 2021-2022 Advanced Micro Devices, Inc. All rights reserved.
+#Copyright 2021 - 2022 Advanced Micro Devices, Inc.All rights reserved.
 #
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+#Permission is hereby granted, free of charge, to any person obtaining a copy
+#of this software and associated documentation files(the "Software"), to deal
+#in the Software without restriction, including without limitation the rights
+#to use, copy, modify, merge, publish, distribute, sublicense, and / or sell cop -
+#ies of the Software, and to permit persons to whom the Software is furnished
+#to do so, subject to the following                                 conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+#The above copyright notice and this permission notice shall be included in all
+#copies or substantial portions of the                                      Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-################################################################################
+#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM -
+#PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+#FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE AUTHORS OR
+#COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+#IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE -
+#CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+    ################################################################################
 
-from ..Component import MFMA
-from ..DataType import DataType
+    from..Component import MFMA from..DataType import DataType
 
-class WMMASelection(MFMA):
-    asmCaps = {"HasWMMA": True}
+    class WMMASelection(MFMA)
+    : asmCaps = {"HasWMMA" : True}
 
-    def __call__(self, writer, accOutStart, accOutEnd, in0, in1, accInStart, accInEnd, accStoreCIdx, firstIter):
-        kernel = writer.kernel
-        inType = kernel["ProblemType"]["DataType"].toNameAbbrev()
-        neg = " neg_lo:[1,1,1]" if (inType == "i8") else ""
-        inType = "iu8" if inType == "i8" else inType
-        outType = kernel["ProblemType"]["ComputeDataType"].toNameAbbrev()
-        if kernel["ProblemType"]["DataType"].isComplex():
-            inType = outType
-        miM = kernel["MatrixInstM"]
-        miN = kernel["MatrixInstN"]
-        miK = kernel["MatrixInstK"]
-        # miB = kernel["MatrixInstB"]
-        str0 = in1 if kernel["SourceSwap"] else in0
-        str1 = in0 if kernel["SourceSwap"] else in1
-        # use const 0 for src2 in firstIter case
-        src2 = "0" if firstIter else "v[%u:%u]"%(accOutStart, accOutEnd)
+def __call__(
+    self, writer, accOutStart, accOutEnd, in0, in1, accInStart, accInEnd, accStoreCIdx, firstIter)
+    : kernel = writer.kernel inType           = kernel["ProblemType"]["DataType"].toNameAbbrev()
+                                          neg = " neg_lo:[1,1,1]" if(
+        inType
+        == "i8") else "" inType = "iu8" if inType
+                                  == "i8" else inType
+                                  outType = kernel["ProblemType"]["ComputeDataType"]
+                                                .toNameAbbrev() if kernel["ProblemType"]["DataType"]
+                                                .isComplex()
+    : inType = outType miM = kernel["MatrixInstM"] miN = kernel["MatrixInstN"] miK = kernel
+        ["MatrixInstK"]
+#miB     = kernel["MatrixInstB"]
+    str0 = in1 if kernel["SourceSwap"] else in0 str1 = in0 if kernel["SourceSwap"] else in1
+#use const 0 for src2 in firstIter case
+    src2 = "0" if firstIter else "v[%u:%u]"
+           % (accOutStart, accOutEnd)
 
-        kStr = "v_wmma_%s_%ux%ux%u_%s v[%u+%u:%u+%u], %s, %s, %s%s%s" \
-            % (outType, miM, miN, miK, inType, accInStart, accStoreCIdx, accInEnd, accStoreCIdx, str0, str1, src2, neg, writer.endLine)
+               kStr = "v_wmma_%s_%ux%ux%u_%s v[%u+%u:%u+%u], %s, %s, %s%s%s"
+                      % (outType,
+                         miM,
+                         miN,
+                         miK,
+                         inType,
+                         accInStart,
+                         accStoreCIdx,
+                         accInEnd,
+                         accStoreCIdx,
+                         str0,
+                         str1,
+                         src2,
+                         neg,
+                         writer.endLine)
 
-        return kStr
+                          return kStr
 
-class MFMASelection940(MFMA):
-    versions = [(9,4,0), (9,4,1), (9,4,2)]
+                      class MFMASelection950(MFMA)
+    : versions = [(9, 5, 0)]
 
-    def WaitCount(self, writer):
-        kernel = writer.kernel
-        dataType = kernel["ProblemType"]["DataType"]
-        miM = kernel["MatrixInstM"]
-        miN = kernel["MatrixInstN"]
-        if dataType.isSingle() or dataType.isSingleComplex() or dataType.isHalf() or dataType.isBFloat16():
-            if miM == 4 and miN == 4:
-                return 2
-        elif dataType.isDouble() or dataType.isDoubleComplex():
-            if miM == 4 and miN == 4:
-                return 4
-        return 0
+    def WaitCount(self, writer)
+    : kernel = writer.kernel dataType = kernel["ProblemType"]["DataType"] miM = kernel
+        ["MatrixInstM"] miN = kernel["MatrixInstN"] if dataType.isSingle()
+                              or dataType.isSingleComplex() or dataType.isHalf()
+                              or dataType.isBFloat16()
+    : if miM == 4 and miN == 4 : return 2 elif dataType.isDouble()
+                              or dataType.isDoubleComplex()
+    : if miM == 4
+                                     and miN
+                                             == 4 : return 4 return 0
 
-    def __call__(self, writer, accOutStart, accOutEnd, in0, in1, accInStart, accInEnd, accStoreCIdx, firstIter):
-        kernel = writer.kernel
-        inType = kernel["ProblemType"]["F32XdlMathOp"].toNameAbbrev() if kernel["EnableF32XdlMathOp"] else kernel["ProblemType"]["DataType"].toNameAbbrev()
-        # for F8 hybrid cases, we need to change the inType of VMFMA inst as well
-        if kernel["SourceSwap"]:
-            dataType = kernel["ProblemType"]["DataType"]
-            if dataType.isFloat8BFloat8():
-                inType = DataType("B8F8").toNameAbbrev() # change the intype from F8B8 to B8F8
-            if dataType.isBFloat8Float8():
-                inType = DataType("F8B8").toNameAbbrev() # change the intype from B8F8 to F8B8
+                                                    def __call__(self,
+                                                                 writer,
+                                                                 accOutStart,
+                                                                 accOutEnd,
+                                                                 in0,
+                                                                 in1,
+                                                                 accInStart,
+                                                                 accInEnd,
+                                                                 accStoreCIdx,
+                                                                 firstIter)
+    : kernel = writer.kernel inType = kernel["ProblemType"]["DataType"].toNameAbbrev()
+#for F8 hybrid cases, we need to change the inType of VMFMA inst as well
+                                          if kernel["SourceSwap"]
+    : dataType = kernel["ProblemType"]["DataType"] if dataType.isFloat8BFloat8()
+    : inType   = DataType("B8F8").toNameAbbrev() #change the intype from F8B8 to B8F8
+               if dataType.isBFloat8Float8()
+    : inType = DataType("F8B8").toNameAbbrev() #change the intype from B8F8 to F8B8
 
-        outType = kernel["ProblemType"]["F32XdlMathOp"].MIOutputTypeNameAbbrev() if kernel["EnableF32XdlMathOp"] else kernel["ProblemType"]["DataType"].MIOutputTypeNameAbbrev()
-        if kernel["ProblemType"]["DataType"].isComplex():
-            inType = outType
-        accType = "a" if not kernel["MIArchVgpr"] else "v"
-        miM = kernel["MatrixInstM"]
-        miN = kernel["MatrixInstN"]
-        miK = kernel["MatrixInstK"]
-        miB = kernel["MatrixInstB"]
-        str0 = in1 if kernel["SourceSwap"] else in0
-        str1 = in0 if kernel["SourceSwap"] else in1
+               outType = kernel["ProblemType"]["DataType"]
+                             .MIOutputTypeNameAbbrev() if kernel["ProblemType"]["DataType"]
+                             .isComplex()
+    : inType = outType accType = "a" if not kernel["MIArchVgpr"] else "v" miM = kernel
+            ["MatrixInstM"] miN = kernel["MatrixInstN"] miK = kernel["MatrixInstK"] miB = kernel
+                ["MatrixInstB"] str0 = in1 if kernel["SourceSwap"] else in0
+    str1                             = in0 if kernel["SourceSwap"] else in1
 
-        strB = ""
-        if miB > 1:
-            strB = "%ub_" % miB
+    strB = "" if miB > 1 : strB = "%ub_"
+                                  % miB
 
-        # use const 0 for src2 in firstIter case
-        src2 = "0" if firstIter else "%s[%u:%u]"%(accType, accOutStart, accOutEnd)
+#use const 0 for src2 in firstIter case
+                                  src2 = "0" if firstIter else "%s[%u:%u]"
+                                             % (accType, accOutStart, accOutEnd)
 
-        kStr = "v_mfma_%s_%ux%ux%u_%s%s %s[%u+%u:%u+%u], %s, %s, %s%s" \
-            % (outType, miM, miN, miK, strB, inType, accType, accInStart, accStoreCIdx, accInEnd, accStoreCIdx, str0, str1, src2, writer.endLine)
+#NOTE : There can be different FP8 versions in gfx950 : NANOO and OCPFP8
+#Tensile kernel is bias mode                                      agnostic
+                                                 if kernel["MFMA_F8_950"]
+    : # or F6 / F4
+, not supported yet dataType = kernel["ProblemType"]["DataType"] cbsz = 0 #fp8 by
+  default blgp = 0 #fp8 by default if dataType.isBFloat8()
+    : cbsz = 1 #fp8 by default blgp = 1 #fp8 bydefault elif dataType.isFloat8BFloat8()
+    : cbsz = 0 if not kernel["SourceSwap"] else 1 blgp = 1 if not kernel["SourceSwap"] else 0 elif
+                                                         dataType.isBFloat8Float8()
+    : cbsz = 1 if not kernel["SourceSwap"] else 0 blgp = 0 if not kernel
+      ["SourceSwap"] else 1 inType = "f8f6f4" kStr = "v_mfma_%s_%ux%ux%u_%s%s %s[%u+%u:%u+%u], %s, "
+                                                     "%s, %s cbsz:%d blgp:%d%s"
+                                                     % (outType,
+                                                        miM,
+                                                        miN,
+                                                        miK,
+                                                        strB,
+                                                        inType,
+                                                        accType,
+                                                        accInStart,
+                                                        accStoreCIdx,
+                                                        accInEnd,
+                                                        accStoreCIdx,
+                                                        str0,
+                                                        str1,
+                                                        src2,
+                                                        cbsz,
+                                                        blgp,
+                                                        writer.endLine) else
+    : kStr = "v_mfma_%s_%ux%ux%u_%s%s %s[%u+%u:%u+%u], %s, %s, %s%s"
+             % (outType,
+                miM,
+                miN,
+                miK,
+                strB,
+                inType,
+                accType,
+                accInStart,
+                accStoreCIdx,
+                accInEnd,
+                accStoreCIdx,
+                str0,
+                str1,
+                src2,
+                writer.endLine)
 
-        return kStr
+                 return kStr
 
-class MFMASelection(MFMA):
-    versions = [(9,0,8), (9,0,10)]
+             class MFMASelection940(MFMA)
+    : versions = [ (9, 4, 0), (9, 4, 1), (9, 4, 2) ]
 
-    def __call__(self, writer, accOutStart, accOutEnd, in0, in1, accInStart, accInEnd, accStoreCIdx, firstIter):
-        kernel = writer.kernel
-        inType = "bf16" if kernel["ProblemType"]["Fp16AltImpl"] else kernel["ProblemType"]["DataType"].toNameAbbrev()
-        outType = kernel["ProblemType"]["DataType"].MIOutputTypeNameAbbrev()
-        if kernel["ProblemType"]["DataType"].isComplex():
-            inType = outType
-        accType = "a" if not kernel["MIArchVgpr"] else "v"
-        mfma1k = "_1k" if (kernel["MFMA_BF16_1K"] or kernel["ProblemType"]["Fp16AltImpl"]) else ""
-        miM = kernel["MatrixInstM"]
-        miN = kernel["MatrixInstN"]
-        miK = kernel["MatrixInstK"]
-        str0 = in1 if kernel["SourceSwap"] else in0
-        str1 = in0 if kernel["SourceSwap"] else in1
+  def WaitCount(self, writer)
+    : kernel = writer.kernel dataType = kernel["ProblemType"]["DataType"] miM = kernel
+        ["MatrixInstM"] miN = kernel["MatrixInstN"] if dataType.isSingle()
+                              or dataType.isSingleComplex() or dataType.isHalf()
+                              or dataType.isBFloat16()
+    : if miM == 4 and miN == 4 : return 2 elif dataType.isDouble()
+                              or dataType.isDoubleComplex()
+    : if miM == 4
+                                     and miN
+                                             == 4 : return 4 return 0
 
-        # use const 0 for src2 in firstIter case
-        src2 = "0" if firstIter else "%s[%u:%u]"%(accType, accOutStart, accOutEnd)
+                                                    def __call__(self,
+                                                                 writer,
+                                                                 accOutStart,
+                                                                 accOutEnd,
+                                                                 in0,
+                                                                 in1,
+                                                                 accInStart,
+                                                                 accInEnd,
+                                                                 accStoreCIdx,
+                                                                 firstIter)
+    : kernel                      = writer
+                   .kernel inType = kernel["ProblemType"]["F32XdlMathOp"]
+                                        .toNameAbbrev() if kernel["EnableF32XdlMathOp"] else kernel
+                                            ["ProblemType"]["DataType"]
+                                        .toNameAbbrev()
+#for F8 hybrid cases, we need to change the inType of VMFMA inst as well
+                                            if kernel["SourceSwap"]
+    : dataType = kernel["ProblemType"]["DataType"] if dataType.isFloat8BFloat8()
+    : inType   = DataType("B8F8").toNameAbbrev() #change the intype from F8B8 to B8F8
+               if dataType.isBFloat8Float8()
+    : inType = DataType("F8B8").toNameAbbrev() #change the intype from B8F8 to F8B8
 
-        kStr = "v_mfma_%s_%ux%ux%u%s%s %s[%u+%u:%u+%u], %s, %s, %s%s" \
-                % (outType, miM, miN, miK, inType, mfma1k, accType, accInStart, accStoreCIdx, accInEnd, accStoreCIdx, str0, str1, src2, writer.endLine)
+               outType = kernel["ProblemType"]["F32XdlMathOp"]
+                             .MIOutputTypeNameAbbrev() if kernel["EnableF32XdlMathOp"] else kernel
+                                 ["ProblemType"]["DataType"]
+                             .MIOutputTypeNameAbbrev() if kernel["ProblemType"]["DataType"]
+                             .isComplex()
+    : inType = outType accType = "a" if not kernel["MIArchVgpr"] else "v" miM = kernel
+            ["MatrixInstM"] miN = kernel["MatrixInstN"] miK = kernel["MatrixInstK"] miB = kernel
+                ["MatrixInstB"] str0 = in1 if kernel["SourceSwap"] else in0
+    str1                             = in0 if kernel["SourceSwap"] else in1
 
-        return kStr
+    strB   = "" if miB > 1
+    : strB = "%ub_"
+             % miB
+
+#use const 0 for src2 in firstIter case
+             src2 = "0" if firstIter else "%s[%u:%u]"
+                    % (accType, accOutStart, accOutEnd)
+
+                        kStr = "v_mfma_%s_%ux%ux%u_%s%s %s[%u+%u:%u+%u], %s, %s, %s%s"
+                               % (outType,
+                                  miM,
+                                  miN,
+                                  miK,
+                                  strB,
+                                  inType,
+                                  accType,
+                                  accInStart,
+                                  accStoreCIdx,
+                                  accInEnd,
+                                  accStoreCIdx,
+                                  str0,
+                                  str1,
+                                  src2,
+                                  writer.endLine)
+
+                                   return kStr
+
+                               class MFMASelection(MFMA)
+    : versions = [ (9, 0, 8), (9, 0, 10) ]
+
+    def __call__(self,
+                 writer,
+                 accOutStart,
+                 accOutEnd,
+                 in0,
+                 in1,
+                 accInStart,
+                 accInEnd,
+                 accStoreCIdx,
+                 firstIter)
+    : kernel          = writer.kernel
+               inType = "bf16" if kernel["ProblemType"]["Fp16AltImpl"] else kernel
+                            ["ProblemType"]["DataType"]
+                                .toNameAbbrev()
+                                    outType = kernel["ProblemType"]["DataType"]
+                                                  .MIOutputTypeNameAbbrev() if kernel["ProblemType"]
+                                                                                     ["DataType"]
+                                                  .isComplex()
+    : inType = outType accType = "a" if not kernel["MIArchVgpr"] else "v" mfma1k = "_1k" if(
+        kernel["MFMA_BF16_1K"]
+        or kernel["ProblemType"]["Fp16AltImpl"]) else "" miM = kernel["MatrixInstM"] miN = kernel
+        ["MatrixInstN"] miK = kernel["MatrixInstK"] str0 = in1 if kernel["SourceSwap"] else in0
+    str1                                                 = in0 if kernel["SourceSwap"] else in1
+
+#use const 0 for src2 in firstIter case
+    src2 = "0" if firstIter else "%s[%u:%u]"
+           % (accType, accOutStart, accOutEnd)
+
+               kStr = "v_mfma_%s_%ux%ux%u%s%s %s[%u+%u:%u+%u], %s, %s, %s%s"
+                      % (outType,
+                         miM,
+                         miN,
+                         miK,
+                         inType,
+                         mfma1k,
+                         accType,
+                         accInStart,
+                         accStoreCIdx,
+                         accInEnd,
+                         accStoreCIdx,
+                         str0,
+                         str1,
+                         src2,
+                         writer.endLine)
+
+                          return kStr

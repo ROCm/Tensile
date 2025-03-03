@@ -1,14 +1,14 @@
 TestParameters:
-  marks: [skip-gfx900, skip-gfx906, skip-gfx940, skip-gfx941, skip-gfx942, skip-gfx1010, skip-gfx1011, skip-gfx1012, skip-gfx1030, skip-gfx1100, skip-gfx1101, skip-gfx1102, skip-gfx1151] # not supported by arch
+  marks: [skip-gfx900, skip-gfx906, skip-gfx940, skip-gfx941, skip-gfx942, skip-gfx950, skip-gfx1010, skip-gfx1011, skip-gfx1012, skip-gfx1030, skip-gfx1100, skip-gfx1101, skip-gfx1102, skip-gfx1151] # not supported by arch
 
 GlobalParameters:
   NumElementsToValidate: 2048
-  # BoundsCheck: True
+#BoundsCheck : True
   KernelTime: True
 
 BenchmarkProblems:
   ########################################
-  # NT
+#NT
   ########################################
   -
     - # ProblemType - NT
@@ -88,7 +88,7 @@ BenchmarkProblems:
           - Exact: [1024, 6784, 1, 1280]
 
   ########################################
-  # NN
+#NN
   ########################################
   -
     - # ProblemType - NN
@@ -169,7 +169,7 @@ BenchmarkProblems:
           - Exact: [1024, 6784, 1, 1280]
 
   ########################################
-  # TN
+#TN
   ########################################
   -
     - # ProblemType - TN
@@ -224,7 +224,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - DepthU: [ 64,128 ]
-        # - VectorWidth: [4]
+#- VectorWidth : [4]
         - PrefetchGlobalRead: [1,2]
         - PrefetchLocalRead: [5,9,17]
         - GlobalReadVectorWidth: [4,16]
@@ -252,7 +252,7 @@ BenchmarkProblems:
           - Exact: [1024, 6784, 1, 1280]
 
   ########################################
-  # TT
+#TT
   ########################################
   -
     - # ProblemType - TT

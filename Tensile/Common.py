@@ -1,24 +1,24 @@
 ################################################################################
 #
-# Copyright (C) 2016-2024 Advanced Micro Devices, Inc. All rights reserved.
+#Copyright(C) 2016 - 2024 Advanced Micro Devices, Inc.All rights reserved.
 #
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
+#Permission is hereby granted, free of charge, to any person obtaining a copy
+#of this software and associated documentation files(the "Software"), to deal
+#in the Software without restriction, including without limitation the rights
+#to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
+#copies of the Software, and to permit persons to whom the Software is
+#furnished to do so, subject to the following                       conditions:
 #
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
+#The above copyright notice and this permission notice shall be included in
+#all copies or substantial portions of the                               Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
+#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+#AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#SOFTWARE.
 #
 ################################################################################
 
@@ -60,29 +60,28 @@ class DeveloperWarning(Warning):
     This warning can be safely ignored when running any Tensile applications as a user.
     """
 
-
-# print level
+#print level
 # 0 - user wants no printing
 # 1 - user wants limited prints
 # 2 - user wants full prints
 
 ################################################################################
-# Global Parameters
+#Global Parameters
 ################################################################################
 globalParameters = OrderedDict()
 workingDirectoryStack = []
 
 ########################################
-# common
+#common
 ########################################
 globalParameters["MinimumRequiredVersion"] = "0.0.0" # which version of tensile is required to handle all the features required by this configuration file
 globalParameters["PerformanceMetric"] = "DeviceEfficiency" # performance metric for benchmarking; one of {DeviceEfficiency, CUEfficiency}
 globalParameters["PrintLevel"] = 1                # how much info to print in generator. 0=none, 1=standard, 2=add code commands, 3=verbose
 globalParameters["ClientLogLevel"] = 3            # the log level of client. 0=Error, 1=Terse, 2=Verbose, 3=Debug (Aligned with ResultReporter.hpp)
-# benchmarking
+#benchmarking
 globalParameters["KernelTime"] = False            # T=use device timers, F=use host timers
 globalParameters["PreciseKernelTime"] = True      # T=On hip, use the timestamps for kernel start and stop rather than separate events.  Can provide more accurate kernel timing.  For GlobalSplitU kernels, recommend disabling this to provide consistent
-# timing between GSU / non-GSU kernels
+#timing between GSU / non - GSU kernels
 globalParameters["CodeFromFiles"] = True          # if False byte arrays will be generated during Benchmarking phase as before
 globalParameters["SortProblems"] = False          # sort problems by size; else use order in YAML file
 globalParameters["PinClocks"] = False             # T=pin gpu clocks and fan, F=don't
@@ -93,49 +92,51 @@ globalParameters["SyncsPerBenchmark"] = 1         # how iterations of the stream
 globalParameters["EnqueuesPerSync"] = 1           # how many solution enqueues to perform per synchronization
 globalParameters["SleepPercent"] = 300            # how long to sleep after every data point: 25 means 25% of solution time. Sleeping lets gpu cool down more.
 globalParameters["FlushCount"] = 1                # Number of copies of arrays to allocate for cache flushing in timing code.
-                                                  # Functions are called iters times in a timing loop.
-                                                  # If the problem memory footprint is small enough, then arrays will be cached.
-                                                  # flush_count can be used to prevent caching.
-                                                  # For example, for sgemm with transA=transB=N:
-                                                  # problem_memory_footprint = (m*k + k*n + m*n) * sizeof(float).
-                                                  # To flush arrays before reusing set:
-                                                  # flush_count >= 1 + cache_size / problem_memory_footprint
-                                                  # Note that in the calculation of flush_count any padding from leading
-                                                  # dimensions are not loaded to cache and not included in the problem_memory_footprint.
-                                                  # If you specify flush_count you cannot also specify flush_memory_size)
+#Functions are called iters times in a timing loop.
+#If the problem memory footprint is small enough, then arrays will be cached.
+#flush_count can be used to prevent caching.
+#For example, for sgemm with transA = transB = N:
+#problem_memory_footprint = (m * k + k * n + m * n) * sizeof(float).
+#To flush arrays before reusing set:
+#flush_count >= 1 + cache_size / problem_memory_footprint
+#Note that in the calculation of flush_count any padding from leading
+#dimensions are not loaded to cache and not included in the   problem_memory_footprint.
+#If you specify flush_count you cannot also specify           flush_memory_size)
 globalParameters["FlushMemorySize"] = 0           # Bytes of memory that will be occupied by arrays. Used only in timing code for cache flushing. Set to greater than
-                                                  # cache size, so that arrays are flushed from cache before they are reused. When the size of arrays (the problem_memory_footprint)
-                                                  # is smaller than flush_memory_size, then flush_count copies of arrays are allocated where:
-                                                  # flush_count = flush_memory_size / problem_memory_footprint.
-                                                  # For sgemm with transA=transB=N
-                                                  # problem_memory_footprint = (m*k + k*n + m*n) * sizeof(float). Note that any padding from leading
-                                                  # dimensions are not loaded to cache and not included in the problem_memory_footprint.
-                                                  # If you specify flush_memory_size you cannot also specify flush_count)
-                                                  # Also note that Tensile allocates enough memory once at setup to accommodate
-                                                  # the largest problem. Similarly, the largest problem will be used to calculate flush_count.
-                                                  # Configs with largely contrasting sizes may not guarantee cache eviction for the smaller problems
+#cache size, so that arrays are flushed from cache before they are reused.When the size of arrays( \
+                 the problem_memory_footprint)
+#is smaller than flush_memory_size, then flush_count copies of arrays are allocated where:
+#flush_count           = flush_memory_size / problem_memory_footprint.
+#For sgemm with transA = transB = N
+#problem_memory_footprint \
+    = (m * k + k * n + m * n) * sizeof(float).Note that any padding from leading
+#dimensions are not loaded to cache and not included in the              problem_memory_footprint.
+#If you specify flush_memory_size you cannot also specify                flush_count)
+#Also note that Tensile allocates enough memory once at setup to         accommodate
+#the largest problem.Similarly, the largest problem will be used to calculate flush_count.
+#Configs with largely contrasting sizes may not guarantee cache eviction for the smaller problems
 
-# validation
+#validation
 globalParameters["NumElementsToValidate"] = 128   # number of elements to validate, 128 will be evenly spaced out (with prime number stride) across C tensor
 globalParameters["BoundsCheck"] = 0   # Bounds check
-#1: Perform bounds check to find out of bounds reads/writes.  NumElementsToValidate must be -1.
-#2: Perform bounds check by front side guard page
-#3: Perform bounds check by back side guard page
-#4: Perform bounds check by both back and front side guard page
+# 1 : Perform bounds check to find out of bounds reads / writes.NumElementsToValidate must be - 1.
+# 2 : Perform bounds check by front side guard page
+# 3 : Perform bounds check by back side guard page
+# 4 : Perform bounds check by both back and front side guard page
 
 globalParameters["ValidationMaxToPrint"] = 4      # maximum number of mismatches to print
 globalParameters["ValidationPrintValids"] = False # print matches too
-# steps
+#steps
 globalParameters["ForceRedoBenchmarkProblems"] = True # if False and benchmarking already complete, then benchmarking will be skipped when tensile is re-run
 globalParameters["ForceRedoLibraryLogic"] = True      # if False and library logic already analyzed, then library logic will be skipped when tensile is re-run
 globalParameters["ForceRedoLibraryClient"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 
-# Compare CPU reference convolution model vs golden tensor contraction model
-# Useful to test if conversion from tensor contraction is working as expected
-# In this mode, the filter,stride,dilation are specified in the problem type.
-# If the problem type uses constant Filter,Stride,Dilation,Pad* (ie these are not 'N'), then the
-# specified constant MUST match the dimension in the problem or the tensile runtime will assert.
-# The batch size, spatial dims, Cin, and Cout are always read from the problem description.
+#Compare CPU reference convolution model vs golden tensor contraction model
+#Useful to test if conversion from tensor contraction is working      as expected
+#In this mode, the filter, stride, dilation are specified in the problem type.
+#If the problem type uses constant Filter, Stride, Dilation, Pad*(ie these are not 'N'), then the
+#specified constant MUST match the dimension in the problem or the tensile runtime will assert.
+#The batch size, spatial dims, Cin, and Cout are always read from the problem description.
 globalParameters["ConvolutionVsContraction"] = False
 
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
@@ -146,49 +147,59 @@ globalParameters["WavefrontWidth"] = 64     # if False and library client alread
 globalParameters["ExitOnFails"] = 1     # 1: Exit after benchmark run if failures detected.  2: Exit during benchmark run.
 globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel generation. N=min(nproc,N). Setting CpuThreads < 1 (ie: 0 or -1) will use max threads (nproc)
 
-# even if error occurs in kernel generation (ie due to resource overflow),
-# generate the kernel source anyway.  Tensile will also attempt to run
-# the kernel.  Useful to examine and debug overflow errors.
+#even if error occurs in kernel generation(ie due to resource overflow),
+#generate the kernel source anyway.Tensile will also attempt to run
+#the kernel.Useful to examine and debug overflow                errors.
 globalParameters["ForceGenerateKernel"] = 0
 
 ########################################
-# optimization knob controls
+#optimization knob controls
 ########################################
 
 globalParameters["UnrollLoopEfficiencyEnable"] = False   # if True split(S) MAC&LDS in each unroll iteration into n smaller groups..
 
 ########################################
-# less common
+#less common
 ########################################
 globalParameters["CMakeBuildType"] = "Release"            # whether benchmark clients and library client should be release or debug
 globalParameters["PrintSolutionRejectionReason"] = False  # when a solution is marked as invalid, print why
 globalParameters["LibraryFormat"] = "msgpack"             # set library backend (either yaml or msgpack)
 globalParameters["EmbedLibrary"] = None                   # whether library should be embedded or not
 
-# True/False: CSV will/won't export WinnerGFlops, WinnerTimeUS, WinnerIdx, WinnerName.
-# TODO - if no side-effect, we can set default to True. This can make analyzing "LibraryLogic" (AddFromCSV) faster
+#True / False : CSV       will / won't export WinnerGFlops, WinnerTimeUS, WinnerIdx, WinnerName.
+#TODO - if no             side - effect, \
+    we can set default to True.This can make analyzing "LibraryLogic"(AddFromCSV)faster
 globalParameters["CSVExportWinner"] = False
 
-# (When NumBenchmarks > 1). True: CSV will merge the rows of same Problem-ID. False: Each problem will write out "NumBenchmarks" rows
-#   In old client - No effect, since in old client, CSV file only exports the last benchmark, somehow is not correct because the previous benchmarks are discarded
-#   In new client - csv file exports "NumBenchmarks" rows for every problem. This also make the later analyzing slower
-#                   Set this to "True" can merge the rows for same problem, hence can reduce the csv file size and speed up the later analyzing
-# TODO - if side-effect, we can set default to True. This can make "getResults()" / "AddFromCSV()" faster
+#(When NumBenchmarks> 1)                                                                       \
+      .True : CSV will merge the rows of same Problem - ID.False : Each problem will write out \
+  "NumBenchmarks" rows
+#In old client - No effect, since in old client, CSV file only exports the last benchmark, \
+    somehow is not correct because the previous benchmarks are discarded
+#In new client                               \
+    - csv file                       exports \
+      "NumBenchmarks" rows for every problem.This also make the later analyzing slower
+#Set this to "True" can merge the rows for same                                 problem, \
+    hence can reduce the csv file size and speed up the later                   analyzing
+#TODO - if side - effect, \
+    we can set default to True.This can make "getResults()" / "AddFromCSV()" faster
 globalParameters["CSVMergeSameProblemID"] = False
 
-# how to initialize tensor data
-# serial-in-u will use a sequence that increments in the K dimension
-# This is a predictable patterns that can be checked as the kernel runs to detect
-# when the wrong data is being used.
-# trig_float initializes with the sin function to have non-zero values in the mantissa
-# and exponent. It cannot be used for int8 or int32. Need to use tensileAlmostEqual
-# not tensileEqual for checking the result.
-# See ClientWriter.py, the DataInitName(Enum) for a list of initialization patterns
-#       - Problem-Independent: 0=0, 1=1, 2=2, 3=rand, 4=Nan, 5=Infinity, 6=BadInput(Nan), 7=BadOutput(Inf), 16=RandomNarrow
-#       - Problem-dependent: 8=SerialID, 9=SerialDim0, 10=SerialDim1, 11=Identity, 12~15= Cos/Sin, Abs or Not
-#       For A, B, C, D: All the InitMode (0~16) can be used
-#       For Alpha/Beta: Only problem-independent init (0~7, 16) can be used,
-#                       problem-dependent init (8~15) would cause a exception (Invalid InitMode) in New Client
+#how to initialize tensor                                                 data
+#serial - in - u will use a sequence that increments in the K             dimension
+#This is a predictable patterns that can be checked as the kernel runs to detect
+#when the wrong data is being                                             used.
+#trig_float initializes with the sin function to have non - zero values in the mantissa
+#and exponent.It cannot be used for int8 or int32.Need to use tensileAlmostEqual
+#not tensileEqual for checking the                            result.
+#See ClientWriter.py, the DataInitName(Enum) for a list of initialization patterns
+#- Problem - Independent : 0 = 0, 1 = 1, 2 = 2, 3 = rand, 4 = Nan, 5 = Infinity, \
+                           6 = BadInput(Nan), 7 = BadOutput(Inf), 16 = RandomNarrow
+#- Problem - dependent : 8 = SerialID, 9 = SerialDim0, 10 = SerialDim1, 11 = Identity, \
+                         12 ~15 = Cos / Sin, Abs or Not
+#For A, B, C, D : All the InitMode(0 ~16) can be used
+#For Alpha / Beta : Only problem - independent init(0 ~7, 16) can be used,
+#problem - dependent init(8 ~15) would cause a exception(Invalid InitMode) in New Client
 globalParameters["DataInitTypeAB"] = 3
 globalParameters["DataInitTypeA"] = -1
 globalParameters["DataInitTypeB"] = -1
@@ -202,13 +213,13 @@ globalParameters["BufferOffsetB"] = 0             # data offset of buffer B
 globalParameters["BufferOffsetC"] = 0             # data offset of buffer C
 globalParameters["BufferOffsetD"] = 0             # data offset of buffer D
 
-# build parameters
+#build parameters
 globalParameters["CMakeCXXFlags"] = ""            # pass flags to cmake
 globalParameters["CMakeCFlags"] = ""              # pass flags to cmake
 globalParameters["DebugKernel"] = False           # assembly only, kernel gets buffer for debug "printing"; kernel writes data to memory, gets copied to host and printed
 globalParameters["LibraryPrintDebug"] = False     # solutions will print enqueue info when enqueueing a kernel
 
-# debug for assembly
+#debug for assembly
 globalParameters["EnableAsserts"] = False         # Enable assembly debug assert
 globalParameters["EnableDebugA"] = False          # Enable / Disable CheckValue1A
 globalParameters["EnableDebugB"] = False          # Enable / Disable CheckValue1B
@@ -218,36 +229,40 @@ globalParameters["ForceCExpectedValue"] = False   # Force C to "DebugExpectedVal
 globalParameters["DebugSkipAtomic"] = False       # Reject kernels that contain atomics to only run non-atomic kernels
 globalParameters["DebugSkipNonAtomic"] = False    # Reject kernels that do no contain atomics to only run atomic kernels
 
-# Tensor printing controls:
+#Tensor printing controls:
 globalParameters["PrintConvolutionUsage"] = 0      # Print Convolution usage info. 1=tensor fields,2=boilerplate info,4=print tensor mappings for specified ConvProblems
 globalParameters["PrintTensorA"] = 0          # Print TensorA after initialization
 globalParameters["PrintTensorB"] = 0          # Print TensorB after initialization
-globalParameters["PrintTensorC"] = 0          # Print TensorC.  0x1=after init; 0x2=after copy-back; 0x3=both
-globalParameters["PrintTensorD"] = 0          # Print TensorD.  0x1=after init; 0x2=after copy-back; 0x3=both
-globalParameters["PrintTensorRef"] = 0          # Print reference tensor.  0x1=after init; 0x2=after copy-back; 0x3=both
+globalParameters["PrintTensorC"] = 0          # Print TensorC.  0x1=after init;
+0x2 = after copy - back;
+0x3 = both globalParameters["PrintTensorD"] = 0 #Print TensorD.0x1 = after init;
+0x2 = after                                                                copy - back;
+0x3 = both globalParameters["PrintTensorRef"] = 0 #Print reference tensor.0x1 = after init;
+0x2 = after copy - back; 0x3=both
 globalParameters["PrintIndexAssignments"] = 0      # Print the tensor index assignment info
 globalParameters["PrintWinnersOnly"] = False      # Only print the solutions which become the fastest
 globalParameters["DumpTensors"] = False        # If True, dump tensors to binary files instead of printing them.
 
-# If PrintMax* is greater than the dimension, the middle elements will be replaced with "..."
+#If PrintMax* is greater than the dimension, the middle elements will be replaced with "..."
 
-
-# device selection
+#device selection
 globalParameters["Platform"] = 0                  # select opencl platform
 globalParameters["Device"] = 0                    # select hip device or opencl device within platform
 
-# shouldn't need to change
+#shouldn't need to change
 globalParameters["DeviceLDS"] = 65536             # LDS bytes per CU, for computing occupancy
 globalParameters["MaxLDS"] = 65536                # max LDS a kernel should attempt to use
 globalParameters["MaxDepthU"] = 1024              # max DepthU value to allow
-globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
-globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
+globalParameters["ShortNames"] = False            # on windows kernel names can get too long;
+= True will convert solution / kernel names to serial ids globalParameters["MergeFiles"] = True #F
+    = store every solution and kernel in separate         file; T=store all solutions in single file
 globalParameters["NumMergedFiles"] = 1            # The number of files that kernels should be split between when merging
 
 globalParameters["MaxFileName"] = 64              # If a file name would be longer than this, shorten it with a hash.
 globalParameters["SupportedISA"] = [(8,0,3),
                                     (9,0,0), (9,0,6), (9,0,8), (9,0,10),
                                     (9,4,0), (9,4,1), (9,4,2),
+                                    (9,5,0),
                                     (10,1,0), (10,1,1), (10,1,2), (10,3,0), (10,3,1),
                                     (11,0,0), (11,0,1), (11,0,2),
                                     (11,5,1),
@@ -266,7 +281,7 @@ globalParameters["LibraryUpdateFile"] = ""                        # File name fo
 globalParameters["LibraryUpdateComment"] = False                  # Include solution name as a comment in the library update file
 globalParameters["DictLibraryLogic"] = False
 
-# internal, i.e., gets set during startup
+#internal, i.e., gets set during startup
 globalParameters["CurrentISA"] = (0,0,0)
 globalParameters["ROCmAgentEnumeratorPath"] = None      # /opt/rocm/bin/rocm_agent_enumerator
 globalParameters["ROCmSMIPath"] = None                  # /opt/rocm/bin/rocm-smi
@@ -284,22 +299,22 @@ globalParameters["CxxCompiler"] = "amdclang++" if os.name != "nt" else "clang++"
 globalParameters["CCompiler"] = "amdclang" if os.name != "nt" else "clang"
 globalParameters["Architecture"] = "all"
 
-# might be deprecated
+#might be deprecated
 globalParameters["ClientArgs"] = ""
 
-# perf model
+#perf model
 globalParameters["PerfModelL2ReadHits"] = 0.0
 globalParameters["PerfModelL2WriteHits"] = 0.15
 globalParameters["PerfModelL2ReadBwMul"] = 2
 globalParameters["PerfModelReadEfficiency"] = 0.85
 
-# limitation for training
+#limitation for training
 globalParameters["MaxWorkspaceSize"] = 32 * 1024 * 1024 # max workspace for training (32M)
 
-# control if a solution is run for a given problem
+#control if a solution is run for a given problem
 globalParameters["GranularityThreshold"] = 0.0
 
-# directory where custom kernels are located
+#directory where custom kernels are located
 globalParameters["CustomKernelDirectory"] = os.path.join(os.path.dirname(os.path.realpath(__file__)), "CustomKernels")
 
 globalParameters["PristineOnGPU"] = True # use Pristine memory on Tensile training verification or not
@@ -312,10 +327,10 @@ globalParameters["IgnoreAsmCapCache"] = False # Ignore checking for discrepancie
 
 globalParameters["ExperimentalLogicDir"] = "/experimental/"
 
-# Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
+#Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 
-# Translate GPU targets to filter filenames in Tensile_LOGIC directory
+#Translate GPU targets to filter filenames in Tensile_LOGIC directory
 architectureMap = {
   'all':'_','gfx000':'none', 'gfx803':'r9nano', 'gfx900':'vega10', 'gfx900:xnack-':'vega10',
   'gfx906':'vega20', 'gfx906:xnack+':'vega20', 'gfx906:xnack-':'vega20',
@@ -324,6 +339,7 @@ architectureMap = {
   'gfx940':'aquavanjaram', 'gfx940:xnack+':'aquavanjaram', 'gfx940:xnack-':'aquavanjaram',
   'gfx941':'aquavanjaram941', 'gfx941:xnack+':'aquavanjaram941', 'gfx941:xnack-':'aquavanjaram941',
   'gfx942':'aquavanjaram942', 'gfx942:xnack+':'aquavanjaram942', 'gfx942:xnack-':'aquavanjaram942',
+  'gfx950':'gfx950', 'gfx950:xnack+':'gfx950', 'gfx950:xnack-':'gfx950',
   'gfx1010':'navi10', 'gfx1011':'navi12', 'gfx1012':'navi14',
   'gfx1030':'navi21', 'gfx1031':'navi22', 'gfx1032':'navi23', 'gfx1034':'navi24', 'gfx1035':'rembrandt',
   'gfx1100':'navi31', 'gfx1101':'navi32', 'gfx1102':'navi33',
@@ -352,7 +368,7 @@ def getArchitectureName(gfxName: str) -> Optional[str]:
 
 
 ################################################################################
-# Enumerate Valid Solution Parameters
+#Enumerate Valid Solution Parameters
 ################################################################################
 validWorkGroups = []
 for numThreads in range(32, 1025, 32):
@@ -382,7 +398,7 @@ for i in validMacroTileSides:
     validMacroTiles.append([i, j])
 
 validMFMA = {}
-validMFMA["H"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
+validMFMA["H"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [16,16,32,1], [4,4,4,16]]
 validMFMA["S"] = [[32,32,1,2], [32,32,2,1], [16,16,1,4], [16,16,4,1], [4,4,1,16]]
 validMFMA["B"] = [[32,32,2,2], [32,32,4,1], [16,16,2,4], [16,16,8,1], [4,4,2,16]]
 validMFMA["D"] = [[16,16,4,1], [4,4,4,4]]
@@ -394,6 +410,8 @@ validMFMA["F8"] = [[32,32,16,1], [16,16,32,1]]
 validMFMA["B8"] = validMFMA["F8"]
 validMFMA["F8B8"] = validMFMA["F8"]
 validMFMA["B8F8"] = validMFMA["F8"]
+validMFMA["F8_950"] = [[32,32,64,1], [16,16,128,1]]
+validMFMA["B8_950"] = validMFMA["F8_950"]
 validMFMA["I8_908"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
 validMFMA["I8_940"] = [[32,32,4,2], [32,32,16,1], [16,16,4,4], [16,16,32,1], [4,4,4,16]]
 validMFMA["I8"] = validMFMA["H"] + validMFMA["F8"]
@@ -401,7 +419,7 @@ validWMMA = [[16,16,16,1], ]
 validTT = 64
 validMFMA["_format9"] = []
 
-for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["D"], validMFMA["X"], validMFMA["F8"], validWMMA]:
+for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["D"], validMFMA["X"], validMFMA["F8"], validMFMA["F8_950"], validWMMA]:
   for MI in MFMA:
     for bm in range(int(math.log(MI[3],2))+1):
       for tt0 in range(1,validTT+1):
@@ -410,31 +428,32 @@ for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["D"], val
             for wave_n in range(3):
               validMFMA["_format9"].append([MI[0],MI[1],MI[2],MI[3],2**bm,tt0,tt1,2**wave_m, 2**wave_n])
 
-validMatrixInstructions = [[], [-1]] + validMFMA["H"] + validMFMA["S"] + validMFMA["B"] + validMFMA["D"] + validMFMA["X"] + validMFMA["F8"]
+validMatrixInstructions = [[], [-1]] + validMFMA["H"] + validMFMA["S"] + validMFMA["B"] + validMFMA["D"] + validMFMA["X"] + validMFMA["F8"] + validMFMA["F8_950"]
 validMatrixInstructions = validMatrixInstructions + validMFMA["_format9"]
 
-# The supported typed GEMM, each entry is (Ti, To, Tc).
-# DataType (Ti)        = The data-type of the input matrices: A/B
-# DestDataType (To)    = The data-type of the output matrices: C/D
-# ComputeDataType (Tc) = The data-type of computation: alpha/beta:
-# CInternal: basically should == ComputeDataType
+#The supported typed GEMM, each entry is(Ti, To, Tc).
+#DataType(Ti)        = The data - type of the input matrices : A / B
+#DestDataType(To)    = The data - type of the output matrices : C / D
+#ComputeDataType(Tc) = The data - type of computation : alpha / beta:
+#CInternal : basically                    should == ComputeDataType
 
-# Align the supported GEMM type with rocBLAS: [A/B/ C/D/ alpha/beta]
-#   (rocblas/library/include/internal/rocblas_functions.h)
-# GEMM (HPA=F, the data type of input, output, and computation are all the same.)
-#   - HGEMM: [H/H/ H/H/ H/H]
-#   - SGEMM: [S/S/ S/S/ S/S]
-#   - DGEMM: [D/D/ D/D/ D/D]
-#   - CGEMM: [C/C/ C/C/ C/C]
-#   - ZGEMM: [Z/Z/ Z/Z/ Z/Z]
-# GEMM_Ex: (HPA=T, Computation is in a higher precision data-type)
-#   - GEMM_EX (HHS): [H/H/ H/H/ S/S]
-#   - GEMM_EX (HSS): [H/H/ S/S/ S/S]
-#   - GEMM_EX (BBS): [B/B/ B/B/ S/S]
-#   - GEMM_EX (BSS): [B/B/ S/S/ S/S]
-#   - GEMM_EX (I8II): [I8/I8/ I/I/ I/I]
-#   - GEMM_EX (4xi8II): [4xi8/4xi8/ I/I/ I/I], tensile packs 4 i8 to 4xi8 with some restrictions
-# This is used in SolutionStruct.py::checkIfSupportedGEMMType()
+#Align the supported GEMM type with rocBLAS : [A / B / C / D / alpha / beta]
+#(rocblas / library / include / internal / rocblas_functions.h)
+#GEMM(HPA = F, the data type of input, output, and computation are all the same.)
+#- HGEMM : [H / H / H / H / H / H]
+#- SGEMM : [S / S / S / S / S / S]
+#- DGEMM : [D / D / D / D / D / D]
+#- CGEMM : [C / C / C / C / C / C]
+#- ZGEMM : [Z / Z / Z / Z / Z / Z]
+#GEMM_Ex : (HPA = T, Computation is in a higher precision data - type)
+#- GEMM_EX(HHS) : [H / H / H / H / S / S]
+#- GEMM_EX(HSS) : [H / H / S / S / S / S]
+#- GEMM_EX(BBS) : [B / B / B / B / S / S]
+#- GEMM_EX(BSS) : [B / B / S / S / S / S]
+#- GEMM_EX(I8II) : [I8 / I8 / I / I / I / I]
+#- GEMM_EX(4xi8II) : [4xi8 / 4xi8 / I / I / I / I], \
+                      tensile packs 4 i8 to 4xi8 with some restrictions
+#This is used in SolutionStruct.py::checkIfSupportedGEMMType()
 validGEMMTypes = [ ('D','D','D'), ('S','S','S'), ('Z','Z','Z'), ('C','C','C'), \
                    ('H','H','H'), ('H','H','S'), ('H','S','S'), \
                    ('B','B','S'), ('B','S','S'), \
@@ -446,9 +465,10 @@ validGEMMTypes = [ ('D','D','D'), ('S','S','S'), ('Z','Z','Z'), ('C','C','C'), \
                    ('F8','H','S'), ('B8','H','S'), \
                    ('F8B8','H','S'), ('B8F8','H','S') ]
 
-# All HPA types are listed here (HPA=T). The name of the library logic files for these types is:
-# *_TiToTc_BH*.yaml where Ti, Tc, and To are the data types of A/B, C/D, and computation, respectively.
-# The name of the library logic files for non-HPA (HPA=F) types is: *_TiB*.yaml.
+#All HPA types are listed here(HPA = T).The name of the library logic files for these types is:
+#* _TiToTc_BH *.yaml where Ti, Tc, and To are the data types of A / B, C / D, and computation, \
+    respectively.
+#The name of the library logic files for non - HPA(HPA = F) types is : *_TiB*.yaml.
 HPATypes = [ ('H','S','S'), ('H','H','S'), ('B','B','S'), ('B','S','S'), ('I8','I','I'), ('4xi8','I','I'), \
              ('F8','S','S'), ('B8','S','S'), ('F8B8','S','S'), ('B8F8', 'S', 'S'), \
              ('F8B8','B8','S'), ('B8F8', 'B8', 'S'), \
@@ -459,120 +479,198 @@ validParameters = {
     "LoopDoWhile":                [ False, True ], # Source. True=DoWhile, False=For loop
     "LoopTail":                   [ False, True ], # tail loop handles non multiples of unrolled summation loop
 
-    # threads load elements from global into registers, then write from registers to LDS
-    # these options affect those read/write patterns
-    # coalesce-group=True  means adjacent threads will     read adjacent addresses; if the data needs to be transposed then adjacent threads will NOT write adjacent elements to LDS.
-    # coalesce-group=False means adjacent threads will NOT read adjacent addresses; if the data needs to be transposed then adjacent threads will     write adjacent elements to LDS.
-    # this parameter really only matters for transposing
-    # =False means the L1 cache will do the transposing work and it is quite fast; then data is written coalesced (no bank conflicts) to LDS.
-    # =True means the transpose will happen while writing to LDS, this usually has bank conflicts, but it appears the throughput is still fast enough to not slow the VALUs down.
-    # it appears that the L1 cache can still achieve quite a bit of performance for GRCG=False, but overall it's usually faster to read coalesced
+#threads load elements from global into registers, then write from registers to LDS
+#these options affect those read / write                           patterns
+#coalesce - group = True means adjacent threads will read adjacent addresses;                    \
+    if the data needs to be transposed then adjacent threads will NOT write adjacent elements to \
+                                                                        LDS.
+#coalesce - group = False means adjacent threads will NOT read adjacent addresses; \
+    if the data needs to be transposed then adjacent threads will write adjacent elements to LDS.
+#this parameter really only matters for transposing
+#= False means the L1 cache will do the transposing work and it is quite fast; \
+    then data is written coalesced(no bank conflicts) to LDS.
+#= True means the transpose will happen while writing to LDS, this usually has bank conflicts, \
+    but it appears the throughput is still fast enough to not slow the VALUs down.
+#it appears that the L1 cache can still achieve quite a bit of performance for GRCG = False, \
+                                                                               but overall it's usually faster to read coalesced
     "GlobalReadCoalesceGroupA":   [ False, True ],
     "GlobalReadCoalesceGroupB":   [ False, True ],
 
-    # for transposes, this option governs how short-vectors should be read from global and written to lds
-    # it is impossible to transpose data while operating on short-vectors for GlobalRead,LocalWrite and LocalRead; an odd number of those must be transposing and operating on vector components.
-    # since data will be read from lds many more times than it will be written, data must always end up in lds such that short-vectors can be read from lds
-    # =True means read short-vector from global and write its components to lds
-    # =False means read vector components from global so that a full short-vector can be written to lds
-    # both options were supported until a refactoring of the short-vector code (necessary to enable assembly) broke it. Since =True always seems to be faster, no time has been spend on fixing =False
-    #  it may still work in source, but just not in assembly. The problem is the order in which elements are stored into vgprs, is different than the order in which they are written to lds. In source each
-    #  loaded element gets a variable name which in independent of the order that they are written in the source code, but in assembly the values are just assigned vgprs in order and that order needs to be shuffles.
+#for transposes, \
+    this option governs how short - vectors should be read from global and written to lds
+#it is impossible to transpose data while operating on short - vectors for GlobalRead, \
+    LocalWrite and                                  LocalRead;                         \
+    an odd number of those must be transposing and operating on vector components.
+#since data will be read from lds many more times than it will be      written, \
+    data must always end up in lds such that short - vectors can be read from lds
+#= True means read short - vector from global and write its components to lds
+#= False means read vector components from global so that a full short - vector can be written to lds
+#both options were supported until a refactoring of the short  \
+    - vector code(necessary to enable assembly) broke it.Since \
+    = True always seems to be                         faster,  \
+    no time has been spend on                         fixing = False
+#it may still work in                                 source,                                  \
+    but just not in assembly.The problem is the order in which elements are stored into vgprs, \
+    is different than the order in which they are written to lds.In source each
+#loaded element gets a variable name which in independent of the order that they are written in \
+    the source code,                                                                            \
+    but in assembly the values are just assigned vgprs in order and that order needs to be      \
+        shuffles.
     "GlobalReadCoalesceVectorA":  [        True ], # FIXME =False worked before the vector refactor; fixing requires re-ordering load/store indices; but they aren't the faster option so not worth time right now
     "GlobalReadCoalesceVectorB":  [        True ],
 
-    # original global read to lds is interlace, [w0,w1,w2,w3,w0,w1,w2,w3,w0,w1,w2,w3,w0,w1,w2,w3]
-    # when WaveSeparateGlobalRead is enabled, LDS is divided to number of waves part.
-    # each wave load a block memory to lds,     [w0,w0,w0,w0,w1,w1,w1,w1,w2,w2,w2,w2,w3,w3,w3,w3]
-    # -1 is selected by logic, 0 disable, 1 enable.
+#original global read to lds is interlace, [w0, \
+                                            w1, \
+                                            w2, \
+                                            w3, \
+                                            w0, \
+                                            w1, \
+                                            w2, \
+                                            w3, \
+                                            w0, \
+                                            w1, \
+                                            w2, \
+                                            w3, \
+                                            w0, \
+                                            w1, \
+                                            w2, \
+                                            w3]
+#when WaveSeparateGlobalRead is enabled, LDS is divided to number of waves part.
+#each wave load a block memory to lds, [w0, \
+                                        w0, \
+                                        w0, \
+                                        w0, \
+                                        w1, \
+                                        w1, \
+                                        w1, \
+                                        w1, \
+                                        w2, \
+                                        w2, \
+                                        w2, \
+                                        w2, \
+                                        w3, \
+                                        w3, \
+                                        w3, \
+                                        w3]
+#- 1 is selected by logic, 0 disable, 1 enable.
     "WaveSeparateGlobalReadA":    [ 0, 1 ],
     "WaveSeparateGlobalReadB":    [ 0, 1 ],
 
-    # directToLds (asyncDMA) feature do not work very efficiently for lower precisions fp16/bf16/i8. directToLds feature does not
-    # support destination offset in LDS , no padding support to avoid LDS bank conflicts during data movement LDS->VGPR
-    # This feature enumerates elements in summation Index dimension into different thread lanes during global fetch while
-    # keeping memory fetch efficiency same as non directToLds and avoids bank conflicts when data moved from LDS->VGPR.
-    # fragmenting threads required to fetch #elements in coalescing dimension. rather than using contiguous depthu/GLVW into
-    # fragments occupying upper and lower 32 threads or fragment into 4x16 threads.
-    # for higher precision like f64, The feature should also help to avoid LDS bank conflicts for Transpose data layout case
-    # use primarily for direct to LDS feature with transpose data layout
-    # for example A matrices = Transpose layout
-    # ThreadSeparateGlobalReadA = 0   DepthU=64 GLVW=8 T0,T1,T2,T3,T4,T5,T6,T7  fetching  64 elements
-    # ThreadSeparateGlobalReadA = 1   DepthU=64 GLVW=8 T0,T1,T2,T3, T32,T33,T34,T35
-    # ThreadSeparateGlobalReadA = 2   DepthU=64 GLVW=8 T0,T1,T16,T17,T32,T33,T48,T49  fetching  64 elements
-    # use =2 for 16x16x4xfp16 instructions
-    # should work with WaveSeparateGlobalRead
-    # Feature should help depthU*bpe requiring more than 4 threads.
-    # SplitGlobalRead is integrated into ThreadSeparateGlobalRead
+#directToLds(asyncDMA) feature do not work very efficiently for lower precisions fp16 / bf16 \
+    / i8.directToLds feature                                                     does not
+#support destination offset in                                                   LDS, \
+    no padding support to avoid LDS bank conflicts during data movement          LDS->VGPR
+#This feature enumerates elements in summation Index dimension into different thread lanes during \
+    global fetch while
+#keeping memory fetch efficiency same as non directToLds and avoids bank conflicts when data moved \
+    from                         LDS->VGPR.
+#fragmenting threads required to fetch #elements in coalescing \
+        dimension.rather than using contiguous depthu          \
+    / GLVW                                     into
+#fragments occupying upper and lower 32 threads or fragment                     into 4x16 threads.
+#for higher precision like                                                      f64, \
+    The feature should also help to avoid LDS bank conflicts for Transpose data layout case
+#use primarily for direct to LDS feature with transpose data                    layout
+#for example A matrices    = Transpose layout
+#ThreadSeparateGlobalReadA = 0 DepthU = 64 GLVW = 8 T0, T1, T2, T3, T4, T5, T6, \
+                               T7 fetching 64 elements
+#ThreadSeparateGlobalReadA = 1 DepthU = 64 GLVW = 8 T0, T1, T2, T3, T32, T33, T34, T35
+#ThreadSeparateGlobalReadA = 2 DepthU = 64 GLVW = 8 T0, T1, T16, T17, T32, T33, T48, \
+                               T49 fetching 64 elements
+#use = 2 for 16x16x4xfp16 instructions
+#should work with    WaveSeparateGlobalRead
+#Feature should help depthU* bpe requiring more than 4 threads.
+#SplitGlobalRead is integrated into             ThreadSeparateGlobalRead
 
     "ThreadSeparateGlobalReadA":    [ 0, 1, 2, 4 ],
     "ThreadSeparateGlobalReadB":    [ 0, 1, 2, 4 ],
 
-    # PrefetchGlobalRead = 1:
-    # Requires 2X LDS space, and VGPRs for buffering data on way into LDS
-    #   prefetch / double-buffer reads from global memory -> vgprs -> lds.
-    #
-    # PrefetchGlobalRead = 2:
-    # Do another prefetch while writing data from vgpr to lds.
-    #   prefetch / double-buffer reads from global memory -> vgprs --> lds.
-    #                                                              |-> prefetch reads
+#PrefetchGlobalRead = 1:
+#Requires 2X LDS space, and VGPRs for buffering data on way into LDS
+#prefetch / double - buffer reads from global memory->vgprs->lds.
+#
+#PrefetchGlobalRead = 2:
+#Do another prefetch while writing data from vgpr to lds.
+#prefetch / double - buffer reads from global        memory->vgprs--> lds.
+#|->prefetch reads
     "PrefetchGlobalRead":         [ 0, 1, 2 ],
 
-    # number of iteration prefetch local reads from lds to VGPRs buffer = PLR % LoopIter
-    # number of VGPRs buffer = min(PLR+1,LoopIters)
-    # LoopIters = DepthU / LocalSplitU
-    # (LoopIters /= MatrixInstruction_K)
-    # ex. MT64x128x16_MI32x32x4x2_PLR1, we'll have 4 LoopIters, prefetch read 1 iteration, with 2 VGPRs buffer (2=min(1+1,4))
-    #     before loop:       plr[0]
-    #           loop: iter0:plr[1] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[0], iter3:plr[0] MAC_r[1]
-    #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[0], iter3:       MAC_r[1]
-    #
-    # ex. MT64x128x16_MI32x32x4x2_PLR3, we'll have 4 LoopIters, prefetch read 3 iteration, with 4 VGPRs buffer (4=min(3+1,4))
-    #     before loop:       plr[0] plr[1] plr[2]
-    #           loop: iter0:plr[3] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[2], iter3:plr[2] MAC_r[3]
-    #   no load loop: iter0:plr[3] MAC_r[0], iter1:       MAC_r[1], iter2:       MAC_r[2], iter3:       MAC_r[3]
-    #
-    # ex. MT64x128x16_MI32x32x4x2_PLR5, we'll have 4 LoopIters, prefetch read 5%4=1 iteration, with 4 VGPRs buffer (4=min(5+1,4))
-    #     before loop:       plr[0]
-    #           loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:plr[0] MAC_r[3]
-    #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:       MAC_r[3]
-    #
-    # ex. MT64x128x16_MI32x32x4x2_PLR5_LRVW8, we'll have 4 LoopIters, prefetch read 5%4=1 iteration, with 4 VGPRs buffer (4=min(5+1,4)) , each read read 2 iterations
-    #     before loop:       plr[0:1]
-    #           loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:plr[0:1] MAC_r[3]
-    #   no load loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:         MAC_r[3]
-    #
-    # ex. MT64x128x16_MI32x32x4x2_PLR7, we'll have 4 LoopIters, prefetch read 7%4=3 iteration, with 4 VGPRs buffer (=min(7+1,4)) --> Exactly the same as PLR3
-    #     before loop:       plr[0]
-    #           loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:plr[0] MAC_r[3]
-    #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:       MAC_r[3]
+#number of iteration prefetch local reads from lds to VGPRs buffer = PLR % LoopIter
+#number of VGPRs                                            buffer = min(PLR + 1, LoopIters)
+#LoopIters                                                         = DepthU / LocalSplitU
+#(LoopIters /= MatrixInstruction_K)
+#ex.MT64x128x16_MI32x32x4x2_PLR1, we'll have 4 LoopIters, prefetch read 1 iteration, with 2 VGPRs buffer (2=min(1+1,4))
+#before loop : plr[0]
+#loop : iter0 : plr[1] MAC_r[0],                      \
+                             iter1 : plr[0] MAC_r[1], \
+                                                  iter2 : plr[1] MAC_r[0], iter3 : plr[0] MAC_r[1]
+#no load loop : iter0 : plr[1] MAC_r[0],                                           \
+                                     iter1 : plr[0] MAC_r[1],                      \
+                                                          iter2 : plr[1] MAC_r[0], \
+                                                                               iter3 : MAC_r[1]
+#
+#ex.MT64x128x16_MI32x32x4x2_PLR3, we'll have 4 LoopIters, prefetch read 3 iteration, with 4 VGPRs buffer (4=min(3+1,4))
+#before loop : plr[0] plr[1] plr[2]
+#loop : iter0 : plr[3] MAC_r[0],                      \
+                             iter1 : plr[0] MAC_r[1], \
+                                                  iter2 : plr[1] MAC_r[2], iter3 : plr[2] MAC_r[3]
+#no load loop : iter0 : plr[3] MAC_r[0], iter1 : MAC_r[1], iter2 : MAC_r[2], iter3 : MAC_r[3]
+#
+#ex.MT64x128x16_MI32x32x4x2_PLR5, we'll have 4 LoopIters, prefetch read 5%4=1 iteration, with 4 VGPRs buffer (4=min(5+1,4))
+#before loop : plr[0]
+#loop : iter0 : plr[1] MAC_r[0],                      \
+                             iter1 : plr[2] MAC_r[1], \
+                                                  iter2 : plr[3] MAC_r[2], iter3 : plr[0] MAC_r[3]
+#no load loop : iter0 : plr[1] MAC_r[0],                                           \
+                                     iter1 : plr[2] MAC_r[1],                      \
+                                                          iter2 : plr[3] MAC_r[2], \
+                                                                               iter3 : MAC_r[3]
+#
+#ex.MT64x128x16_MI32x32x4x2_PLR5_LRVW8, we'll have 4 LoopIters, prefetch read 5%4=1 iteration, with 4 VGPRs buffer (4=min(5+1,4)) , each read read 2 iterations
+#before loop : plr[0 : 1]
+#loop : iter0 : plr[2 : 3] MAC_r[0], iter1 : MAC_r[1], iter2 : MAC_r[2], iter3 : plr[0 : 1] MAC_r[3]
+#no load loop : iter0 : plr[2 : 3] MAC_r[0], iter1 : MAC_r[1], iter2 : MAC_r[2], iter3 : MAC_r[3]
+#
+#ex.MT64x128x16_MI32x32x4x2_PLR7, we'll have 4 LoopIters, prefetch read 7%4=3 iteration, with 4 VGPRs buffer (=min(7+1,4)) --> Exactly the same as PLR3
+#before loop : plr[0]
+#loop : iter0 : plr[1] MAC_r[0],                      \
+                             iter1 : plr[2] MAC_r[1], \
+                                                  iter2 : plr[3] MAC_r[2], iter3 : plr[0] MAC_r[3]
+#no load loop : iter0 : plr[1] MAC_r[0],                                           \
+                                     iter1 : plr[2] MAC_r[1],                      \
+                                                          iter2 : plr[3] MAC_r[2], \
+                                                                               iter3 : MAC_r[3]
     "PrefetchLocalRead":          list(range(128+1)),
 
-    # We use double LDS buffer when PrefetchGlobalRead.
-    # While it reads data from LDS[0]/[1], it prefetch global data and writes to LDS[1]/[0]
-    # If we can make sure all data are read from LDS to register before writing data to LDS, we can use 1 LDS buffer to save LDS memory.
-    # this can help to generate Kernel that LDS usage originally exceed MaxLDS if using double LDS buffer,
-    # or help to increase Occupancy.
-    #     1 means: Force to use 1 LDS Buffer even with PrefetchGlobalRead
-    #    -1 means: generator will use 1 LDS buffer only when LDS exceed MaxLDS
-    # Use case:
-    #    SIA2: 1LDSBuffer is set to 1 natively
-    #    SIA3: 1LDSBuffer works only when PGR=True
-    # TODO: optimize scheduling to support more cases.
+#We use double LDS buffer when PrefetchGlobalRead.
+#While it reads data from LDS[0] / [1], it prefetch global data and writes to LDS[1] / [0]
+#If we can make sure all data are read from LDS to register before writing data to LDS, \
+    we can use 1 LDS buffer to save LDS memory.
+#this can help to generate Kernel that LDS usage originally exceed MaxLDS if using double LDS \
+                      buffer,
+# or help to increase Occupancy.
+# 1 means : Force to use 1 LDS Buffer even with PrefetchGlobalRead
+#- 1 means : generator will use 1 LDS buffer only when LDS exceed MaxLDS
+#Use case:
+#SIA2 : 1LDSBuffer is set                   to 1 natively
+#SIA3 : 1LDSBuffer works only when          PGR = True
+#TODO : optimize scheduling to support more cases.
     "1LDSBuffer": [-1 ,0, 1],
 
-    # Split the unroll summation into multiple sections and combine the sections
-    # GSU applies only to the unroll summation dimension
+#Split the unroll summation into multiple sections and combine the sections
+#GSU applies only to the unroll summation                          dimension
     "GlobalSplitU":               list(range(1, 4096+1)),
 
-    # Chooses how to do GlobalSplitU:
-    # - SingleBuffer: uses atomic operation to accumulate on one buffer
-    # - MultipleBuffer: each GSU group writes to its own buffer and the postGSU accumulates the buffer
-    # if GlobalSplitU=1, this parameter will be ignored (and will be set to SingleBuffer if it is 
-    # MultipleBuffer for consistency in lib logics).
-    # GSU/GSUAlo can be used with all gemm types, except for I8II.
-    # When GSU>1, we need extra kernels (other than the main assembly kernel) to do the computations. The language of these
-    # kernels are HIP source and will be dropped in 1_BenchmarkProblems/Cijk_*/*_Final/source/Kernels.?pp:
+#Chooses how to do GlobalSplitU:
+#- SingleBuffer : uses atomic operation to accumulate on one buffer
+#- MultipleBuffer : each GSU group writes to its own buffer and the postGSU accumulates the buffer
+#if GlobalSplitU = 1, this parameter will be ignored(and will be set to SingleBuffer if it is
+#MultipleBuffer for consistency in lib  logics).
+#GSU / GSUAlo can be used with all gemm types, except for I8II.
+#When GSU> 1, we need extra kernels(other than the main assembly kernel) \
+                  to do the computations.The language of these
+#kernels are HIP source and will be dropped              in 1_BenchmarkProblems \
+    / Cijk_* /*_Final/source/Kernels.?pp:
     #   - pre-kernel: for Global Accumulation.
     #   - postGSU: for accumulating AxB and alpha*AxB+beta*C from the buffer.
     #
@@ -2046,6 +2144,7 @@ def GetAsmCaps(isaVersion: IsaVersion, hipVersion: SemanticVersion, cachedAsmCap
     derivedAsmCaps["HasMFMA_xf32"]          = tryAssembler(isaVersion, "v_mfma_f32_32x32x4_xf32 a[0:15], v[32:33], v[36:37], a[0:15]")
     derivedAsmCaps["HasMFMA_f8"]            = tryAssembler(isaVersion, "v_mfma_f32_16x16x32_fp8_fp8 a[0:3], v[2:3], v[4:5], a[0:3]")
     derivedAsmCaps["HasMFMA_b8"]            = tryAssembler(isaVersion, "v_mfma_f32_16x16x32_bf8_bf8 a[0:3], v[2:3], v[4:5], a[0:3]")
+    derivedAsmCaps["HasMFMA_f8_950"]        = tryAssembler(isaVersion, "v_mfma_f32_16x16x128_f8f6f4 a[0:3], v[2:9], v[10:17], a[0:3]")
     derivedAsmCaps["HasMFMA_i8_908"]        = tryAssembler(isaVersion, "v_mfma_i32_32x32x8i8 a[0:15], v2, v3, a[0:15]")
     derivedAsmCaps["HasMFMA_i8_940"]        = tryAssembler(isaVersion, "v_mfma_i32_32x32x16_i8 a[0:15], v[2:3], v[4:5], a[0:15]")
 
@@ -2142,18 +2241,19 @@ def GetAsmCaps(isaVersion: IsaVersion, hipVersion: SemanticVersion, cachedAsmCap
 def GetArchCaps(isaVersion):
   rv = {}
   rv["HasEccHalf"]         = (isaVersion==(9,0,6) or isaVersion==(9,0,8) or isaVersion==(9,0,10) or \
-                              isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
+                              isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2) or isaVersion==(9,5,0))
   rv["Waitcnt0Disabled"]   = (isaVersion==(9,0,8) or isaVersion==(9,0,10) or \
-                              isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
+                              isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2) or isaVersion==(9,5,0))
   rv["SeparateVscnt"]      = isaVersion[0] in (10, 11)
   rv["CMPXWritesSGPR"]     = isaVersion[0] not in (10, 11, 12)
   rv["HasWave32"]          = isaVersion[0] in (10, 11, 12)
-  rv["HasAccCD"]           = (isaVersion==(9,0,10) or isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
-  rv["ArchAccUnifiedRegs"] = (isaVersion==(9,0,10) or isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
+  rv["HasAccCD"]           = (isaVersion==(9,0,10) or isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2) or isaVersion==(9,5,0))
+  rv["ArchAccUnifiedRegs"] = (isaVersion==(9,0,10) or isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2) or isaVersion==(9,5,0))
   rv["VgprBank"]           = isaVersion[0] in (10, 11, 12)
   rv["InstRename"]         = isaVersion[0]>=11
-  rv["CrosslaneWait"]      = (isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
+  rv["CrosslaneWait"]      = (isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2) or isaVersion==(9,5,0))
   rv["ForceStoreSC1"]      = (isaVersion==(9,4,0) or isaVersion==(9,4,1))
+  rv["HasDTLx4"]           = isaVersion==(9,5,0)
 
   return rv
 
@@ -2467,7 +2567,7 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
     if os.name == "nt":
       globalParameters["CurrentISA"] = (9,0,6)
       printWarning("Failed to detect ISA so forcing (gfx906) on windows")
-  isasWithDisabledHWMonitor = ((9,4,1), (9,4,2), (11,0,0), (11,0,1), (11,0,2), (12,0,0), (12,0,1))
+  isasWithDisabledHWMonitor = ((9,4,1), (9,4,2), (9,5,0), (11,0,0), (11,0,1), (11,0,2), (12,0,0), (12,0,1))
   if globalParameters["CurrentISA"] in isasWithDisabledHWMonitor:
     isaString = ', '.join(map(gfxName, isasWithDisabledHWMonitor))
     printWarning(f"HardwareMonitor currently disabled for {isaString}")
