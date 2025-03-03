@@ -44,8 +44,8 @@ def test_splitDelimitedString():
     result = splitDelimitedString(archs, {";", "_"})
     assert result == expected, f"arch `{archs}` should map to {expected} but instead maps to {result}"
 
-    archs = "gfx803,    gfx906_gfx941:gfx1102"
-    expected = {"gfx803,    gfx906", "gfx941:gfx1102"}
+    archs = "gfx803,    gfx906_gfx942:gfx1102"
+    expected = {"gfx803,    gfx906", "gfx942:gfx1102"}
     result = splitDelimitedString(archs, {";", "_"})
     assert result == expected, f"arch `{archs}` should map to {expected} but instead maps to {result}"
 

@@ -2145,7 +2145,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["EnableMatrixInstruction"]:
       self.miLatency = kernel["MatrixInstM"] // 2
       miIssueLatency = 2
-      if (self.version == (9,4,0) or self.version == (9,4,1) or self.version == (9,4,2)) and kernel["MatrixInstB"] == 1 and \
+      if (self.version == (9,4,2)) and kernel["MatrixInstB"] == 1 and \
          (kernel["EnableF32XdlMathOp"] or \
           kernel["ProblemType"]["DataType"].is8bitFloat() or \
           kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16() or \
