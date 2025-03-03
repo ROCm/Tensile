@@ -247,7 +247,7 @@ globalParameters["NumMergedFiles"] = 1            # The number of files that ker
 globalParameters["MaxFileName"] = 64              # If a file name would be longer than this, shorten it with a hash.
 globalParameters["SupportedISA"] = [(8,0,3),
                                     (9,0,0), (9,0,6), (9,0,8), (9,0,10),
-                                    (9,4,0), (9,4,1), (9,4,2),
+                                    (9,4,2),
                                     (10,1,0), (10,1,1), (10,1,2), (10,3,0), (10,3,1),
                                     (11,0,0), (11,0,1), (11,0,2),
                                     (11,5,1),
@@ -321,8 +321,6 @@ architectureMap = {
   'gfx906':'vega20', 'gfx906:xnack+':'vega20', 'gfx906:xnack-':'vega20',
   'gfx908':'arcturus','gfx908:xnack+':'arcturus', 'gfx908:xnack-':'arcturus',
   'gfx90a':'aldebaran', 'gfx90a:xnack+':'aldebaran', 'gfx90a:xnack-':'aldebaran',
-  'gfx940':'aquavanjaram', 'gfx940:xnack+':'aquavanjaram', 'gfx940:xnack-':'aquavanjaram',
-  'gfx941':'aquavanjaram941', 'gfx941:xnack+':'aquavanjaram941', 'gfx941:xnack-':'aquavanjaram941',
   'gfx942':'aquavanjaram942', 'gfx942:xnack+':'aquavanjaram942', 'gfx942:xnack-':'aquavanjaram942',
   'gfx1010':'navi10', 'gfx1011':'navi12', 'gfx1012':'navi14',
   'gfx1030':'navi21', 'gfx1031':'navi22', 'gfx1032':'navi23', 'gfx1034':'navi24', 'gfx1035':'rembrandt',
@@ -1412,7 +1410,6 @@ validParameters = {
 
     # add gls or slc after global memory read/writes to change caching, not caching the writes is promising and improved performance a tiny bit
     # 1: glc, 2: slc, 3: glc+slc
-    # For gfx940, sets sc0/sc1/nt bits to control scope
     # 0: wave (none), 1: group (sc0), 2: device (sc1), 3: system (sc0+sc1) , 4-7: add "nt"
     "NonTemporalD":               list(range(0,8)),
     "NonTemporalC":               list(range(0,8)),
@@ -2142,19 +2139,18 @@ def GetAsmCaps(isaVersion: IsaVersion, hipVersion: SemanticVersion, cachedAsmCap
 def GetArchCaps(isaVersion):
   rv = {}
   rv["HasEccHalf"]         = (isaVersion==(9,0,6) or isaVersion==(9,0,8) or isaVersion==(9,0,10) or \
-                              isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
-  rv["Waitcnt0Disabled"]   = (isaVersion==(9,0,8) or isaVersion==(9,0,10) or \
-                              isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
+                              isaVersion==(9,4,2))
+  rv["Waitcnt0Disabled"]   = (isaVersion==(9,0,8) or isaVersion==(9,0,10) or isaVersion==(9,4,2))
   rv["SeparateVscnt"]      = isaVersion[0] in (10, 11)
   rv["CMPXWritesSGPR"]     = isaVersion[0] not in (10, 11, 12)
   rv["HasWave32"]          = isaVersion[0] in (10, 11, 12)
-  rv["HasAccCD"]           = (isaVersion==(9,0,10) or isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
-  rv["ArchAccUnifiedRegs"] = (isaVersion==(9,0,10) or isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
+  rv["HasAccCD"]           = (isaVersion==(9,0,10) or isaVersion==(9,4,2))
+  rv["ArchAccUnifiedRegs"] = (isaVersion==(9,0,10) or isaVersion==(9,4,2))
   rv["VgprBank"]           = isaVersion[0] in (10, 11, 12)
   rv["InstRename"]         = isaVersion[0]>=11
-  rv["CrosslaneWait"]      = (isaVersion==(9,4,0) or isaVersion==(9,4,1) or isaVersion==(9,4,2))
-  rv["ForceStoreSC1"]      = (isaVersion==(9,4,0) or isaVersion==(9,4,1))
-
+  rv["CrosslaneWait"]      = isaVersion==(9,4,2)
+  rv["ForceStoreSC1"]      = False
+  
   return rv
 
 def tryAssembler(isaVersion, asmString, debug=False, *options):
@@ -2467,7 +2463,7 @@ def assignGlobalParameters( config, capabilitiesCache: Optional[dict] = None ):
     if os.name == "nt":
       globalParameters["CurrentISA"] = (9,0,6)
       printWarning("Failed to detect ISA so forcing (gfx906) on windows")
-  isasWithDisabledHWMonitor = ((9,4,1), (9,4,2), (11,0,0), (11,0,1), (11,0,2), (12,0,0), (12,0,1))
+  isasWithDisabledHWMonitor = ((9,4,2), (11,0,0), (11,0,1), (11,0,2), (12,0,0), (12,0,1))
   if globalParameters["CurrentISA"] in isasWithDisabledHWMonitor:
     isaString = ', '.join(map(gfxName, isasWithDisabledHWMonitor))
     printWarning(f"HardwareMonitor currently disabled for {isaString}")

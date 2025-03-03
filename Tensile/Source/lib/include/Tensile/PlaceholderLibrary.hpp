@@ -44,8 +44,6 @@ namespace Tensile
         gfx906,
         gfx908,
         gfx90a,
-        gfx940,
-        gfx941,
         gfx942,
         gfx1010,
         gfx1011,
@@ -78,10 +76,6 @@ namespace Tensile
             return "TensileLibrary_*_gfx908";
         case LazyLoadingInit::gfx90a:
             return "TensileLibrary_*_gfx90a";
-        case LazyLoadingInit::gfx940:
-            return "TensileLibrary_*_gfx940";
-        case LazyLoadingInit::gfx941:
-            return "TensileLibrary_*_gfx941";
         case LazyLoadingInit::gfx942:
             return "TensileLibrary_*_gfx942";
         case LazyLoadingInit::gfx1010:
