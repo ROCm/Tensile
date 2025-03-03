@@ -1,6 +1,37 @@
 # Changelog for Tensile
 
-## (Unreleased) Tensile 4.43.0
+## (Unreleased) Tensile 4.44.0
+
+### Added
+
+- Support for gfx950
+- Code object compression via bundling
+- Support for non-default HIP SDK installations on Windows
+- Master solution library documentation
+
+### Changed
+
+- Use 4-tuple when calling bundler
+- Use PATHEXT extensions on Windows when searching for toolchain components
+- Allow fully qualified path to compiler
+- Improper usage of aliases as nested namespace specifiers
+- Use compiler version dependent capabilities
+- Improve default toolchain configuration
+
+### Removed
+
+- Drop support for architectures gfx940 and gfx941
+- Remove unused tuning files
+- Remove disabled tests
+
+### Resolved issues
+
+- Fix rhel9 testing
+- Fix gfx908 builds
+- Fix argument list too long error
+- Fix version typo in 6.3 changelog
+
+## Tensile 4.43.0 for ROCm 6.4.0
 
 ### Added
 
