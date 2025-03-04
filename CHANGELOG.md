@@ -1,15 +1,15 @@
 # Changelog for Tensile
 
-## Tensile 4.43.0 for ROCm 6.4.0
+## (Unreleased) Tensile 4.43.0
 
 ### Added
 
 - Nightly builds with performance statistics
 - ASM cache capabilities for reuse
-- Virtual environment (venv) for Tensile `create()` on Linux
+- Virtual environment (venv) for `TensileCreateLibrary` invocation on Linux
 - Flag to keep `build_tmp` when running Tensile
 - Generalized profiling scripts
-- GFX1151 support
+- Support for gfx1151
 - Single-threaded support in `TensileCreateLibrary`
 - Logic to remove temporary build artifacts
 
