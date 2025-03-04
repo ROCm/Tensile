@@ -5,45 +5,45 @@
 ### Added
 
 - Nightly builds with performance statistics
-- Cache asm capabilities for reuse
-- venv for Tensile create on Linux
-- Flag to keep build_tmp when running Tensile
+- ASM cache capabilities for reuse
+- Virtual environment (venv) for `TensileCreateLibrary` invocation on Linux
+- Flag to keep `build_tmp` when running Tensile
 - Generalized profiling scripts
-- GFX1151 support
-- Single-threaded support in TensileCreateLibrary
+- Support for gfx1151
+- Single-threaded support in `TensileCreateLibrary`
 - Logic to remove temporary build artifacts
 
 ### Changed
 
 - Updated Tensile documents (API reference, README.md, and comments)
-- Disabled asm-cache for tests
-- Used hipcc.bat as a compiler on Windows instead of the Perl script
-- Improved clarity of CHANGELOG.md
+- Disabled ASM cache for tests
+- Replaced Perl script with `hipcc.bat` as a compiler on Windows
+- Improved CHANGELOG.md
 - Enabled external CI
 - Improved Tensile documentation
 - Refactored kernel source and header creation
-- Refactored writeKernels in TensileCreateLibrary
-- Suppressed developer warnings (simplifying the Tensile output)
-- Used an explicit cast when invoking min is called
-- Used cache abbreviations to compute kernel names
+- Refactored `writeKernels` in `TensileCreateLibrary`
+- Suppressed developer warnings to simplify the Tensile output
+- Introduced an explicit cast when invoking `min`
+- Introduced cache abbreviations to compute kernel names
 
 ### Removed
 
 - OCL backend
 - Unsupported tests
-- Deep copy in TensileCreateLibrary
+- Deep copy in `TensileCreateLibrary`
 
 ### Optimized
 
-- Linearized asm register search to reduce build time
+- Linearized ASM register search to reduce build time
 
 ### Resolved issues
 
 - Fixed Stream-K dynamic grid model
-- Fixed logic related to caching asm capabilities
-- Fixed accvgpr overflow
-- Fixed test failures in SLES containers when running TensileTests
-- Fixed a regression that prevents TensileCreateLibrary from completing when fallback logic is not available
+- Fixed logic related to caching ASM capabilities
+- Fixed `accvgpr` overflow
+- Fixed test failures in SLES containers when running `TensileTests`
+- Fixed a regression that prevents `TensileCreateLibrary` from completing when fallback logic is not available
 
 ## Tensile 4.42.0 for ROCm 6.3.0
 
