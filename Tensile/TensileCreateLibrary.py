@@ -34,9 +34,7 @@ import collections
 import itertools
 import os
 import re
-import shlex
 import shutil
-import subprocess
 import sys
 import time
 import warnings
@@ -45,6 +43,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 from . import ClientExecutable, Common, EmbeddedData, LibraryIO, Utils
+from .BuildCommands import AssemblyCommands, SourceCommands
 from .Common import (
     HR,
     CHeader,
@@ -56,9 +55,8 @@ from .Common import (
     globalParameters,
     printExit,
     printWarning,
-    supportedCompiler,
+    splitArchs,
     tPrint,
-    which,
 )
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterBase import KernelWriterBase
@@ -74,8 +72,8 @@ from .Utilities.toFile import toFile
 TENSILE_MANIFEST_FILENAME = "TensileManifest.txt"
 TENSILE_LIBRARY_DIR = "library"
 
-
 ProcessedKernelResult = Tuple[int, str, str, str, Optional[str]]
+ProcessedKernelLookup = Dict[str, List[ProcessedKernelResult]]
 
 
 def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly) -> ProcessedKernelResult:
@@ -103,312 +101,6 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly) -> Pro
     return (err, src, header, kernelName, filename)
 
 
-def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath, removeTemporaries):
-    destDir = ensurePath(os.path.join(outputPath, "library"))
-    asmDir = kernelWriterAssembly.getAssemblyDirectory()
-    assemblyKernels = list([k for k in kernels if k["KernelLanguage"] == "Assembly"])
-    if len(assemblyKernels) == 0:
-        return []
-
-    archs = collections.defaultdict(list)
-    for k in assemblyKernels:
-        archs[tuple(k["ISA"])].append(k)
-    coFiles = []
-    for arch, archKernels in archs.items():
-        archName = gfxName(arch)
-        objectFiles = list(
-            [
-                kernelWriterAssembly.getKernelFileBase(k) + ".o"
-                for k in archKernels
-                if "codeObjectFile" not in k
-            ]
-        )
-
-        numObjectFiles = len([1 for k in archKernels if k["KernelLanguage"] == "Assembly"])
-
-        if numObjectFiles == 0:
-            continue
-        if (
-            globalParameters["MergeFiles"]
-            or globalParameters["NumMergedFiles"] > 1
-            or globalParameters["LazyLibraryLoading"]
-        ):
-
-            # Group kernels from placeholder libraries
-            coFileMap = collections.defaultdict(list)
-
-            if len(objectFiles):
-                coFileMap[os.path.join(destDir, "TensileLibrary_" + archName + ".co")] = objectFiles
-
-            for kernel in archKernels:
-                coName = kernel.get("codeObjectFile", None)
-                if coName:
-                    coFileMap[os.path.join(destDir, coName + ".co")] += [
-                        kernelWriterAssembly.getKernelFileBase(kernel) + ".o"
-                    ]
-
-            for coFile, objectFiles in coFileMap.items():
-                args = []
-                if os.name == "nt":
-                    # On Windows, the objectFiles list command line (including spaces)
-                    # exceeds the limit of 8191 characters, so using response file
-
-                    responseArgs = objectFiles
-                    responseFile = os.path.join(asmDir, "clangArgs.txt")
-                    with open(responseFile, "wt") as file:
-                        file.write(" ".join(responseArgs))
-                        file.flush()
-
-                    args = kernelWriterAssembly.getLinkCodeObjectArgs(["@clangArgs.txt"], coFile)
-                else:
-                    args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
-
-                tPrint(2, "Linking objects into co files: " + " ".join(args))
-
-                # change to use  check_output to force windows cmd block util command finish
-                try:
-                    out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)
-                    tPrint(3, out)
-                except subprocess.CalledProcessError as err:
-                    print(err.output)
-                    raise
-
-                coFiles.append(coFile)
-        else:
-            # no mergefiles
-
-            assemblyKernelNames = [kernelWriterAssembly.getKernelFileBase(k) for k in archKernels]
-            origCOFiles = [os.path.join(asmDir, k + ".co") for k in assemblyKernelNames]
-            newCOFiles = [
-                os.path.join(destDir, k + "_" + archName + ".co") for k in assemblyKernelNames
-            ]
-
-            for src, dst in (
-                zip(origCOFiles, newCOFiles)
-                if globalParameters["PrintLevel"] == 0
-                else Utils.tqdm(zip(origCOFiles, newCOFiles), desc="Relocating code objects")
-            ):
-                shutil.copyfile(src, dst)
-            coFiles += newCOFiles
-
-    return coFiles
-
-
-def splitArchs():
-    # Helper for architecture
-    def isSupported(arch):
-        return (
-            globalParameters["AsmCaps"][arch]["SupportedISA"]
-            and globalParameters["AsmCaps"][arch]["SupportedSource"]
-        )
-
-    if ";" in globalParameters["Architecture"]:
-        wantedArchs = globalParameters["Architecture"].split(";")
-    else:
-        wantedArchs = globalParameters["Architecture"].split("_")
-    archs = []
-    cmdlineArchs = []
-
-    if "all" in wantedArchs:
-        for arch in globalParameters["SupportedISA"]:
-            if isSupported(arch):
-                if arch == (9, 0, 6) or arch == (9, 0, 8) or arch == (9, 0, 10):
-                    if arch == (9, 0, 10):
-                        archs += [gfxName(arch) + "-xnack+"]
-                        cmdlineArchs += [gfxName(arch) + ":xnack+"]
-                    archs += [gfxName(arch) + "-xnack-"]
-                    cmdlineArchs += [gfxName(arch) + ":xnack-"]
-                else:
-                    archs += [gfxName(arch)]
-                    cmdlineArchs += [gfxName(arch)]
-    else:
-        for arch in wantedArchs:
-            archs += [re.sub(":", "-", arch)]
-            cmdlineArchs += [arch]
-    return archs, cmdlineArchs
-
-
-def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile, removeTemporaries):
-    buildPath = ensurePath(os.path.join(globalParameters["WorkingPath"], "code_object_tmp"))
-    destDir = ensurePath(os.path.join(outputPath, "library"))
-    (_, filename) = os.path.split(kernelFile)
-    (base, _) = os.path.splitext(filename)
-
-    if "CmakeCxxCompiler" in globalParameters and globalParameters["CmakeCxxCompiler"] is not None:
-        os.environ["CMAKE_CXX_COMPILER"] = globalParameters["CmakeCxxCompiler"]
-
-    objectFilename = base + ".o"
-    soFilename = base + ".so"
-
-    coFilenames = []
-
-    if supportedCompiler(CxxCompiler):
-        archs, cmdlineArchs = splitArchs()
-
-        archFlags = ["--offload-arch=" + arch for arch in cmdlineArchs]
-
-        # needs to be fixed when Maneesh's change is made available
-        hipFlags = ["-D__HIP_HCC_COMPAT_MODE__=1"]
-        hipFlags += (
-            ["--genco"] if CxxCompiler == "hipcc" else ["--cuda-device-only", "-x", "hip", "-O3"]
-        )
-        # if CxxCompiler == "amdclang++":
-        # hipFlags += ["-mllvm", "-amdgpu-early-inline-all=true", "-mllvm", "-amdgpu-function-calls=false"]
-        hipFlags += ["-I", outputPath]
-
-        # Add build-id for builds with rocm 5.3+
-        compilerVer = globalParameters["HipClangVersion"].split(".")[:2]
-        compilerVer = [int(c) for c in compilerVer]
-        if len(compilerVer) >= 2 and (
-            compilerVer[0] > 5 or (compilerVer[0] == 5 and compilerVer[1] > 2)
-        ):
-            hipFlags += ["-Xoffload-linker", "--build-id"]
-
-        launcher = shlex.split(os.environ.get("Tensile_CXX_COMPILER_LAUNCHER", ""))
-
-        if os.name == "nt":
-            hipFlags += [
-                "-std=c++14",
-                "-fms-extensions",
-                "-fms-compatibility",
-                "-fPIC",
-                "-Wno-deprecated-declarations",
-            ]
-            compileArgs = (
-                launcher
-                + [which(CxxCompiler)]
-                + hipFlags
-                + archFlags
-                + [kernelFile, "-c", "-o", os.path.join(buildPath, objectFilename)]
-            )
-        else:
-            compileArgs = (
-                launcher
-                + [which(CxxCompiler)]
-                + hipFlags
-                + archFlags
-                + [kernelFile, "-c", "-o", os.path.join(buildPath, objectFilename)]
-            )
-
-        tPrint(2, f"Build object file command: {compileArgs}")
-        # change to use  check_output to force windows cmd block util command finish
-        try:
-            out = subprocess.check_output(compileArgs, stderr=subprocess.STDOUT)
-            tPrint(3, out)
-        except subprocess.CalledProcessError as err:
-            print(err.output)
-            raise
-
-        # get hipcc version due to compatiblity reasons
-        # If we aren't using hipcc what happens?
-        hipccver = globalParameters["HipClangVersion"].split(".")
-        hipccMaj = int(hipccver[0])
-        hipccMin = int(hipccver[1])
-
-        # for hipclang 5.2 and above, clang offload bundler changes the way input/output files are specified
-        inflag = "-inputs"
-        outflag = "-outputs"
-        if (hipccMaj == 5 and hipccMin >= 2) or hipccMaj >= 6:
-            inflag = "-input"
-            outflag = "-output"
-
-        infile = os.path.join(buildPath, objectFilename)
-        bundler = globalParameters["ClangOffloadBundlerPath"]
-        if bundler is None:
-            raise ValueError(
-                "No bundler available; set TENSILE_ROCM_OFFLOAD_BUNDLER_PATH to point to clang-offload-bundler."
-            )
-        try:
-            bundlerArgs = [bundler, "-type=o", "%s=%s" % (inflag, infile), "-list"]
-            listing = (
-                subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT).decode().split("\n")
-            )
-            for target in listing:
-                matched = re.search("gfx.*$", target)
-                if matched:
-                    arch = re.sub(":", "-", matched.group())
-                    if "TensileLibrary" in base and "fallback" in base:
-                        outfile = os.path.join(buildPath, "{0}_{1}.hsaco".format(base, arch))
-                    elif "TensileLibrary" in base:
-                        variant = [t for t in ["", "xnack-", "xnack+"] if t in target][-1]
-                        baseVariant = base + "-" + variant if variant else base
-                        if arch in baseVariant:
-                            outfile = os.path.join(buildPath, baseVariant + ".hsaco")
-                        else:
-                            outfile = None
-                    else:
-                        outfile = os.path.join(
-                            buildPath, "{0}-000-{1}.hsaco".format(soFilename, arch)
-                        )
-
-                    # Compilation
-                    if outfile:
-                        coFilenames.append(os.path.split(outfile)[1])
-                        # bundlerArgs = [bundler, "-type=o", "-targets=%s" % target, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
-                        bundlerArgs = [
-                            bundler,
-                            "-type=o",
-                            "-targets=%s" % target,
-                            "%s=%s" % (inflag, infile),
-                            "%s=%s" % (outflag, outfile),
-                            "-unbundle",
-                        ]
-                        tPrint(2, "Build source code object file: " + " ".join(bundlerArgs))
-                        # change to use  check_output to force windows cmd block util command finish
-                        out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
-                        tPrint(3, out)
-
-        except subprocess.CalledProcessError as err:
-            tPrint(1, err.output)
-            for i in range(len(archs)):
-                outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
-                coFilenames.append(os.path.split(outfile)[1])
-                # bundlerArgs = [bundler, "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
-                bundlerArgs = [
-                    bundler,
-                    "-type=o",
-                    "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i],
-                    "%s=%s" % (inflag, infile),
-                    "%s=%s" % (outflag, outfile),
-                    "-unbundle",
-                ]
-                tPrint(2, "Build source code object file: " + " ".join(bundlerArgs))
-                # change to use  check_output to force windows cmd block util command finish
-                try:
-                    out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
-                    tPrint(3, out)
-                except subprocess.CalledProcessError as err:
-                    tPrint(1, err.output)
-                    raise
-
-    else:
-        raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
-
-    coFilenames = [name for name in coFilenames]
-    extractedCOs = [os.path.join(buildPath, name) for name in coFilenames]
-    destCOsList = [os.path.join(destDir, name) for name in coFilenames]
-    for src, dst in zip(extractedCOs, destCOsList):
-        if removeTemporaries:
-            shutil.move(src, dst)
-        else:
-            shutil.copyfile(src, dst)
-
-    return destCOsList
-
-
-def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath, removeTemporaries):
-    args = zip(
-        itertools.repeat(CxxCompiler),
-        itertools.repeat(outputPath),
-        kernelFiles,
-        itertools.repeat(removeTemporaries),
-    )
-    coFiles = Common.ParallelMap(buildSourceCodeObjectFile, args, "Compiling source kernels")
-
-    return itertools.chain.from_iterable(coFiles)
-
-
-################################################################################
 def prepAsm(
     kernelWriterAssembly: KernelWriterAssembly,
     isLinux: bool,
@@ -484,9 +176,6 @@ def prepAsm(
             assemblerFile.write(f"{lArgs}\n")
             assemblerFile.write("copy %f%.co ..\..\..\library\%f%_%h%.co\n")
     os.chmod(assemblerFileName, 0o777)
-
-
-ProcessedKernelLookup = Dict[str, Any]
 
 
 def collectFilesToWrite(
@@ -765,6 +454,7 @@ def writeKernelHelpers(
 def writeKernels(
     outputPath: str,
     cxxCompiler: str,
+    bundler: str,
     params: Dict[str, Any],
     solutions: List[Solution],
     kernels: List[Solution],
@@ -842,10 +532,11 @@ def writeKernels(
 
     codeObjectFiles = []
     if not globalParameters["GenerateSourcesAndExit"]:
-        codeObjectFiles += buildSourceCodeObjectFiles(
+        codeObjectFiles += SourceCommands.buildSourceCodeObjectFiles(
             cxxCompiler, kernelFiles, outputPath, removeTemporaries
         )
-        codeObjectFiles += getAssemblyCodeObjectFiles(
+        codeObjectFiles += AssemblyCommands.buildAssemblyCodeObjectFiles(
+            bundler,
             kernelsToBuild,
             kernelWriterAssembly,
             outputPath,
@@ -932,13 +623,8 @@ def buildObjectFileNames(
 
     kernelHelperObjNames = [ko.getKernelName() for ko in kernelHelperObjs]
 
-    cxxCompiler = globalParameters["CxxCompiler"]
-
     # Source based kernels are built for all supported architectures
-    if supportedCompiler(cxxCompiler):
-        sourceArchs, _ = splitArchs()
-    else:
-        raise RuntimeError("Unknown compiler %s" % cxxCompiler)
+    sourceArchs, _ = splitArchs()
 
     # Asm based kernels target the configured ISA
     asmArchs = collections.defaultdict(list)
@@ -974,20 +660,12 @@ def buildObjectFileNames(
         allSources = sourceKernelNames + kernelHelperObjNames
 
         for kernelName in allSources:
-            if supportedCompiler(cxxCompiler):
-                sourceLibFiles += [
-                    "%s.so-000-%s.hsaco" % (kernelName, arch) for arch in sourceArchs
-                ]
-            else:
-                raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
+            sourceLibFiles += ["%s.so-000-%s.hsaco" % (kernelName, arch) for arch in sourceArchs]
     elif globalParameters["NumMergedFiles"] > 1:
-        if supportedCompiler(cxxCompiler):
-            for kernelIndex in range(0, globalParameters["NumMergedFiles"]):
-                sourceLibFiles += [
-                    "Kernels%d.so-000-%s.hsaco" % (kernelIndex, arch) for arch in sourceArchs
-                ]
-        else:
-            raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
+        for kernelIndex in range(0, globalParameters["NumMergedFiles"]):
+            sourceLibFiles += [
+                "Kernels%d.so-000-%s.hsaco" % (kernelIndex, arch) for arch in sourceArchs
+            ]
     elif globalParameters["LazyLibraryLoading"]:
         fallbackLibs = list(
             set(
@@ -1002,13 +680,9 @@ def buildObjectFileNames(
             "{0}_{1}.hsaco".format(name, arch)
             for name, arch in itertools.product(fallbackLibs, sourceArchs)
         ]
-        if supportedCompiler(cxxCompiler):
-            sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
+        sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
     else:  # Merge
-        if supportedCompiler(cxxCompiler):
-            sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
-        else:
-            raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
+        sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
 
     # Returns names for all xnack versions
     def addxnack(name, ext):
@@ -1424,6 +1098,7 @@ def writeBenchmarkClientFiles(
     codeObjectFiles, kernels, solutions = writeKernels(
         libraryWorkingPath,
         cxxCompiler,
+        globalParameters["ClangOffloadBundler"],
         globalParameters,
         solutions,
         kernels,
@@ -1485,6 +1160,7 @@ def verifyManifest(manifest: Path) -> bool:
     with open(manifest, mode="r") as generatedFiles:
         for f in generatedFiles.readlines():
             if not Path(f.rstrip()).exists():
+                printWarning(f"File in manifest ``{f}`` not found.")
                 return False
     return True
 
@@ -1605,7 +1281,7 @@ def generateClientConfig(
 
 
 def generateLazyMasterFileList(
-    masterFileList: List[Tuple[str, MasterSolutionLibrary]]
+    masterFileList: List[Tuple[str, MasterSolutionLibrary]],
 ) -> List[Tuple[str, MasterSolutionLibrary]]:
     """Generates a list of tuples that represent the name and the state associated with the lazy master libraries.
 
@@ -1683,7 +1359,6 @@ def TensileCreateLibrary():
     separateArchs = args["SeparateArchitectures"]
     mergeFiles = args["MergeFiles"]
     embedLibrary = args["EmbedLibrary"]
-    cxxCompiler = args["CxxCompiler"]
     libraryFormat = args["LibraryFormat"]
     logicPath = args["LogicPath"]
     outputPath = args["OutputPath"]
@@ -1703,6 +1378,18 @@ def TensileCreateLibrary():
 
     assignGlobalParameters(args)
 
+    supportedArchs = [
+        gfxName(arch)
+        for arch in globalParameters["SupportedISA"]
+        if globalParameters["AsmCaps"][arch]["SupportedISA"]
+    ]
+
+    _, requestedArchs = splitArchs()
+    if all(a.split(":")[0] not in supportedArchs for a in requestedArchs):
+        printExit(
+            f"No requested architecture is supported by ROCm {globalParameters['HipClangVersion']}\n  Requested {', '.join(requestedArchs)}\n  Supported {', '.join(supportedArchs)}"
+        )
+
     manifestFile = Path(outputPath) / TENSILE_LIBRARY_DIR / TENSILE_MANIFEST_FILENAME
     manifestFile.parent.mkdir(exist_ok=True)
 
@@ -1714,7 +1401,10 @@ def TensileCreateLibrary():
             printExit("Failed to verify all files in manifest")
 
     tPrint(1, "# CodeObjectVersion: %s" % args["CodeObjectVersion"])
-    tPrint(1, "# CxxCompiler:       %s" % cxxCompiler)
+    tPrint(1, "# CxxCompiler:       %s" % args["CxxCompiler"])
+    tPrint(1, "# CCompiler:         %s" % args["CCompiler"])
+    tPrint(1, "# Assembler:         %s" % args["Assembler"])
+    tPrint(1, "# OffloadBundler:    %s" % args["OffloadBundler"])
     tPrint(1, "# Architecture:      %s" % args["Architecture"])
     tPrint(1, "# LibraryFormat:     %s" % libraryFormat)
 
@@ -1744,7 +1434,6 @@ def TensileCreateLibrary():
     masterLibraries = generateLogicData(
         logicFiles, args["Version"], args["PrintLevel"], args["SeparateArchitectures"]
     )
-
     solutions = generateSolutions(masterLibraries, args["SeparateArchitectures"])
     if lazyLoading and args["WriteMasterSolutionIndex"]:
         writeMasterSolutionIndexCSV(outputPath, masterLibraries)
@@ -1791,7 +1480,8 @@ def TensileCreateLibrary():
 
     codeObjectFiles, kernels, solutions = writeKernels(
         outputPath,
-        cxxCompiler,
+        args["CxxCompiler"],
+        globalParameters["ClangOffloadBundlerPath"],
         args,
         solutions,
         kernels,
@@ -1811,17 +1501,12 @@ def TensileCreateLibrary():
     tPrint(2, f"codeObjectFiles: {codeObjectFiles}")
     tPrint(2, f"sourceLibPaths + asmLibPaths: {sourceLibPaths + asmLibPaths}")
 
-    archs = [
-        gfxName(arch)
-        for arch in globalParameters["SupportedISA"]
-        if globalParameters["AsmCaps"][arch]["SupportedISA"]
-    ]
-
     newLibraryDir = Path(outputPath) / "library"
     newLibraryDir.mkdir(exist_ok=True)
 
-    masterFileList = generateMasterFileList(masterLibraries, archs, lazyLoading)
+    masterFileList = generateMasterFileList(masterLibraries, supportedArchs, lazyLoading)
 
+    tPrint(1, f"# Writing {len(masterFileList)} solution selection catalog(s)")
     for name, lib in masterFileList:
         writeMasterFile(newLibraryDir, libraryFormat, kernelMinNaming, name, lib)
 

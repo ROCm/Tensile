@@ -7,9 +7,10 @@ subtrees:
   - file: src/install/installation
     title: Installation
 
-- caption: Concepts
+- caption: Conceptual
   entries:
-  - file: src/conceptual/supported-problems
+  - file: src/conceptual/solution-selection-catalogs
+    title: Solution selection catalogs
 
 - caption: Reference
   entries:
@@ -25,13 +26,17 @@ subtrees:
     - file: src/api-reference/tensile-create-library-api
     - file: src/api-reference/utilities
   - file: src/reference/environment-variables
+    title: Environment variables
+  - file: src/reference/nomenclature
 
 - caption: Contribution
   entries:
   - file: src/how-to/programmers-guide
-    title: Programmer's guide
   - file: src/how-to/contribution-guidelines
-    title: Contribution guidelines
+
+- caption: Support
+  entries:
+  - file: src/support/troubleshooting
 
 - caption: About
   entries:

@@ -6,7 +6,7 @@
 .. _programmers-guide:
 
 ********************************************************************
-Tensile programmer's guide
+Programmer's guide
 ********************************************************************
 
 This topic provides necessary information for programmers interested in contributing to the Tensile source code.
@@ -125,8 +125,6 @@ Next, you can configure, build, and run the host library tests using any of the 
 - Manually: To build and run the tests manually, see the commands in `tasks.py <https://github.com/ROCm/Tensile/blob/develop/tasks.py>`_.
   For advanced usage like filtering or repeating test cases, see the `gtest documentation <https://github.com/google/googletest/blob/main/docs/advanced.md>`_.
 
-..
-   The static analysis and profiling sections are WIP and not to be reviewed.
 ===============
 Static analysis
 ===============

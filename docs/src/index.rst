@@ -8,26 +8,33 @@
 Tensile documentation
 ********************************************************************
 
-Tensile is a tool for creating a benchmark-driven backend library for General Matrix-Matrix Multiplication (GEMM), GEMM-like problems such as batched GEMM, N-dimensional tensor contractions, and anything else that multiplies two multidimensional objects together on an AMD GPU.
+Tensile is a tool for creating a benchmark-driven backend library for General Matrix-Matrix Multiplications (GEMMs), GEMM-like problems such as batched GEMM, N-dimensional tensor contractions, and anything else that multiplies two multidimensional objects together on an AMD GPU.
 
-The code is open source and hosted at: https://github.com/ROCm/Tensile
+Tensile is written in Python for library and kernel generation and in C++ for client headers and library tests. It is a vital
+project in the ROCm ecosystem, providing optimized kernels for downstream libraries such as :doc:`rocBLAS <rocblas:index>`.
+
+The parts of Tensile that are written in Python consist of applications that are collectively responsible
+for generating optimized kernels and library objects to access these kernels from client code.
+
+The code is open source and hosted at https://github.com/ROCm/Tensile
 
 .. grid:: 2
   :gutter: 2
 
   .. grid-item-card:: Install
 
-    * :ref:`Installation <installation>`
+    * :ref:`installation`
 
   .. grid-item-card:: Conceptual
 
-    * :ref:`supported-problems`
+    * :ref:`Solution selection catalogs <solution-selection-catalogs>`
 
   .. grid-item-card:: Reference
 
-    * :ref:`Environment variables <environment-variables>`
-    * :ref:`API reference <api-reference>`
     * :ref:`CLI reference <cli-reference>`
+    * :ref:`API reference <api-reference>`
+    * :ref:`environment-variables`
+    * :ref:`nomenclature`
 
   .. grid-item-card:: Contribution
 

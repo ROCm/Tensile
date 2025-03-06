@@ -41,6 +41,7 @@ from . import LibraryLogic
 from . import __version__
 from datetime import datetime
 from .Utilities.Profile import profile
+from .Utilities.Toolchain import validateToolchain, ToolchainDefaults
 
 ###############################################################################
 # Execute Steps in Config
@@ -124,8 +125,33 @@ def addCommonArguments(argParser):
         help="use serial kernel and solution names")
     argParser.add_argument("--no-merge-files", dest="noMergeFiles", action="store_true", \
         help="kernels and solutions written to individual files")
-    argParser.add_argument("--cxx-compiler", dest="CxxCompiler", choices=["hipcc", 'amdclang++'], \
-        action="store", default="amdclang++", help="select which compiler to use")
+    argParser.add_argument(
+        "--cxx-compiler",
+        dest="CxxCompiler",
+        choices=[ToolchainDefaults.CXX_COMPILER, "hipcc"],
+        default=ToolchainDefaults.CXX_COMPILER,
+        type=str,
+        help="C++ compiler used when generating binaries."
+        " On linux, amdclang++ (default) or hipcc. On Windows clang++ (default) or hipcc.",
+    )
+    argParser.add_argument(
+        "--c-compiler",
+        dest="CCompiler",
+        default=ToolchainDefaults.C_COMPILER,
+        type=str,
+    )
+    argParser.add_argument(
+        "--assembler",
+        dest="Assembler",
+        default=ToolchainDefaults.ASSEMBLER,
+        type=str,
+    )
+    argParser.add_argument(
+        "--offload-bundler",
+        dest="OffloadBundler",
+        default=ToolchainDefaults.OFFLOAD_BUNDLER,
+        type=str,
+    )
     argParser.add_argument("--library-format", dest="LibraryFormat", choices=["yaml", "msgpack"], \
         action="store", help="select which library format to use")
     argParser.add_argument("--client-build-path", default=None)
@@ -280,11 +306,29 @@ def Tensile(userArgs):
 
     capabilitiesCache = LibraryIO.initAsmCapsCache(args.AsmCacheFile)
 
-    # assign global parameters
-    if "GlobalParameters" in config:
-        assignGlobalParameters(config["GlobalParameters"], capabilitiesCache)
-    else:
-        assignGlobalParameters({}, capabilitiesCache)
+    (
+        cxxCompiler,
+        cCompiler,
+        assembler,
+        offloadBundler,
+        hipconfig,
+        deviceEnumerator
+    ) = validateToolchain(
+        args.CxxCompiler,
+        args.CCompiler,
+        args.Assembler,
+        args.OffloadBundler,
+        ToolchainDefaults.HIP_CONFIG,
+        ToolchainDefaults.DEVICE_ENUMERATOR
+    )
+    params = config.get("GlobalParameters", {})
+    params["CxxCompiler"] = cxxCompiler
+    params["CCompiler"] = cCompiler
+    params["Assembler"] = assembler
+    params["OffloadBundler"] = offloadBundler
+    params["HipConfig"] = hipconfig
+    params["ROCmAgentEnumeratorPath"] = deviceEnumerator
+    assignGlobalParameters(params, capabilitiesCache)
 
     if globalParameters["CacheAsmCaps"]:
         LibraryIO.writeAsmCapsCache(args.AsmCacheFile, globalParameters["AsmCaps"])
