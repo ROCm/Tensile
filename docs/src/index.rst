@@ -34,6 +34,7 @@ The code is open source and hosted at https://github.com/ROCm/Tensile
     * :ref:`CLI reference <cli-reference>`
     * :ref:`API reference <api-reference>`
     * :ref:`environment-variables`
+    * :ref:`precision-support`
     * :ref:`nomenclature`
 
   .. grid-item-card:: Contribution

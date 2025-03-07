@@ -27,6 +27,8 @@ subtrees:
     - file: src/api-reference/utilities
   - file: src/reference/environment-variables
     title: Environment variables
+  - file: src/reference/precision-support
+    title: Precision support
   - file: src/reference/nomenclature
 
 - caption: Contribution
