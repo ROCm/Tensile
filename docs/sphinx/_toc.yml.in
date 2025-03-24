@@ -21,9 +21,6 @@ subtrees:
   - file: src/api-reference/api-reference
     title: API reference
     entries:
-    - file: src/api-reference/common
-    - file: src/api-reference/embedded-data
-    - file: src/api-reference/tensile-create-library-api
     - file: src/api-reference/utilities
   - file: src/reference/environment-variables
     title: Environment variables

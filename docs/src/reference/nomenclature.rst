@@ -95,3 +95,23 @@ Bound indices
 -------------
 
 The bound indices are also known as summation indices. These indices are not present in tensor C but in the summation symbol (Sum[k]) and in tensors A and B. The inner products (pairwise multiply then sum) are performed along these indices.
+
+Benchmark run
+==============
+
+In a benchmark run, a set of potential suitor solutions to solve a problem defined by parameterized properties is generated for a benchmark `config <https://github.com/ROCm/Tensile/tree/develop/Tensile/Configs>`_. The generated kernels with specified sizes or ranges are run and their performance is recorded. The best performing kernels for the given benchmark are selected and written to output as Library logic.
+
+Library logic
+==============
+
+Library logic are one or more .yaml files containing benchmarking output results. Usually, one file is generated per gfx architecture per benchmark problem. These files consist of kernel meta-data, mappings to problems that it can solve, and performance data at particular sizes.
+
+Solution
+=========
+
+Solutions are a parameterized representation of a kernel intended to solve a specific problem. When solving a GEMM type of problem, a solution encapsulates a set of fixed parameters that are applied to a generalized GEMM algorithm.
+
+Predicate
+==========
+
+A predicate is a test to either affirm or negate a condition.
