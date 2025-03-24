@@ -2,6 +2,9 @@ defaults:
   numbered: False
 root: src/index
 subtrees:
+entries:
+- file: src/what-is-tensile
+
 - caption: Install
   entries:
   - file: src/install/installation
@@ -31,6 +34,10 @@ subtrees:
   entries:
   - file: src/how-to/programmers-guide
   - file: src/how-to/contribution-guidelines
+
+- caption: Tutorial
+  entries:
+  - file: src/tutorial/benchmark-config-example
 
 - caption: Support
   entries:

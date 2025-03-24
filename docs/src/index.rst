@@ -43,6 +43,14 @@ The code is open source and hosted at https://github.com/ROCm/Tensile
     * :ref:`Programmer's guide <programmers-guide>`
     * :ref:`Contribution guidelines <contribution-guidelines>`
 
+  .. grid-item-card:: Tutorial
+
+    * :ref:`benchmark-config-example`
+
+  .. grid-item-card:: Support
+
+    * :ref:`troubleshooting`
+
 To contribute to the documentation, refer to
 `Contributing to ROCm <https://rocm.docs.amd.com/en/latest/contribute/contributing.html>`_.
 
