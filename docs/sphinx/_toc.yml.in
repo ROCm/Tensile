@@ -10,7 +10,8 @@ subtrees:
 - caption: Conceptual
   entries:
   - file: src/conceptual/solution-selection-catalogs
-    title: Solution selection catalogs
+  - file: src/conceptual/benchmarking
+  - file: src/conceptual/kernel-parameters
 
 - caption: Reference
   entries:

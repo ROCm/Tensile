@@ -28,6 +28,8 @@ The code is open source and hosted at https://github.com/ROCm/Tensile
   .. grid-item-card:: Conceptual
 
     * :ref:`Solution selection catalogs <solution-selection-catalogs>`
+    * :ref:`benchmarking`
+    * :ref:`kernel-parameters`
 
   .. grid-item-card:: Reference
 
