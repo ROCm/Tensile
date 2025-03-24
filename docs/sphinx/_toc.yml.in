@@ -2,8 +2,8 @@ defaults:
   numbered: False
 root: src/index
 subtrees:
-entries:
-- file: src/what-is-tensile
+- entries:
+  - file: src/what-is-tensile
 
 - caption: Install
   entries:
