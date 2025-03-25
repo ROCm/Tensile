@@ -80,7 +80,7 @@ def parseArguments(input: Optional[List[str]] = None) -> Dict[str, Any]:
         help="C++ compiler used when generating binaries."
         "On Linux, amdclang++ (default) or hipcc. On Windows clang++ (default) or hipcc. "
         "On Windows, file extensions will be searched according to the PATHEXT environment variable. "
-        "Pass a fully-qualified path to override environment inspection when searching for the compiler."
+        "Pass a fully-qualified path to override environment inspection when searching for the compiler.",
     )
     parser.add_argument(
         "--c-compiler",
