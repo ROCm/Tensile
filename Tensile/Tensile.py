@@ -131,9 +131,9 @@ def addCommonArguments(argParser):
         default=ToolchainDefaults.CXX_COMPILER,
         type=str,
         help="C++ compiler used when generating binaries."
-        "On linux, amdclang++ (default) or hipcc. On Windows clang++.exe (default) or hipcc. "
-        "Pass a fully-qualified path to override environment inspection when searching for the compiler. "
-        "If clang++.exe is specified, it must include the extension `.exe`.",
+        "On Linux, amdclang++ (default) or hipcc. On Windows clang++ (default) or hipcc. "
+        "On Windows, file extensions will be searched according to the PATHEXT environment variable. "
+        "Pass a fully-qualified path to override environment inspection when searching for the compiler."
     )
     argParser.add_argument(
         "--c-compiler",
