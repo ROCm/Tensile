@@ -4,9 +4,9 @@
 
 .. _what-is-tensile:
 
-================
-What is Tensile
-================
+=================
+What is Tensile?
+=================
 
 Every problem that can be solved with a generalized algorithm can be customized based on the application. When solving problems on AMD GPUs, which are highly configurable and provide many choices for distributing workload, hardware resources, vector parallelization, or unrolling loops, it is important to know your best choices to ensure correct results with the best performance.
 

@@ -8,7 +8,7 @@
 Benchmark config example
 *************************
 
-Tensile uses an incremental and programmable :ref:`benchmarking`. Here is a sample benchmark config.yaml file used as an input to Tensile.
+Tensile uses an incremental and programmable :ref:`benchmarking`. Here is a sample benchmark config.yaml file used as an input to Tensile:
 
 .. code-block:: yaml
 
@@ -116,7 +116,7 @@ To see the exhaustive list of global parameters and their defaults, see `Common.
 Problem type parameters
 ========================
 
-Here is a list of ``ProblemType`` parameters as used under ``BenchmarkProblems`` in the config.yaml file:
+Here is a list of ``ProblemType`` parameters used under ``BenchmarkProblems`` in the config.yaml file:
 
 - ``OperationType``: GEMM or ``TensorContraction``.
 
