@@ -108,7 +108,7 @@ Benchmarking the fork parameters helps to retain one winner per permutation. The
 
 After determining the fastest parameters for all the forked solution permutations, you can choose to reduce the number of winning solutions. When a parameter is listed in the ``JoinParameters`` section, each retained winning solution assumes a different value for that parameter. Listing more parameters in ``JoinParameters`` leads to retention of more winners while having a ``JoinParameters`` section with no listed parameters leads to only one fastest solution.
 
-In the preceding config.yaml sample file, A join is performed over the ``MacroTile`` (work-group x thread-tile). After forking tiles, nine solutions were retained. After joining ``MacroTile``, only six solutions are retained: 16x256, 32x128, 64x64, 128x32 and 256x16. The solutions are retained on the basis of their performance during the last ``BenchmarkForkParameters`` benchmark. In case of no solution being retained during the last benchmark, ``JoinParameters`` conducts a benchmark of all solution candidates to choose the fastest.
+In the preceding config.yaml sample file, A join is performed over the ``MacroTile`` (work-group x thread-tile). After forking tiles, nine solutions were retained. After joining ``MacroTile``, only five solutions are retained: 16x256, 32x128, 64x64, 128x32 and 256x16. The solutions are retained on the basis of their performance during the last ``BenchmarkForkParameters`` benchmark. In case of no solution being retained during the last benchmark, ``JoinParameters`` conducts a benchmark of all solution candidates to choose the fastest.
 
 5. Benchmark join parameters
 -----------------------------
@@ -125,7 +125,6 @@ Comparison between the old and new Tensile versions
 
 .. list-table:: Tensile version comparison
   :header-rows: 1
-  :widths: 30 30 30
 
   * - Tensile version 1
     - Tensile version 2

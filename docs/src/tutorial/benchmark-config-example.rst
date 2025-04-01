@@ -128,9 +128,9 @@ Here is a list of ``ProblemType`` parameters used under ``BenchmarkProblems`` in
 
 - ``HighPrecisionAccumulate``: For tmpC += a*b, ensures using twice the precision for ``tmpC`` as for ``DataType``. Note that this parameter is not implemented yet.
 
-- ``ComplexConjugateA``: True or False; ignored for real precision.
+- ``ComplexConjugateA``: True = The matrix A is stored as a complex conjugate. Ignored for real precision.
 
-- ``ComplexConjugateB``: True or False; ignored for real precision.
+- ``ComplexConjugateB``: True = The matrix B is stored as a complex conjugate. Ignored for real precision.
 
 For OperationType = GEMM only:
 
