@@ -20,12 +20,6 @@ subtrees:
   entries:
   - file: src/cli-reference/cli-reference
     title: CLI reference
-    entries:
-    - file: src/cli-reference/tensile-create-library-cli
-  - file: src/api-reference/api-reference
-    title: API reference
-    entries:
-    - file: src/api-reference/utilities
   - file: src/reference/environment-variables
     title: Environment variables
   - file: src/reference/nomenclature

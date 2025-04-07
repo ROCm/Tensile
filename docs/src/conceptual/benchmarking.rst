@@ -1,6 +1,6 @@
 .. meta::
   :description: Tensile is a tool for creating a benchmark-driven backend library for GEMM
-  :keywords: Tensile concepts, benchmarking, Tensor, Tensile benchmarks
+  :keywords: Tensile concepts, benchmarking, Tensor, tensor, Tensile benchmarks
 
 .. _benchmarking:
 
@@ -84,12 +84,12 @@ Here are a few examples of valid ``ProblemSizes`` for 3D (batched) GEMMs:
 Benchmark phases
 =================
 
-As seen in the `config.yaml` file, benchmarking is performed in the following phases:
+As seen in the config.yaml file, benchmarking is performed in the following phases:
 
 1. Benchmark common parameters
 --------------------------------
 
-During this phase of benchmarking, the parameters common for all solutions for this ``ProblemType`` are examined. During each benchmarking step, there is only one winner. In the preceding config.yaml sample file, the dictionary {EdgeType: [ Branch, ShiftPtr], PrefetchGlobalRead: [False, True]} is benchmarked. Therefore, this benchmark step generates four solution candidates and the fastest ``EdgeType`` and ``PrefetchGlobalRead`` combination wins. If the winner is ET=SP and PGR=T, then all solutions for this ``ProblemType`` assume ET=SP and PGR=T. Also, once a parameter is determined, all subsequent benchmarking steps use this parameter instead of pulling values from ``InitialSolutionParameters``. As the common parameters apply to all the kernels, they are typically compiler- or hardware-dependent parameters than tile-dependent.
+During this phase of benchmarking, the parameters common for all solutions for this ``ProblemType`` are examined. During each benchmarking step, there is only one winner. In the preceding config.yaml sample file, the dictionary {EdgeType: [ Branch, ShiftPtr], PrefetchGlobalRead: [False, True]} is benchmarked. Therefore, this benchmark step generates four solution candidates and the fastest ``EdgeType`` and ``PrefetchGlobalRead`` combination wins. If the winner is EdgeType (ET) = ShiftPtr (SP) and PrefetchGlobalRead (PGR) = True (T), then all solutions for this ``ProblemType`` assume ET = SP and PGR = T. Also, once a parameter is determined, all subsequent benchmarking steps use this parameter instead of pulling values from ``InitialSolutionParameters``. As the common parameters apply to all the kernels, they are typically compiler- or hardware-dependent parameters than tile-dependent.
 
 2. Fork parameters
 -------------------

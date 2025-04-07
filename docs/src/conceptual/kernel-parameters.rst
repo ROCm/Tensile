@@ -1,6 +1,6 @@
 .. meta::
   :description: Tensile is a tool for creating a benchmark-driven backend library for GEMM
-  :keywords: Tensile concepts, solution parameter, Tensor contractions
+  :keywords: Tensile concepts, solution parameter, Tensor contractions, tensor contractions
 
 .. _kernel-parameters:
 
@@ -8,13 +8,12 @@
 Kernel parameters
 ******************
 
-Kernel or solution parameters are configuration parameters used by Tensile to make decisions about what assembly code to generate. The kernel parameters affect many aspects of performance. Changing a parameter might help address one performance bottleneck but worsen another. Hence, searching through the parameter space is vital to discovering the fastest kernel for a given problem.
+Kernel parameters are configuration parameters used by Tensile to make decisions about what assembly code to generate. The kernel parameters affect many aspects of performance. Changing a parameter might help address one performance bottleneck but worsen another. Hence, searching through the parameter space is vital to discovering the fastest kernel for a given problem.
 
 The following table lists the kernel parameters:
 
 .. list-table:: Kernel parameters
   :header-rows: 1
-  :widths: 30 30 30
 
   * - Kernel parameter
     - Description
@@ -71,16 +70,16 @@ The following table lists the kernel parameters:
     - As the thread tile elements are contiguous for faster memory accesses, a ``VectorWidth``= 4 implies that a thread will read a float4 from memory instead of 4 non-contiguous floats.
 
   * - ``KernelLanguage``
-    - Decides if the kernels should be written in the source code (HIP, OpenCL) or assembly (gfx803, gfx900, ...).
+    - Decides if the kernels should be written in the source code (HIP) or assembly (gfx803, gfx900, ...).
 
 For the exhaustive list of solution parameters and their defaults, see `Common.py <https://github.com/ROCm/Tensile/blob/develop/Tensile/Common.py>`_.
 
 GPU kernel dimensions
 ======================
 
-OpenCL allows for 3-dimensional grid of work-groups. Each work-group can be a 3-dimensional grid of work-items. Tensile assigns D0 to the dimension-0 and D1 to the dimension-1 of the work-group and work-item grid. All other free or batch dimensions are flattened into the final dimension-2 of the work-group and work-item grids. Within the GPU kernel, dimension-2 is reconstituted back into whatever dimensions it represents.
+Tensile allows for 3-dimensional grid of work-groups. Each work-group can be a 3-dimensional grid of work-items. Tensile assigns D0 to the dimension-0 and D1 to the dimension-1 of the work-group and work-item grid. All other free or batch dimensions are flattened into the final dimension-2 of the work-group and work-item grids. Within the GPU kernel, dimension-2 is reconstituted back into whatever dimensions it represents.
 
-Mapping between N-dimensional Tensor contractions and finite-dimensional GPU kernels
+Mapping between N-dimensional tensor contractions and finite-dimensional GPU kernels
 --------------------------------------------------------------------------------------
 
 For a traditional GEMM, the 2-dimensional output, C[i,j], is mapped to launching a 2-dimensional grid of work-groups. Each work-group has a 2-dimensional grid of work-items with one dimension belonging to i and another to j. The 1-dimensional summation is represented by a single loop within the kernel body.
@@ -113,7 +112,6 @@ The given kernel name example is a GEMM. The different parts of the kernel name 
 
   .. list-table:: Kernel names
     :header-rows: 1
-    :widths: 30 30 30
 
     * - Code
       - Type

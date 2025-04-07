@@ -1,6 +1,6 @@
 .. meta::
   :description: Tensile is a tool for creating a benchmark-driven backend library for GEMM
-  :keywords: Tensile kernel selection, Tensile solution selection, GEMM, Tensor, ROCm
+  :keywords: Tensile kernel selection, Tensile solution selection, GEMM, Tensor, tensor, ROCm
 
 .. _benchmark-config-example:
 
@@ -91,8 +91,8 @@ Here is a list of ``GlobalParameters`` used in the config.yaml file:
 
 - ``Name``: Prefix to add to the API function names. It is typically the device name.
 - ``MinimumRequiredVersion``: The Tensile version required to interpret the givem config.yaml file.
-- ``RuntimeLanguage``: HIP or OpenCL runtime.
-- ``KernelLanguage``: For OpenCL runtime, set the kernel language to OpenCL. For HIP runtime, set the kernel language to HIP or assembly (gfx803, gfx900).
+- ``RuntimeLanguage``: HIP runtime.
+- ``KernelLanguage``: For HIP runtime, set the kernel language to HIP or assembly (gfx803, gfx900).
 - ``PrintLevel``: 0 = Tensile prints nothing, 1 = Prints sparingly, 2 = Prints extensively.
 - ``ForceRedoBenchmarkProblems``: False = Avoids repeating a benchmark phase if results for it already exist.
 - ``ForceRedoLibraryLogic``: False = Avoids regenerating library logic if it already exist.
@@ -106,8 +106,7 @@ Here is a list of ``GlobalParameters`` used in the config.yaml file:
 - ``ValidationPrintValids``: True = Prints valid validation comparisons including invalids.
 - ``ShortNames``: Converts long kernel, solution, and files names to short serial IDs.
 - ``MergeFiles``: False = Writes each solution and kernel to its own file.
-- ``PlatformIdx``: OpenCL platform ID.
-- ``DeviceIdx``: OpenCL or HIP device ID.
+- ``DeviceIdx``: HIP device ID.
 - ``DataInitType[AB,C]``: Initializes validation data with 0 = 0's, 1 = 1's, 2 = serial, and 3 = random.
 - ``KernelTime``: Ensures using kernel time reported by runtime instead of time reported by APIs using CPU clocks, to compare kernel performance.
 
@@ -132,7 +131,7 @@ Here is a list of ``ProblemType`` parameters used under ``BenchmarkProblems`` in
 
 - ``ComplexConjugateB``: True = The matrix B is stored as a complex conjugate. Ignored for real precision.
 
-For OperationType = GEMM only:
+For ``OperationType`` = GEMM only:
 
 - ``TransposeA``: True or False.
 
@@ -153,8 +152,4 @@ Library logic
 
 Running the ``LibraryLogic`` phase of benchmarking analyzes the benchmark data and encodes a mapping for each ``ProblemType``. For each ``ProblemType``, it maps problem sizes to the best solution (kernel). It is not uncommon for multiple problem sizes to share the same solution, but every kernel must map to at least one problem size.
 
-``LibraryLogic`` files can be used to create a Tensile library for the set of problems. You can use the `3_Library_Logic` directory as a secondary argument when running ``TensileCreateLibrary``:
-
-.. code-block:: shell
-
-    ./Tensile/bin/TensileCreateLibrary path/to/3_LibraryLogic HIP
+``LibraryLogic`` files can be used to create a Tensile library for the set of problems.

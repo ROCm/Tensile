@@ -1,6 +1,6 @@
 .. meta::
   :description: Tensile is a tool for creating a benchmark-driven backend library for GEMM
-  :keywords: Tensile installation, GEMM, Tensor, Build Tensile, Run benchmarks
+  :keywords: Tensile installation, GEMM, Tensor, tensor, Build Tensile, Run benchmarks
 
 .. _installation:
 
@@ -120,20 +120,4 @@ The client is built at the beginning of the build and cached for future builds i
 
 .. note::
 
-  The benchmarking module Tensile.py is written in Python3. The Python scripts generate kernels, build or object files, and all C/C++ files used for benchmarking. Note that Tensile is **NOT** compatible with Python2.
-
-Supported device languages
-============================
-
-Tensile supports the following device languages for GPU kernels:
-
-- HIP (HIP-clang and HCC)
-
-- AMD GCN Assembly
-  - gfx803
-  - gfx900
-  - gfx906
-  - gfx908
-  - gfx1010
-
-- OpenCL 1.2 (untested)
+  The benchmarking module Tensile.py is written in Python3. The programs generate kernels and build all object files and C/C++ files used for benchmarking. Note that Tensile is **NOT** compatible with Python2.

@@ -34,15 +34,15 @@ There are two possible causes for this error:
 - ROCm is installed, but in a non-default location and the binaries can't be found in the system ``PATH``.
 In this case, add the installation location to the ``ROCM_PATH`` on Linux, ``HIP_PATH`` on Windows, or the system ``PATH`` on either.
 
-  - On Linux, use:
+  * On Linux, use:
 
   .. code-block:: shell
 
-   export ROCM_PATH=<path_to_rocm>/bin
+   export ROCM_PATH=<path_to_rocm>
 
-  - On Windows PowerShell, use:
+   - On Windows PowerShell, use:
 
-  .. code-block:: shell
+   .. code-block:: shell
 
-   $env:HIP_PATH = "<path_to_rocm>\bin"``.
+      $env:HIP_PATH = "<path_to_rocm>\bin"``.
 
