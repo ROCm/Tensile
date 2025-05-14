@@ -1,6 +1,6 @@
 # Changelog for Tensile
 
-## (Unreleased) Tensile 4.44.0
+## Tensile 4.44.0 for ROCm 7.0.0
 
 ### Added
 
