@@ -33,7 +33,7 @@ set(TENSILE_ENABLE_DEVICE ON CACHE BOOL "Build device libraries.")
 set(TENSILE_ENABLE_CLIENT OFF CACHE BOOL "Build client app.")
 set(TENSILE_BUILD_TESTING OFF CACHE BOOL "Build host library tests.")
 set(TENSILE_ENABLE_HIP ON CACHE BOOL "")
-set(TENSILE_BUILD_SHARED OFF CACHE BOOL "")
+set(TENSILE_BUILD_SHARED OFF CACHE BOOL "Build shared library.")
 set(TENSILE_ENABLE_MSGPACK ON CACHE BOOL "")
 cmake_dependent_option(TENSILE_ENABLE_LLVM "Use llvm yaml library" OFF "TENSILE_ENABLE_MSGPACK" ON)
 
@@ -49,13 +49,16 @@ if(TENSILE_ENABLE_HOST)
         add_library(tensile-host SHARED)
     else()
         add_library(tensile-host STATIC)
+        set_target_properties(tensile-host PROPERTIES POSITION_INDEPENDENT_CODE ON)
     endif()
-    add_library(tensile::tensile-host ALIAS tensile-host)
     set_target_properties(tensile-host
         PROPERTIES
             CXX_STANDARD 17
             CXX_STANDARD_REQUIRED ON
             CXX_EXTENSIONS OFF)
+    
+
+    add_library(tensile::tensile-host ALIAS tensile-host)
 
     target_link_libraries(tensile-host
         PRIVATE
