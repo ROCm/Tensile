@@ -27,9 +27,10 @@ project(
   VERSION 4.44.0
   LANGUAGES CXX)
 
-include(CMakeDependentOption)
-
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+include(CMakeDependentOption)
+include(TensileSupportedArchitectures)
 
 option(TENSILE_BUILD_SHARED "Build shared library" OFF)
 option(TENSILE_BUILD_TESTING "Build host library tests" OFF)
@@ -47,17 +48,23 @@ cmake_dependent_option(TENSILE_ENABLE_LLVM "Use llvm yaml library" OFF
 cmake_dependent_option(TENSILE_REQUIRE_ROCM_SMI "Require rocm_smi." ON
                        "NOT WIN32" OFF)
 
-set(GPU_TARGETS
-    ""
-    CACHE STRING "AMD GFX targets to cross-compile")
 set(TENSILE_SOURCE_TREE "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile/Source")
 set(TENSILE_CXX_STANDARD
     "17"
     CACHE STRING "C++ standard version to use (14, 17, 20)")
-
 if(NOT TENSILE_CXX_STANDARD MATCHES "^(14|17|20)$")
   message(FATAL_ERROR "TENSILE_CXX_STANDARD must be one of: 14, 17, 20")
 endif()
+
+set(GPU_TARGETS
+    ""
+    CACHE STRING "AMD GFX targets to cross-compile")
+
+if(NOT GPU_TARGETS OR GPU_TARGETS STREQUAL "all")
+    set(GPU_TARGETS "${SUPPORTED_ARCHITECTURES}")
+endif()
+tensile_validate_gpu_targets("${GPU_TARGETS}")
+message(STATUS "Building for GPU targets: ${GPU_TARGETS}")
 
 if(TENSILE_ENABLE_HOST)
   find_package(hip REQUIRED)
