@@ -1,4 +1,4 @@
-################################################################################
+# ##############################################################################
 #
 # Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
 #
@@ -9,8 +9,8 @@
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -20,12 +20,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-################################################################################
+# ##############################################################################
 
 set(_CMAKE_CURRENT_BINARY_DIR "${TENSILE_SOURCE_TREE}/lib/source/hip")
 
-target_sources(tensile-host
-    PRIVATE
-         "${_CMAKE_CURRENT_BINARY_DIR}/HipSolutionAdapter.cpp"
-         "${_CMAKE_CURRENT_BINARY_DIR}/HipHardware.cpp"
-)
+target_sources(
+  tensile-host PRIVATE "${_CMAKE_CURRENT_BINARY_DIR}/HipSolutionAdapter.cpp"
+                       "${_CMAKE_CURRENT_BINARY_DIR}/HipHardware.cpp")

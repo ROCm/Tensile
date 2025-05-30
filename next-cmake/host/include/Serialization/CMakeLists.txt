@@ -1,4 +1,4 @@
-################################################################################
+# ##############################################################################
 #
 # Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
 #
@@ -9,8 +9,8 @@
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -20,25 +20,25 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-################################################################################
+# ##############################################################################
 
-set(_CMAKE_CURRENT_BINARY_DIR "${TENSILE_SOURCE_TREE}/lib/include/Tensile/Serialization")
+set(_CMAKE_CURRENT_BINARY_DIR
+    "${TENSILE_SOURCE_TREE}/lib/include/Tensile/Serialization")
 
-target_sources(tensile-host
-    PRIVATE
-        "${_CMAKE_CURRENT_BINARY_DIR}/GranularitySelectionLibrary.hpp"
-        "${_CMAKE_CURRENT_BINARY_DIR}/Containers.hpp"
-        "${_CMAKE_CURRENT_BINARY_DIR}/PlaceholderLibrary.hpp"
-        "${_CMAKE_CURRENT_BINARY_DIR}/MapLibrary.hpp"
-        "${_CMAKE_CURRENT_BINARY_DIR}/Predicates.hpp"
-        "${_CMAKE_CURRENT_BINARY_DIR}/HasTraits.hpp"
-        "${_CMAKE_CURRENT_BINARY_DIR}/ExactLogicLibrary.hpp"
-        "${_CMAKE_CURRENT_BINARY_DIR}/Properties.hpp"
-        "${_CMAKE_CURRENT_BINARY_DIR}/SolutionLibrary.hpp"
-        "${_CMAKE_CURRENT_BINARY_DIR}/Base.hpp"
-        "${_CMAKE_CURRENT_BINARY_DIR}/DecisionTreeLibrary.hpp"
-        "${_CMAKE_CURRENT_BINARY_DIR}/ContractionPredicates.hpp"
-        "${_CMAKE_CURRENT_BINARY_DIR}/ContractionSolution.hpp"
-        "${_CMAKE_CURRENT_BINARY_DIR}/MatchingLibrary.hpp"
-        "${_CMAKE_CURRENT_BINARY_DIR}/MLFeatures.hpp"
-)
+target_sources(
+  tensile-host
+  PRIVATE "${_CMAKE_CURRENT_BINARY_DIR}/GranularitySelectionLibrary.hpp"
+          "${_CMAKE_CURRENT_BINARY_DIR}/Containers.hpp"
+          "${_CMAKE_CURRENT_BINARY_DIR}/PlaceholderLibrary.hpp"
+          "${_CMAKE_CURRENT_BINARY_DIR}/MapLibrary.hpp"
+          "${_CMAKE_CURRENT_BINARY_DIR}/Predicates.hpp"
+          "${_CMAKE_CURRENT_BINARY_DIR}/HasTraits.hpp"
+          "${_CMAKE_CURRENT_BINARY_DIR}/ExactLogicLibrary.hpp"
+          "${_CMAKE_CURRENT_BINARY_DIR}/Properties.hpp"
+          "${_CMAKE_CURRENT_BINARY_DIR}/SolutionLibrary.hpp"
+          "${_CMAKE_CURRENT_BINARY_DIR}/Base.hpp"
+          "${_CMAKE_CURRENT_BINARY_DIR}/DecisionTreeLibrary.hpp"
+          "${_CMAKE_CURRENT_BINARY_DIR}/ContractionPredicates.hpp"
+          "${_CMAKE_CURRENT_BINARY_DIR}/ContractionSolution.hpp"
+          "${_CMAKE_CURRENT_BINARY_DIR}/MatchingLibrary.hpp"
+          "${_CMAKE_CURRENT_BINARY_DIR}/MLFeatures.hpp")
