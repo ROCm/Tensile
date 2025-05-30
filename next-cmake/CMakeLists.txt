@@ -38,6 +38,8 @@ option(TENSILE_ENABLE_HIP "Enable HIP support" ON)
 option(TENSILE_ENABLE_MSGPACK "Enable MessagePack support" ON)
 option(TENSILE_ENABLE_OPENMP "Enable OpenMP to improve performance" ON)
 cmake_dependent_option(TENSILE_ENABLE_LLVM "Use llvm yaml library" OFF "TENSILE_ENABLE_MSGPACK" ON)
+# rocm-smi is not presently available on Windows so we do not require it.
+cmake_dependent_option(TENSILE_REQUIRE_ROCM_SMI "Require rocm_smi." ON "NOT WIN32" OFF)
 
 set(GPU_TARGETS "" CACHE STRING "AMD GFX targets to cross-compile")
 set(TENSILE_SOURCE_TREE "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile/Source")
@@ -125,18 +127,25 @@ if(TENSILE_ENABLE_DEVICE)
     add_subdirectory(device)
 endif()
 
+if(TENSILE_REQUIRE_ROCM_SMI)
+  find_package(rocm_smi REQUIRED)
+else()
+  find_package(rocm_smi)
+endif()
+
 if(TENSILE_ENABLE_CLIENT)
     find_package(Boost REQUIRED COMPONENTS program_options)
-    find_package(rocm_smi REQUIRED)
     add_library(tensile-client-helper)
     target_link_libraries(tensile-client-helper
         PRIVATE
             Boost::boost
             Boost::program_options
             hip::device
-            rocm_smi64
             tensile-host
     )
+    if(rocm_smi_FOUND)
+        target_link_libraries(tensile-client-helper PRIVATE rocm_smi64)
+    endif()
     target_include_directories(tensile-client-helper
         PUBLIC
             $<BUILD_INTERFACE:${TENSILE_SOURCE_TREE}/client/include>
