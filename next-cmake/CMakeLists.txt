@@ -22,7 +22,7 @@
 # ########################################################################
 
 cmake_minimum_required(VERSION 3.25.2)
-project(tensile VERSION 0.0.0 LANGUAGES CXX)
+project(tensile VERSION 4.44.0 LANGUAGES CXX)
 
 include(CMakeDependentOption)
 
