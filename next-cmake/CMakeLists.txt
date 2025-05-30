@@ -36,11 +36,16 @@ option(TENSILE_ENABLE_DEVICE "Build device libraries" ON)
 option(TENSILE_ENABLE_CLIENT "Build client app" OFF)
 option(TENSILE_ENABLE_HIP "Enable HIP support" ON)
 option(TENSILE_ENABLE_MSGPACK "Enable MessagePack support" ON)
-option(TENSILE_ENABLE_OPENMP "Use OpenMP to improve performance" ON)
+option(TENSILE_ENABLE_OPENMP "Enable OpenMP to improve performance" ON)
 cmake_dependent_option(TENSILE_ENABLE_LLVM "Use llvm yaml library" OFF "TENSILE_ENABLE_MSGPACK" ON)
 
 set(GPU_TARGETS "" CACHE STRING "AMD GFX targets to cross-compile")
 set(TENSILE_SOURCE_TREE "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile/Source")
+set(TENSILE_CXX_STANDARD "17" CACHE STRING "C++ standard version to use (14, 17, 20)")
+
+if(NOT TENSILE_CXX_STANDARD MATCHES "^(14|17|20)$")
+    message(FATAL_ERROR "TENSILE_CXX_STANDARD must be one of: 14, 17, 20")
+endif()
 
 if(TENSILE_ENABLE_HOST)
     find_package(hip REQUIRED)
@@ -50,12 +55,9 @@ if(TENSILE_ENABLE_HOST)
         add_library(tensile-host STATIC)
         set_target_properties(tensile-host PROPERTIES POSITION_INDEPENDENT_CODE ON)
     endif()
-    set_target_properties(tensile-host
-        PROPERTIES
-            CXX_STANDARD 17
-            CXX_STANDARD_REQUIRED ON
-            CXX_EXTENSIONS OFF)
     
+    target_compile_features(tensile-host PUBLIC cxx_std_${TENSILE_CXX_STANDARD})
+    set_target_properties(tensile-host PROPERTIES CXX_EXTENSIONS OFF)
 
     add_library(tensile::tensile-host ALIAS tensile-host)
 
