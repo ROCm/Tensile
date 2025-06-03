@@ -211,7 +211,7 @@ write_basic_package_version_file(
 install(
     TARGETS tensile-host
     EXPORT tensile-targets
-    COMPONENT hipBLAS-common_Development
+    COMPONENT tensile_Development
 )
 install(
     EXPORT tensile-targets
@@ -231,7 +231,7 @@ install(
 )
 install(
     DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/device-library/library"
-    COMPONENT tensile_Documentation
+    COMPONENT tensile_Development
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/tensile"
 )
 install(
