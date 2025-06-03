@@ -176,10 +176,13 @@ if(TENSILE_BUILD_TESTING)
   add_executable(tensile-tests)
   target_link_libraries(
     tensile-tests PRIVATE gtest roc::tensile-host tensile::tensile-test-lib 
-                          LLVMObjectYAML Boost::filesystem hip::host test-device-kernels 
+                          Boost::filesystem hip::host test-device-kernels 
                           tensile-client-lib OpenMP::OpenMP_CXX)
-  target_compile_features(tensile-tests PRIVATE cxx_std_${TENSILE_CXX_STANDARD})
-
+  if(TENSILE_ENABLE_LLVM)
+      target_link_libraries(tensile-tests PRIVATE LLVMObjectYAML)
+      target_compile_features(tensile-tests PRIVATE cxx_std_${TENSILE_CXX_STANDARD})
+  endif()
+  
   target_include_directories(
     tensile-tests
     PRIVATE
