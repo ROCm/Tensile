@@ -10,7 +10,7 @@ Quick Start Guide
 -----------------
 
 This section describes how to configure and build the |project_name| project. We assume the user has a
-ROCm installation, Python 3.8 or newer and CMake 3.25.0 or newer.
+ROCm installation, Python 3.8 or newer and CMake 3.21.2 or newer.
 
 The |project_name| project consists of three components:
 
