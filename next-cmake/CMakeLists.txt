@@ -40,7 +40,7 @@ option(TENSILE_ENABLE_HOST "Build  host library" ON)
 option(TENSILE_ENABLE_DEVICE "Build device libraries" ON)
 option(TENSILE_ENABLE_CLIENT "Build client app" ON)
 option(TENSILE_ENABLE_MSGPACK "Enable MessagePack support" ON)
-option(TENSILE_ENABLE_LLVM "Use llvm yaml library" ON)
+option(TENSILE_ENABLE_LLVM "Use llvm yaml library" OFF)
 cmake_dependent_option(TENSILE_ENABLE_ROCM_SMI "Use rocm_smi." ON "NOT WIN32" OFF)
 set(TENSILE_SOURCE_TREE "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile/Source")
 set(TENSILE_CONFIG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../HostLibraryTests/configs")
@@ -69,6 +69,9 @@ if(TENSILE_ENABLE_HOST)
   target_compile_features(tensile-host PUBLIC cxx_std_${TENSILE_CXX_STANDARD})
   set_target_properties(tensile-host PROPERTIES CXX_EXTENSIONS OFF)
   target_link_libraries(tensile-host PUBLIC hip::device)
+  if(NOT TENSILE_BUILD_SHARED)
+    set_target_properties(tensile-host PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+  endif()
 
   if(TENSILE_ENABLE_MSGPACK)
     find_package(msgpack-cxx CONFIG)
@@ -157,8 +160,7 @@ endif()
 
 if(TENSILE_BUILD_TESTING)
   find_package(Boost REQUIRED COMPONENTS filesystem)
-  #find_package(GTest REQUIRED) we should switch to using find packaged when we are ready to post PR and remove next line
-  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../HostLibraryTests/googletest" "${CMAKE_CURRENT_BINARY_DIR}/googletest")
+  find_package(GTest REQUIRED)
 
   add_library(tensile-test-lib OBJECT)
   add_library(tensile::tensile-test-lib ALIAS tensile-test-lib)
@@ -175,11 +177,14 @@ if(TENSILE_BUILD_TESTING)
 
   add_executable(tensile-tests)
   target_link_libraries(
-    tensile-tests PRIVATE gtest roc::tensile-host tensile::tensile-test-lib 
-                          LLVMObjectYAML Boost::filesystem hip::host test-device-kernels 
+    tensile-tests PRIVATE GTest::gtest roc::tensile-host tensile::tensile-test-lib
+                          Boost::filesystem hip::host test-device-kernels
                           tensile-client-lib OpenMP::OpenMP_CXX)
-  target_compile_features(tensile-tests PRIVATE cxx_std_${TENSILE_CXX_STANDARD})
-
+  if(TENSILE_ENABLE_LLVM)
+      target_link_libraries(tensile-tests PRIVATE LLVMObjectYAML)
+      target_compile_features(tensile-tests PRIVATE cxx_std_${TENSILE_CXX_STANDARD})
+  endif()
+  
   target_include_directories(
     tensile-tests
     PRIVATE
