@@ -65,6 +65,7 @@ Options
 
 *Project wide options*:
 
+* ``GPU_TARGETS``: List of GPU targets to build for, if unset or set to "all", all supported targets will be built (default: unset)
 * ``TENSILE_ENABLE_HOST``: Enables generation of host library (default: ``ON``)
 * ``TENSILE_ENABLE_DEVICE``: Enables generation of device libraries (default: ``ON``)
 * ``TENSILE_ENABLE_CLIENT``: Enables generation of client applications (default: ``ON``)
