@@ -38,6 +38,20 @@ set(_CMAKE_CURRENT_BINARY_DIR "${TENSILE_SOURCE_TREE}/lib/include/Tensile")
 
 target_sources(
   tensile-host
+  PUBLIC $<BUILD_INTERFACE:${_CMAKE_CURRENT_BINARY_DIR}/Contractions.hpp>
+         $<BUILD_INTERFACE:${_CMAKE_CURRENT_BINARY_DIR}/EmbeddedLibrary.hpp>
+         $<BUILD_INTERFACE:${_CMAKE_CURRENT_BINARY_DIR}/PlaceholderLibrary.hpp>
+         $<BUILD_INTERFACE:${_CMAKE_CURRENT_BINARY_DIR}/MasterSolutionLibrary.hpp>
+         $<BUILD_INTERFACE:${_CMAKE_CURRENT_BINARY_DIR}/Tensile.hpp>
+         $<BUILD_INTERFACE:${_CMAKE_CURRENT_BINARY_DIR}/TensorDescriptor.hpp>
+         $<BUILD_INTERFACE:${_CMAKE_CURRENT_BINARY_DIR}/Utils.hpp>
+         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Tensile/Contractions.hpp>
+         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Tensile/EmbeddedLibrary.hpp>
+         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Tensile/PlaceholderLibrary.hpp>
+         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Tensile/MasterSolutionLibrary.hpp>
+         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Tensile/Tensile.hpp>
+         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Tensile/TensorDescriptor.hpp>
+         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Tensile/Utils.hpp>
   PRIVATE "${_CMAKE_CURRENT_BINARY_DIR}/GranularitySelectionLibrary.hpp"
           "${_CMAKE_CURRENT_BINARY_DIR}/ScalarValueTypes.hpp"
           "${_CMAKE_CURRENT_BINARY_DIR}/DataTypes_Half.hpp"

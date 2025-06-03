@@ -26,6 +26,9 @@ set(_CMAKE_CURRENT_BINARY_DIR "${TENSILE_SOURCE_TREE}/lib/include/Tensile/hip")
 
 target_sources(
   tensile-host
-  PRIVATE "${_CMAKE_CURRENT_BINARY_DIR}/HipUtils.hpp"
-          "${_CMAKE_CURRENT_BINARY_DIR}/HipSolutionAdapter.hpp"
-          "${_CMAKE_CURRENT_BINARY_DIR}/HipHardware.hpp")
+  PUBLIC $<BUILD_INTERFACE:${_CMAKE_CURRENT_BINARY_DIR}/HipUtils.hpp>
+         $<BUILD_INTERFACE:${_CMAKE_CURRENT_BINARY_DIR}/HipSolutionAdapter.hpp>
+         $<BUILD_INTERFACE:${_CMAKE_CURRENT_BINARY_DIR}/HipHardware.hpp>
+         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Tensile/hip/HipUtils.hpp>
+         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Tensile/hip/HipSolutionAdapter.hpp>
+         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Tensile/hip/HipHardware.hpp>)

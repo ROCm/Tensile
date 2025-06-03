@@ -28,6 +28,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(CMakeDependentOption)
 include(TensileSupportedArchitectures)
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 option(TENSILE_BUILD_SHARED "Build shared library" OFF)
 option(TENSILE_BUILD_TESTING "Build host library tests" ON)
@@ -63,20 +65,19 @@ if(TENSILE_ENABLE_HOST)
   else()
     add_library(tensile-host STATIC)
   endif()
-
+  add_library(roc::tensile-host ALIAS tensile-host)
   target_compile_features(tensile-host PUBLIC cxx_std_${TENSILE_CXX_STANDARD})
   set_target_properties(tensile-host PROPERTIES CXX_EXTENSIONS OFF)
-
-  add_library(tensile::tensile-host ALIAS tensile-host)
-
   target_link_libraries(tensile-host PUBLIC hip::device)
 
   if(TENSILE_ENABLE_MSGPACK)
     find_package(msgpack-cxx CONFIG)
     if(msgpack-cxx_FOUND)
       message(STATUS "Found msgpack-cxx (>=6.x)")
+      set(TENSILE_MSGPACK msgpack-cxx)
     else()
       find_package(msgpackc-cxx CONFIG REQUIRED NAMES msgpackc-cxx msgpack)
+      set(TENSILE_MSGPACK "msgpackc-cxx CONFIG REQUIRED NAMES msgpackc-cxx msgpack")
       message(STATUS "Found msgpack (<=5.x)")
     endif()
     if(msgpack-cxx_FOUND)
@@ -90,6 +91,7 @@ if(TENSILE_ENABLE_HOST)
   target_include_directories(
     tensile-host
     PUBLIC $<BUILD_INTERFACE:${TENSILE_SOURCE_TREE}/lib/include>
+           $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     PRIVATE "${TENSILE_SOURCE_TREE}/lib/include/Tensile")
 
   if(TENSILE_ENABLE_LLVM)
@@ -117,11 +119,11 @@ if(TENSILE_ENABLE_HOST)
 
   target_compile_definitions(tensile-host PUBLIC TENSILE_USE_HIP)
 
-  add_subdirectory(host)
+  add_subdirectory(host-library)
 endif()
 
 if(TENSILE_ENABLE_DEVICE)
-  add_subdirectory(device)
+  add_subdirectory(device-library)
 endif()
 
 if(TENSILE_ENABLE_ROCM_SMI)
@@ -145,7 +147,7 @@ if(TENSILE_ENABLE_CLIENT)
 
   add_executable(tensile-client)
   target_link_libraries(
-    tensile-client PRIVATE tensile::tensile-host tensile::tensile-client-lib)
+    tensile-client PRIVATE roc::tensile-host tensile::tensile-client-lib)
   target_compile_features(tensile-client PUBLIC cxx_std_${TENSILE_CXX_STANDARD})
   target_compile_definitions(
     tensile-client
@@ -164,7 +166,7 @@ if(TENSILE_BUILD_TESTING)
     tensile-test-lib
     PRIVATE BOOST_ALL_NO_LIB BOOST_ERROR_CODE_HEADER_ONLY BOOST_FILESYSTEM_DYN_LINK)
   target_compile_features(tensile-test-lib PRIVATE cxx_std_${TENSILE_CXX_STANDARD})
-  target_link_libraries(tensile-test-lib PRIVATE tensile::tensile-host)
+  target_link_libraries(tensile-test-lib PRIVATE roc::tensile-host)
 
   target_include_directories(
     tensile-test-lib
@@ -173,7 +175,7 @@ if(TENSILE_BUILD_TESTING)
 
   add_executable(tensile-tests)
   target_link_libraries(
-    tensile-tests PRIVATE gtest tensile::tensile-host tensile::tensile-test-lib 
+    tensile-tests PRIVATE gtest roc::tensile-host tensile::tensile-test-lib 
                           LLVMObjectYAML Boost::filesystem hip::host test-device-kernels 
                           tensile-client-lib OpenMP::OpenMP_CXX)
   target_compile_features(tensile-tests PRIVATE cxx_std_${TENSILE_CXX_STANDARD})
@@ -190,3 +192,46 @@ if(TENSILE_BUILD_TESTING)
   file(MAKE_DIRECTORY "${TEST_DATA_DIR}")
   add_subdirectory(tests)
 endif()
+
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/tensile-config.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/cmake/tensile-config.cmake"
+    @ONLY
+)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/tensile-config-version.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY ExactVersion
+  )
+install(
+    TARGETS tensile-host
+    EXPORT tensile-targets
+    COMPONENT hipBLAS-common_Development
+)
+install(
+    EXPORT tensile-targets
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/tensile"
+    NAMESPACE roc::
+    COMPONENT tensile_Development
+    FILE tensile-targets.cmake
+)
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/tensile-config-version.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/cmake/tensile-config.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/tensile)
+install(
+    FILES "${CMAKE_CURRENT_SOURCE_DIR}/../LICENSE.md"
+    COMPONENT tensile_Documentation
+    DESTINATION "${CMAKE_INSTALL_DOCDIR}"
+)
+install(
+    DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/device-library/library"
+    COMPONENT tensile_Documentation
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/tensile"
+)
+install(
+    DIRECTORY "${TENSILE_SOURCE_TREE}/lib/include/Tensile"
+    COMPONENT tensile_Development
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+)
+export(EXPORT tensile-targets FILE tensile-config.cmake)
