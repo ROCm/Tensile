@@ -74,8 +74,7 @@ Options
 
 *Host library options*:
 
-* ``TENSILE_BUILD_SHARED``: Build the |project_name| shared or static library (default: ``OFF``)
-* ``TENSILE_STATIC_ONLY``: Disable exposing Tensile symbols in a shared library (default: ``ON`` if ``TENSILE_BUILD_SHARED`` is ``OFF``)
+* ``TENSILE_BUILD_SHARED_LIBS``: Build the |project_name| shared or static library (default: ``OFF``)
 * ``TENSILE_ENABLE_MSGPACK``: Enable MessagePack support (default: ``ON``)
 * ``TENSILE_ENABLE_LLVM``: Use LLVM YAML library; this should only be used by project developers and for testing (default: ``OFF``)
 
