@@ -41,7 +41,6 @@ Full build of |project_name|
       cmake -B build                                       \
             -S .                                           \
             -D CMAKE_CXX_COMPILER=/opt/rocm/bin/amdclang++ \
-            -D CMAKE_C_COMPILER=/opt/rocm/bin/amdclang     \
             -D CMAKE_BUILD_TYPE=Release                    \
             -D CMAKE_PREFIX_PATH=/opt/rocm                 \
             -D GPU_TARGETS=gfx1201
