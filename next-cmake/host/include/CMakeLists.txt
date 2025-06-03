@@ -26,13 +26,11 @@ if(TENSILE_ENABLE_LLVM)
   add_subdirectory(llvm)
 endif()
 
-if(TENSILE_ENABLE_HIP)
-  add_subdirectory(hip)
-endif()
-
 if(TENSILE_ENABLE_MSGPACK)
   add_subdirectory(msgpack)
 endif()
+
+add_subdirectory(hip)
 
 add_subdirectory(Serialization)
 

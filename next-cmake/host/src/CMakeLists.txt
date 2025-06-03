@@ -28,12 +28,12 @@ target_sources(
   tensile-host
   PRIVATE "${_CMAKE_CURRENT_BINARY_DIR}/AMDGPU.cpp"
           "${_CMAKE_CURRENT_BINARY_DIR}/ArithmeticUnitTypes.cpp"
-          # "${_CMAKE_CURRENT_BINARY_DIR}/Contractions.cpp"
+          #"${_CMAKE_CURRENT_BINARY_DIR}/Contractions.cpp"
           "${_CMAKE_CURRENT_BINARY_DIR}/ContractionProblem.cpp"
           "${_CMAKE_CURRENT_BINARY_DIR}/ContractionSolution.cpp"
           "${_CMAKE_CURRENT_BINARY_DIR}/DataTypes.cpp"
           "${_CMAKE_CURRENT_BINARY_DIR}/Debug.cpp"
-          # "${_CMAKE_CURRENT_BINARY_DIR}/EmbeddedData.cpp"
+          #"${_CMAKE_CURRENT_BINARY_DIR}/EmbeddedData.cpp"
           "${_CMAKE_CURRENT_BINARY_DIR}/EmbeddedLibrary.cpp"
           "${_CMAKE_CURRENT_BINARY_DIR}/KernelArguments.cpp"
           "${_CMAKE_CURRENT_BINARY_DIR}/KernelLanguageTypes.cpp"
@@ -46,10 +46,6 @@ target_sources(
           "${_CMAKE_CURRENT_BINARY_DIR}/UserDrivenTuningParser.cpp"
           "${_CMAKE_CURRENT_BINARY_DIR}/Utils.cpp")
 
-if(TENSILE_ENABLE_HIP)
-  add_subdirectory(hip)
-endif()
-
 if(TENSILE_ENABLE_LLVM)
   add_subdirectory(llvm)
 endif()
@@ -57,3 +53,5 @@ endif()
 if(TENSILE_ENABLE_MSGPACK)
   add_subdirectory(msgpack)
 endif()
+
+add_subdirectory(hip)

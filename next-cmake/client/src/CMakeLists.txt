@@ -28,7 +28,7 @@ target_sources(tensile-client
                PRIVATE "${_CMAKE_CURRENT_SOURCE_DIR}/../main.cpp")
 
 target_sources(
-  tensile-client-helper
+  tensile-client-lib
   PRIVATE "${_CMAKE_CURRENT_SOURCE_DIR}/BenchmarkTimer.cpp"
           "${_CMAKE_CURRENT_SOURCE_DIR}/CSVStackFile.cpp"
           "${_CMAKE_CURRENT_SOURCE_DIR}/ClientProblemFactory.cpp"
@@ -47,6 +47,6 @@ target_sources(
           "${_CMAKE_CURRENT_SOURCE_DIR}/TimingEvents.cpp")
 
 if(NOT WIN32)
-  target_sources(tensile-client-helper
+  target_sources(tensile-client-lib
                  PRIVATE "${_CMAKE_CURRENT_SOURCE_DIR}/HardwareMonitor.cpp")
 endif()

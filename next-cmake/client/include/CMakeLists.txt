@@ -25,7 +25,7 @@
 set(_CMAKE_CURRENT_SOURCE_DIR "${TENSILE_SOURCE_TREE}/client/include")
 
 target_sources(
-  tensile-client-helper
+  tensile-client-lib
   PRIVATE "${_CMAKE_CURRENT_SOURCE_DIR}/MetaResultReporter.hpp"
           "${_CMAKE_CURRENT_SOURCE_DIR}/HardwareMonitorListener.hpp"
           "${_CMAKE_CURRENT_SOURCE_DIR}/ClientProblemFactory.hpp"

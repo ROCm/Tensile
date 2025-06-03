@@ -24,8 +24,11 @@
 if(TENSILE_ENABLE_LLVM)
   add_subdirectory(llvm)
 endif()
-if(TENSILE_ENABLE_HIP)
-  add_subdirectory(hip)
+
+add_subdirectory(hip)
+
+if(TENSILE_ENABLE_CLIENT)
+  add_subdirectory(client)
 endif()
 
 set(_CMAKE_CURRENT_SOURCE_DIR "${TENSILE_SOURCE_TREE}/../../HostLibraryTests")
@@ -45,21 +48,36 @@ target_sources(
           "${_CMAKE_CURRENT_SOURCE_DIR}/DataTypes_test.cpp"
           "${_CMAKE_CURRENT_SOURCE_DIR}/MultipleSolutionsPerSize_test.cpp"
           "${_CMAKE_CURRENT_SOURCE_DIR}/TestData_test.cpp"
-          "${_CMAKE_CURRENT_SOURCE_DIR}/testlib/source/TestData.cpp"
           "${_CMAKE_CURRENT_SOURCE_DIR}/CachingLibrary_test.cpp"
           "${_CMAKE_CURRENT_SOURCE_DIR}/KernelArguments_test.cpp"
           "${_CMAKE_CURRENT_SOURCE_DIR}/Predicates_test.cpp")
 
-add_subdirectory("${_CMAKE_CURRENT_SOURCE_DIR}/configs"
-                 "${CMAKE_CURRENT_BINARY_TREE}/configs")
+target_sources(
+  tensile-test-lib
+  PRIVATE "${_CMAKE_CURRENT_SOURCE_DIR}/testlib/source/TestData.cpp")
 
-set(TEST_DATA_DIR "${CMAKE_CURRENT_BINARY_DIR}/data")
-file(MAKE_DIRECTORY "${TEST_DATA_DIR}")
+if(TENSILE_ENABLE_LLVM)
+  set(SOLUTION_LIBRARY_FILES
+      "${_CMAKE_CURRENT_SOURCE_DIR}/configs/SolutionLibraries/KernelsLite.yaml"
+      "${_CMAKE_CURRENT_SOURCE_DIR}/configs/SolutionLibraries/KernelsLiteMixed.yaml"
+      "${_CMAKE_CURRENT_SOURCE_DIR}/configs/SolutionLibraries/KernelsLiteNavi.yaml"
+      "${_CMAKE_CURRENT_SOURCE_DIR}/configs/SolutionLibraries/KernelsTileLite.yaml"
+      "${_CMAKE_CURRENT_SOURCE_DIR}/configs/SolutionLibraries/SampleTensileKernels.yaml"
+      "${_CMAKE_CURRENT_SOURCE_DIR}/configs/SolutionLibraries/rocBLAS_Full.yaml")
+endif()
+
+if(TENSILE_ENABLE_MSGPACK)
+  set(SOLUTION_LIBRARY_FILES
+      ${SOLUTION_LIBRARY_FILES}
+      "${_CMAKE_CURRENT_SOURCE_DIR}/configs/SolutionLibraries/KernelsLite.dat"
+      "${_CMAKE_CURRENT_SOURCE_DIR}/configs/SolutionLibraries/KernelsLiteMixed.dat"
+      "${_CMAKE_CURRENT_SOURCE_DIR}/configs/SolutionLibraries/KernelsLiteNavi.dat"
+      "${_CMAKE_CURRENT_SOURCE_DIR}/configs/SolutionLibraries/KernelsTileLite.dat"
+      "${_CMAKE_CURRENT_SOURCE_DIR}/configs/SolutionLibraries/SampleTensileKernels.dat"
+      "${_CMAKE_CURRENT_SOURCE_DIR}/configs/SolutionLibraries/rocBLAS_Full.dat")
+endif()
 
 foreach(FILE ${SOLUTION_LIBRARY_FILES})
-  if(EXISTS ${FILE})
-    message(WARNING "Overwriting ${FILE} from ${FILE}.gz")
-  endif()
   execute_process(COMMAND gzip --keep --decompress --force "${FILE}.gz")
-  file(COPY ${FILE} DESTINATION "${TEST_DATA_DIR}")
+  file(COPY ${FILE} DESTINATION "${TENSILE_TEST_DATA_DIR}")
 endforeach(FILE)

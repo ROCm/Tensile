@@ -21,11 +21,8 @@
 #
 # ##############################################################################
 
-cmake_minimum_required(VERSION 3.25.2)
-project(
-  tensile
-  VERSION 4.44.0
-  LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.21.2)
+project(tensile VERSION 4.44.0 LANGUAGES CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -33,32 +30,23 @@ include(CMakeDependentOption)
 include(TensileSupportedArchitectures)
 
 option(TENSILE_BUILD_SHARED "Build shared library" OFF)
-option(TENSILE_BUILD_TESTING "Build host library tests" OFF)
-option(TENSILE_STATIC_ONLY
-       "Disable exposing Tensile symbols in a shared library" ON)
+option(TENSILE_BUILD_TESTING "Build host library tests" ON)
+cmake_dependent_option(TENSILE_STATIC_ONLY
+    "Disable exposing Tensile symbols in a shared library"
+    ON "NOT TENSILE_BUILD_SHARED" OFF)
 option(TENSILE_ENABLE_HOST "Build  host library" ON)
 option(TENSILE_ENABLE_DEVICE "Build device libraries" ON)
-option(TENSILE_ENABLE_CLIENT "Build client app" OFF)
-option(TENSILE_ENABLE_HIP "Enable HIP support" ON)
+option(TENSILE_ENABLE_CLIENT "Build client app" ON)
 option(TENSILE_ENABLE_MSGPACK "Enable MessagePack support" ON)
-option(TENSILE_ENABLE_OPENMP "Enable OpenMP to improve performance" ON)
-cmake_dependent_option(TENSILE_ENABLE_LLVM "Use llvm yaml library" OFF
-                       "TENSILE_ENABLE_MSGPACK" ON)
-# rocm-smi is not presently available on Windows so we do not require it.
-cmake_dependent_option(TENSILE_REQUIRE_ROCM_SMI "Require rocm_smi." ON
-                       "NOT WIN32" OFF)
-
+option(TENSILE_ENABLE_LLVM "Use llvm yaml library" ON)
+cmake_dependent_option(TENSILE_ENABLE_ROCM_SMI "Use rocm_smi." ON "NOT WIN32" OFF)
 set(TENSILE_SOURCE_TREE "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile/Source")
+set(TENSILE_CONFIG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../HostLibraryTests/configs")
 set(TENSILE_CXX_STANDARD
     "17"
     CACHE STRING "C++ standard version to use (14, 17, 20)")
-if(NOT TENSILE_CXX_STANDARD MATCHES "^(14|17|20)$")
-  message(FATAL_ERROR "TENSILE_CXX_STANDARD must be one of: 14, 17, 20")
-endif()
-
-set(GPU_TARGETS
-    ""
-    CACHE STRING "AMD GFX targets to cross-compile")
+set_property(CACHE TENSILE_CXX_STANDARD PROPERTY STRINGS "14" "17" "20")
+set(GPU_TARGETS "" CACHE STRING "AMD GFX targets to cross-compile")
 
 if(NOT GPU_TARGETS OR GPU_TARGETS STREQUAL "all")
     set(GPU_TARGETS "${SUPPORTED_ARCHITECTURES}")
@@ -66,13 +54,14 @@ endif()
 tensile_validate_gpu_targets("${GPU_TARGETS}")
 message(STATUS "Building for GPU targets: ${GPU_TARGETS}")
 
+find_package(OpenMP REQUIRED)
+
 if(TENSILE_ENABLE_HOST)
   find_package(hip REQUIRED)
   if(TENSILE_BUILD_SHARED)
     add_library(tensile-host SHARED)
   else()
     add_library(tensile-host STATIC)
-    set_target_properties(tensile-host PROPERTIES POSITION_INDEPENDENT_CODE ON)
   endif()
 
   target_compile_features(tensile-host PUBLIC cxx_std_${TENSILE_CXX_STANDARD})
@@ -80,11 +69,7 @@ if(TENSILE_ENABLE_HOST)
 
   add_library(tensile::tensile-host ALIAS tensile-host)
 
-  target_link_libraries(tensile-host PRIVATE hip::device)
-  if(TENSILE_ENABLE_OPENMP)
-    find_package(OpenMP REQUIRED)
-    target_link_libraries(tensile-host PRIVATE OpenMP::OpenMP_CXX)
-  endif()
+  target_link_libraries(tensile-host PUBLIC hip::device)
 
   if(TENSILE_ENABLE_MSGPACK)
     find_package(msgpack-cxx CONFIG)
@@ -95,9 +80,9 @@ if(TENSILE_ENABLE_HOST)
       message(STATUS "Found msgpack (<=5.x)")
     endif()
     if(msgpack-cxx_FOUND)
-      target_link_libraries(tensile-host PRIVATE msgpack-cxx)
+      target_link_libraries(tensile-host PUBLIC msgpack-cxx)
     else()
-      target_link_libraries(tensile-host PRIVATE msgpackc)
+      target_link_libraries(tensile-host PUBLIC msgpackc)
     endif()
     target_compile_definitions(tensile-host PUBLIC TENSILE_MSGPACK=1)
   endif()
@@ -115,7 +100,7 @@ if(TENSILE_ENABLE_HOST)
       NAMES LLVMObjectYAML
       PATHS ${LLVM_LIBRARY_DIR})
     if(LLVMObjectYAML_LIBRARY)
-      target_link_libraries(tensile-host PRIVATE LLVMObjectYAML)
+        target_link_libraries(tensile-host PRIVATE LLVMObjectYAML)
     else()
       target_link_libraries(tensile-host PRIVATE LLVM)
     endif()
@@ -123,8 +108,7 @@ if(TENSILE_ENABLE_HOST)
   endif()
 
   if(TENSILE_ENABLE_LLVM OR TENSILE_ENABLE_MSGPACK)
-    target_compile_definitions(tensile-host
-                               PUBLIC TENSILE_DEFAULT_SERIALIZATION)
+    target_compile_definitions(tensile-host PUBLIC TENSILE_DEFAULT_SERIALIZATION)
   endif()
 
   if(TENSILE_STATIC_ONLY)
@@ -140,43 +124,69 @@ if(TENSILE_ENABLE_DEVICE)
   add_subdirectory(device)
 endif()
 
-if(TENSILE_REQUIRE_ROCM_SMI)
+if(TENSILE_ENABLE_ROCM_SMI)
   find_package(rocm_smi REQUIRED)
-else()
-  find_package(rocm_smi)
 endif()
 
 if(TENSILE_ENABLE_CLIENT)
   find_package(Boost REQUIRED COMPONENTS program_options)
-  add_library(tensile-client-helper)
+  add_library(tensile-client-lib OBJECT)
+  add_library(tensile::tensile-client-lib ALIAS tensile-client-lib)
   target_link_libraries(
-    tensile-client-helper PRIVATE Boost::boost Boost::program_options
-                                  hip::device tensile-host)
+    tensile-client-lib PRIVATE Boost::boost Boost::program_options tensile-host OpenMP::OpenMP_CXX)
+    target_compile_features(tensile-client-lib PUBLIC cxx_std_${TENSILE_CXX_STANDARD})
+
   if(rocm_smi_FOUND)
-    target_link_libraries(tensile-client-helper PRIVATE rocm_smi64)
+    target_link_libraries(tensile-client-lib PRIVATE rocm_smi64)
   endif()
   target_include_directories(
-    tensile-client-helper
+    tensile-client-lib
     PUBLIC $<BUILD_INTERFACE:${TENSILE_SOURCE_TREE}/client/include>)
+
   add_executable(tensile-client)
   target_link_libraries(
-    tensile-client PRIVATE hip::device hip::host tensile-client-helper
-                           tensile-host)
+    tensile-client PRIVATE tensile::tensile-host tensile::tensile-client-lib)
+  target_compile_features(tensile-client PUBLIC cxx_std_${TENSILE_CXX_STANDARD})
+  target_compile_definitions(
+    tensile-client
+    PRIVATE BOOST_ALL_NO_LIB BOOST_PROGRAM_OPTIONS_DYN_LINK)
   add_subdirectory(client)
 endif()
 
 if(TENSILE_BUILD_TESTING)
   find_package(Boost REQUIRED COMPONENTS filesystem)
-  find_package(GTest REQUIRED)
+  #find_package(GTest REQUIRED) we should switch to using find packaged when we are ready to post PR and remove next line
+  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../HostLibraryTests/googletest" "${CMAKE_CURRENT_BINARY_DIR}/googletest")
+
+  add_library(tensile-test-lib OBJECT)
+  add_library(tensile::tensile-test-lib ALIAS tensile-test-lib)
+  target_compile_definitions(
+    tensile-test-lib
+    PRIVATE BOOST_ALL_NO_LIB BOOST_ERROR_CODE_HEADER_ONLY BOOST_FILESYSTEM_DYN_LINK)
+  target_compile_features(tensile-test-lib PRIVATE cxx_std_${TENSILE_CXX_STANDARD})
+  target_link_libraries(tensile-test-lib PRIVATE tensile::tensile-host)
+
+  target_include_directories(
+    tensile-test-lib
+    PUBLIC
+      $<BUILD_INTERFACE:${TENSILE_SOURCE_TREE}/../../HostLibraryTests/testlib/include>)
+
   add_executable(tensile-tests)
   target_link_libraries(
-    tensile-tests PRIVATE Boost::filesystem GTest::gtest tensile-host hip::host
-                          hip::device)
+    tensile-tests PRIVATE gtest tensile::tensile-host tensile::tensile-test-lib 
+                          LLVMObjectYAML Boost::filesystem hip::host test-device-kernels 
+                          tensile-client-lib OpenMP::OpenMP_CXX)
+  target_compile_features(tensile-tests PRIVATE cxx_std_${TENSILE_CXX_STANDARD})
 
   target_include_directories(
     tensile-tests
     PRIVATE
-      $<BUILD_INTERFACE:${TENSILE_SOURCE_TREE}/../../HostLibraryTests/testlib/include>
       $<BUILD_INTERFACE:${TENSILE_SOURCE_TREE}/client/include>)
+
+  # data dir needs to be parallel to tensile-tests
+  # because tensile-tests search for data/ relative 
+  # to its location
+  set(TENSILE_TEST_DATA_DIR "${CMAKE_CURRENT_BINARY_DIR}/../data")
+  file(MAKE_DIRECTORY "${TEST_DATA_DIR}")
   add_subdirectory(tests)
 endif()
