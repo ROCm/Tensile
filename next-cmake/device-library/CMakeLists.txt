@@ -32,7 +32,7 @@ set(TENSILE_CODE_OBJECT_VERSION
     "V4"
     CACHE STRING "Path to directory containing logic files")
 set(TENSILE_OUTPUT_DIR
-    "${CMAKE_CURRENT_BINARY_DIR}/library"
+    "${CMAKE_CURRENT_BINARY_DIR}/../library"
     CACHE STRING "Path to output tensile device libraries")
 set(TENSILE_LOGIC_DIR
     "${tensile_SOURCE_DIR}/../../rocBLAS/library/src/blas3/Tensile/Logic/asm_full"
