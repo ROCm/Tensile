@@ -22,6 +22,18 @@ Each component has a corresponding subdirectory. The host and device libraries a
 configurable and buildable but the client applications require the host library at build time and the
 device libraries at runtime.
 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Integration via `add_subdirectory`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To use Tensile in your project, add it as an out of source subdirectory as follows:
+
+.. code-block:: cmake
+   :linenos:
+   :emphasize-lines: 8
+
+   add_subdirectory(/path/to/Tensile/next-cmake ${CMAKE_CURRENT_BINARY_DIR}/Tensile)
+
 ^^^^^^^^^^^^^^^^^^^
 Configure and build
 ^^^^^^^^^^^^^^^^^^^
@@ -29,6 +41,10 @@ Configure and build
 |project_name| provides modern CMake support and relies on native CMake functionality with exception of
 some project specific options. As such, users are advised to refer to the CMake documentation for
 general usage questions. For details on all configuration options see the options section.
+
+.. note::
+      Tensile is designed to be consumed via `add_subdirectory` and therefore isn't intended to be consumed via standalone builds.
+      Standalone builds are only supported for development and testing purposes.
 
 Full build of |project_name|
 -----------------------
@@ -46,12 +62,6 @@ Full build of |project_name|
             -D GPU_TARGETS=gfx90a
       # build
       cmake --build build --parallel 32
-
-.. tip::
-      **For Developers**
-
-      View debugging info by adding ``--log-level=VERBOSE`` to the configure command.
-
 
 Options
 -------
