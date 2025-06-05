@@ -22,14 +22,13 @@
 #
 # ##############################################################################
 
-# Base architectures - used when "all" is specified
+# Base architectures - used when "all" is specified for GPU_TARGETS
 set(BASE_ARCHITECTURES "")
 
-# All supported architectures including xnack variants - used for validation
+# All supported architectures including xnack variants - used for validation of GPU_TARGETS
 set(SUPPORTED_ARCHITECTURES "")
 
 if(NOT BUILD_ADDRESS_SANITIZER)
-    # Base architectures (default when "all" is used)
     list(APPEND BASE_ARCHITECTURES 
         "gfx803"
         "gfx900"
@@ -50,7 +49,6 @@ if(NOT BUILD_ADDRESS_SANITIZER)
         "gfx1151"
         "gfx1200;gfx1201")
     
-    # Supported architectures include base + xnack variants
     set(SUPPORTED_ARCHITECTURES ${BASE_ARCHITECTURES})
     list(APPEND SUPPORTED_ARCHITECTURES 
         "gfx906:xnack+"
