@@ -65,7 +65,8 @@ if(NOT BUILD_ADDRESS_SANITIZER)
 else()
     # For address sanitizer builds, base and supported are the same
     list(APPEND BASE_ARCHITECTURES 
-        "gfx908:xnack+;gfx90a:xnack+"
+        "gfx908:xnack+"
+        "gfx90a:xnack+"
         "gfx942:xnack+"
         "gfx950:xnack+")
     set(SUPPORTED_ARCHITECTURES ${BASE_ARCHITECTURES})
