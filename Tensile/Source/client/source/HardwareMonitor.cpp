@@ -29,8 +29,8 @@
 #include <chrono>
 #include <cstddef>
 #include <iomanip>
-#include <unistd.h>
 #include <thread>
+#include <unistd.h>
 
 #include <hip/hip_runtime.h>
 
