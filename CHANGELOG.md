@@ -9,7 +9,7 @@
 - venv for Tensile create on Linux
 - Flag to keep build_tmp when running Tensile
 - Generalized profiling scripts
-- GFX1151 support
+- GFX1151 and GFX1150 support
 - Single-threaded support in TensileCreateLibrary
 - Logic to remove temporary build artifacts
 
